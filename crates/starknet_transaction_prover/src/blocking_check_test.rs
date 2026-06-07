@@ -4,9 +4,11 @@ use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
+use starknet_types_core::felt::Felt;
 use url::Url;
 
-use super::{BlockingCheckClient, BlockingCheckResult};
+use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
+use crate::proving::virtual_snos_prover::ScreeningSignature;
 
 fn test_transaction() -> RpcTransaction {
     rpc_invoke_tx(invoke_tx_args!(
@@ -35,7 +37,69 @@ async fn test_success_response_returns_allowed() {
     let client = client_for_server(&server);
     let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
 
-    assert_eq!(result, BlockingCheckResult::Allowed);
+    assert_eq!(result, BlockingCheckResult::Allowed(None));
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_allow_with_signature_returns_allowed_with_signature() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(
+            r#"{"jsonrpc":"2.0","result":{"allowed":true,"signature":{"issued_at":1716579600,"sig_r":"0x6e6f63c8","sig_s":"0x58a68a71"}},"id":1}"#,
+        )
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    assert_eq!(
+        result,
+        BlockingCheckResult::Allowed(Some(ScreeningSignature {
+            issued_at: 1716579600,
+            sig_r: Felt::from_hex_unchecked("0x6e6f63c8"),
+            sig_s: Felt::from_hex_unchecked("0x58a68a71"),
+        }))
+    );
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_allow_without_signature_returns_allowed_none() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(r#"{"jsonrpc":"2.0","result":{"allowed":true},"id":1}"#)
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    assert_eq!(result, BlockingCheckResult::Allowed(None));
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_allow_with_malformed_signature_returns_inconclusive() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(
+            r#"{"jsonrpc":"2.0","result":{"allowed":true,"signature":{"issued_at":1716579600,"sig_r":"not-hex","sig_s":"0x58a68a71"}},"id":1}"#,
+        )
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    assert_eq!(result, BlockingCheckResult::Inconclusive);
     mock.assert_async().await;
 }
 

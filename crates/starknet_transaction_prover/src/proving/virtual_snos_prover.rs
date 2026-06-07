@@ -18,6 +18,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
+use starknet_types_core::felt::Felt;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -37,6 +38,21 @@ pub struct ProveTransactionResult {
     pub proof_facts: ProofFacts,
     /// Messages sent from L2 to L1 during execution.
     pub l2_to_l1_messages: Vec<MessageToL1>,
+}
+
+/// Screening signature the external blocking check service attaches to an allowed,
+/// screened transaction. Relayed verbatim to the prover's client, which submits it
+/// on-chain alongside the proven actions.
+///
+/// `issued_at` is unix seconds; the felts serialize as `0x`-prefixed hex strings.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScreeningSignature {
+    /// Unix timestamp (seconds) at which the signature was issued.
+    pub issued_at: u64,
+    /// ECDSA signature `r` component.
+    pub sig_r: Felt,
+    /// ECDSA signature `s` component.
+    pub sig_s: Felt,
 }
 
 /// Virtual SNOS prover for Starknet transactions.
@@ -239,7 +255,7 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
                 info!("Transaction blocked by external check");
                 false
             }
-            Ok(BlockingCheckResult::Allowed) => {
+            Ok(BlockingCheckResult::Allowed(_)) => {
                 info!("Transaction allowed by external check");
                 true
             }
