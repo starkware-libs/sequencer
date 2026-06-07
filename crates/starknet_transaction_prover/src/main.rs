@@ -13,6 +13,7 @@ async fn main() -> anyhow::Result<()> {
     use std::sync::Arc;
 
     use anyhow::Context;
+    use blockifier_reexecution::compile::verify_sierra_compiler;
     use clap::Parser;
     use starknet_transaction_prover::server::config::{
         CliArgs,
@@ -61,6 +62,10 @@ async fn main() -> anyhow::Result<()> {
         ohttp_enabled = config.ohttp_enabled,
         "Starting Starknet transaction prover."
     );
+
+    // Fail fast if the Sierra compiler binary is missing or has the wrong version, instead
+    // of panicking on the first proving request that needs Sierra compilation.
+    verify_sierra_compiler();
 
     // Build and start the JSON-RPC server.
     let rpc_impl = ProvingRpcServerImpl::from_config(&config);

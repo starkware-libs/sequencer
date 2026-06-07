@@ -38,6 +38,14 @@ static SIERRA_COMPILER: LazyLock<SierraCompiler> = LazyLock::new(|| {
     })
 });
 
+/// Eagerly initializes the lazily-constructed Sierra compiler. Construction verifies that
+/// the compiler binary is installed and matches the required version, so calling this at
+/// process startup surfaces a missing or mismatched binary as an immediate, actionable
+/// failure instead of a panic on the first compilation that needs it.
+pub fn verify_sierra_compiler() {
+    LazyLock::force(&SIERRA_COMPILER);
+}
+
 /// Maps `LegacyEntryPointsByType` to a `HashMap` where each `EntryPointType`
 /// is associated with a vector of `EntryPoint`. Converts selectors and offsets
 /// from legacy format to new `EntryPoint` struct.

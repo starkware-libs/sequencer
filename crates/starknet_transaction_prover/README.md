@@ -306,6 +306,41 @@ A convenience script is available for parameterized builds:
 ./scripts/build_starknet_transaction_prover.sh --target-cpu znver5
 ```
 
+## Running natively (without Docker)
+
+The service shells out to the `starknet-sierra-compile` binary to compile Sierra classes during
+transaction re-execution. The Docker image bundles it; for a native run, install it first:
+
+```bash
+# From the repository root:
+bash scripts/install_compiler_binaries.sh --sierra
+```
+
+The script installs the binary to `$CARGO_TOOLS_ROOT/starknet-sierra-compile-<version>/bin/`
+(default `~/.cargo/tools`), which is where the service looks it up at runtime. The version is
+read from `crates/apollo_infra_utils/src/cairo_compiler_version.txt` — the same file the service
+binary embeds at build time — so run the script from the same checkout the service was built
+from. Installing from a different branch or commit can yield a version mismatch, which the
+service rejects at startup.
+
+Without a repository checkout, the equivalent direct installation is:
+
+```bash
+# <version> is the content of crates/apollo_infra_utils/src/cairo_compiler_version.txt
+# at the commit the service binary was built from.
+cargo install --locked starknet-sierra-compile --version <version> \
+    --root "$HOME/.cargo/tools/starknet-sierra-compile-<version>"
+```
+
+Notes:
+
+- Invoke the install script via `bash` as shown above: its `#!/bin/env bash` shebang does not
+  resolve on macOS, where `env` lives at `/usr/bin/env`.
+- Set `CARGO_TOOLS_ROOT` to use a non-default installation location; the service reads it at
+  startup.
+- If the compiler binary is missing or has the wrong version, the service exits at startup with
+  installation instructions.
+
 ## Kubernetes deployment
 
 Mount a ConfigMap containing your JSON config file and pass its path via `--config-file`.
