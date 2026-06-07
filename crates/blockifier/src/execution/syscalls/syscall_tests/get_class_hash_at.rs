@@ -2,9 +2,11 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, class_hash, contract_address, felt};
 use test_case::test_case;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
@@ -93,5 +95,40 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
         error
             .to_string()
             .contains("Unauthorized syscall get_class_hash_at in execution mode Validate.")
+    );
+}
+
+/// Tests that `get_class_hash_at` is rejected (hard error) when called with the alias contract
+/// address.
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
+#[test_case(RunnableCairo1::Casm;"VM")]
+fn test_get_class_hash_at_alias_contract_address_rejected(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+
+    let alias_contract_address = VersionedConstants::latest_constants()
+        .os_constants
+        .os_contract_addresses
+        .alias_contract_address();
+    // Dummy values for the expected class hash and non-existing address arguments.
+    let dummy_class_hash = felt!("0x0");
+    let dummy_non_existing_address = felt!("0x333");
+
+    let entry_point_call = CallEntryPoint {
+        calldata: calldata![
+            alias_contract_address.into(),
+            dummy_class_hash,
+            dummy_non_existing_address
+        ],
+        entry_point_selector: selector_from_name("test_get_class_hash_at"),
+        ..trivial_external_entry_point_new(test_contract)
+    };
+    let error = entry_point_call.execute_directly(&mut state).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("get_class_hash_at on the alias contract address is not allowed"),
+        "Unexpected error: {error}"
     );
 }
