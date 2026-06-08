@@ -102,9 +102,9 @@ mod OsResourcesTestContract {
         // contract address, in a non-trivial way (see `normalize_address` in the cairo0 core). For
         // this reason we deploy from zero, and choose a specific salt.
         // base (no calldata):
-        deploy_syscall(stable_class_hash, 1, array![0].span(), true).unwrap_syscall();
+        deploy_syscall(stable_class_hash, 3, array![0].span(), true).unwrap_syscall();
         // linear factor (calldata len = 1):
-        deploy_syscall(stable_class_hash, 1, array![1, 0].span(), true).unwrap_syscall();
+        deploy_syscall(stable_class_hash, 3, array![1, 0].span(), true).unwrap_syscall();
 
         // emit event syscall.
         emit_event_syscall(array![5].span(), array![7].span()).unwrap_syscall();
