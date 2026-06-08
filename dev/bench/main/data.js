@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780933994599,
+  "lastUpdate": 1780948726328,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5609,6 +5609,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1331.4766722,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eae40dbbe122a9f7fb69ba40eb64d78928251833",
+          "message": "apollo_gateway: add compute_big_storage_key + cross-language fixture. (#14117)\n\nRenames and relocates the GCS-naming helper per review feedback:\n\n* The helper moves from `ProofFacts::big_storage_key` (in `starknet_api`)\n  to a free function `compute_big_storage_key` alongside\n  `GcsProofArchiveWriter` in `apollo_gateway::proof_archive_writer`. The\n  storage-naming contract was coupling a public API type to the GCS\n  layer; the new home keeps it next to the only producer of those keys.\n* Renames `big_storage_key` → `compute_big_storage_key` since the\n  function does Poseidon work — `compute_` signals derivation, not a\n  property read.\n* As a free function (not a trait method), the helper stays callable\n  from any consumer side without requiring a `ProofArchiveWriter`\n  instance + GCS config.\n\nAlso moves the JSON fixture under `apollo_gateway/resources/` and the\nexpect-test under `apollo_gateway/src/proof_archive_writer_test.rs`.\nDrops the redundant `starts_with(\"proofs/\")` rstest — the fixture pins\nexact strings, of which the prefix is a strict subset.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-08T19:37:16Z",
+          "tree_id": "3274d05a52862670b15e93a264856eb8e33a3f00",
+          "url": "https://github.com/starkware-libs/sequencer/commit/eae40dbbe122a9f7fb69ba40eb64d78928251833"
+        },
+        "date": 1780948725935,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 827.09182578,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1270.62009924,
             "unit": "ms"
           }
         ]
