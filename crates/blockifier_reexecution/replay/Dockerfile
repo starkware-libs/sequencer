@@ -82,11 +82,11 @@ RUN cargo chef cook --release -p blockifier_reexecution --features cairo_native 
 COPY . .
 RUN cargo build --release -p blockifier_reexecution --features cairo_native
 
-# Install compiler binaries used for Sierra compilation at runtime.
-# Binaries land under $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the
-# final stage below COPYs the entire $CARGO_TOOLS_ROOT tree so this layout is
-# preserved at runtime.
-RUN scripts/install_compiler_binaries.sh
+# Install the Sierra-to-Native compiler binary used at runtime (Sierra-to-Casm
+# compilation is done in-process). The binary lands under
+# $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the final stage below COPYs
+# the entire $CARGO_TOOLS_ROOT tree so this layout is preserved at runtime.
+RUN scripts/install_compiler_binaries.sh --native
 
 # =============================================================================
 # Stage 4: Final runtime image
@@ -104,9 +104,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV ID=1001
 WORKDIR /app
 
-# Copy the binary and both compilers (Sierra-to-CASM and Sierra-to-Native).
+# Copy the binary and the Sierra-to-Native compiler.
 COPY --from=builder /app/target/release/blockifier_reexecution ./target/release/blockifier_reexecution
-# Per-version compiler binaries; their absolute path is constructed from
+# Per-version compiler binary; its absolute path is constructed from
 # $CARGO_TOOLS_ROOT at runtime.
 ENV CARGO_TOOLS_ROOT=/opt/cargo-tools
 COPY --from=builder /var/tmp/rust/tools ${CARGO_TOOLS_ROOT}
