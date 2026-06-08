@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780915568756,
+  "lastUpdate": 1780918412534,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -237,6 +237,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1282.7753702999998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7db57cab032e272e189296b58866535e2557e458",
+          "message": "blockifier_reexecution: compile Sierra to Casm in-process via library call (#14406)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-08T11:20:00Z",
+          "tree_id": "57ed905d92db8387f7478b1ee8084be172fb78e0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7db57cab032e272e189296b58866535e2557e458"
+        },
+        "date": 1780918412094,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 923.3813019099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1426.37206782,
             "unit": "ms"
           }
         ]
