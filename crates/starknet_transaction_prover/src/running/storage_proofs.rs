@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
@@ -13,7 +14,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     Preimage,
     PreimageMap,
 };
-use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_rust::providers::jsonrpc::HttpTransport;
 use starknet_rust::providers::{JsonRpcClient, Provider};
@@ -147,6 +148,154 @@ pub(crate) fn merge_storage_proofs(
     }
 
     RpcStorageProof { classes_proof, contracts_proof, contracts_storage_proofs, global_roots }
+}
+
+/// For each storage delete in `state_diff`, walks the contract's storage-trie proof toward the
+/// deleted key and returns crafted keys that — when queried in a follow-up `get_storage_proof` —
+/// force the RPC to expose preimages of sibling subtrees the committer needs to canonicalize the
+/// post-deletion tree.
+///
+/// Returns an empty vec when no extra preimages are needed (no deletes, all required siblings
+/// already present, or the contract's storage trie is empty).
+#[allow(dead_code)] // Wired into get_storage_proofs in a follow-up PR.
+pub(crate) fn compute_missing_sibling_keys(
+    rpc_proof: &RpcStorageProof,
+    query: &RpcStorageProofsQuery,
+    state_diff: &StateMaps,
+) -> Result<Vec<ContractStorageKeys>, ProofProviderError> {
+    let mut crafted_keys_to_query: BTreeMap<ContractAddress, BTreeSet<Felt>> = BTreeMap::new();
+
+    for ((addr, key), value) in &state_diff.storage {
+        if *value != Felt::ZERO {
+            continue;
+        }
+        // `query.contract_addresses`, `rpc_proof.contracts_proof.contract_leaves_data`, and
+        // `rpc_proof.contracts_storage_proofs` are built together by `prepare_query` and share
+        // index order.
+        let Some(idx) = query.contract_addresses.iter().position(|a| a == addr) else { continue };
+        let leaf = &rpc_proof.contracts_proof.contract_leaves_data[idx];
+        let nodes = &rpc_proof.contracts_storage_proofs[idx];
+        let root = leaf.storage_root.ok_or_else(|| {
+            ProofProviderError::InvalidProofResponse(format!(
+                "contract {addr:?} has a storage delete but no storage_root in the proof"
+            ))
+        })?;
+        if let Some(crafted) = missing_collapse_sibling_key(root, *key.0.key(), nodes)? {
+            crafted_keys_to_query.entry(*addr).or_default().insert(crafted);
+        }
+    }
+
+    Ok(crafted_keys_to_query
+        .into_iter()
+        .map(|(addr, keys)| ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: keys.into_iter().collect(),
+        })
+        .collect())
+}
+
+/// Walks the storage proof from `root_hash` toward `key` and returns the single crafted key that,
+/// queried on a follow-up `get_storage_proof`, exposes the preimage of the sibling at the *deepest*
+/// binary node on the path — the node that collapses into an edge when `key` is deleted.
+///
+/// Only that one sibling can matter. When `key` is deleted, the deepest binary node's on-path child
+/// becomes empty and the node collapses into an edge pointing at its sibling. If the sibling is
+/// itself an edge, the committer must merge the two edges' paths (`PathToBottom::concat_paths`),
+/// which needs the sibling's real edge data; if the sibling is a binary node or a leaf, the
+/// committer builds the correct node from the sibling's hash alone (already carried by the parent
+/// node / the dummy node from `add_dummy_nodes_for_orphan_hashes`, exactly as for non-deletion
+/// updates). We can't tell an orphan sibling's type from the proof, so we fetch the deepest one
+/// whenever its preimage is absent; the committer ignores it harmlessly if it turns out non-edge.
+/// Every shallower binary node keeps a non-empty on-path child (the collapsed edge) and is merely
+/// rehashed, so its sibling never needs a preimage.
+///
+/// Returns `None` when nothing is needed: no binary node on the path, the deepest sibling is
+/// already present or is a leaf-level storage value, or `key` is absent from the trie (an edge
+/// diverges from `key` — a phantom delete that changes nothing).
+fn missing_collapse_sibling_key(
+    root_hash: Felt,
+    key: Felt,
+    proof_nodes: &IndexMap<Felt, MerkleNode, RandomState>,
+) -> Result<Option<Felt>, ProofProviderError> {
+    let storage_tree_height = usize::from(SubTreeHeight::ACTUAL_HEIGHT.0);
+    let leaf_index = NodeIndex::from_leaf_felt(&key);
+
+    let mut current_index = NodeIndex::ROOT;
+    let mut current_hash = root_hash;
+    let mut depth = 0usize;
+    // The off-path child (index, hash) of the deepest binary node seen so far. Overwritten at every
+    // binary node, so once the walk ends it holds the node that actually collapses on deletion.
+    let mut collapse_sibling: Option<(NodeIndex, Felt)> = None;
+
+    while !current_index.is_leaf() {
+        let Some(node) = proof_nodes.get(&current_hash) else { break };
+        match node {
+            MerkleNode::BinaryNode(bn) => {
+                let [left_index, right_index] = current_index.get_children_indices();
+                let (next_index, next_hash, sibling_index, sibling_hash) =
+                    if leaf_index.is_descendant_of(&left_index) {
+                        (left_index, bn.left, right_index, bn.right)
+                    } else {
+                        (right_index, bn.right, left_index, bn.left)
+                    };
+                collapse_sibling = Some((sibling_index, sibling_hash));
+                current_index = next_index;
+                current_hash = next_hash;
+                depth += 1;
+            }
+            MerkleNode::EdgeNode(en) => {
+                let edge_len = usize::try_from(en.length).map_err(|_| {
+                    ProofProviderError::InvalidProofResponse(format!(
+                        "edge node {current_hash:#x} has length {} that doesn't fit in usize",
+                        en.length
+                    ))
+                })?;
+                // An edge can't extend past the leaf level in a valid trie; reject malformed proofs
+                // here so the index shifts below can't overflow `NodeIndex::MAX`.
+                if depth + edge_len > storage_tree_height {
+                    return Err(ProofProviderError::InvalidProofResponse(format!(
+                        "edge node {current_hash:#x} of length {edge_len} at depth {depth} extends \
+                         past the leaf level (tree height {storage_tree_height})"
+                    )));
+                }
+                let edge_len = u8::try_from(edge_len).expect("edge_len <= tree height fits in u8");
+                let path_index = NodeIndex::from_felt_value(&en.path);
+                // A path must fit in its declared length; stray higher bits mean a malformed proof.
+                if path_index >= NodeIndex::ROOT << edge_len {
+                    return Err(ProofProviderError::InvalidProofResponse(format!(
+                        "edge node {current_hash:#x} path {:#x} exceeds its length {edge_len}",
+                        en.path
+                    )));
+                }
+                let bottom_index = (current_index << edge_len) + path_index;
+                // If `key` doesn't descend through this edge it isn't in the trie: a zero-write to
+                // a missing key is a no-op, so nothing collapses.
+                if !leaf_index.is_descendant_of(&bottom_index) {
+                    return Ok(None);
+                }
+                current_index = bottom_index;
+                current_hash = en.child;
+                depth += usize::from(edge_len);
+            }
+        }
+    }
+
+    let Some((sibling_index, sibling_hash)) = collapse_sibling else { return Ok(None) };
+    // A leaf-level sibling is a storage value merged by hash; an already-present sibling needs no
+    // follow-up. Only an orphan internal sibling requires a crafted key.
+    if sibling_index.is_leaf() || proof_nodes.contains_key(&sibling_hash) {
+        return Ok(None);
+    }
+    // Any leaf under the sibling exposes its preimage on a follow-up query; descend to the
+    // left-most one and convert it back to a storage key (strip the leading `FIRST_LEAF` bit).
+    let mut crafted_leaf_index = sibling_index;
+    while !crafted_leaf_index.is_leaf() {
+        crafted_leaf_index = crafted_leaf_index << 1;
+    }
+    let crafted_key = Felt::try_from(crafted_leaf_index - NodeIndex::FIRST_LEAF).map_err(|e| {
+        ProofProviderError::InvalidProofResponse(format!("crafted sibling key out of range: {e}"))
+    })?;
+    Ok(Some(crafted_key))
 }
 
 /// Configuration for storage proof provider behavior.
