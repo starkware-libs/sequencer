@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780926844646,
+  "lastUpdate": 1780927680273,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5507,6 +5507,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1477.18066913,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39fe75d2b589052c63eb4892a094a2924b63f772",
+          "message": "starknet_patricia: add storage proof verification (#14296)",
+          "timestamp": "2026-06-08T13:48:26Z",
+          "tree_id": "2e3fe936ed75476d0eea150c4978e905aa839e6b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/39fe75d2b589052c63eb4892a094a2924b63f772"
+        },
+        "date": 1780927679841,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 923.4634688,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1398.40812126,
             "unit": "ms"
           }
         ]
