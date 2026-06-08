@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
@@ -13,7 +14,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     Preimage,
     PreimageMap,
 };
-use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_rust::providers::jsonrpc::HttpTransport;
 use starknet_rust::providers::{JsonRpcClient, Provider};
@@ -147,6 +148,186 @@ pub(crate) fn merge_storage_proofs(
     }
 
     RpcStorageProof { classes_proof, contracts_proof, contracts_storage_proofs, global_roots }
+}
+
+/// For each contract with storage deletes in `state_diff`, walks the contract's storage-trie proof
+/// and returns crafted keys that — when queried in a follow-up `get_storage_proof` — force the RPC
+/// to expose the preimages of the sibling subtrees the committer needs to canonicalize the
+/// post-deletion tree.
+///
+/// Deleting a leaf empties its subtree; when a binary node ends up with exactly one empty child it
+/// collapses into an edge pointing at the surviving child, and to canonicalize that edge the
+/// committer needs the surviving child's preimage (e.g. to merge edge paths via
+/// `PathToBottom::concat_paths`). A plain `get_storage_proof` only carries that sibling as an
+/// orphan hash, so we craft a key routing into its subtree. Deletes are handled per contract as a
+/// *set*, because they interact: deleting both children of a node empties it and pushes the
+/// collapse up to its parent, whose surviving child is the one that must be fetched.
+///
+/// Returns an empty vec when no extra preimages are needed (no deletes, all required siblings
+/// already present or leaf-level, the trie is empty, or the deleted keys aren't in the trie).
+#[allow(dead_code)] // Wired into get_storage_proofs in a follow-up PR.
+pub(crate) fn compute_missing_sibling_keys(
+    rpc_proof: &RpcStorageProof,
+    query: &RpcStorageProofsQuery,
+    state_diff: &StateMaps,
+) -> Result<Vec<ContractStorageKeys>, ProofProviderError> {
+    // `query.contract_addresses`, `rpc_proof.contracts_proof.contract_leaves_data`, and
+    // `rpc_proof.contracts_storage_proofs` are built together by `prepare_query` and share index
+    // order, so a single address->index map indexes all three.
+    let address_to_index: HashMap<&ContractAddress, usize> =
+        query.contract_addresses.iter().enumerate().map(|(index, addr)| (addr, index)).collect();
+
+    // Group deleted storage keys (writes of zero) by contract, as leaf indices in its storage trie.
+    let mut deleted_leaves_by_address: BTreeMap<ContractAddress, Vec<NodeIndex>> = BTreeMap::new();
+    for ((addr, key), value) in &state_diff.storage {
+        if *value == Felt::ZERO {
+            deleted_leaves_by_address
+                .entry(*addr)
+                .or_default()
+                .push(NodeIndex::from_leaf_felt(key.0.key()));
+        }
+    }
+
+    let mut result = Vec::new();
+    for (addr, deleted_leaves) in deleted_leaves_by_address {
+        let Some(&idx) = address_to_index.get(&addr) else { continue };
+        let leaf = &rpc_proof.contracts_proof.contract_leaves_data[idx];
+        let nodes = &rpc_proof.contracts_storage_proofs[idx];
+        // No `storage_root` means an empty storage trie (mirrors `build_storage_commitment_infos`).
+        // Deleting from an empty trie is a no-op, so there is no sibling to fetch.
+        let Some(root) = leaf.storage_root else { continue };
+
+        let mut crafted_keys = BTreeSet::new();
+        subtree_empties(NodeIndex::ROOT, root, &deleted_leaves, nodes, &mut crafted_keys)?;
+        if !crafted_keys.is_empty() {
+            result.push(ContractStorageKeys {
+                contract_address: *addr.0.key(),
+                storage_keys: crafted_keys.into_iter().collect(),
+            });
+        }
+    }
+
+    Ok(result)
+}
+
+/// Recursively determines whether the subtree rooted at (`index`, `hash`) becomes empty once the
+/// leaves in `deleted` (the deleted leaf indices that fall in this subtree) are removed, and as a
+/// side effect records a crafted key into `crafted_keys` for every collapse sibling whose preimage
+/// the committer will need.
+///
+/// A binary node collapses to its surviving child exactly when one side empties; the committer then
+/// needs that child's preimage, but only when it is an unmodified orphan (a modified child's nodes
+/// are already in the proof, and a leaf-level child is merged by hash). The recursion mirrors the
+/// committer's own `node_from_binary_data`/`node_from_edge_data` collapse handling.
+///
+/// Returns an error if a node on a deleted key's path is missing from the proof: a deleted key is
+/// always read (hence queried), so a complete proof must contain its full path.
+fn subtree_empties(
+    index: NodeIndex,
+    hash: Felt,
+    deleted: &[NodeIndex],
+    proof_nodes: &IndexMap<Felt, MerkleNode, RandomState>,
+    crafted_keys: &mut BTreeSet<Felt>,
+) -> Result<bool, ProofProviderError> {
+    // An unmodified subtree keeps all its leaves, so it stays non-empty.
+    if deleted.is_empty() {
+        return Ok(false);
+    }
+    // A leaf reached with a delete on it (`deleted` can only hold this very index here) is removed.
+    if index.is_leaf() {
+        return Ok(true);
+    }
+    let Some(node) = proof_nodes.get(&hash) else {
+        return Err(ProofProviderError::InvalidProofResponse(format!(
+            "storage proof is missing inner node {hash:#x} on a deleted key's path"
+        )));
+    };
+    match node {
+        MerkleNode::BinaryNode(bn) => {
+            let [left_index, right_index] = index.get_children_indices();
+            let left_deleted: Vec<NodeIndex> =
+                deleted.iter().copied().filter(|leaf| leaf.is_descendant_of(&left_index)).collect();
+            let right_deleted: Vec<NodeIndex> = deleted
+                .iter()
+                .copied()
+                .filter(|leaf| leaf.is_descendant_of(&right_index))
+                .collect();
+            let left_empties =
+                subtree_empties(left_index, bn.left, &left_deleted, proof_nodes, crafted_keys)?;
+            let right_empties =
+                subtree_empties(right_index, bn.right, &right_deleted, proof_nodes, crafted_keys)?;
+            // Collapse to the surviving child when exactly one side empties. Only an unmodified
+            // surviving child (no deletes of its own) is an orphan that needs fetching.
+            match (left_empties, right_empties) {
+                (true, false) if right_deleted.is_empty() => {
+                    record_collapse_sibling(right_index, bn.right, proof_nodes, crafted_keys)?;
+                }
+                (false, true) if left_deleted.is_empty() => {
+                    record_collapse_sibling(left_index, bn.left, proof_nodes, crafted_keys)?;
+                }
+                _ => {}
+            }
+            Ok(left_empties && right_empties)
+        }
+        MerkleNode::EdgeNode(_) => {
+            // Reuse the crate's existing RPC-node -> Patricia conversion for the edge's
+            // path/bottom.
+            let Preimage::Edge(edge) = Preimage::from(node) else {
+                unreachable!("node matched MerkleNode::EdgeNode")
+            };
+            // An edge can't extend past the leaf level in a valid trie; reject malformed proofs so
+            // `compute_bottom_index`'s shift can't overflow `NodeIndex::MAX`.
+            let storage_tree_height = usize::from(SubTreeHeight::ACTUAL_HEIGHT.0);
+            let depth = storage_tree_height - usize::from(index.leading_zeros());
+            let edge_len = usize::from(u8::from(edge.path_to_bottom.length));
+            if depth + edge_len > storage_tree_height {
+                return Err(ProofProviderError::InvalidProofResponse(format!(
+                    "edge node {hash:#x} of length {edge_len} at depth {depth} extends past the \
+                     leaf level (tree height {storage_tree_height})"
+                )));
+            }
+            let bottom_index = NodeIndex::compute_bottom_index(index, &edge.path_to_bottom);
+            // Deletes that don't descend through the edge target keys absent from the trie (no-op
+            // deletes); they leave this subtree unchanged.
+            let descending: Vec<NodeIndex> = deleted
+                .iter()
+                .copied()
+                .filter(|leaf| leaf.is_descendant_of(&bottom_index))
+                .collect();
+            if descending.is_empty() {
+                return Ok(false);
+            }
+            subtree_empties(
+                bottom_index,
+                edge.bottom_data.0,
+                &descending,
+                proof_nodes,
+                crafted_keys,
+            )
+        }
+    }
+}
+
+/// Records a crafted key that routes into the collapse sibling's subtree, so a follow-up
+/// `get_storage_proof` exposes its preimage. Skips leaf-level siblings (merged by hash) and
+/// siblings already present in the proof.
+fn record_collapse_sibling(
+    sibling_index: NodeIndex,
+    sibling_hash: Felt,
+    proof_nodes: &IndexMap<Felt, MerkleNode, RandomState>,
+    crafted_keys: &mut BTreeSet<Felt>,
+) -> Result<(), ProofProviderError> {
+    if sibling_index.is_leaf() || proof_nodes.contains_key(&sibling_hash) {
+        return Ok(());
+    }
+    // Any leaf under the sibling exposes its preimage on a follow-up query; take the left-most one
+    // (shift the sibling index down to the leaf layer) and strip the leading `FIRST_LEAF` bit.
+    let crafted_leaf_index = sibling_index << sibling_index.leading_zeros();
+    let crafted_key = Felt::try_from(crafted_leaf_index - NodeIndex::FIRST_LEAF).map_err(|e| {
+        ProofProviderError::InvalidProofResponse(format!("crafted sibling key out of range: {e}"))
+    })?;
+    crafted_keys.insert(crafted_key);
+    Ok(())
 }
 
 /// Configuration for storage proof provider behavior.

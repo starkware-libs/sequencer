@@ -68,21 +68,27 @@ impl NodeIndex {
     }
 
     // TODO(Amos, 1/5/2024): Move to EdgePath.
-    pub(crate) fn compute_bottom_index(
-        index: NodeIndex,
-        path_to_bottom: &PathToBottom,
-    ) -> NodeIndex {
+    pub fn compute_bottom_index(index: NodeIndex, path_to_bottom: &PathToBottom) -> NodeIndex {
         let PathToBottom { path, length, .. } = path_to_bottom;
         (index << u8::from(*length)) + Self::new(path.into())
     }
 
-    pub(crate) fn get_children_indices(&self) -> [Self; 2] {
+    pub fn get_children_indices(&self) -> [Self; 2] {
         let left_child = *self << 1;
         [left_child, left_child + 1]
     }
 
+    /// Returns `true` if `self` lies in the subtree rooted at `ancestor`, where a node is
+    /// considered a descendant of itself (`self == ancestor` returns `true`).
+    pub fn is_descendant_of(&self, ancestor: &NodeIndex) -> bool {
+        let self_bit_length = self.bit_length();
+        let ancestor_bit_length = ancestor.bit_length();
+        self_bit_length >= ancestor_bit_length
+            && (self.0 >> u32::from(self_bit_length - ancestor_bit_length)) == ancestor.0
+    }
+
     /// Returns the number of leading zeroes when represented with Self::BITS bits.
-    pub(crate) fn leading_zeros(&self) -> u8 {
+    pub fn leading_zeros(&self) -> u8 {
         (self.0.leading_zeros() - (U256::BITS - u32::from(Self::BITS)))
             .try_into()
             .expect("Leading zeroes are unexpectedly larger than a u8.")
