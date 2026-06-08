@@ -525,15 +525,12 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): L1Handler.
-    const N_TXS: usize = 5;
+    const N_TXS: usize = 7;
 
     // For linear factor measurements, it's not enough to just add one more calldata element; the
     // increase is not the same per element. The linear scale is on average.
-    const INVOKE_SCALING_FACTOR: usize = 2;
-    const DEPLOY_SCALING_FACTOR: usize = 2;
-    const INVOKE_EXTRA_ARGS: usize = 10;
-    const DEPLOY_EXTRA_ARGS: usize = 10;
+    const NON_TRIVIAL_SCALING_FACTOR: usize = 2;
+    const N_EXTRA_ARGS: usize = 10;
 
     let OsResourcesTestSetup {
         stable_contract_address,
@@ -566,7 +563,7 @@ async fn test_execute_txs_inner_resources() {
             deploy_account_tx_args! {
                 class_hash: stable_contract_class_hash,
                 resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-                constructor_calldata: span_calldata(DEPLOY_EXTRA_ARGS),
+                constructor_calldata: span_calldata(N_EXTRA_ARGS),
                 // The stable contract was already deployed (from deployer address zero) with
                 // trivial salt, so use non-trivial salt to get a new address.
                 contract_address_salt: ContractAddressSalt(Felt::from(100)),
@@ -594,7 +591,7 @@ async fn test_execute_txs_inner_resources() {
     // Invoke: scale-factor more calldata elements.
     let invoke_args = invoke_tx_args! {
         sender_address: stable_contract_address,
-        calldata: span_calldata(INVOKE_EXTRA_ARGS),
+        calldata: span_calldata(N_EXTRA_ARGS),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         nonce: test_builder.next_nonce(stable_contract_address),
     };
@@ -620,6 +617,25 @@ async fn test_execute_txs_inner_resources() {
     // Deploy account (pre-prepared).
     test_builder.add_deploy_account_tx(deploy_tx_first);
     test_builder.add_deploy_account_tx(deploy_tx_second);
+
+    // L1 handler.
+    test_builder.add_l1_handler(
+        stable_contract_address,
+        "l1_handler",
+        // From address, extra args length.
+        calldata![Felt::from(100), Felt::ZERO],
+        None,
+    );
+    test_builder.add_l1_handler(
+        stable_contract_address,
+        "l1_handler",
+        // From address, extra args.
+        Calldata(Arc::new(
+            [vec![Felt::from(100), Felt::from(N_EXTRA_ARGS)], vec![Felt::ZERO; N_EXTRA_ARGS]]
+                .concat(),
+        )),
+        None,
+    );
 
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
@@ -664,6 +680,8 @@ async fn test_execute_txs_inner_resources() {
         declare_constant,
         deploy_first,
         deploy_second,
+        l1_handler_first,
+        l1_handler_second,
     ]: [ExecutionResources; N_TXS] = test_output
         .runner_output
         .txs_trace
@@ -684,12 +702,16 @@ async fn test_execute_txs_inner_resources() {
     // For transaction types with linear factors, the first call has one linear element (calldata
     // length, of zero), so one linear cost must be subtracted from the first measurement to get the
     // base cost.
-    let invoke_linear_factor = (&(&invoke_second - &invoke_first).filter_unused_builtins()
-        * INVOKE_SCALING_FACTOR)
-        .div_ceil(INVOKE_EXTRA_ARGS);
-    let deploy_linear_factor = (&(&deploy_second - &deploy_first).filter_unused_builtins()
-        * DEPLOY_SCALING_FACTOR)
-        .div_ceil(DEPLOY_EXTRA_ARGS);
+    let compute_linear_factor =
+        |first: &ExecutionResources, second: &ExecutionResources, scaling_factor: usize| {
+            (&(second - first).filter_unused_builtins() * scaling_factor).div_ceil(N_EXTRA_ARGS)
+        };
+    let invoke_linear_factor =
+        compute_linear_factor(&invoke_first, &invoke_second, NON_TRIVIAL_SCALING_FACTOR);
+    let deploy_linear_factor =
+        compute_linear_factor(&deploy_first, &deploy_second, NON_TRIVIAL_SCALING_FACTOR);
+    // L1 handler linear factor is unscaled.
+    let l1_handler_linear_factor = compute_linear_factor(&l1_handler_first, &l1_handler_second, 1);
     raw_vc.os_resources.execute_txs_inner.extend([
         (
             TransactionType::InvokeFunction,
@@ -697,7 +719,7 @@ async fn test_execute_txs_inner_resources() {
                 constant: (&invoke_first - &invoke_linear_factor).filter_unused_builtins(),
                 calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
                     resources: invoke_linear_factor,
-                    scaling_factor: INVOKE_SCALING_FACTOR,
+                    scaling_factor: NON_TRIVIAL_SCALING_FACTOR,
                 }),
             }),
         ),
@@ -708,8 +730,15 @@ async fn test_execute_txs_inner_resources() {
                 constant: (&deploy_first - &deploy_linear_factor).filter_unused_builtins(),
                 calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
                     resources: deploy_linear_factor,
-                    scaling_factor: DEPLOY_SCALING_FACTOR,
+                    scaling_factor: NON_TRIVIAL_SCALING_FACTOR,
                 }),
+            }),
+        ),
+        (
+            TransactionType::L1Handler,
+            VariableResourceParams::WithFactor(ResourcesParams {
+                constant: (&l1_handler_first - &l1_handler_linear_factor).filter_unused_builtins(),
+                calldata_factor: VariableCallDataFactor::Unscaled(l1_handler_linear_factor),
             }),
         ),
     ]);
