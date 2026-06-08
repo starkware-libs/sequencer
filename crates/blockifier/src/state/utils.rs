@@ -9,7 +9,6 @@ use crate::state::state_api::{StateReader, StateResult};
 /// Returns the compiled class hash (v2) of the given class hash.
 /// Returns `StateError::MissingCompiledClassHashV2` if no v1_class is found for the given class
 /// hash.
-#[allow(dead_code)]
 pub fn get_compiled_class_hash_v2(
     state_reader: &impl StateReader,
     class_hash: ClassHash,
