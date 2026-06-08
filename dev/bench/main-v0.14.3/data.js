@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780848208684,
+  "lastUpdate": 1780915568756,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -203,6 +203,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1712.9419976,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7b6e4162c07b5a48544f8b71524225f9f1a59eb6",
+          "message": "apollo_http_server,blockifier_reexecution,starknet_api: move tx json deserializer to starknet_api (#14408)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-08T10:31:32Z",
+          "tree_id": "4e12069e2cd4ab7868dc81f8613ae3ec5311d74e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7b6e4162c07b5a48544f8b71524225f9f1a59eb6"
+        },
+        "date": 1780915568379,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 858.66186678,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1282.7753702999998,
             "unit": "ms"
           }
         ]
