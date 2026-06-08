@@ -35,3 +35,4 @@
 ~ /os_resources/execute_txs_inner/InvokeFunction/constant/builtin_instance_counter/poseidon_builtin: 11
 ~ /os_resources/execute_txs_inner/InvokeFunction/constant/builtin_instance_counter/range_check_builtin: 110
 ~ /os_resources/execute_txs_inner/InvokeFunction/constant/n_steps: 4779
+~ /os_resources/execute_txs_inner/L1Handler/constant/n_steps: 1329
