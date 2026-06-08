@@ -21,13 +21,18 @@ use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
-use starknet_api::executable_transaction::{InvokeTransaction, TransactionType};
+use starknet_api::core::{ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::executable_transaction::{
+    DeployAccountTransaction,
+    InvokeTransaction,
+    TransactionType,
+};
+use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
+use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
 use starknet_os::test_utils::{SHA256_BATCH_RESOURCES_LINEAR_UNSCALED, SHA256_BATCH_SIZE};
 use starknet_types_core::felt::Felt;
@@ -499,16 +504,59 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): DeployAccount, L1Handler.
-    const N_TXS: usize = 3;
+    // TODO(Dori): L1Handler.
+    const N_TXS: usize = 5;
 
     // For linear factor measurements, it's not enough to just add one more calldata element; the
     // increase is not the same per element. The linear scale is on average.
     const INVOKE_SCALING_FACTOR: usize = 2;
+    const DEPLOY_SCALING_FACTOR: usize = 2;
     const INVOKE_EXTRA_ARGS: usize = 10;
+    const DEPLOY_EXTRA_ARGS: usize = 10;
 
-    let OsResourcesTestSetup { stable_contract_address, mut test_builder, .. } =
-        setup_test_builder(Some(&raw_vc)).await;
+    let OsResourcesTestSetup {
+        stable_contract_address,
+        stable_contract_class_hash,
+        mut test_builder,
+        ..
+    } = setup_test_builder(Some(&raw_vc)).await;
+
+    // Prepare the deploy account txs in advance, so we can fund the address before moving to the
+    // next block (just so the funding tx is not in our measurement block). Use the stable contract
+    // to prevent noise from changing contract address.
+    let deploy_tx_first = DeployAccountTransaction::create(
+        deploy_account_tx(
+            deploy_account_tx_args! {
+                class_hash: stable_contract_class_hash,
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                constructor_calldata: calldata![Felt::ZERO],
+                // The stable contract was already deployed (from deployer address zero) with
+                // trivial salt, so use non-trivial salt to get a new address.
+                contract_address_salt: ContractAddressSalt(Felt::from(100)),
+            },
+            Nonce::default(),
+        ),
+        &test_builder.chain_id(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(deploy_tx_first.contract_address);
+    let deploy_tx_second = DeployAccountTransaction::create(
+        deploy_account_tx(
+            deploy_account_tx_args! {
+                class_hash: stable_contract_class_hash,
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                constructor_calldata: span_calldata(DEPLOY_EXTRA_ARGS),
+                // The stable contract was already deployed (from deployer address zero) with
+                // trivial salt, so use non-trivial salt to get a new address.
+                contract_address_salt: ContractAddressSalt(Felt::from(100)),
+            },
+            Nonce::default(),
+        ),
+        &test_builder.chain_id(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(deploy_tx_second.contract_address);
+    test_builder.move_to_next_block();
 
     // Invoke.
     let invoke_args = invoke_tx_args! {
@@ -548,6 +596,10 @@ async fn test_execute_txs_inner_resources() {
         &test_builder.chain_id(),
     );
 
+    // Deploy account (pre-prepared).
+    test_builder.add_deploy_account_tx(deploy_tx_first);
+    test_builder.add_deploy_account_tx(deploy_tx_second);
+
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
     let business_logic_resources: [ExecutionResources; N_TXS] = test_runner
@@ -580,7 +632,13 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_first, invoke_second, declare_constant]: [ExecutionResources; N_TXS] = test_output
+    let [
+        invoke_first,
+        invoke_second,
+        declare_constant,
+        deploy_first,
+        deploy_second,
+    ]: [ExecutionResources; N_TXS] = test_output
         .runner_output
         .txs_trace
         .iter()
@@ -603,6 +661,9 @@ async fn test_execute_txs_inner_resources() {
     let invoke_linear_factor = (&(&invoke_second - &invoke_first).filter_unused_builtins()
         * INVOKE_SCALING_FACTOR)
         .div_ceil(INVOKE_EXTRA_ARGS);
+    let deploy_linear_factor = (&(&deploy_second - &deploy_first).filter_unused_builtins()
+        * DEPLOY_SCALING_FACTOR)
+        .div_ceil(DEPLOY_EXTRA_ARGS);
     raw_vc.os_resources.execute_txs_inner.extend([
         (
             TransactionType::InvokeFunction,
@@ -615,6 +676,16 @@ async fn test_execute_txs_inner_resources() {
             }),
         ),
         (TransactionType::Declare, VariableResourceParams::Constant(declare_constant)),
+        (
+            TransactionType::DeployAccount,
+            VariableResourceParams::WithFactor(ResourcesParams {
+                constant: (&deploy_first - &deploy_linear_factor).filter_unused_builtins(),
+                calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
+                    resources: deploy_linear_factor,
+                    scaling_factor: DEPLOY_SCALING_FACTOR,
+                }),
+            }),
+        ),
     ]);
 
     // Verify computation.
