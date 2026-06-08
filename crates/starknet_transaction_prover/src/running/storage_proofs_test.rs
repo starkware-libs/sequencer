@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
+use indexmap::IndexMap;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
@@ -13,6 +14,7 @@ use starknet_rust_core::types::{
     ContractLeafData,
     ContractStorageKeys,
     ContractsProof,
+    EdgeNode,
     GlobalRoots,
     MerkleNode,
     StorageProof as RpcStorageProof,
@@ -21,6 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::running::storage_proofs::{
     collect_query,
+    compute_missing_sibling_keys,
     count_total_keys,
     flatten_query,
     merge_storage_proofs,
@@ -32,6 +35,41 @@ use crate::running::storage_proofs::{
 };
 use crate::running::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
 use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
+
+/// Builds an `RpcStorageProof` + `RpcStorageProofsQuery` for a single contract whose storage
+/// trie's nodes are exactly `nodes`. `storage_root` is the trie root hash.
+fn single_contract_proof(
+    addr: ContractAddress,
+    storage_root: Felt,
+    nodes: IndexMap<Felt, MerkleNode>,
+) -> (RpcStorageProof, RpcStorageProofsQuery) {
+    let query = RpcStorageProofsQuery {
+        class_hashes: vec![],
+        contract_addresses: vec![addr],
+        contract_storage_keys: vec![ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: vec![],
+        }],
+    };
+    let proof = RpcStorageProof {
+        classes_proof: IndexMap::default(),
+        contracts_proof: ContractsProof {
+            nodes: IndexMap::default(),
+            contract_leaves_data: vec![ContractLeafData {
+                nonce: Felt::ZERO,
+                class_hash: Felt::ZERO,
+                storage_root: Some(storage_root),
+            }],
+        },
+        contracts_storage_proofs: vec![nodes],
+        global_roots: GlobalRoots {
+            contracts_tree_root: Felt::ZERO,
+            classes_tree_root: Felt::ZERO,
+            block_hash: Felt::ZERO,
+        },
+    };
+    (proof, query)
+}
 
 /// Fixture: Creates initial reads with the STRK contract and storage slot 0.
 #[rstest::fixture]
@@ -265,4 +303,231 @@ fn test_split_merge_roundtrip() {
     assert_split_merge_identity(&make_query(10, 20, &[]), 15);
     // Tight limit forces many small chunks.
     assert_split_merge_identity(&make_query(3, 4, &[8, 6, 3]), 3);
+}
+
+/// Storage trie shape under test:
+///
+/// ```text
+///        A   (edge, path=000, length=3)
+///        |
+///        v
+///        B   (binary)
+///       / \
+///      C   D   <- D = orphan: hash present in B, preimage absent from the proof
+///      |
+///      | (edge, length=247)
+///      v
+///     leaf
+/// ```
+///
+/// Deleting the leaf under C (storage key `0`) forces B to collapse into an edge
+/// rooted at D, which requires D's preimage. The helper must therefore emit a
+/// crafted key that routes through D's subtree on a follow-up `get_storage_proof`.
+#[test]
+fn test_compute_missing_sibling_keys_orphan_on_delete_path() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let (a, b, c, d_orphan, leaf) =
+        (Felt::from(1u64), Felt::from(2u64), Felt::from(3u64), Felt::from(4u64), Felt::from(5u64));
+
+    let mut nodes = IndexMap::default();
+    nodes.insert(a, MerkleNode::EdgeNode(EdgeNode { path: Felt::ZERO, length: 3, child: b }));
+    nodes.insert(b, MerkleNode::BinaryNode(BinaryNode { left: c, right: d_orphan }));
+    nodes.insert(c, MerkleNode::EdgeNode(EdgeNode { path: Felt::ZERO, length: 247, child: leaf }));
+
+    let storage_root = a;
+    let (proof, query) = single_contract_proof(addr, storage_root, nodes);
+
+    // Deleting the leftmost key (storage key `0`) routes through C; D becomes the orphan.
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::ZERO);
+
+    let result = compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap();
+
+    // D sits at trie depth 4 (3 from A's edge + 1 from B's binary-right). The crafted key
+    // must route there: top bits = "0001", everything else zero. Bit (251 - 4) = 247.
+    let expected_crafted_key = Felt::TWO.pow(247_u32);
+    assert_eq!(
+        result,
+        vec![ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: vec![expected_crafted_key],
+        }]
+    );
+}
+
+/// Storage trie shape under test (two binary nodes on the delete path):
+///
+/// ```text
+///        R   (binary)
+///       / \
+///      B2  S1   <- S1 = orphan (no preimage), but R only rehashes on delete
+///     /  \
+///    C    S2    <- S2 = orphan (no preimage); B2 is the node that collapses
+///    |
+///    | (edge, length=249)
+///    v
+///   leaf
+/// ```
+///
+/// Deleting the leaf (storage key `0`) collapses only `B2` — the deepest binary node — into an
+/// edge rooted at `S2`, so only `S2`'s preimage is needed. `R` keeps a non-empty on-path child
+/// (the collapsed edge) and is merely rehashed using `S1`'s hash, which the committer already has.
+/// The helper must therefore emit exactly one crafted key (for `S2`) and must NOT fetch `S1`.
+#[test]
+fn test_compute_missing_sibling_keys_fetches_only_deepest_binary_sibling() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let (r, b2, s1_orphan, c, s2_orphan, leaf) = (
+        Felt::from(1u64),
+        Felt::from(2u64),
+        Felt::from(10u64),
+        Felt::from(3u64),
+        Felt::from(20u64),
+        Felt::from(5u64),
+    );
+
+    let mut nodes = IndexMap::default();
+    nodes.insert(r, MerkleNode::BinaryNode(BinaryNode { left: b2, right: s1_orphan }));
+    nodes.insert(b2, MerkleNode::BinaryNode(BinaryNode { left: c, right: s2_orphan }));
+    nodes.insert(c, MerkleNode::EdgeNode(EdgeNode { path: Felt::ZERO, length: 249, child: leaf }));
+
+    let (proof, query) = single_contract_proof(addr, r, nodes);
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::ZERO);
+
+    let result = compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap();
+
+    // S2 sits at trie depth 2 (R at depth 0, B2 at depth 1). The crafted key routes right at B2:
+    // bit (251 - 2) = 249. S1 (the depth-0 sibling, key 2^250) must be absent from the result.
+    let expected_crafted_key = Felt::TWO.pow(249_u32);
+    assert_eq!(
+        result,
+        vec![ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: vec![expected_crafted_key],
+        }]
+    );
+}
+
+/// A zero-write to a key that isn't in the trie is a no-op: the path diverges at an edge whose
+/// label doesn't match the key, so nothing collapses and no sibling preimage is needed — even
+/// though a shallower binary node on the way carries an orphan sibling.
+#[test]
+fn test_compute_missing_sibling_keys_phantom_delete_returns_empty() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let (r, diverging_edge, s1_orphan, bottom) =
+        (Felt::from(1u64), Felt::from(2u64), Felt::from(10u64), Felt::from(5u64));
+
+    let mut nodes = IndexMap::default();
+    // Deleting key `0` routes left at R (to the edge), leaving S1 as an orphan sibling.
+    nodes.insert(r, MerkleNode::BinaryNode(BinaryNode { left: diverging_edge, right: s1_orphan }));
+    // Edge label `0b11` diverges from key `0` at the very first step -> key not in trie.
+    nodes.insert(
+        diverging_edge,
+        MerkleNode::EdgeNode(EdgeNode { path: Felt::from(3u64), length: 2, child: bottom }),
+    );
+    let (proof, query) = single_contract_proof(addr, r, nodes);
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::ZERO);
+
+    assert!(compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap().is_empty());
+}
+
+/// A trie that is a single edge to one leaf has no binary node, so deleting that leaf empties the
+/// whole trie and collapses nothing — the helper must fetch nothing.
+#[test]
+fn test_compute_missing_sibling_keys_single_edge_trie_returns_empty() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let (root, leaf) = (Felt::from(1u64), Felt::from(5u64));
+
+    let mut nodes = IndexMap::default();
+    // Root edge whose path matches storage key `0` (all-zero path) straight down to the leaf.
+    nodes.insert(
+        root,
+        MerkleNode::EdgeNode(EdgeNode { path: Felt::ZERO, length: 251, child: leaf }),
+    );
+    let (proof, query) = single_contract_proof(addr, root, nodes);
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::ZERO);
+
+    assert!(compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap().is_empty());
+}
+
+#[test]
+fn test_compute_missing_sibling_keys_no_deletes_returns_empty() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let mut nodes = IndexMap::default();
+    // An orphan exists in the tree (right child has no preimage) but no delete is requested.
+    nodes.insert(
+        Felt::from(1u64),
+        MerkleNode::BinaryNode(BinaryNode { left: Felt::from(2u64), right: Felt::from(3u64) }),
+    );
+    let (proof, query) = single_contract_proof(addr, Felt::from(1u64), nodes);
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::from(42u64));
+
+    assert!(compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap().is_empty());
+}
+
+/// A delete against a contract with an empty storage trie (`storage_root: None`) is a no-op: the
+/// helper must return no crafted keys rather than erroring.
+#[test]
+fn test_compute_missing_sibling_keys_empty_storage_trie_returns_empty() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let query = RpcStorageProofsQuery {
+        class_hashes: vec![],
+        contract_addresses: vec![addr],
+        contract_storage_keys: vec![ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: vec![],
+        }],
+    };
+    let proof = RpcStorageProof {
+        classes_proof: IndexMap::default(),
+        contracts_proof: ContractsProof {
+            nodes: IndexMap::default(),
+            contract_leaves_data: vec![ContractLeafData {
+                nonce: Felt::ZERO,
+                class_hash: Felt::ZERO,
+                storage_root: None,
+            }],
+        },
+        contracts_storage_proofs: vec![IndexMap::default()],
+        global_roots: GlobalRoots {
+            contracts_tree_root: Felt::ZERO,
+            classes_tree_root: Felt::ZERO,
+            block_hash: Felt::ZERO,
+        },
+    };
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::ZERO);
+
+    assert!(compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap().is_empty());
+}
+
+/// The proof is incomplete: the on-path child of the root binary node is missing, so the walk stops
+/// before reaching the deleted leaf. The deleted key's presence in the trie is never proven, so the
+/// helper must NOT craft a key for the shallow orphan sibling it recorded along the way.
+#[test]
+fn test_compute_missing_sibling_keys_incomplete_walk_returns_empty() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let (root, missing_on_path_child, s1_orphan) =
+        (Felt::from(1u64), Felt::from(2u64), Felt::from(10u64));
+
+    let mut nodes = IndexMap::default();
+    // Deleting key `0` routes left at the root, but the left child's preimage is absent.
+    nodes.insert(
+        root,
+        MerkleNode::BinaryNode(BinaryNode { left: missing_on_path_child, right: s1_orphan }),
+    );
+    let (proof, query) = single_contract_proof(addr, root, nodes);
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::ZERO);
+
+    assert!(compute_missing_sibling_keys(&proof, &query, &state_diff).unwrap().is_empty());
 }
