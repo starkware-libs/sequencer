@@ -44,6 +44,8 @@ use crate::initial_state::{
     get_deploy_contract_tx_and_address_with_salt_and_deployer,
 };
 use crate::special_contracts::{
+    DATA_GAS_ACCOUNT_CONTRACT_CASM,
+    DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
     DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM,
     DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA,
 };
@@ -518,8 +520,8 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): Declare, DeployAccount, L1Handler.
-    const N_TXS: usize = 2;
+    // TODO(Dori): DeployAccount, L1Handler.
+    const N_TXS: usize = 3;
 
     // For linear factor measurements, it's not enough to just add one more calldata element; the
     // increase is not the same per element. The linear scale is on average.
@@ -552,6 +554,19 @@ async fn test_execute_txs_inner_resources() {
         InvokeTransaction::create(invoke_tx(invoke_args), &test_builder.chain_id()).unwrap(),
         None,
         None,
+    );
+
+    // Declare. Choose a contract that is not edited or recompiled, to keep measurements stable.
+    let declare_args = declare_tx_args! {
+        sender_address: stable_contract_address,
+        nonce: test_builder.next_nonce(stable_contract_address),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_builder.add_explicit_cairo1_declare_tx(
+        &DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
+        (*DATA_GAS_ACCOUNT_CONTRACT_CASM).clone(),
+        declare_args,
+        &test_builder.chain_id(),
     );
 
     // Execute the business logic and extract the business logic resources for each tx.
@@ -591,7 +606,7 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_first, invoke_second]: [ExecutionResources; N_TXS] = test_output
+    let [invoke_first, invoke_second, declare_constant]: [ExecutionResources; N_TXS] = test_output
         .runner_output
         .txs_trace
         .iter()
@@ -614,16 +629,19 @@ async fn test_execute_txs_inner_resources() {
     let invoke_linear_factor = (&(&invoke_second - &invoke_first).filter_unused_builtins()
         * INVOKE_SCALING_FACTOR)
         .div_ceil(INVOKE_EXTRA_ARGS);
-    raw_vc.os_resources.execute_txs_inner.extend([(
-        TransactionType::InvokeFunction,
-        VariableResourceParams::WithFactor(ResourcesParams {
-            constant: (&invoke_first - &invoke_linear_factor).filter_unused_builtins(),
-            calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
-                resources: invoke_linear_factor,
-                scaling_factor: INVOKE_SCALING_FACTOR,
+    raw_vc.os_resources.execute_txs_inner.extend([
+        (
+            TransactionType::InvokeFunction,
+            VariableResourceParams::WithFactor(ResourcesParams {
+                constant: (&invoke_first - &invoke_linear_factor).filter_unused_builtins(),
+                calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
+                    resources: invoke_linear_factor,
+                    scaling_factor: INVOKE_SCALING_FACTOR,
+                }),
             }),
-        }),
-    )]);
+        ),
+        (TransactionType::Declare, VariableResourceParams::Constant(declare_constant)),
+    ]);
 
     // Verify computation.
     expect_file![VersionedConstants::json_path(&version).unwrap()]

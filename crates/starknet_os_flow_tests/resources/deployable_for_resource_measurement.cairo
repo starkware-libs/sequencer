@@ -2,6 +2,8 @@
 /// Originally compiled with compiler v2.17.0-rc.4.
 #[starknet::contract(account)]
 mod DeployableForResourceMeasurement {
+    use starknet::ClassHash;
+
     #[storage]
     struct Storage {}
 
@@ -17,6 +19,11 @@ mod DeployableForResourceMeasurement {
         contract_address_salt: felt252,
         some_args: Span<felt252>,
     ) -> felt252 {
+        starknet::VALIDATED
+    }
+
+    #[external(v0)]
+    fn __validate_declare__(self: @ContractState, class_hash: ClassHash) -> felt252 {
         starknet::VALIDATED
     }
 
