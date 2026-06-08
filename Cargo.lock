@@ -13047,6 +13047,8 @@ dependencies = [
 name = "starknet_os_flow_tests"
 version = "0.0.0"
 dependencies = [
+ "apollo_batcher",
+ "apollo_committer",
  "apollo_integration_tests",
  "assert_matches",
  "blockifier",

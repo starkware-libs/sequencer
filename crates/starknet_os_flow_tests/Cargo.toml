@@ -12,6 +12,12 @@ fuzz_test_debug = []
 long_fuzz_test = []
 
 [dev-dependencies]
+# Not a direct dependency but the `os_input` feature must be activated explicitly. Remove when the
+# `os_input` feature is removed.
+apollo_batcher = { workspace = true, features = ["os_input"] }
+# Not a direct dependency but the `os_input` feature must be activated explicitly. Remove when the
+# `os_input` feature is removed.
+apollo_committer = { workspace = true, features = ["os_input"] }
 apollo_integration_tests.workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["os_input", "reexecution", "testing"] }
