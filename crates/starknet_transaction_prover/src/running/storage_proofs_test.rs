@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
+use indexmap::IndexMap;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
@@ -13,14 +14,17 @@ use starknet_rust_core::types::{
     ContractLeafData,
     ContractStorageKeys,
     ContractsProof,
+    EdgeNode,
     GlobalRoots,
     MerkleNode,
     StorageProof as RpcStorageProof,
 };
 use starknet_types_core::felt::Felt;
 
+use crate::errors::ProofProviderError;
 use crate::running::storage_proofs::{
     collect_query,
+    compute_missing_sibling_keys,
     count_total_keys,
     flatten_query,
     merge_storage_proofs,
@@ -32,6 +36,62 @@ use crate::running::storage_proofs::{
 };
 use crate::running::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
 use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
+
+fn binary(left: u64, right: u64) -> MerkleNode {
+    MerkleNode::BinaryNode(BinaryNode { left: Felt::from(left), right: Felt::from(right) })
+}
+
+fn edge(path: u64, length: u64, child: u64) -> MerkleNode {
+    MerkleNode::EdgeNode(EdgeNode { path: Felt::from(path), length, child: Felt::from(child) })
+}
+
+fn proof_nodes(entries: impl IntoIterator<Item = (u64, MerkleNode)>) -> IndexMap<Felt, MerkleNode> {
+    entries.into_iter().map(|(hash, node)| (Felt::from(hash), node)).collect()
+}
+
+/// Runs `compute_missing_sibling_keys` for a single contract whose storage trie has root hash
+/// `storage_root` (`None` = empty trie) and nodes `nodes`, applying `writes` (`(key, value)`; a
+/// zero value is a delete). Returns the crafted storage keys for that contract.
+fn missing_sibling_keys(
+    storage_root: Option<u64>,
+    nodes: IndexMap<Felt, MerkleNode>,
+    writes: &[(Felt, Felt)],
+) -> Result<Vec<Felt>, ProofProviderError> {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let query = RpcStorageProofsQuery {
+        class_hashes: vec![],
+        contract_addresses: vec![addr],
+        contract_storage_keys: vec![ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: vec![],
+        }],
+    };
+    let proof = RpcStorageProof {
+        classes_proof: IndexMap::default(),
+        contracts_proof: ContractsProof {
+            nodes: IndexMap::default(),
+            contract_leaves_data: vec![ContractLeafData {
+                nonce: Felt::ZERO,
+                class_hash: Felt::ZERO,
+                storage_root: storage_root.map(Felt::from),
+            }],
+        },
+        contracts_storage_proofs: vec![nodes],
+        global_roots: GlobalRoots {
+            contracts_tree_root: Felt::ZERO,
+            classes_tree_root: Felt::ZERO,
+            block_hash: Felt::ZERO,
+        },
+    };
+    let mut state_diff = StateMaps::default();
+    for &(key, value) in writes {
+        state_diff.storage.insert((addr, StorageKey::try_from(key).unwrap()), value);
+    }
+    Ok(compute_missing_sibling_keys(&proof, &query, &state_diff)?
+        .into_iter()
+        .flat_map(|contract| contract.storage_keys)
+        .collect())
+}
 
 /// Fixture: Creates initial reads with the STRK contract and storage slot 0.
 #[rstest::fixture]
@@ -265,4 +325,84 @@ fn test_split_merge_roundtrip() {
     assert_split_merge_identity(&make_query(10, 20, &[]), 15);
     // Tight limit forces many small chunks.
     assert_split_merge_identity(&make_query(3, 4, &[8, 6, 3]), 3);
+}
+
+const DELETE: (Felt, Felt) = (Felt::ZERO, Felt::ZERO);
+
+// edge(len 3) -> binary{C, D=orphan}; C edge(len 247) -> leaf. Deleting key 0 collapses the binary
+// onto D (depth 4), whose orphan preimage must be fetched via a key routing there: bit 251-4=247.
+#[test]
+fn test_fetches_orphan_collapse_sibling() {
+    let nodes = proof_nodes([(1, edge(0, 3, 2)), (2, binary(3, 4)), (3, edge(0, 247, 5))]);
+    assert_eq!(
+        missing_sibling_keys(Some(1), nodes, &[DELETE]).unwrap(),
+        vec![Felt::TWO.pow(247_u32)]
+    );
+}
+
+// Two binaries on the path: binary{binary{C, S2=orphan}, S1=orphan}; C edge(len 249) -> leaf. Only
+// the deepest binary collapses (onto S2 at depth 2); the shallow S1 is merely re-hashed, not
+// fetched.
+#[test]
+fn test_fetches_only_deepest_collapse_sibling() {
+    let nodes = proof_nodes([(1, binary(2, 10)), (2, binary(3, 20)), (3, edge(0, 249, 5))]);
+    assert_eq!(
+        missing_sibling_keys(Some(1), nodes, &[DELETE]).unwrap(),
+        vec![Felt::TWO.pow(249_u32)]
+    );
+}
+
+// binary{binary{E1->L1, E2->L2}, S_A=orphan}. Deleting both L1 (key 0) and L2 (key 2^249) empties
+// the inner binary, so the collapse cascades to the root and fetches S_A (depth 1) — not E1/E2.
+#[test]
+fn test_cascades_to_parent_sibling_when_node_empties() {
+    let nodes = proof_nodes([
+        (1, binary(2, 30)),
+        (2, binary(4, 5)),
+        (4, edge(0, 249, 100)),
+        (5, edge(0, 249, 101)),
+    ]);
+    let deletes = [DELETE, (Felt::TWO.pow(249_u32), Felt::ZERO)];
+    assert_eq!(
+        missing_sibling_keys(Some(1), nodes, &deletes).unwrap(),
+        vec![Felt::TWO.pow(250_u32)]
+    );
+}
+
+// Deleting a key absent from the trie (its path diverges at the edge labelled 0b11) is a no-op,
+// even with a shallow orphan sibling on the way.
+#[test]
+fn test_no_op_delete_of_absent_key_fetches_nothing() {
+    let nodes = proof_nodes([(1, binary(2, 10)), (2, edge(0b11, 2, 5))]);
+    assert!(missing_sibling_keys(Some(1), nodes, &[DELETE]).unwrap().is_empty());
+}
+
+// A single-edge trie has no binary node; deleting its only leaf empties the trie, collapsing
+// nothing.
+#[test]
+fn test_single_edge_trie_fetches_nothing() {
+    let nodes = proof_nodes([(1, edge(0, 251, 5))]);
+    assert!(missing_sibling_keys(Some(1), nodes, &[DELETE]).unwrap().is_empty());
+}
+
+// An empty storage trie (no root) makes every delete a no-op.
+#[test]
+fn test_empty_trie_fetches_nothing() {
+    assert!(missing_sibling_keys(None, IndexMap::default(), &[DELETE]).unwrap().is_empty());
+}
+
+// Non-zero writes are updates, not deletes, and never trigger a fetch.
+#[test]
+fn test_non_zero_writes_fetch_nothing() {
+    let nodes = proof_nodes([(1, binary(2, 3))]);
+    let writes = [(Felt::ZERO, Felt::from(42u64))];
+    assert!(missing_sibling_keys(Some(1), nodes, &writes).unwrap().is_empty());
+}
+
+// A deleted key is always read, so a complete proof reaches its leaf; a missing on-path node (here
+// the root's left child, hash 2) is an incomplete-proof error rather than a silent skip.
+#[test]
+fn test_incomplete_proof_errors() {
+    let nodes = proof_nodes([(1, binary(2, 10))]);
+    assert!(missing_sibling_keys(Some(1), nodes, &[DELETE]).is_err());
 }
