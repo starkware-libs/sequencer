@@ -938,6 +938,14 @@ mod TestContract {
         starknet::secp256r1::secp256r1_mul_syscall(p: generator, :scalar).unwrap_syscall();
     }
 
+    // Multiplies a caller-provided point (rather than the generator) by a scalar.
+    #[external(v0)]
+    fn test_mul_point_secp256r1(ref self: ContractState, x: u256, y: u256, scalar: u256) {
+        let p = starknet::secp256r1::secp256r1_new_syscall(x, y).unwrap_syscall().unwrap();
+
+        starknet::secp256r1::secp256r1_mul_syscall(:p, :scalar).unwrap_syscall();
+    }
+
     /// Returns a golden valid message hash and its signature, for testing.
     fn get_message_and_secp256r1_signature() -> (u256, Signature, u256, u256, EthAddress) {
         let msg_hash = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;
