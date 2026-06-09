@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
-use apollo_starknet_client::reader::{ReaderClientResult, StarknetReader, StateUpdate};
+use apollo_starknet_client::reader::{BlockStateUpdate, ReaderClientResult, StarknetReader};
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
 use futures_util::stream::FuturesOrdered;
@@ -34,9 +34,10 @@ pub(crate) struct StateUpdateStream<TStarknetClient: StarknetReader + Send + 'st
     up_to_block_number: BlockNumber,
     apollo_starknet_client: Arc<TStarknetClient>,
     storage_reader: StorageReader,
-    download_state_update_tasks: TasksQueue<(BlockNumber, ReaderClientResult<Option<StateUpdate>>)>,
-    // Contains NumberOfClasses so we don't need to calculate it from the StateUpdate.
-    downloaded_state_updates: VecDeque<(BlockNumber, NumberOfClasses, StateUpdate)>,
+    download_state_update_tasks:
+        TasksQueue<(BlockNumber, ReaderClientResult<Option<BlockStateUpdate>>)>,
+    // Contains NumberOfClasses so we don't need to calculate it from the BlockStateUpdate.
+    downloaded_state_updates: VecDeque<(BlockNumber, NumberOfClasses, BlockStateUpdate)>,
     classes_to_download: VecDeque<ClassHash>,
     download_class_tasks: TasksQueue<CentralResult<Option<ApiContractClass>>>,
     downloaded_classes: VecDeque<ApiContractClass>,
@@ -64,8 +65,8 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> Stream
             }
 
             // If available, returns the next block state update and corresponding classes.
-            if let Some(maybe_central_state_update) = self.next_output() {
-                return Poll::Ready(Some(maybe_central_state_update));
+            if let Some(maybe_central_block_state_update) = self.next_output() {
+                return Poll::Ready(Some(maybe_central_block_state_update));
             }
 
             // In case no task is done and there are no newly initiated tasks, the stream is either
@@ -114,19 +115,19 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
         }
     }
 
-    // Returns data needed for the next block CentralStateUpdate, or None if it is not yet ready.
+    // Returns data needed for the next CentralStateUpdate, or None if it is not yet ready.
     fn next_output(&mut self) -> Option<CentralResult<CentralStateUpdate>> {
         let (_, n_classes, _) = self.downloaded_state_updates.front()?;
         if self.downloaded_classes.len() < *n_classes {
             return None;
         }
-        let (block_number, n_classes, state_update) =
+        let (block_number, n_classes, block_state_update) =
             self.downloaded_state_updates.pop_front().expect("Should have a value");
-        let class_hashes = state_update.state_diff.class_hashes();
+        let class_hashes = block_state_update.state_update.state_diff.class_hashes();
         let classes = self.downloaded_classes.drain(..n_classes);
         let classes: IndexMap<ClassHash, ApiContractClass> =
             class_hashes.into_iter().zip(classes).collect();
-        Some(client_to_central_state_update(block_number, Ok((state_update, classes))))
+        Some(client_to_central_state_update(block_number, Ok((block_state_update, classes))))
     }
 
     // Advances scheduling logic. Propagates errors to be returned from the stream.
@@ -204,15 +205,17 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
             self.download_state_update_tasks.push_back(Box::pin(async move {
                 (
                     current_block_number,
-                    apollo_starknet_client.state_update(current_block_number).await,
+                    apollo_starknet_client
+                        .block_state_update_and_signature(current_block_number)
+                        .await,
                 )
             }));
             self.initial_block_number = self.initial_block_number.unchecked_next();
         }
     }
 
-    // Checks for finished state update downloading tasks.
-    // Checks for finished class downloading tasks and adds the result to `downloaded_classes`.
+    // Checks for finished state update downloading tasks and adds the result to
+    // `downloaded_state_updates`.
     fn handle_downloaded_state_updates(
         self: &mut std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -222,26 +225,26 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
             return Ok(());
         }
 
-        let Poll::Ready(Some((block_number, maybe_state_update))) =
+        let Poll::Ready(Some((block_number, maybe_block_state_update))) =
             self.download_state_update_tasks.poll_next_unpin(cx)
         else {
             return Ok(());
         };
 
         *should_poll_again = true;
-        match maybe_state_update {
-            // Add to downloaded state updates. Adds the results to `downloaded_state_updates` and
-            // the corresponding classes needed to   be downloaded to `classes_to_download`.
-            Ok(Some(state_update)) => {
-                let hashes = state_update.state_diff.class_hashes();
+        match maybe_block_state_update {
+            Ok(Some(block_state_update)) => {
+                let hashes = block_state_update.state_update.state_diff.class_hashes();
                 let n_classes = hashes.len();
                 self.classes_to_download.append(&mut VecDeque::from(hashes));
-                self.downloaded_state_updates.push_back((block_number, n_classes, state_update));
+                self.downloaded_state_updates.push_back((
+                    block_number,
+                    n_classes,
+                    block_state_update,
+                ));
                 Ok(())
             }
-            // Class was not found.
-            Ok(None) => Err(CentralError::ClassNotFound),
-            // An error occurred while downloading the class.
+            Ok(None) => Err(CentralError::BlockNotFound { block_number }),
             Err(err) => Err(CentralError::ClientError(err.into())),
         }
     }
@@ -249,10 +252,24 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
 
 fn client_to_central_state_update(
     current_block_number: BlockNumber,
-    maybe_client_state_update: CentralResult<(StateUpdate, IndexMap<ClassHash, ApiContractClass>)>,
+    maybe_block_state_update: CentralResult<(
+        BlockStateUpdate,
+        IndexMap<ClassHash, ApiContractClass>,
+    )>,
 ) -> CentralResult<CentralStateUpdate> {
-    match maybe_client_state_update {
-        Ok((state_update, mut declared_classes)) => {
+    match maybe_block_state_update {
+        Ok((block_state_update, mut declared_classes)) => {
+            let block = block_state_update
+                .block
+                .to_starknet_api_block_and_version()
+                .map_err(|err| CentralError::ClientError(Arc::new(err)))?;
+
+            let signature =
+                starknet_api::block::BlockSignature(starknet_api::crypto::utils::Signature {
+                    r: block_state_update.signature[0],
+                    s: block_state_update.signature[1],
+                });
+
             // Destruct the state diff to avoid partial move.
             let apollo_starknet_client::reader::StateDiff {
                 storage_diffs,
@@ -262,7 +279,7 @@ fn client_to_central_state_update(
                 nonces,
                 replaced_classes,
                 migrated_compiled_classes,
-            } = state_update.state_diff;
+            } = block_state_update.state_update.state_diff;
 
             // Separate the declared classes to new classes, old classes and classes of deployed
             // contracts (both new and old).
@@ -322,18 +339,29 @@ fn client_to_central_state_update(
                     ApiContractClass::ContractClass(_) => None,
                 })
                 .collect();
-            let block_hash = state_update.block_hash;
+
+            let block_hash = block_state_update.state_update.block_hash;
             debug!(
-                "Received new state update of block {current_block_number} with hash {block_hash}."
+                "Received new block state update for block {current_block_number} with hash \
+                 {block_hash}."
             );
             trace!(
                 "State diff: {state_diff:?}, deployed_contract_class_definitions: \
                  {deployed_contract_class_definitions:?}."
             );
-            Ok((current_block_number, block_hash, state_diff, deployed_contract_class_definitions))
+            Ok(CentralStateUpdate {
+                block_number: current_block_number,
+                block,
+                signature,
+                block_hash,
+                state_diff,
+                deployed_contract_class_definitions,
+            })
         }
         Err(err) => {
-            debug!("Received error for state diff {}: {:?}.", current_block_number, err);
+            debug!(
+                "Received error for block state update of block {current_block_number}: {err:?}."
+            );
             Err(err)
         }
     }

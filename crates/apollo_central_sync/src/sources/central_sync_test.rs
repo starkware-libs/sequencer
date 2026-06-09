@@ -5,8 +5,10 @@ use std::time::Duration;
 use apollo_class_manager_types::{ClassHashes, ClassManagerClient, MockClassManagerClient};
 use apollo_starknet_client::reader::PendingData;
 use apollo_storage::base_layer::BaseLayerStorageReader;
-use apollo_storage::header::HeaderStorageReader;
-use apollo_storage::state::StateStorageReader;
+use apollo_storage::body::BodyStorageWriter;
+use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
+use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -30,7 +32,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Seque
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::{ContractClass, EntryPointOffset, EntryPointV0};
 use starknet_api::felt;
-use starknet_api::state::{SierraContractClass, StateDiff, StateNumber};
+use starknet_api::state::{SierraContractClass, StateDiff, StateNumber, ThinStateDiff};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 use tracing::{debug, error};
@@ -38,7 +40,7 @@ use tracing::{debug, error};
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
 use crate::sources::central::{
-    BlocksStream,
+    CentralStateUpdate,
     CompiledClassesStream,
     MockCentralSourceTrait,
     StateUpdatesStream,
@@ -228,8 +230,12 @@ async fn sync_happy_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
-    central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
-        let blocks_stream: BlocksStream<'_> = stream! {
+    let expected_deprecated_class = deprecated_class.clone();
+    let expected_deployed_class = deployed_class.clone();
+    central_mock.expect_stream_new_block_state_updates().returning(move |initial, up_to| {
+        let deprecated_class = deprecated_class.clone();
+        let deployed_class = deployed_class.clone();
+        let block_state_update_stream: StateUpdatesStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
                 if block_number.0 >= N_BLOCKS {
                     yield Err(CentralError::BlockNotFound { block_number });
@@ -243,29 +249,6 @@ async fn sync_happy_flow() {
                     },
                     ..Default::default()
                 };
-                yield Ok((
-                    block_number,
-                    Block { header, body: BlockBody::default() },
-                    BlockSignature::default(),
-                ));
-            }
-        }
-        .boxed();
-        blocks_stream
-    });
-
-    let expected_deprecated_class = deprecated_class.clone();
-    let expected_deployed_class = deployed_class.clone();
-    central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
-        let deprecated_class = deprecated_class.clone();
-        let deployed_class = deployed_class.clone();
-        let state_stream: StateUpdatesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number })
-                }
-
-                // Add declared classes to specific blocks to test compiled class hash mapping
                 let mut state_diff = match block_number.0 {
                     1 => StateDiff {
                         declared_classes: IndexMap::from([
@@ -291,16 +274,18 @@ async fn sync_happy_flow() {
                     state_diff.deprecated_declared_classes = IndexMap::from([(deprecated_class_hash, deprecated_class.clone())]);
                 }
 
-                yield Ok((
+                yield Ok(CentralStateUpdate {
                     block_number,
-                    create_block_hash(block_number, false),
+                    block: Block { header, body: BlockBody::default() },
+                    signature: BlockSignature::default(),
+                    block_hash: create_block_hash(block_number, false),
                     state_diff,
                     deployed_contract_class_definitions,
-                ));
+                });
             }
         }
         .boxed();
-        state_stream
+        block_state_update_stream
     });
 
     // Add compiled classes stream mock
@@ -501,37 +486,28 @@ async fn test_unrecoverable_sync_error_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
-    mock.expect_stream_new_blocks().returning(move |_, _| {
-        let blocks_stream: BlocksStream<'_> = stream! {
+    mock.expect_stream_new_block_state_updates().returning(move |_, _| {
+        let block_state_update_stream: StateUpdatesStream<'_> = stream! {
             let header = BlockHeader {
-                    block_hash: create_block_hash(BLOCK_NUMBER, false),
-                    block_header_without_hash: BlockHeaderWithoutHash {
-                        block_number: BLOCK_NUMBER,
-                        parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
-                        ..Default::default()
-                    },
+                block_hash: create_block_hash(BLOCK_NUMBER, false),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BLOCK_NUMBER,
+                    parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
                     ..Default::default()
-                };
-            yield Ok((
-                BLOCK_NUMBER,
-                Block { header, body: BlockBody::default()},
-                BlockSignature::default(),
-            ));
+                },
+                ..Default::default()
+            };
+            yield Ok(CentralStateUpdate {
+                block_number: BLOCK_NUMBER,
+                block: Block { header, body: BlockBody::default() },
+                signature: BlockSignature::default(),
+                block_hash: create_block_hash(BLOCK_NUMBER, false),
+                state_diff: StateDiff::default(),
+                deployed_contract_class_definitions: IndexMap::new(),
+            });
         }
         .boxed();
-        blocks_stream
-    });
-    mock.expect_stream_state_updates().returning(move |_, _| {
-        let state_stream: StateUpdatesStream<'_> = stream! {
-            yield Ok((
-                BLOCK_NUMBER,
-                create_block_hash(BLOCK_NUMBER, false),
-                StateDiff::default(),
-                IndexMap::new(),
-            ));
-        }
-        .boxed();
-        state_stream
+        block_state_update_stream
     });
     // make get_block_hash return a hash for the wrong block number
     mock.expect_get_block_hash()
@@ -608,5 +584,140 @@ fn create_block_hash(bn: BlockNumber, is_reverted_block: bool) -> BlockHash {
         BlockHash(felt!(format!("0x{}10", bn.0).as_str()))
     } else {
         BlockHash(felt!(format!("0x{}", bn.0).as_str()))
+    }
+}
+
+// Regression test for the migration scenario where header_marker > state_marker.
+// Pre-merge nodes wrote headers/bodies and state diffs in separate transactions, so a node could
+// have header_marker=5, state_marker=3 on disk. After the merge the sync stream is driven by
+// state_marker, and store_state_update skips header/body writes for blocks
+// that are already stored. This test verifies that back-filling state diffs works without a
+// MarkerMismatch and without double-appending headers.
+#[tokio::test]
+async fn sync_state_marker_behind_header_marker() {
+    let _ = simple_logger::init_with_env();
+
+    // N_BLOCKS_WITH_HEADER: blocks 0..4 have header+body (no state diff yet, simulating old node).
+    // N_BLOCKS_WITH_STATE: blocks 0..2 have state diff (state_marker = 3).
+    // N_CENTRAL_BLOCKS: central has blocks 0..5; the sync must back-fill 3,4 and add 5.
+    const N_BLOCKS_WITH_HEADER: u64 = 5;
+    const N_BLOCKS_WITH_STATE: u64 = 3;
+    const N_CENTRAL_BLOCKS: u64 = 6;
+    const LATEST_BLOCK_NUMBER: BlockNumber = BlockNumber(N_CENTRAL_BLOCKS - 1);
+
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+
+    // Pre-populate storage: headers + bodies for blocks 0..N_BLOCKS_WITH_HEADER and state diffs for
+    // blocks 0..N_BLOCKS_WITH_STATE (including empty classes, as the pre-merge store_state_diff
+    // also stored classes).
+    for i in 0..N_BLOCKS_WITH_HEADER {
+        let block_number = BlockNumber(i);
+        let header = BlockHeader {
+            block_hash: create_block_hash(BlockNumber(i), false),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(i),
+                parent_hash: create_block_hash(BlockNumber(i).prev().unwrap_or_default(), false),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut txn = writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_header(block_number, &header)
+            .unwrap()
+            .append_block_signature(block_number, &BlockSignature::default())
+            .unwrap()
+            .append_body(block_number, BlockBody::default())
+            .unwrap();
+        if i < N_BLOCKS_WITH_STATE {
+            txn = txn
+                .append_state_diff(block_number, ThinStateDiff::default())
+                .unwrap()
+                .append_classes(block_number, &[], &[])
+                .unwrap();
+        }
+        txn.commit().unwrap();
+    }
+
+    // Sanity-check: header_marker=5, state_marker=3.
+    {
+        let txn = reader.begin_ro_txn().unwrap();
+        assert_eq!(txn.get_header_marker().unwrap(), BlockNumber(N_BLOCKS_WITH_HEADER));
+        assert_eq!(txn.get_state_marker().unwrap(), BlockNumber(N_BLOCKS_WITH_STATE));
+    }
+
+    // Mock central: latest block is LATEST_BLOCK_NUMBER; stream yields state updates starting from
+    // whatever initial marker the sync passes (must be state_marker=3, not header_marker=5).
+    let mut central_mock = MockCentralSourceTrait::new();
+    central_mock.expect_get_latest_block().returning(|| {
+        Ok(Some(BlockHashAndNumber {
+            number: LATEST_BLOCK_NUMBER,
+            hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
+        }))
+    });
+    central_mock.expect_stream_new_block_state_updates().returning(move |initial, up_to| {
+        let block_state_update_stream: StateUpdatesStream<'_> = stream! {
+            for block_number in initial.iter_up_to(up_to) {
+                let header = BlockHeader {
+                    block_hash: create_block_hash(block_number, false),
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number,
+                        parent_hash: create_block_hash(
+                            block_number.prev().unwrap_or_default(),
+                            false,
+                        ),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                };
+                yield Ok(CentralStateUpdate {
+                    block_number,
+                    block: Block { header, body: BlockBody::default() },
+                    signature: BlockSignature::default(),
+                    block_hash: create_block_hash(block_number, false),
+                    state_diff: StateDiff::default(),
+                    deployed_contract_class_definitions: IndexMap::new(),
+                });
+            }
+        }
+        .boxed();
+        block_state_update_stream
+    });
+    // The compiled-class stream is empty — no compiled classes to sync in this test.
+    central_mock
+        .expect_stream_compiled_classes()
+        .returning(|_, _| futures::stream::empty().boxed());
+    let mut base_layer_mock = MockBaseLayerSourceTrait::new();
+    base_layer_mock.expect_latest_proved_block().returning(|| Ok(None));
+
+    let class_manager_client = None;
+    let sync_future = run_sync(
+        reader.clone(),
+        writer,
+        central_mock,
+        base_layer_mock,
+        get_test_sync_config(false),
+        class_manager_client,
+    );
+
+    // Assert that both markers converge to N_CENTRAL_BLOCKS (all blocks fully stored).
+    let check_storage_future =
+        check_storage(reader.clone(), Duration::from_millis(800), |reader| {
+            let txn = reader.begin_ro_txn().unwrap();
+            let header_marker = txn.get_header_marker().unwrap();
+            let state_marker = txn.get_state_marker().unwrap();
+            if header_marker == BlockNumber(N_CENTRAL_BLOCKS)
+                && state_marker == BlockNumber(N_CENTRAL_BLOCKS)
+            {
+                return CheckStoragePredicateResult::Passed;
+            }
+            CheckStoragePredicateResult::InProgress
+        });
+
+    tokio::select! {
+        _ = sleep(Duration::from_secs(2)) => panic!("Test timed out."),
+        sync_result = sync_future => panic!("Sync exited unexpectedly: {sync_result:?}"),
+        storage_check_result = check_storage_future => assert!(storage_check_result, "Markers did not converge"),
     }
 }
