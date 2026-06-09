@@ -684,7 +684,10 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::Secp256k1Add,
         )?;
 
-        Ok(Secp256Point::add(p0.into(), p1.into()).into())
+        Secp256Point::add(p0.into(), p1.into())
+            .reject_zero_x()
+            .map(Into::into)
+            .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn secp256k1_mul(
@@ -699,7 +702,10 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::Secp256k1Mul,
         )?;
 
-        Ok(Secp256Point::mul(p.into(), m).into())
+        Secp256Point::mul(p.into(), m)
+            .reject_zero_x()
+            .map(Into::into)
+            .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn secp256k1_get_point_from_x(
@@ -762,7 +768,10 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::Secp256r1Add,
         )?;
 
-        Ok(Secp256Point::add(p0.into(), p1.into()).into())
+        Secp256Point::add(p0.into(), p1.into())
+            .reject_zero_x()
+            .map(Into::into)
+            .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn secp256r1_mul(
@@ -777,7 +786,10 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::Secp256r1Mul,
         )?;
 
-        Ok(Secp256Point::mul(p.into(), m).into())
+        Secp256Point::mul(p.into(), m)
+            .reject_zero_x()
+            .map(Into::into)
+            .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn secp256r1_get_point_from_x(
@@ -883,7 +895,7 @@ impl From<Secp256r1Point> for Secp256Point<ark_secp256r1::Config> {
     }
 }
 
-impl<Curve: SWCurveConfig> Secp256Point<Curve>
+impl<Curve: SWCurveConfig + secp::SecpZeroXPolicy> Secp256Point<Curve>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
@@ -895,9 +907,15 @@ where
     {
         match result {
             Ok(None) => Ok(None),
-            Ok(Some(point)) => Ok(Some(Secp256Point(point.into()))),
+            Ok(Some(point)) => Ok(Some(Secp256Point(point.into()).reject_zero_x()?)),
             Err(error) => Err(error),
         }
+    }
+
+    /// Mirrors the VM path: rejects a point the OS would treat as the point at infinity.
+    fn reject_zero_x(self) -> Result<Self, SyscallExecutionError> {
+        secp::reject_zero_x_point(&self.0)?;
+        Ok(self)
     }
 
     /// Given an (x, y) pair, this function:

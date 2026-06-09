@@ -13,7 +13,7 @@ use crate::execution::execution_utils::{
     write_maybe_relocatable,
     write_u256,
 };
-use crate::execution::secp::new_affine;
+use crate::execution::secp::{new_affine, reject_zero_x_point, SecpZeroXPolicy};
 use crate::execution::syscalls::hint_processor::felt_to_bool;
 use crate::execution::syscalls::vm_syscall_utils::{
     SyscallBaseResult,
@@ -30,7 +30,7 @@ pub struct SecpHintProcessor<Curve: SWCurveConfig> {
     pub points: HashMap<Relocatable, short_weierstrass::Affine<Curve>>,
 }
 
-impl<Curve: SWCurveConfig> SecpHintProcessor<Curve>
+impl<Curve: SWCurveConfig + SecpZeroXPolicy> SecpHintProcessor<Curve>
 where
     Curve::BaseField: PrimeField,
 {
@@ -115,6 +115,10 @@ where
         points_segment_base: &mut Option<Relocatable>,
         id: usize,
     ) -> SyscallBaseResult<Relocatable> {
+        // The single funnel for every point produced by a secp syscall (new, get_point_from_x,
+        // add, mul), so checking here blocks the point at creation and as the result of any op.
+        reject_zero_x_point(&ec_point)?;
+
         if points_segment_base.is_none() {
             *points_segment_base = Some(vm.add_memory_segment());
         }
