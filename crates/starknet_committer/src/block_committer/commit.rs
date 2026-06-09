@@ -37,17 +37,84 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
     trie_reader: &mut Reader,
     measurements: &mut M,
 ) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
-    let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
-        get_all_modified_indices(&input.state_diff);
-    let n_contracts_trie_modifications = contracts_trie_indices.len();
-    let forest_sorted_indices = ForestSortedIndices {
-        storage_tries_sorted_indices: storage_tries_indices
-            .iter_mut()
-            .map(|(address, indices)| (*address, SortedLeafIndices::new(indices)))
-            .collect(),
-        contracts_trie_sorted_indices: SortedLeafIndices::new(&mut contracts_trie_indices),
-        classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
-    };
+    let mut modified_indices: ForestModifiedIndices = (&input.state_diff).into();
+    let n_contracts_trie_modifications = modified_indices.n_contracts_trie_modifications();
+    let forest_sorted_indices = modified_indices.as_sorted_indices();
+
+    // Phase 1 - read the original forest from the DB.
+    let read_output = commit_block_read_phase(
+        &input,
+        &forest_sorted_indices,
+        n_contracts_trie_modifications,
+        trie_reader,
+        measurements,
+    )
+    .await?;
+
+    // Phase 2 - compute the new forest.
+    commit_block_compute_phase(
+        read_output,
+        &input.state_diff.address_to_class_hash,
+        &input.state_diff.address_to_nonce,
+        measurements,
+    )
+    .await
+}
+
+/// Owns the backing `Vec<NodeIndex>` storage required to build a `ForestSortedIndices`.
+/// The owner must outlive the `ForestSortedIndices` borrowed from it.
+struct ForestModifiedIndices {
+    storage_tries_indices: HashMap<ContractAddress, Vec<NodeIndex>>,
+    contracts_trie_indices: Vec<NodeIndex>,
+    classes_trie_indices: Vec<NodeIndex>,
+}
+
+impl ForestModifiedIndices {
+    fn n_contracts_trie_modifications(&self) -> usize {
+        self.contracts_trie_indices.len()
+    }
+
+    fn as_sorted_indices(&mut self) -> ForestSortedIndices<'_> {
+        ForestSortedIndices {
+            storage_tries_sorted_indices: self
+                .storage_tries_indices
+                .iter_mut()
+                .map(|(address, indices)| (*address, SortedLeafIndices::new(indices)))
+                .collect(),
+            contracts_trie_sorted_indices: SortedLeafIndices::new(&mut self.contracts_trie_indices),
+            classes_trie_sorted_indices: SortedLeafIndices::new(&mut self.classes_trie_indices),
+        }
+    }
+}
+
+impl From<&StateDiff> for ForestModifiedIndices {
+    fn from(state_diff: &StateDiff) -> Self {
+        let (storage_tries_indices, contracts_trie_indices, classes_trie_indices) =
+            get_all_modified_indices(state_diff);
+        Self { storage_tries_indices, contracts_trie_indices, classes_trie_indices }
+    }
+}
+
+/// Output of the read phase of `commit_block`.
+pub struct CommitReadPhaseOutput<'a> {
+    pub original_forest: OriginalSkeletonForest<'a>,
+    pub original_contracts_trie_leaves: HashMap<NodeIndex, ContractState>,
+    pub actual_storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    pub actual_classes_updates: LeafModifications<CompiledClassHash>,
+}
+
+/// Read phase of `commit_block`: loads the original forest skeleton from storage.
+pub async fn commit_block_read_phase<
+    'a,
+    Reader: ForestReader + Send,
+    M: MeasurementsTrait + Send,
+>(
+    input: &Input<Reader::InitialReadContext>,
+    forest_sorted_indices: &'a ForestSortedIndices<'a>,
+    n_contracts_trie_modifications: usize,
+    trie_reader: &mut Reader,
+    measurements: &mut M,
+) -> BlockCommitmentResult<CommitReadPhaseOutput<'a>> {
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
     // Record the number of modifications.
@@ -58,28 +125,22 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
         actual_classes_updates.len(),
     );
 
-    // Phase 1 - read the original forest from the DB.
     let (original_forest, original_contracts_trie_leaves) = read_original_forest(
-        &input,
+        input,
         &actual_storage_updates,
         &actual_classes_updates,
-        &forest_sorted_indices,
+        forest_sorted_indices,
         trie_reader,
         measurements,
     )
     .await?;
 
-    // Phase 2 - compute the new forest.
-    compute_updated_forest(
+    Ok(CommitReadPhaseOutput {
         original_forest,
         original_contracts_trie_leaves,
         actual_storage_updates,
         actual_classes_updates,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
-        measurements,
-    )
-    .await
+    })
 }
 
 /// Reads the original forest from the DB.
@@ -118,6 +179,27 @@ async fn read_original_forest<'a, Reader: ForestReader + Send, M: MeasurementsTr
     }
 
     Ok((original_forest, original_contracts_trie_leaves))
+}
+
+/// Compute phase of `commit_block`: derives the updated forest topology, the new hashes, and
+/// the nodes deleted by the state diff. Does not touch storage and may run in parallel with
+/// storage-bound work.
+pub async fn commit_block_compute_phase<M: MeasurementsTrait + Send>(
+    read_output: CommitReadPhaseOutput<'_>,
+    address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
+    address_to_nonce: &HashMap<ContractAddress, Nonce>,
+    measurements: &mut M,
+) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
+    compute_updated_forest(
+        read_output.original_forest,
+        read_output.original_contracts_trie_leaves,
+        read_output.actual_storage_updates,
+        read_output.actual_classes_updates,
+        address_to_class_hash,
+        address_to_nonce,
+        measurements,
+    )
+    .await
 }
 
 /// Computes the updated forest topology, its new hashes, and the nodes deleted by the state diff.
