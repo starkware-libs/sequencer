@@ -5,6 +5,7 @@ use apollo_committer_types::committer_types::{
     AccessedKeys,
     CommitBlockRequest,
     ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
 };
 use indexmap::indexmap;
@@ -172,6 +173,36 @@ fn read_paths_and_commit_block_request(
     }
 }
 
+/// Commits block 0 with `setup_state_diff` via [`crate::committer::Committer::commit_block`]
+/// (no witnesses), then calls [`crate::committer::Committer::read_paths_and_commit_block`] at
+/// block 1 with `state_diff` and `accessed_keys`, and returns its response.
+async fn setup_and_read_paths(
+    committer: &mut ApolloTestCommitter,
+    setup_state_diff: ThinStateDiff,
+    state_diff: ThinStateDiff,
+    accessed_keys: AccessedKeys,
+) -> ReadPathsAndCommitBlockResponse {
+    committer
+        .commit_block(CommitBlockRequest {
+            state_diff: setup_state_diff.clone(),
+            state_diff_commitment: Some(calculate_state_diff_hash(&setup_state_diff)),
+            height: BlockNumber(0),
+        })
+        .await
+        .unwrap();
+
+    let state_diff_commitment = Some(calculate_state_diff_hash(&state_diff));
+    committer
+        .read_paths_and_commit_block(read_paths_and_commit_block_request(
+            state_diff,
+            state_diff_commitment,
+            1,
+            accessed_keys,
+        ))
+        .await
+        .unwrap()
+}
+
 fn leaf_hashes<Key, PatriciaLeaf>(
     leaves: &HashMap<Key, PatriciaLeaf>,
     key_into_node_index: impl Fn(&Key) -> NodeIndex,
@@ -325,30 +356,17 @@ async fn read_paths_and_commit_block_happy_flow() {
 #[tokio::test]
 async fn revert_removes_witnesses_and_digest() {
     let mut committer = new_test_committer().await;
-    let height_0 = 0;
     let height_1 = 1;
-    let block_0_state_diff = BLOCK_0_STATE_DIFF.clone();
     let block_1_state_diff = BLOCK_1_STATE_DIFF.clone();
     let accessed_keys = ACCESSED_KEYS.clone();
 
-    committer
-        .commit_block(CommitBlockRequest {
-            state_diff: block_0_state_diff.clone(),
-            state_diff_commitment: Some(calculate_state_diff_hash(&block_0_state_diff)),
-            height: BlockNumber(height_0),
-        })
-        .await
-        .unwrap();
-
-    let block_1_response = committer
-        .read_paths_and_commit_block(read_paths_and_commit_block_request(
-            block_1_state_diff.clone(),
-            Some(calculate_state_diff_hash(&block_1_state_diff)),
-            height_1,
-            accessed_keys.clone(),
-        ))
-        .await
-        .unwrap();
+    let block_1_response = setup_and_read_paths(
+        &mut committer,
+        BLOCK_0_STATE_DIFF.clone(),
+        block_1_state_diff,
+        accessed_keys.clone(),
+    )
+    .await;
     assert_witnesses_and_digest_present(
         &mut committer,
         BlockNumber(height_1),
@@ -394,9 +412,7 @@ async fn test_bottom_of_new_edge_to_an_unmoidifed_subtree_is_present() {
     let compiled_class_hash_d_felt = 102_u64.into();
 
     let mut committer = new_test_committer().await;
-    let height_0 = 0;
-    let height_1 = 1;
-    let block_0_state_diff = ThinStateDiff {
+    let setup_state_diff = ThinStateDiff {
         class_hash_to_compiled_class_hash: indexmap! {
             class_hash_a => CompiledClassHash(compiled_class_hash_a_felt),
             class_hash_b => CompiledClassHash(compiled_class_hash_b_felt),
@@ -415,24 +431,9 @@ async fn test_bottom_of_new_edge_to_an_unmoidifed_subtree_is_present() {
         ..Default::default()
     };
 
-    committer
-        .commit_block(CommitBlockRequest {
-            state_diff: block_0_state_diff.clone(),
-            state_diff_commitment: Some(calculate_state_diff_hash(&block_0_state_diff)),
-            height: BlockNumber(height_0),
-        })
-        .await
-        .unwrap();
-
-    let response = committer
-        .read_paths_and_commit_block(read_paths_and_commit_block_request(
-            block_1_state_diff.clone(),
-            Some(calculate_state_diff_hash(&block_1_state_diff)),
-            height_1,
-            accessed_keys,
-        ))
-        .await
-        .unwrap();
+    let response =
+        setup_and_read_paths(&mut committer, setup_state_diff, block_1_state_diff, accessed_keys)
+            .await;
 
     let leaf_a_hash = TreeHashFunctionImpl::compute_leaf_hash(&CommitterCompiledClassHash(
         compiled_class_hash_a_felt,
@@ -488,9 +489,7 @@ async fn test_bottom_of_new_edge_which_was_not_bottom_of_an_old_edge_is_present(
     let compiled_class_hash_d_felt = 102_u64.into();
 
     let mut committer = new_test_committer().await;
-    let height_0 = 0;
-    let height_1 = 1;
-    let block_0_state_diff = ThinStateDiff {
+    let setup_state_diff = ThinStateDiff {
         class_hash_to_compiled_class_hash: indexmap! {
             class_hash_a => CompiledClassHash(compiled_class_hash_a_felt),
             class_hash_b => CompiledClassHash(compiled_class_hash_b_felt),
@@ -509,24 +508,9 @@ async fn test_bottom_of_new_edge_which_was_not_bottom_of_an_old_edge_is_present(
         ..Default::default()
     };
 
-    committer
-        .commit_block(CommitBlockRequest {
-            state_diff: block_0_state_diff.clone(),
-            state_diff_commitment: Some(calculate_state_diff_hash(&block_0_state_diff)),
-            height: BlockNumber(height_0),
-        })
-        .await
-        .unwrap();
-
-    let response = committer
-        .read_paths_and_commit_block(read_paths_and_commit_block_request(
-            block_1_state_diff.clone(),
-            Some(calculate_state_diff_hash(&block_1_state_diff)),
-            height_1,
-            accessed_keys,
-        ))
-        .await
-        .unwrap();
+    let response =
+        setup_and_read_paths(&mut committer, setup_state_diff, block_1_state_diff, accessed_keys)
+            .await;
 
     let leaf_a_hash = TreeHashFunctionImpl::compute_leaf_hash(&CommitterCompiledClassHash(
         compiled_class_hash_a_felt,
