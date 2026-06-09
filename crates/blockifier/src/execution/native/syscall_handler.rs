@@ -48,7 +48,6 @@ use crate::execution::native::utils::{
     default_tx_v2_info,
     tx_v2_info_to_tx_v3_info,
 };
-use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR_FELT};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
@@ -58,6 +57,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SyscallSelector,
     TryExtractRevert,
 };
+use crate::execution::{secp, secp_shadow};
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
@@ -762,7 +762,14 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::Secp256r1Add,
         )?;
 
-        Ok(Secp256Point::add(p0.into(), p1.into()).into())
+        let p0_point: Secp256Point<ark_secp256r1::Config> = p0.into();
+        let p1_point: Secp256Point<ark_secp256r1::Config> = p1.into();
+        secp_shadow::reject_zero_x_in_add(&p0_point.0, &p1_point.0)
+            .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        Secp256Point::add(p0_point, p1_point)
+            .reject_zero_x()
+            .map(Into::into)
+            .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn secp256r1_mul(
@@ -777,7 +784,13 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::Secp256r1Mul,
         )?;
 
-        Ok(Secp256Point::mul(p.into(), m).into())
+        let p_point: Secp256Point<ark_secp256r1::Config> = p.into();
+        secp_shadow::reject_zero_x_in_mul(&p_point.0, &u256_to_biguint(m))
+            .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        Secp256Point::mul(p_point, m)
+            .reject_zero_x()
+            .map(Into::into)
+            .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn secp256r1_get_point_from_x(
@@ -883,7 +896,7 @@ impl From<Secp256r1Point> for Secp256Point<ark_secp256r1::Config> {
     }
 }
 
-impl<Curve: SWCurveConfig> Secp256Point<Curve>
+impl<Curve: SWCurveConfig + secp::SecpZeroXPolicy> Secp256Point<Curve>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
@@ -895,9 +908,15 @@ where
     {
         match result {
             Ok(None) => Ok(None),
-            Ok(Some(point)) => Ok(Some(Secp256Point(point.into()))),
+            Ok(Some(point)) => Ok(Some(Secp256Point(point.into()).reject_zero_x()?)),
             Err(error) => Err(error),
         }
+    }
+
+    /// Rejects secp256r1 points with x-coordinate 0.
+    fn reject_zero_x(self) -> Result<Self, SyscallExecutionError> {
+        secp::reject_zero_x_point(&self.0)?;
+        Ok(self)
     }
 
     /// Given an (x, y) pair, this function:
