@@ -11,6 +11,7 @@ pub mod errors;
 pub mod execution_utils;
 pub mod hint_code;
 pub mod secp;
+pub mod secp_shadow;
 
 #[cfg(feature = "cairo_native")]
 pub mod native;

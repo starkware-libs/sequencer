@@ -1,8 +1,40 @@
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::{BigInteger, PrimeField, Zero};
+use starknet_types_core::felt::Felt;
 
 use crate::execution::syscalls::hint_processor::INVALID_ARGUMENT_FELT;
 use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
+
+/// Whether points with x-coordinate 0 are rejected. Enabled for secp256r1 only.
+pub trait SecpZeroXPolicy {
+    const REJECT_ZERO_X_POINT: bool;
+}
+
+impl SecpZeroXPolicy for ark_secp256r1::Config {
+    const REJECT_ZERO_X_POINT: bool = true;
+}
+
+impl SecpZeroXPolicy for ark_secp256k1::Config {
+    const REJECT_ZERO_X_POINT: bool = false;
+}
+
+/// The error returned when a secp256r1 point with x-coordinate 0 is rejected.
+pub(crate) fn zero_x_point_error() -> SyscallExecutorBaseError {
+    SyscallExecutorBaseError::InvalidSyscallInput {
+        input: Felt::ZERO,
+        info: "secp256r1 points with x-coordinate 0 are not allowed".to_string(),
+    }
+}
+
+/// Rejects secp256r1 points with x-coordinate 0. Shared by the VM and Cairo Native syscall paths.
+pub fn reject_zero_x_point<Curve: SWCurveConfig + SecpZeroXPolicy>(
+    point: &Affine<Curve>,
+) -> Result<(), SyscallExecutorBaseError> {
+    if Curve::REJECT_ZERO_X_POINT && !point.infinity && point.x.is_zero() {
+        return Err(zero_x_point_error());
+    }
+    Ok(())
+}
 
 pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
