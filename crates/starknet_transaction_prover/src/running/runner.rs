@@ -51,6 +51,9 @@ pub(crate) struct VirtualOsBlockInput {
     transactions: Vec<(InvokeTransaction, TransactionHash)>,
     tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     block_info: BlockInfo,
+    /// The base block's version string as returned by the RPC; used by the OS to recompute the
+    /// base block hash (may be newer than the latest known `StarknetVersion`).
+    raw_starknet_version: String,
     initial_reads: StateMaps,
     base_block_hash: BlockHash,
     base_block_header_commitments: BlockHeaderCommitments,
@@ -83,6 +86,7 @@ impl From<VirtualOsBlockInput> for OsHints {
             tx_execution_infos: virtual_os_block_input.tx_execution_infos,
             prev_block_hash: virtual_os_block_input.prev_base_block_hash,
             block_info: virtual_os_block_input.block_info,
+            starknet_version_override: Some(virtual_os_block_input.raw_starknet_version),
             initial_reads: virtual_os_block_input.initial_reads,
             declared_class_hash_to_component_hashes: HashMap::new(),
             new_block_hash: virtual_os_block_input.base_block_hash,
@@ -238,6 +242,7 @@ where
             transactions: txs,
             tx_execution_infos,
             block_info: execution_data.base_block_info.block_context.block_info().clone(),
+            raw_starknet_version: execution_data.base_block_info.raw_starknet_version,
             initial_reads: extended_initial_reads,
             base_block_hash: execution_data.base_block_info.base_block_hash,
             base_block_header_commitments: execution_data
