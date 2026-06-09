@@ -868,7 +868,13 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apollo_base_layer_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "alloy",
  "apollo_config",
@@ -884,7 +890,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_config",
  "apollo_batcher_types",
@@ -937,7 +949,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_storage",
@@ -950,7 +968,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
@@ -976,7 +1000,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_cairo_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "blockifier",
  "starknet-types-core",
@@ -985,7 +1015,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_central_sync"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_central_sync_config",
  "apollo_class_manager_types",
@@ -1019,7 +1055,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_central_sync_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_starknet_client",
@@ -1031,7 +1073,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_class_manager_config",
  "apollo_class_manager_types",
@@ -1054,7 +1102,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_storage",
@@ -1064,7 +1118,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
@@ -1085,7 +1145,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_committer"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_committer_config",
  "apollo_committer_types",
@@ -1104,7 +1170,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_committer_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1115,7 +1187,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_committer_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1132,7 +1210,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_compilation_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -1151,7 +1235,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_casm"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_casm_types",
@@ -1175,7 +1265,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_casm_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1192,7 +1288,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_native_types",
@@ -1208,7 +1310,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1217,7 +1325,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "apollo_test_utils",
@@ -1239,7 +1353,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_config_manager"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_config",
  "apollo_class_manager_config",
@@ -1268,7 +1388,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_config_manager_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1277,7 +1403,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_config_manager_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_config",
  "apollo_class_manager_config",
@@ -1299,7 +1431,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_types",
  "apollo_config_manager_types",
@@ -1337,7 +1475,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_protobuf",
@@ -1349,7 +1493,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_manager"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager_types",
@@ -1384,7 +1534,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_manager_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_consensus_config",
@@ -1398,7 +1554,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_orchestrator"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
@@ -1462,7 +1624,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_orchestrator_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1473,7 +1641,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_dashboard"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher",
  "apollo_class_manager",
@@ -1511,7 +1685,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_deployments"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_infra",
@@ -1528,7 +1708,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
@@ -1577,7 +1763,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_compilation_utils",
  "apollo_config",
@@ -1592,7 +1784,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_network_types",
@@ -1611,7 +1809,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_http_server"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config_manager_types",
  "apollo_gateway_types",
@@ -1625,7 +1829,6 @@ dependencies = [
  "axum",
  "base64 0.13.1",
  "blockifier",
- "blockifier_reexecution",
  "blockifier_test_utils",
  "flate2",
  "futures",
@@ -1651,7 +1854,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_http_server_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "rstest",
@@ -1661,7 +1870,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_infra"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
@@ -1699,7 +1914,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_infra_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_proc_macros",
  "assert-json-diff",
@@ -1725,7 +1946,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_integration_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "alloy",
  "anyhow",
@@ -1807,7 +2034,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_events"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "alloy",
  "apollo_base_layer_tests",
@@ -1839,7 +2072,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_events_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1849,7 +2088,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_events_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1866,7 +2111,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_gas_price"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_infra",
@@ -1894,7 +2145,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_gas_price_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1905,7 +2162,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_gas_price_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1922,7 +2185,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_config_manager_types",
@@ -1965,7 +2234,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -1975,7 +2250,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_class_manager_types",
  "apollo_gateway_types",
@@ -2001,7 +2282,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_network",
@@ -2011,7 +2298,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2026,7 +2319,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2042,7 +2341,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_metrics"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_time",
  "const_format",
@@ -2058,7 +2363,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_monitoring_endpoint"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_infra",
@@ -2087,7 +2398,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_monitoring_endpoint_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -2096,7 +2413,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_network"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_metrics",
@@ -2134,7 +2457,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_network_benchmark"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_metrics",
@@ -2158,7 +2487,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_network_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_test_utils",
  "lazy_static",
@@ -2169,7 +2504,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_node"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_batcher",
@@ -2221,7 +2562,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_node_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_config",
  "apollo_class_manager_config",
@@ -2260,7 +2607,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_p2p_sync"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_class_manager_types",
  "apollo_network",
@@ -2294,7 +2647,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_p2p_sync_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -2303,7 +2662,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_proc_macros_lib",
  "metrics",
@@ -2311,7 +2676,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros_lib"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "lazy_static",
  "proc-macro2",
@@ -2321,7 +2692,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
@@ -2336,7 +2713,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_proof_manager"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2354,7 +2737,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_proof_manager_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -2363,7 +2752,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_proof_manager_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2377,7 +2772,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_propeller"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "apollo_metrics",
@@ -2407,7 +2808,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_protobuf"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_types",
  "apollo_test_utils",
@@ -2437,7 +2844,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_reverts"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_metrics",
@@ -2452,7 +2865,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
@@ -2502,7 +2921,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc_execution"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
@@ -2533,7 +2958,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_sierra_compilation_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -2542,7 +2973,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_signature_manager"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2563,7 +3000,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_signature_manager_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2578,7 +3021,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_sizeof"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_sizeof_macros",
  "starknet-types-core",
@@ -2586,7 +3035,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_sizeof_macros"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2595,7 +3050,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_staking"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher_types",
  "apollo_cairo_utils",
@@ -2621,7 +3082,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_staking_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "serde",
@@ -2633,7 +3100,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_starknet_client"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_test_utils",
@@ -2664,7 +3137,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_starknet_os_program"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "blockifier",
@@ -2682,7 +3161,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_reader"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_class_manager_types",
  "apollo_storage",
@@ -2699,7 +3184,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_central_sync",
  "apollo_class_manager_types",
@@ -2732,7 +3223,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_central_sync_config",
  "apollo_config",
@@ -2747,7 +3244,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_metrics"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2757,7 +3260,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2775,7 +3284,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_storage"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
@@ -2835,7 +3350,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_task_executor"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "futures",
  "rstest",
@@ -2845,7 +3366,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_test_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -2866,7 +3393,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_time"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "chrono",
  "mockall",
@@ -2875,7 +3408,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_transaction_converter"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_class_manager_types",
  "apollo_metrics",
@@ -2898,7 +3437,13 @@ dependencies = [
 
 [[package]]
 name = "apollo_versioned_constants"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "serde",
  "starknet_api",
@@ -3542,7 +4087,13 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "bench_tools"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "clap",
@@ -3790,7 +4341,13 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_compilation_utils",
@@ -3849,10 +4406,15 @@ dependencies = [
 
 [[package]]
 name = "blockifier_reexecution"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
- "apollo_compile_to_casm",
- "apollo_compile_to_casm_types",
+ "apollo_compilation_utils",
  "apollo_config",
  "apollo_rpc_execution",
  "apollo_sierra_compilation_config",
@@ -3863,6 +4425,7 @@ dependencies = [
  "flate2",
  "google-cloud-storage",
  "indexmap 2.14.0",
+ "mempool_test_utils",
  "mockito",
  "pretty_assertions",
  "reqwest 0.12.24",
@@ -3882,7 +4445,13 @@ dependencies = [
 
 [[package]]
 name = "blockifier_test_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
@@ -4173,9 +4742,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-casm"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8ba4a3d44e9911b757ab231d09c370753ba717fe8b335dffbb6f7b137296fe"
+checksum = "1cd690d6e05923d64d879176f894f681ea9622132e7b90b47e56074d140602b6"
 dependencies = [
  "cairo-lang-utils",
  "indoc 2.0.7",
@@ -4188,9 +4757,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-compiler"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3503898c518d6e8ed5e958d30aa2745bf099c1600b5fde486210719b98a2d10"
+checksum = "36faee48ca3fd4f01d61a5006d4e7bab8fd174b8a2327bc6483220a1e340eb31"
 dependencies = [
  "anyhow",
  "cairo-lang-defs",
@@ -4215,9 +4784,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-debug"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed1a9a5aac7b9220d811d8a745fe5e35a7043f741e267a8b00a4c5763b48b1d7"
+checksum = "6c3ce3cff62cc0b637b6f8e7f72fc1dcceab7937876b5c01d05e8343ef27b534"
 dependencies = [
  "cairo-lang-utils",
  "id-arena",
@@ -4226,9 +4795,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-defs"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d804565b31e141d7909e26a43fb251cf6ec68d36d9918f2e4a970d4326c70bd3"
+checksum = "1e0fdca2b7dc560ab7f926c2b49465fbcfe486bf49c1b05da6ff90b30716f3b1"
 dependencies = [
  "cairo-lang-debug",
  "cairo-lang-diagnostics",
@@ -4247,9 +4816,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-diagnostics"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4555f8c2563fa070c2c492bb4a20ee8d9e87ec67239593dab7545a17f8a7d7b"
+checksum = "f3c0fae7d9448620dbc1e9bf09bba0444216b40704416cfcd59e7e08f143b709"
 dependencies = [
  "cairo-lang-debug",
  "cairo-lang-filesystem",
@@ -4261,9 +4830,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-eq-solver"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfd052b0c34bac485aefb13f2ba38e5159913f05f6001915db473b6a0ebcd2b9"
+checksum = "7542fa0e4c1abf6d6fbc83f5a30306c91131f65785c2b63c003f48d72706c871"
 dependencies = [
  "cairo-lang-utils",
  "good_lp",
@@ -4271,9 +4840,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-executable"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fae5d00c834ba73225eda9bc7334e7b8a28b3723ad236cfb543133c4dca2e0eb"
+checksum = "652f8ab27199b5151ae21413a346c21d49a6697d4079dbd6257007fd27bccb9b"
 dependencies = [
  "anyhow",
  "cairo-lang-casm",
@@ -4296,9 +4865,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-executable-plugin"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47c99ac46c5f29f7945d7feb94e4b410f2356d3326c8525ca3f8fa2d182e210a"
+checksum = "4bce1857468de1822ab585fd03493bdaee7d9bba620268ecbc03e01791828f95"
 dependencies = [
  "cairo-lang-defs",
  "cairo-lang-filesystem",
@@ -4311,9 +4880,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-execute-utils"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfd1b602a4fadf03bcf699acb81d742470a34be25331497787c0d75c8bc9c6aa"
+checksum = "0406e56f28bdb12461187ef2207d3812cd39f1e089525036a95ea00a0ff22833"
 dependencies = [
  "anyhow",
  "cairo-lang-casm",
@@ -4327,9 +4896,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-filesystem"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d897c5268fff99a2f093a7d9fd23480ef0a46f7130d6640934bcb13ecc08f9f"
+checksum = "6e22affa99c1e08d732b810e884993bda062d265239022a716bbebbc8b0cf3ff"
 dependencies = [
  "cairo-lang-debug",
  "cairo-lang-proc-macros",
@@ -4345,9 +4914,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-formatter"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05a5fd77897cc7afe835c3c97720835d01fa203aa968777f8df1ae8e6901e748"
+checksum = "5ae9322f0e3451409644b8716da24518db3ca2c065998e8af7b983586ba286ec"
 dependencies = [
  "anyhow",
  "cairo-lang-diagnostics",
@@ -4365,9 +4934,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-lowering"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d1d5fc3122388882be9c8774ee836d2c7a4db1333c08ff82f36d8f43e84c57c"
+checksum = "13071cc8bb41b7c5ae9e76208a2029f6e552a7c7fe3ace3e8bad12d820b27669"
 dependencies = [
  "assert_matches",
  "cairo-lang-debug",
@@ -4395,9 +4964,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-parser"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "324f258615e2876db65be5eb439999d35f432976c0cf2717778c183ee0ba4708"
+checksum = "b3ef64f35c98a7e28c7434c2bd136820457415c2a651ffd688ebde7fcff16137"
 dependencies = [
  "cairo-lang-diagnostics",
  "cairo-lang-filesystem",
@@ -4415,9 +4984,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-plugins"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "133dc9d41b82e97f348e4589d58116473e63bbe97bf8669260a945b5482faec0"
+checksum = "be34de8506540f15d558bc0ec5fd75d38be94c91c73909e3e846056bce457e1d"
 dependencies = [
  "cairo-lang-defs",
  "cairo-lang-diagnostics",
@@ -4439,9 +5008,9 @@ checksum = "123ac0ecadf31bacae77436d72b88fa9caef2b8e92c89ce63a125ae911a12fae"
 
 [[package]]
 name = "cairo-lang-proc-macros"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b253829795dd9e12560f55654631d1605eea1be4d6790eb02e6719e79bde5be"
+checksum = "46b104dfcac43c02ad833c3cb1ba860f6e91cccbad8038356baa20819ee2575b"
 dependencies = [
  "cairo-lang-debug",
  "proc-macro2",
@@ -4452,9 +5021,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-project"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cde3434b466ab9b03d402dbc79cc57adfb9d25a5e4d614c0060cccd955379d8"
+checksum = "9c62e52653e1648466790129d8f63180740080311fc6b74c98063deffc863dd2"
 dependencies = [
  "cairo-lang-filesystem",
  "cairo-lang-utils",
@@ -4465,9 +5034,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-runnable-utils"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3269a2e149811c7a714cd3a465902b1897a9b372c589188b3f53a746e3691b02"
+checksum = "ae33479b859b2e81e60a0ea04abedf83496ead573d7dcdcfed0e22dc8bf92097"
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-sierra",
@@ -4482,9 +5051,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-runner"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0603bfe3285f0b1978aa98741a8fcd757239082a22ca21f3db281a914145d7a1"
+checksum = "382560591d38d86b11cefe20424ffa1deaa8ece4e0697a70ed67c4fbf9720fa7"
 dependencies = [
  "ark-ff 0.5.0",
  "ark-secp256k1",
@@ -4514,9 +5083,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-semantic"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c2be71c26fc76ff91b1c224d54bede226ba6b66ec6892a4e5c98ad53f399021"
+checksum = "428531e2cc20d517a3378401863fe2839d5d7034c655ccb6065f3d0a1d21aeb6"
 dependencies = [
  "cairo-lang-debug",
  "cairo-lang-defs",
@@ -4544,9 +5113,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-sierra"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24a109344978f9338afbfceb801af131e41f5b5c7951a2c8f584d9092fd565aa"
+checksum = "627a3863575d8bb956b0aa7e3daff3d1541c66b5f54eb9fed10215c071113353"
 dependencies = [
  "anyhow",
  "cairo-lang-utils",
@@ -4570,9 +5139,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-sierra-ap-change"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a7e5837455553b09f926ef1e9aab6622fb6091f900d932c979ab722f080e837"
+checksum = "5c896f512e5511245cd1211d7540fd70b13f73bde9bc6cf2b35b0f573188d802"
 dependencies = [
  "cairo-lang-eq-solver",
  "cairo-lang-sierra",
@@ -4586,9 +5155,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-sierra-gas"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f7337921f6fde562433a015a11ac1367b0cb8f52ede2c3af927d96d5aa3442"
+checksum = "30a05f23a24998b9c6526d0196dbbcffa91d654b8ffb7f5b8078f80f0f635d87"
 dependencies = [
  "cairo-lang-eq-solver",
  "cairo-lang-sierra",
@@ -4602,9 +5171,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-sierra-generator"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50a144c32b66f0ede481c8b9bd285722373e3848ae3fabead0080511471039cb"
+checksum = "176c0a9e0d471a8705e4a2d05d1921434a4e019fce483ce82f76cba713dc44b4"
 dependencies = [
  "cairo-lang-debug",
  "cairo-lang-defs",
@@ -4627,9 +5196,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-sierra-to-casm"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cac7497b6627e7c4b69edd9c305eb254298d77a0801bd0b6b3122d53c62d7f07"
+checksum = "92c87ff9a3b51c6302c528d27cb360f168eb1414ecae6f2a062e09d83516ee05"
 dependencies = [
  "assert_matches",
  "cairo-lang-casm",
@@ -4648,9 +5217,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-sierra-type-size"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e2c6feaf7f1255e43321e34e3744a9ef853fce98960ab138988c048029c57e6"
+checksum = "493f87fcc357c74ee95314e199818d66b3f4941ca7ae7bedd32599922986cae7"
 dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-utils",
@@ -4658,9 +5227,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-starknet"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd34ae52728e9acb14ac15c2529736493a2c02e144f0233bab55d66c3fdbfd57"
+checksum = "b26b58f9abcb3bd67bc8e2ad613a2b982512aa4283d2133cb094ce8f9ee50e3a"
 dependencies = [
  "anyhow",
  "cairo-lang-compiler",
@@ -4691,9 +5260,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-starknet-classes"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b4961af6fc9d7fa615b20f9dd48df9c63bff3cc54113fe33aeade99b4219e1c"
+checksum = "39ea64b65dc829cf0121b213b72f973c0e7be05b4762685a86c26b3140aa66b6"
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-sierra",
@@ -4715,9 +5284,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-syntax"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c81138a4f169c8d19752fc438e7aadc443123454eb5f1f2b219ca0953a952071"
+checksum = "2503947a08f422758e430cf93d144cebc03fc6ab52d6f316ea4ea2a5ffc9e134"
 dependencies = [
  "cairo-lang-debug",
  "cairo-lang-filesystem",
@@ -4734,9 +5303,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-syntax-codegen"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6380c1fa17b96823eac53d6a57de949402ee55d2b4d14ae722ac9287f0efc3c1"
+checksum = "f9f0ff0e724dbe6d9b7cbd29ead2515eea9197812ea266326739e8a9e97b8952"
 dependencies = [
  "genco",
  "xshell",
@@ -4744,9 +5313,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-test-utils"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e93debf5e87605b99bf3fa26f2c1e262d76173d3e5bfb96588cf76e4288dafde"
+checksum = "4aa2991b9026bcab775298ff723fd2947b97b0a6582f1b234d704d7887a8a62b"
 dependencies = [
  "cairo-lang-formatter",
  "cairo-lang-proc-macros",
@@ -4758,9 +5327,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-utils"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ac2d569ef99caab85f4b92d668e61d30ec4877dc24353bb1d1b68b5fb09bf9d"
+checksum = "a44b52dce1107549ea332b6926cdfa6db77fcb8123c74ac883d40de3d21dc8ce"
 dependencies = [
  "hashbrown 0.17.1",
  "indexmap 2.14.0",
@@ -4828,7 +5397,7 @@ dependencies = [
 [[package]]
 name = "cairo-program-runner-lib"
 version = "1.2.2"
-source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3-rc-1#c0b937bb19126255fbeeededbcaea4a84ae9f1c0"
+source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3#abdc99c98aa319363102173c118746ec44ae928c"
 dependencies = [
  "anyhow",
  "cairo-lang-casm",
@@ -4917,7 +5486,13 @@ dependencies = [
 
 [[package]]
 name = "central_systest_blobs"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
@@ -5069,10 +5644,10 @@ dependencies = [
 [[package]]
 name = "circuit-air"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
  "itertools 0.12.1",
  "num-traits",
  "serde",
@@ -5084,12 +5659,12 @@ dependencies = [
 [[package]]
 name = "circuit-cairo-air"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
  "cairo-air 1.1.0",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5102,12 +5677,12 @@ dependencies = [
 [[package]]
 name = "circuit-cairo-verifier"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
  "cairo-air 1.2.2",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5120,23 +5695,10 @@ dependencies = [
 [[package]]
 name = "circuit-common"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "itertools 0.12.1",
- "rand_chacha 0.3.1",
- "stwo 2.1.0",
- "stwo-cairo-common 1.1.0",
- "stwo-constraint-framework 2.1.0",
-]
-
-[[package]]
-name = "circuit-common"
-version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
-dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "itertools 0.12.1",
  "rand_chacha 0.3.1",
  "stwo 2.2.0",
@@ -5145,14 +5707,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "circuit-common"
+version = "0.1.0"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
+dependencies = [
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "itertools 0.12.1",
+ "rand_chacha 0.3.1",
+ "stwo 2.1.0",
+ "stwo-cairo-common 1.1.0",
+ "stwo-constraint-framework 2.1.0",
+]
+
+[[package]]
 name = "circuit-prover"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "circuit-verifier",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "itertools 0.12.1",
  "num-traits",
  "rayon",
@@ -5168,32 +5743,32 @@ dependencies = [
 [[package]]
 name = "circuit-serialize"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "num-traits",
- "stwo 2.1.0",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "stwo 2.2.0",
 ]
 
 [[package]]
 name = "circuit-serialize"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "stwo 2.2.0",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "num-traits",
+ "stwo 2.1.0",
 ]
 
 [[package]]
 name = "circuit-verifier"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5204,23 +5779,10 @@ dependencies = [
 [[package]]
 name = "circuits"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
  "blake2",
- "hashbrown 0.17.1",
- "indexmap 2.14.0",
- "itertools 0.12.1",
- "num-traits",
- "stwo 2.1.0",
-]
-
-[[package]]
-name = "circuits"
-version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
-dependencies = [
- "blake2",
- "hashbrown 0.17.1",
+ "hashbrown 0.15.5",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5229,32 +5791,45 @@ dependencies = [
 ]
 
 [[package]]
-name = "circuits-stark-verifier"
+name = "circuits"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "blake2",
  "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
  "stwo 2.1.0",
- "stwo-constraint-framework 2.1.0",
 ]
 
 [[package]]
 name = "circuits-stark-verifier"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918#24f39918093303fe42ecf2ea47d1e503d544a9cc"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "hashbrown 0.17.1",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "hashbrown 0.15.5",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
  "serde",
  "stwo 2.2.0",
  "stwo-constraint-framework 2.2.0",
+]
+
+[[package]]
+name = "circuits-stark-verifier"
+version = "0.1.0"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
+dependencies = [
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "hashbrown 0.17.1",
+ "indexmap 2.14.0",
+ "itertools 0.12.1",
+ "num-traits",
+ "stwo 2.1.0",
+ "stwo-constraint-framework 2.1.0",
 ]
 
 [[package]]
@@ -8989,7 +9564,13 @@ dependencies = [
 
 [[package]]
 name = "mempool_test_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -9280,7 +9861,13 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_compile_to_native_types",
  "apollo_state_reader",
@@ -9831,7 +10418,7 @@ dependencies = [
  "serde_derive",
  "sha2 0.10.9",
  "thiserror 2.0.17",
- "toml 0.9.8",
+ "toml 0.8.23",
 ]
 
 [[package]]
@@ -9943,7 +10530,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "alloy",
  "apollo_config",
@@ -9967,7 +10560,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_test_utils",
  "assert_matches",
@@ -10430,17 +11029,17 @@ dependencies = [
 [[package]]
 name = "privacy-circuit-verify"
 version = "1.1.0"
-source = "git+https://github.com/starkware-libs/proving-utils?rev=580135e#580135ebc86cd4ece92e44e78e54e49e22bec323"
+source = "git+https://github.com/starkware-libs/proving-utils?rev=18f6cac#18f6caca80acfc6eae5a06b7ce41400533aa2d18"
 dependencies = [
  "anyhow",
  "cairo-air 1.1.0",
  "cairo-vm",
  "circuit-air",
  "circuit-cairo-air",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
  "clap",
  "itertools 0.12.1",
  "log",
@@ -10460,17 +11059,17 @@ dependencies = [
 [[package]]
 name = "privacy-circuit-verify"
 version = "1.2.2"
-source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3-rc-1#c0b937bb19126255fbeeededbcaea4a84ae9f1c0"
+source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3#abdc99c98aa319363102173c118746ec44ae928c"
 dependencies = [
  "anyhow",
  "cairo-air 1.2.2",
  "cairo-vm",
  "circuit-cairo-verifier",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "circuit-verifier",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "clap",
  "itertools 0.12.1",
  "log",
@@ -10490,19 +11089,19 @@ dependencies = [
 [[package]]
 name = "privacy-prove"
 version = "1.2.2"
-source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3-rc-1#c0b937bb19126255fbeeededbcaea4a84ae9f1c0"
+source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3#abdc99c98aa319363102173c118746ec44ae928c"
 dependencies = [
  "anyhow",
  "cairo-air 1.2.2",
  "cairo-program-runner-lib",
  "cairo-vm",
  "circuit-cairo-verifier",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "circuit-prover",
- "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "circuit-verifier",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=24f39918)",
  "clap",
  "itertools 0.12.1",
  "log",
@@ -12256,7 +12855,13 @@ dependencies = [
 
 [[package]]
 name = "shared_execution_objects"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "blockifier",
  "rstest",
@@ -12847,7 +13452,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "apollo_sizeof",
@@ -12887,7 +13498,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_config",
  "async-recursion",
@@ -12921,7 +13538,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer_and_os_cli"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_committer",
  "apollo_committer_config",
@@ -12960,7 +13583,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer_cli"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "apollo_storage",
@@ -12982,7 +13611,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_os"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
@@ -13037,7 +13672,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_os_flow_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_integration_tests",
  "assert_matches",
@@ -13070,7 +13711,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "async-recursion",
  "derive_more",
@@ -13091,7 +13738,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia_storage"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "aerospike",
  "apollo_config",
@@ -13116,7 +13769,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_proof_verifier"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "apollo_sizeof",
  "privacy-circuit-verify 1.1.0",
@@ -13130,7 +13789,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_transaction_prover"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "anyhow",
  "apollo_infra_utils",
@@ -14014,21 +14679,6 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0dc8b1fb61449e27716ec0e1bdf0f6b8f3e8f6b05391e8497b8b6d7804ea6d8"
-dependencies = [
- "indexmap 2.14.0",
- "serde_core",
- "serde_spanned 1.1.1",
- "toml_datetime 0.7.3",
- "toml_parser",
- "toml_writer",
- "winnow 0.7.13",
-]
-
-[[package]]
-name = "toml"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81f3d15e84cbcd896376e6730314d59fb5a87f31e4b038454184435cd57defee"
@@ -14106,7 +14756,13 @@ dependencies = [
 
 [[package]]
 name = "toml_test_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "serde",
  "toml 0.8.23",
@@ -14181,7 +14837,13 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tower_ohttp"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "bhttp",
  "bytes",
@@ -15427,7 +16089,13 @@ dependencies = [
 
 [[package]]
 name = "workspace_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| b392cf22a9
+version = "0.19.0-rc.0"
+=======
+version = "0.19.0-rc.1"
+>>>>>>> origin/main-v0.14.3
 dependencies = [
  "expect-test",
  "toml_test_utils",

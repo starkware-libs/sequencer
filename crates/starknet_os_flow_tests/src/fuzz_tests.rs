@@ -88,15 +88,45 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
+<<<<<<< HEAD
     expect!["0x5ecd59f55d545438542b65b438b24694545bf7a0383842faaec2bb860c24857"];
+||||||| b392cf22a9
+    expect!["0x38f136db1159afdd3edfab673cf87a6e54fcc37c860dcfa0f98a5742a5213cb"];
+=======
+    expect!["0x12c6534d1a74b484788fb0fe86b5ebc36fea89e61fe6e5bae369d8120374f46"];
+>>>>>>> origin/main-v0.14.3
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
+<<<<<<< HEAD
     expect!["0x472635a089b3c110497b6b2bff71fc9e26ae49e2a2e28248010c7d1fe5ae523"];
+||||||| b392cf22a9
+    expect!["0x188df0205a3d5dfd572dcc2b8d8942fa90b97017f772a9db170d8ca35a286f8"];
+=======
+    expect!["0x540e9f2a93b44679088aeaa2c575ecc3ac8649d1fede8fc413bbbc62bd75f51"];
+>>>>>>> origin/main-v0.14.3
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
+<<<<<<< HEAD
     expect!["0x1c5d9a7945d7744146597191bf74d1a22297d973d3965e48047057961d9c10"];
+||||||| b392cf22a9
+    expect!["0x7758b558dff20f4dcffe3585207087b9123e0e1944861662f5b633a9b77aab4"];
+=======
+    expect!["0x39d47cb8c81b24c6b3f6cd8b39271da97a13a0c700309e42faf682f9d16e0a3"];
+>>>>>>> origin/main-v0.14.3
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
+<<<<<<< HEAD
     expect!["0x7948398cd0d5ef3db5c73759481f5b6df679fcdbd78cec6d273a5cb9371d0b6"];
+||||||| b392cf22a9
+    expect!["0x5b5a5eb884441ce9346b6a292e77fbbd6797d89134fba1e3ab16f9676c4ada6"];
+=======
+    expect!["0x72d7470f205d9956c6b2211acefd00be64116bfe453fc533f5138e0501f1ca7"];
+>>>>>>> origin/main-v0.14.3
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
+<<<<<<< HEAD
     expect!["0x1da006bc656b4737ffcfd145881b3107cfaf3735186628783c8888f1e85513b"];
+||||||| b392cf22a9
+    expect!["0x5c94de69e68d8c9e2bd82f6214cb1e7f99b72ff16486118450f3863d144b96d"];
+=======
+    expect!["0x3bf01869bbb5a4cab6631d78e73388e9f7100d75ab9dcc3de4a4d6a84ba24ea"];
+>>>>>>> origin/main-v0.14.3
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });

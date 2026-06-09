@@ -36,16 +36,23 @@ fn roundtrip_program_output_to_proof_facts_and_back() {
 /// `resources/regression_test/{version}/`.
 ///
 /// To add a new version:
-/// 1. Generate proof fixtures by running the `regenerate_proof_fixtures` test in
-///    `starknet_transaction_prover`: ```bash cargo test -p starknet_transaction_prover --features
-///    stwo_proving \ -- --ignored regenerate_proof_fixtures ```
-/// 2. Copy the generated files into a new version directory: ```bash mkdir -p
-///    crates/starknet_proof_verifier/resources/regression_test/{version} cp
-///    crates/apollo_transaction_converter/resources/example_proof.bin \
-///    crates/starknet_proof_verifier/resources/regression_test/{version}/ cp
-///    crates/apollo_transaction_converter/resources/example_proof_facts.json \
-///    crates/starknet_proof_verifier/resources/regression_test/{version}/ ```
-/// 3. Add a new `#[case("{version}")]` below.
+/// 1. `cd` into `crates/starknet_transaction_prover`, so cargo commands use the crate-specific
+///    toolchain settings.
+/// 2. Generate proof fixtures by running the `regenerate_proof_fixtures` test in
+///    `starknet_transaction_prover`:
+/// ```bash
+/// cargo test -p starknet_transaction_prover --features stwo_proving \
+///   -- --ignored regenerate_proof_fixtures
+/// ```
+/// 3. Copy the generated files into a new version directory:
+/// ```bash
+/// mkdir -p crates/starknet_proof_verifier/resources/regression_test/{version}
+/// cp crates/apollo_transaction_converter/resources/example_proof.bin \
+///    crates/starknet_proof_verifier/resources/regression_test/{version}/
+/// cp crates/apollo_transaction_converter/resources/example_proof_facts.json \
+///    crates/starknet_proof_verifier/resources/regression_test/{version}/
+/// ```
+/// 4. Add a new `#[case("{version}")]` below.
 #[rstest]
 #[case("0.14.2")]
 #[case("0.14.3")]
