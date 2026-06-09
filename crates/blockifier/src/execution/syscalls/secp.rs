@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 use ark_ec::short_weierstrass::{self, SWCurveConfig};
-use ark_ff::PrimeField;
+use ark_ff::{PrimeField, Zero};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
+use starknet_types_core::felt::Felt;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{
@@ -13,7 +14,7 @@ use crate::execution::execution_utils::{
     write_maybe_relocatable,
     write_u256,
 };
-use crate::execution::secp::new_affine;
+use crate::execution::secp::{new_affine, SecpZeroXPolicy};
 use crate::execution::syscalls::hint_processor::felt_to_bool;
 use crate::execution::syscalls::vm_syscall_utils::{
     SyscallBaseResult,
@@ -30,7 +31,7 @@ pub struct SecpHintProcessor<Curve: SWCurveConfig> {
     pub points: HashMap<Relocatable, short_weierstrass::Affine<Curve>>,
 }
 
-impl<Curve: SWCurveConfig> SecpHintProcessor<Curve>
+impl<Curve: SWCurveConfig + SecpZeroXPolicy> SecpHintProcessor<Curve>
 where
     Curve::BaseField: PrimeField,
 {
@@ -115,6 +116,17 @@ where
         points_segment_base: &mut Option<Relocatable>,
         id: usize,
     ) -> SyscallBaseResult<Relocatable> {
+        // Reject points the OS would mistake for the point at infinity (see `SecpZeroXPolicy`).
+        // This is the single funnel for every point produced by a secp syscall (new,
+        // get_point_from_x, add, mul), so checking here blocks the point at creation and as the
+        // result of any group operation.
+        if Curve::REJECT_ZERO_X_POINT && !ec_point.infinity && ec_point.x.is_zero() {
+            return Err(SyscallExecutorBaseError::InvalidSyscallInput {
+                input: Felt::ZERO,
+                info: "secp256r1 points with x-coordinate 0 are not allowed".to_string(),
+            });
+        }
+
         if points_segment_base.is_none() {
             *points_segment_base = Some(vm.add_memory_segment());
         }

@@ -4,6 +4,25 @@ use ark_ff::{BigInteger, PrimeField, Zero};
 use crate::execution::syscalls::hint_processor::INVALID_ARGUMENT_FELT;
 use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
 
+/// The OS secp helpers special-case any point whose x-coordinate is zero as the point at infinity
+/// (see `ec_double` / `fast_ec_add` in the cairo secp libraries). secp256r1 has a valid affine
+/// point with x == 0 and y != 0, which the OS would therefore handle inconsistently, so blockifier
+/// rejects it. secp256k1 has no affine point with x == 0 (`y^2 = 7` has no root modulo its prime)
+/// and is unaffected.
+pub trait SecpZeroXPolicy {
+    /// Whether a non-infinity affine point with x == 0 must be rejected, because the OS would
+    /// otherwise treat it as the point at infinity.
+    const REJECT_ZERO_X_POINT: bool;
+}
+
+impl SecpZeroXPolicy for ark_secp256r1::Config {
+    const REJECT_ZERO_X_POINT: bool = true;
+}
+
+impl SecpZeroXPolicy for ark_secp256k1::Config {
+    const REJECT_ZERO_X_POINT: bool = false;
+}
+
 pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y_parity: bool,
