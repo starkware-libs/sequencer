@@ -13,7 +13,8 @@ use crate::execution::execution_utils::{
     write_maybe_relocatable,
     write_u256,
 };
-use crate::execution::secp::new_affine;
+use crate::execution::secp::{new_affine, reject_zero_x_point, SecpZeroXPolicy};
+use crate::execution::secp_shadow::{reject_zero_x_in_add, reject_zero_x_in_mul};
 use crate::execution::syscalls::hint_processor::felt_to_bool;
 use crate::execution::syscalls::vm_syscall_utils::{
     SyscallBaseResult,
@@ -30,7 +31,7 @@ pub struct SecpHintProcessor<Curve: SWCurveConfig> {
     pub points: HashMap<Relocatable, short_weierstrass::Affine<Curve>>,
 }
 
-impl<Curve: SWCurveConfig> SecpHintProcessor<Curve>
+impl<Curve: SWCurveConfig + SecpZeroXPolicy> SecpHintProcessor<Curve>
 where
     Curve::BaseField: PrimeField,
 {
@@ -45,9 +46,11 @@ where
         points_segment_base: Relocatable,
         id: usize,
     ) -> SyscallBaseResult<SecpAddResponse> {
-        let lhs = self.get_point_by_ptr(request.lhs_ptr)?;
-        let rhs = self.get_point_by_ptr(request.rhs_ptr)?;
-        let result = *lhs + *rhs;
+        let lhs = *self.get_point_by_ptr(request.lhs_ptr)?;
+        let rhs = *self.get_point_by_ptr(request.rhs_ptr)?;
+        // Detect (without altering the result) whether the OS addition would hit an x == 0 point.
+        reject_zero_x_in_add(&lhs, &rhs)?;
+        let result = lhs + rhs;
         let ec_point_ptr =
             self.allocate_point(result.into(), vm, &mut Some(points_segment_base), id)?;
         Ok(SecpOpRespone { ec_point_ptr })
@@ -60,8 +63,11 @@ where
         points_segment_base: Relocatable,
         id: usize,
     ) -> SyscallBaseResult<SecpMulResponse> {
-        let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
-        let result = *ec_point * Curve::ScalarField::from(request.multiplier);
+        let ec_point = *self.get_point_by_ptr(request.ec_point_ptr)?;
+        // Detect (without altering the result) whether the OS multiplication would hit an x == 0
+        // point in an intermediate that allocate_point never sees.
+        reject_zero_x_in_mul(&ec_point, &request.multiplier)?;
+        let result = ec_point * Curve::ScalarField::from(request.multiplier);
         let ec_point_ptr =
             self.allocate_point(result.into(), vm, &mut Some(points_segment_base), id)?;
         Ok(SecpOpRespone { ec_point_ptr })
@@ -115,6 +121,10 @@ where
         points_segment_base: &mut Option<Relocatable>,
         id: usize,
     ) -> SyscallBaseResult<Relocatable> {
+        // The single funnel for every point produced by a secp syscall (new, get_point_from_x,
+        // add, mul), so checking here blocks the point at creation and as the result of any op.
+        reject_zero_x_point(&ec_point)?;
+
         if points_segment_base.is_none() {
             *points_segment_base = Some(vm.add_memory_segment());
         }
