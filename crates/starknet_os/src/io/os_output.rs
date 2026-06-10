@@ -41,6 +41,11 @@ pub enum OsOutputError {
     ConvertToFullOutput,
     #[error("Output iterator not exhausted.")]
     OutputNotExhausted,
+    #[error(
+        "Messages to {segment_name} segment was not fully consumed: {remaining} felts unaccounted \
+         for."
+    )]
+    MessagesSegmentNotConsumed { segment_name: &'static str, remaining: usize },
 }
 
 pub(crate) fn wrap_missing<T>(val: Option<T>, val_name: &str) -> Result<T, OsOutputError> {
@@ -113,15 +118,22 @@ pub fn parse_messages_to_l1<It: Iterator<Item = Felt>>(
 
     while messages_to_l1_iter.peek().is_some() {
         let message = message_l1_from_output_iter(&mut messages_to_l1_iter)?;
-        messages_to_l1_segment_size -= message.payload.0.len() + MESSAGE_TO_L1_CONST_FIELD_SIZE;
+        let consumed_felts = message.payload.0.len() + MESSAGE_TO_L1_CONST_FIELD_SIZE;
+        messages_to_l1_segment_size = messages_to_l1_segment_size
+            .checked_sub(consumed_felts)
+            .ok_or(OsOutputError::MessagesSegmentNotConsumed {
+                segment_name: "L1",
+                remaining: messages_to_l1_segment_size,
+            })?;
         messages_to_l1.push(message);
     }
 
-    assert_eq!(
-        messages_to_l1_segment_size, 0,
-        "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} felts \
-         were left."
-    );
+    if messages_to_l1_segment_size != 0 {
+        return Err(OsOutputError::MessagesSegmentNotConsumed {
+            segment_name: "L1",
+            remaining: messages_to_l1_segment_size,
+        });
+    }
 
     Ok(messages_to_l1)
 }
@@ -263,14 +275,21 @@ impl TryFromOutputIter for OutputIterParsedData {
         while messages_to_l2_iter.peek().is_some() {
             let message =
                 MessageToL2::try_from_output_iter(&mut messages_to_l2_iter, private_keys)?;
-            messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
+            let consumed_felts = message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
+            messages_to_l2_segment_size = messages_to_l2_segment_size
+                .checked_sub(consumed_felts)
+                .ok_or(OsOutputError::MessagesSegmentNotConsumed {
+                segment_name: "L2",
+                remaining: messages_to_l2_segment_size,
+            })?;
             messages_to_l2.push(message);
         }
-        assert_eq!(
-            messages_to_l2_segment_size, 0,
-            "Expected messages to L2 segment to be consumed, but {messages_to_l2_segment_size} \
-             felts were left.",
-        );
+        if messages_to_l2_segment_size != 0 {
+            return Err(OsOutputError::MessagesSegmentNotConsumed {
+                segment_name: "L2",
+                remaining: messages_to_l2_segment_size,
+            });
+        }
         Ok(Self {
             common_os_output: CommonOsOutput {
                 initial_root,
