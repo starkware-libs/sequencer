@@ -104,6 +104,7 @@ members = [
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
+  "crates/patricia_root_cli",
   "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_committer",
