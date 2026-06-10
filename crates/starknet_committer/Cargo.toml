@@ -7,7 +7,9 @@ license.workspace = true
 description = "Computes and manages Starknet state."
 
 [features]
+deserialize = ["starknet_patricia/deserialize"]
 os_input = ["dep:bincode", "dep:blake2", "dep:digest", "dep:zstd"]
+serialize = ["starknet_patricia/serialize"]
 testing = ["starknet_patricia/testing"]
 
 [dependencies]
