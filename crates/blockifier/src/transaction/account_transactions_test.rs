@@ -2229,6 +2229,7 @@ fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
         felt!(snos.block_number.0),
         snos.block_hash.0,
         snos.config_hash,
+        Felt::ZERO, // n_l2_to_l1_messages
     ]
     .into()
 }

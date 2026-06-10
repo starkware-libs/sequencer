@@ -1245,7 +1245,8 @@ fn invoke_tx_with_snos_proof_facts(
         VIRTUAL_OS_OUTPUT_VERSION,
         Felt::from(block_number.0),
         block_hash,
-        config_hash
+        config_hash,
+        Felt::ZERO // n_l2_to_l1_messages
     ];
     InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs {
         tx_hash,
