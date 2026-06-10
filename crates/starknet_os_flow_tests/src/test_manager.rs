@@ -65,7 +65,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
-use starknet_os::commitment_infos::StateCommitmentInfos;
+use starknet_os::commitment_infos::build_state_commitment_infos;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
@@ -940,7 +940,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             .expect("Failed to commit state diff.");
             map_storage = db.consume_storage();
 
-            let commitment_infos = StateCommitmentInfos::new(
+            let commitment_infos = build_state_commitment_infos(
                 &previous_state_roots,
                 &new_state_roots,
                 &mut map_storage,
