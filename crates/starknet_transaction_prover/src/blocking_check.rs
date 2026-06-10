@@ -5,6 +5,7 @@
 
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use starknet_api::rpc_transaction::RpcTransaction;
 use tracing::warn;
 use url::Url;
@@ -19,8 +20,11 @@ const BLOCKED_ERROR_CODE: i32 = 10000;
 /// Result of a blocking check call.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum BlockingCheckResult {
-    /// External service returned success — transaction is allowed.
-    Allowed,
+    /// External service returned success — transaction is allowed. Carries the
+    /// opaque `additional_data` object the prover relays verbatim on the prove
+    /// response (the prover does not interpret its contents); `None` when the
+    /// allow response carried no `additional_data`.
+    Allowed(Option<Map<String, Value>>),
     /// External service returned error code 10000 — transaction is blocked.
     Blocked,
     /// Any other outcome (network error, non-10000 error, deserialization failure).
@@ -53,10 +57,24 @@ struct CheckTransactionParams {
 }
 
 /// JSON-RPC response envelope (only the fields we need).
+///
+/// `additional_data` is required to be a JSON object: a non-object value fails
+/// envelope deserialization and is treated as `Inconclusive` (deferring to the
+/// fail-open policy). Its contents are otherwise opaque — the prover relays
+/// them verbatim without interpreting any keys.
 #[derive(Deserialize)]
 struct JsonRpcResponse {
     #[serde(default)]
+    result: Option<CheckTransactionResult>,
+    #[serde(default)]
     error: Option<JsonRpcError>,
+}
+
+/// Allow-response payload (only the fields we need).
+#[derive(Deserialize)]
+struct CheckTransactionResult {
+    #[serde(default)]
+    additional_data: Option<Map<String, Value>>,
 }
 
 /// JSON-RPC error object (only the code field is needed for decision logic).
@@ -116,7 +134,9 @@ impl BlockingCheckClient {
         };
 
         match json_rpc_response.error {
-            None => BlockingCheckResult::Allowed,
+            None => BlockingCheckResult::Allowed(
+                json_rpc_response.result.and_then(|check_result| check_result.additional_data),
+            ),
             Some(err) if err.code == BLOCKED_ERROR_CODE => BlockingCheckResult::Blocked,
             Some(err) => {
                 warn!("Blocking check returned non-blocking error code: {}", err.code);

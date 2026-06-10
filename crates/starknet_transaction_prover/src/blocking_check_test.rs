@@ -1,12 +1,13 @@
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use mockito::{Matcher, Server};
+use serde_json::{json, Map, Value};
 use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 use url::Url;
 
-use super::{BlockingCheckClient, BlockingCheckResult};
+use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
 
 fn test_transaction() -> RpcTransaction {
     rpc_invoke_tx(invoke_tx_args!(
@@ -35,7 +36,65 @@ async fn test_success_response_returns_allowed() {
     let client = client_for_server(&server);
     let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
 
-    assert_eq!(result, BlockingCheckResult::Allowed);
+    assert_eq!(result, BlockingCheckResult::Allowed(None));
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_allow_with_additional_data_relays_it_verbatim() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(
+            r#"{"jsonrpc":"2.0","result":{"allowed":true,"additional_data":{"signature":{"issued_at":1716579600,"sig_r":"0x6e6f63c8","sig_s":"0x58a68a71"}}},"id":1}"#,
+        )
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    // The contents are opaque to the client; it relays the object as-is.
+    let expected: Map<String, Value> = serde_json::from_value(json!({
+        "signature": { "issued_at": 1716579600, "sig_r": "0x6e6f63c8", "sig_s": "0x58a68a71" }
+    }))
+    .unwrap();
+    assert_eq!(result, BlockingCheckResult::Allowed(Some(expected)));
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_allow_without_additional_data_returns_allowed_none() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(r#"{"jsonrpc":"2.0","result":{"allowed":true},"id":1}"#)
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    assert_eq!(result, BlockingCheckResult::Allowed(None));
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_allow_with_non_object_additional_data_returns_inconclusive() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(r#"{"jsonrpc":"2.0","result":{"allowed":true,"additional_data":42},"id":1}"#)
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    assert_eq!(result, BlockingCheckResult::Inconclusive);
     mock.assert_async().await;
 }
 

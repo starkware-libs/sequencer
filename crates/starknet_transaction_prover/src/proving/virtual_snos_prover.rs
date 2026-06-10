@@ -246,7 +246,7 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
                 info!("Transaction blocked by external check");
                 false
             }
-            Ok(BlockingCheckResult::Allowed) => {
+            Ok(BlockingCheckResult::Allowed(_)) => {
                 info!("Transaction allowed by external check");
                 true
             }
