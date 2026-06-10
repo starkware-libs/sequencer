@@ -678,8 +678,33 @@ impl StorageWriter {
     /// This is a no-op if there are no pending writes (commit_counter == 0).
     pub fn flush_pending_writes(&mut self) -> StorageResult<()> {
         let mut guard = self.shared_state.lock().unwrap();
+        Self::flush_pending_locked(&self.file_writers, &mut guard)
+    }
+
+    /// Changes the batch size at runtime.
+    ///
+    /// If the pending batch has already reached the new (smaller) threshold
+    /// (`commit_counter >= batch_size`), it is flushed immediately rather than waiting for the
+    /// next commit. In particular, lowering the size to 1 with pending writes flushes them now.
+    /// This upholds the invariant that `batch_size == 1` never has a pending batch — required
+    /// because `StorageTxnRW`'s `Drop` discards the persistent transaction at `batch_size == 1`,
+    /// so a subsequent read-only transaction must never be able to drop committed-but-unflushed
+    /// writes.
+    pub fn set_batch_size(&mut self, batch_size: usize) -> StorageResult<()> {
+        let mut guard = self.shared_state.lock().unwrap();
+        if guard.commit_counter >= batch_size {
+            Self::flush_pending_locked(&self.file_writers, &mut guard)?;
+        }
+        guard.batch_size = batch_size;
+        Ok(())
+    }
+
+    fn flush_pending_locked(
+        file_writers: &FileHandlers<RW>,
+        guard: &mut std::sync::MutexGuard<'_, SharedState>,
+    ) -> StorageResult<()> {
         if guard.commit_counter > 0 {
-            self.file_writers.flush();
+            file_writers.flush();
             guard.commit_counter = 0;
             if let Some(txn) = guard.active_txn.take() {
                 txn.commit()?;
