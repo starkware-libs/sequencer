@@ -30,6 +30,7 @@ reqwest = { workspace = true, features = ["blocking", "json"] }
 starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+tokio-stream.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
@@ -43,6 +44,7 @@ pretty_assertions.workspace = true
 simple_logger.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["test-util"] }
 tokio-stream.workspace = true
 
 [lints]
