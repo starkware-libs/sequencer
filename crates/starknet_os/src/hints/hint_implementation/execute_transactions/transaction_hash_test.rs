@@ -10,10 +10,18 @@ use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use rstest::rstest;
 use starknet_api::block::GasPrice;
-use starknet_api::core::{ascii_as_felt, ChainId, ClassHash, Nonce};
+use starknet_api::core::{
+    ascii_as_felt,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
+    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
@@ -25,6 +33,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{
     CalculateContractAddress,
+    DeclareTransactionV3,
     DeployAccountTransactionV3,
     TransactionHasher,
     TransactionVersion,
@@ -256,6 +265,106 @@ fn test_deploy_account_v3_hash_consistency(
         Felt::from(tip.0),
         &resource_bounds,
         &calldata,
+    );
+
+    assert_eq!(rust_hash, cairo_hash);
+}
+
+/// Computes the declare V3 transaction hash via the OS Cairo hasher.
+fn cairo_declare_v3_hash(
+    sender_address: Felt,
+    chain_id: Felt,
+    nonce: Felt,
+    tip: Felt,
+    resource_bounds: &ValidResourceBounds,
+    class_hash: Felt,
+    compiled_class_hash: Felt,
+) -> Felt {
+    let runner_config = os_tx_hasher_runner_config();
+    let implicit_args = vec![
+        ImplicitArg::Builtin(BuiltinName::range_check),
+        ImplicitArg::Builtin(BuiltinName::poseidon),
+    ];
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        &format!("{TRANSACTION_HASH_MODULE}.compute_declare_transaction_hash"),
+        &implicit_args,
+        HashMap::new(),
+    )
+    .expect("Failed to initialize cairo runner.");
+
+    let common_fields_ptr = load_common_tx_fields(
+        &mut runner.vm,
+        &program,
+        ascii_as_felt("declare").unwrap(),
+        sender_address,
+        chain_id,
+        nonce,
+        tip,
+        resource_bounds,
+    );
+
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(common_fields_ptr.into())),
+        EndpointArg::from(class_hash),
+        EndpointArg::from(compiled_class_hash),
+        // The OS asserts account_deployment_data_size == 0; the data pointer is an empty segment.
+        EndpointArg::from(0),
+        EndpointArg::Pointer(PointerArg::Array(vec![])),
+    ];
+
+    run_os_tx_hasher(
+        &runner_config,
+        &mut runner,
+        &program,
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+    )
+}
+
+/// Asserts the Rust `starknet_api` declare V3 hasher agrees with the OS Cairo hasher on non-trivial
+/// inputs (non-zero nonce, varying tip, non-trivial class and compiled-class hashes).
+#[rstest]
+#[case::nonzero_nonce(Nonce(Felt::from(9)), Tip(0))]
+#[case::large_tip(Nonce(Felt::from(0xdead_u64)), Tip(123_456))]
+fn test_declare_v3_hash_consistency(#[case] nonce: Nonce, #[case] tip: Tip) {
+    let chain_id = ChainId::Other("SN_CONSISTENCY_TEST".to_string());
+    let sender_address = ContractAddress::try_from(Felt::from(0x1111_u64)).unwrap();
+    let class_hash = ClassHash(Felt::from(0x2222_u64));
+    let compiled_class_hash = CompiledClassHash(Felt::from(0x3333_u64));
+    let resource_bounds = all_resource_bounds(
+        (u64::MAX - 1, u128::from(u64::MAX)),
+        (1_000_000, 2_000_000),
+        (12_345, 67_890),
+    );
+
+    let tx = DeclareTransactionV3 {
+        resource_bounds,
+        tip,
+        signature: TransactionSignature::default(),
+        nonce,
+        class_hash,
+        compiled_class_hash,
+        sender_address,
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData::default(),
+        account_deployment_data: AccountDeploymentData::default(),
+    };
+
+    let rust_hash =
+        tx.calculate_transaction_hash(&chain_id, &TransactionVersion::THREE).unwrap().0;
+
+    let cairo_hash = cairo_declare_v3_hash(
+        *sender_address.0.key(),
+        Felt::try_from(&chain_id).unwrap(),
+        nonce.0,
+        Felt::from(tip.0),
+        &resource_bounds,
+        class_hash.0,
+        compiled_class_hash.0,
     );
 
     assert_eq!(rust_hash, cairo_hash);
