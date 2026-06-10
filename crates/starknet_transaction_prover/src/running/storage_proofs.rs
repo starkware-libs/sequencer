@@ -8,7 +8,11 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_os::commitment_infos::{CommitmentInfo, StateCommitmentInfos};
+use starknet_os::commitment_infos::{
+    build_state_commitment_infos,
+    CommitmentInfo,
+    StateCommitmentInfos,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     flatten_preimages,
     Preimage,
@@ -348,7 +352,7 @@ impl RpcStorageProofsProvider {
 
         // TODO(Aviv): Try to undertand if we can create classes trie commitment info
         // without the compiled class hashes.
-        let mut commitment_infos = StateCommitmentInfos::new(
+        let mut commitment_infos = build_state_commitment_infos(
             &previous_state_roots,
             &new_roots,
             &mut map_storage,

@@ -13,7 +13,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
+use strum::{AsRefStr, EnumIter, IntoStaticStr, VariantNames};
 
 use crate::committer_types::{
     CommitBlockRequest,
@@ -55,17 +55,36 @@ pub trait CommitterClient: Send + Sync {
     ) -> CommitterClientResult<ReadPathsAndCommitBlockResponse>;
 }
 
-#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
-#[strum_discriminants(
-    name(CommitterRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, VariantNames),
-    strum(serialize_all = "snake_case")
-)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr)]
 pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
     RevertBlock(RevertBlockRequest),
     #[cfg(feature = "os_input")]
     ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
+}
+
+/// Payload-free discriminants of [`CommitterRequest`], used as a metric label. Independent of
+/// `os_input` on purpose: the label set is identical in every build, while the request variant and
+/// its payload stay feature-gated. Hand-written rather than derived via `EnumDiscriminants` so the
+/// `os_input`-only request variant does not gate the label out — otherwise every consumer would
+/// have to re-gate on its own `os_input`, which diverges across crates under `--all-features`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr, EnumIter, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum CommitterRequestLabelValue {
+    CommitBlock,
+    RevertBlock,
+    ReadPathsAndCommitBlock,
+}
+
+impl From<&CommitterRequest> for CommitterRequestLabelValue {
+    fn from(request: &CommitterRequest) -> Self {
+        match request {
+            CommitterRequest::CommitBlock(_) => Self::CommitBlock,
+            CommitterRequest::RevertBlock(_) => Self::RevertBlock,
+            #[cfg(feature = "os_input")]
+            CommitterRequest::ReadPathsAndCommitBlock(_) => Self::ReadPathsAndCommitBlock,
+        }
+    }
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);

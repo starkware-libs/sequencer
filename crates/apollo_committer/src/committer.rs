@@ -684,8 +684,12 @@ fn update_metrics(
         n_writes,
         durations,
         modifications_counts,
+        // `fetched_witnesses_count` exists whenever `starknet_committer/os_input` is enabled, which
+        // can happen independently of this crate's `os_input` (e.g. via `apollo_committer_types`).
+        // `..` tolerates that mismatch; the field is still bound and used under our own `os_input`.
         #[cfg(feature = "os_input")]
         fetched_witnesses_count,
+        ..
     }: &BlockMeasurement,
 ) {
     BLOCKS_COMMITTED.increment(1);

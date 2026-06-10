@@ -110,7 +110,6 @@ impl TaskTimer {
             CommitterRequestLabelValue::CommitBlock => {
                 self.commit.insert(height, instant);
             }
-            #[cfg(feature = "os_input")]
             CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
                 self.commit.insert(height, instant);
             }
@@ -128,7 +127,6 @@ impl TaskTimer {
     ) -> Option<u128> {
         let map = match task {
             CommitterRequestLabelValue::CommitBlock => &mut self.commit,
-            #[cfg(feature = "os_input")]
             CommitterRequestLabelValue::ReadPathsAndCommitBlock => &mut self.commit,
             CommitterRequestLabelValue::RevertBlock => &mut self.revert,
         };
