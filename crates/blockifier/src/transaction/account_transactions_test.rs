@@ -2221,6 +2221,7 @@ fn test_missing_validate_entrypoint_rejects(
 
 /// Converts SnosProofFacts to ProofFacts for testing.
 fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
+    let l2_to_l1_messages_segment_size = Felt::ZERO;
     vec![
         snos.proof_version.as_felt(),
         VIRTUAL_SNOS,
@@ -2229,6 +2230,7 @@ fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
         felt!(snos.block_number.0),
         snos.block_hash.0,
         snos.config_hash,
+        l2_to_l1_messages_segment_size,
     ]
     .into()
 }
