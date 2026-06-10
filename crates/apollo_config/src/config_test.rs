@@ -969,3 +969,48 @@ fn optional_list_nested_btreemaps() {
         r#"{"list_of_maps":"http://a.com/,key1^value 1,key2^value 2|http://b.com/,key3^value 3,key4^value 4|http://c.com/|http://d.com/,key5^value 5"}"# /* r#"{"list_of_maps":[{"url":"http://a.com/","headers":{"inner1":"1","inner2":"2"}},{"url":"http://b.com/","headers":{"inner3":"3","inner4":"4"}},{"url":"http://c.com/","headers":{}},{"url":"http://d.com/","headers":{"inner5":"5"}}]}"# */
     );
 }
+
+// ---- hunter-12 regression test ----
+#[test]
+fn both_none_with_prefix_name_collision() {
+    #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
+    struct Inner {
+        value: u8,
+    }
+    impl SerializeConfig for Inner {
+        fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+            BTreeMap::from([ser_param("value", &self.value, "inner value", ParamPrivacyInput::Public)])
+        }
+    }
+    #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
+    struct PrefixConfig {
+        opt: Option<Inner>,
+        opt_extra: Option<Inner>,
+    }
+    impl SerializeConfig for PrefixConfig {
+        fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+            let mut res = BTreeMap::new();
+            res.extend(ser_optional_sub_config(&self.opt, "opt"));
+            res.extend(ser_optional_sub_config(&self.opt_extra, "opt_extra"));
+            res
+        }
+    }
+
+    let config = PrefixConfig { opt: None, opt_extra: None };
+    let dumped = config.dump();
+    let (mut values_map, _) = split_values_and_types(dumped);
+    update_optional_values(&mut values_map);
+
+    assert!(
+        values_map.contains_key("opt_extra"),
+        "opt_extra should be present as null but is completely absent: {values_map:?}"
+    );
+    assert!(
+        values_map.get("opt_extra").map(|v| v.is_null()).unwrap_or(false),
+        "opt_extra should be null"
+    );
+
+    let loaded = load::<PrefixConfig>(&values_map)
+        .expect("Loading should succeed: both optional fields are None");
+    assert_eq!(loaded, config);
+}
