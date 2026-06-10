@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
@@ -9,7 +11,7 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 
-use super::{ClassStorageReader, ClassStorageWriter};
+use super::{get_declared_class_hash_to_component_hashes, ClassStorageReader, ClassStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
 use crate::{MarkerKind, StorageError};
@@ -117,5 +119,64 @@ fn append_deprecated_class_not_in_state_diff() {
             .unwrap()
             .unwrap(),
         expected_deprecated_class
+    );
+}
+
+/// Verifies that `get_declared_class_hash_to_component_hashes` returns the component hashes of
+/// classes freshly declared in a block.
+#[test]
+fn test_declared_class_hash_to_component_hashes() {
+    let class_a = SierraContractClass::default();
+    let class_b: SierraContractClass = read_json_file("class.json");
+    let class_hash_a = ClassHash::default();
+    let class_hash_b = ClassHash(StarkHash::ONE);
+
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        // Block 0: class A is freshly declared.
+        .append_state_diff(
+            BlockNumber(0),
+            ThinStateDiff {
+                class_hash_to_compiled_class_hash: indexmap! {
+                    class_hash_a => compiled_class_hash!(1_u8),
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .append_classes(BlockNumber(0), &[(class_hash_a, &class_a)], &[])
+        .unwrap()
+        // Block 1: class B is freshly declared, while class A's compiled class hash is migrated.
+        .append_state_diff(
+            BlockNumber(1),
+            ThinStateDiff {
+                class_hash_to_compiled_class_hash: indexmap! {
+                    class_hash_a => compiled_class_hash!(2_u8),
+                    class_hash_b => compiled_class_hash!(3_u8),
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .append_classes(BlockNumber(1), &[(class_hash_b, &class_b)], &[])
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Block 0: only the freshly declared class A.
+    assert_eq!(
+        get_declared_class_hash_to_component_hashes(&txn, BlockNumber(0)).unwrap(),
+        HashMap::from([(class_hash_a, class_a.get_component_hashes())]),
+    );
+
+    // Block 1: only the freshly declared class B; the migrated class A is excluded.
+    assert_eq!(
+        get_declared_class_hash_to_component_hashes(&txn, BlockNumber(1)).unwrap(),
+        HashMap::from([(class_hash_b, class_b.get_component_hashes())]),
     );
 }
