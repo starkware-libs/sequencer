@@ -7,7 +7,7 @@ use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
-use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::block_committer::input::{try_node_index_into_contract_address, StarknetStorageValue};
@@ -55,6 +55,40 @@ pub struct StarknetForestProofs {
     pub classes_trie_proof: PreimageMap,
     pub contracts_trie_proof: ContractsTrieProof,
     pub contracts_trie_storage_proofs: HashMap<ContractAddress, PreimageMap>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommitmentInfo {
+    pub previous_root: HashOutput,
+    pub updated_root: HashOutput,
+    pub tree_height: SubTreeHeight,
+    // TODO(Dori, 1/8/2025): The value type here should probably be more specific (NodeData<L> for
+    //   L: Leaf). This poses a problem in deserialization, as a serialized edge node and a
+    //   serialized contract state leaf are both currently vectors of 3 field elements; as the
+    //   semantics of the values are unimportant for the OS commitments, we make do with a vector
+    //   of field elements as values for now.
+    pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
+}
+
+#[cfg(any(feature = "testing", test))]
+impl Default for CommitmentInfo {
+    fn default() -> CommitmentInfo {
+        CommitmentInfo {
+            previous_root: HashOutput::default(),
+            updated_root: HashOutput::default(),
+            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+            commitment_facts: HashMap::default(),
+        }
+    }
+}
+
+/// Contains all commitment information for a block's state trees.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct StateCommitmentInfos {
+    pub contracts_trie_commitment_info: CommitmentInfo,
+    pub classes_trie_commitment_info: CommitmentInfo,
+    pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
 }
 
 impl StarknetForestProofs {
