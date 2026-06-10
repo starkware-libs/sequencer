@@ -1721,6 +1721,82 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     ));
 }
 
+/// Runs three secp256r1 operations involving the affine point with x == 0 (which exists on
+/// secp256r1 but not secp256k1) as txs in a single flow, then runs the OS. Each contract entry
+/// point asserts the correct result, so this exercises the OS handling of the x == 0 point
+/// end-to-end (it previously mishandled the point; see the per-tx comments). The u256 (low, high)
+/// limb pairs are the inputs followed by the expected result.
+#[tokio::test]
+async fn test_secp256r1_zero_x_point_handling() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [main_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+
+    // add(x == 0 point, generator).
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata: create_calldata(
+            main_contract_address,
+            "test_add_secp256r1_checked",
+            &[
+                Felt::ZERO,
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x541c2af31dae871728bf856a174f93f4"),
+                Felt::from_hex_unchecked("0x66485c780e2f83d72433bd5d84a06bb6"),
+                Felt::from_hex_unchecked("0x309d479ae02982a3a0c135a210379e6f"),
+                Felt::from_hex_unchecked("0x00486efab89170d45f6160cbc7d034a9"),
+                Felt::from_hex_unchecked("0xbe0766825f92a0794540ee7970f48bb9"),
+                Felt::from_hex_unchecked("0x651969b753803a6019cec6e6877a0ff8"),
+            ],
+        ),
+    });
+
+    // mul(x == 0 point, 3).
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata: create_calldata(
+            main_contract_address,
+            "test_mul_point_secp256r1_checked",
+            &[
+                Felt::ZERO,
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x541c2af31dae871728bf856a174f93f4"),
+                Felt::from_hex_unchecked("0x66485c780e2f83d72433bd5d84a06bb6"),
+                Felt::from(3_u8),
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x1e1338620020b5febb703b78a52557b1"),
+                Felt::from_hex_unchecked("0x4edb2f8a9b1b9d31dc704c71e17cd2d5"),
+                Felt::from_hex_unchecked("0x149ce1aa9aee2f11be92df6e405c55b8"),
+                Felt::from_hex_unchecked("0x9f6c246d01e73176c7318a8b17bd3ca2"),
+            ],
+        ),
+    });
+
+    // mul(P/2, 3), where 2 * (P/2) == the x == 0 point: it appears mid-computation as the
+    // scalar-mul precompute entry table[2].
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata: create_calldata(
+            main_contract_address,
+            "test_mul_point_secp256r1_checked",
+            &[
+                Felt::from_hex_unchecked("0x278e28febff3b05632eeff09011c5579"),
+                Felt::from_hex_unchecked("0x81bfb55b010b1bdf08b8d9d8590087aa"),
+                Felt::from_hex_unchecked("0x50799b354b0fb1e77eb75eba8bff3d58"),
+                Felt::from_hex_unchecked("0x8cd2f199d9815d7585073034eb76c93d"),
+                Felt::from(3_u8),
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x3987510e0f01f0675cab69d0ccb480b7"),
+                Felt::from_hex_unchecked("0x6f370ba949025de60e38bfaec452e3d5"),
+                Felt::from_hex_unchecked("0x5df6f10c46fb2a67036c5251f9e5c9af"),
+                Felt::from_hex_unchecked("0xd62ff00ad9d9eaa09da9ba13a1c26049"),
+            ],
+        ),
+    });
+
+    test_builder.build_and_run().await.perform_default_validations();
+}
+
 /// Runs the same syscall several times from various call depths. E.g.,
 /// 1. sha256()
 /// 2. call_contract(sha256)
