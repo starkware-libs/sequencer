@@ -16,6 +16,7 @@ use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
     ContractAddress,
+    EntryPointSelector,
     Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -37,6 +38,7 @@ use starknet_api::transaction::{
     DeclareTransactionV3,
     DeployAccountTransactionV3,
     InvokeTransactionV3,
+    L1HandlerTransaction,
     TransactionHasher,
     TransactionVersion,
 };
@@ -356,8 +358,7 @@ fn test_declare_v3_hash_consistency(#[case] nonce: Nonce, #[case] tip: Tip) {
         account_deployment_data: AccountDeploymentData::default(),
     };
 
-    let rust_hash =
-        tx.calculate_transaction_hash(&chain_id, &TransactionVersion::THREE).unwrap().0;
+    let rust_hash = tx.calculate_transaction_hash(&chain_id, &TransactionVersion::THREE).unwrap().0;
 
     let cairo_hash = cairo_declare_v3_hash(
         *sender_address.0.key(),
@@ -388,10 +389,7 @@ fn load_minimal_execution_context(
         execution_context_base,
         CairoStruct::ExecutionContext,
         vm,
-        &[
-            ("calldata_size", Felt::from(calldata.len()).into()),
-            ("calldata", calldata_base.into()),
-        ],
+        &[("calldata_size", Felt::from(calldata.len()).into()), ("calldata", calldata_base.into())],
         program,
     )
     .expect("Failed to load ExecutionContext.");
@@ -494,8 +492,7 @@ fn test_invoke_v3_hash_consistency(#[case] calldata: Vec<Felt>, #[case] proof_fa
         proof_facts: ProofFacts(Arc::new(proof_facts.clone())),
     };
 
-    let rust_hash =
-        tx.calculate_transaction_hash(&chain_id, &TransactionVersion::THREE).unwrap().0;
+    let rust_hash = tx.calculate_transaction_hash(&chain_id, &TransactionVersion::THREE).unwrap().0;
 
     let cairo_hash = cairo_invoke_v3_hash(
         *sender_address.0.key(),
@@ -505,6 +502,124 @@ fn test_invoke_v3_hash_consistency(#[case] calldata: Vec<Felt>, #[case] proof_fa
         &resource_bounds,
         &calldata,
         &proof_facts,
+    );
+
+    assert_eq!(rust_hash, cairo_hash);
+}
+
+/// Builds a Cairo `ExecutionContext` (with its `ExecutionInfo`) in fresh VM segments for the
+/// L1-handler hasher, setting `contract_address` and `selector` on the execution info and the
+/// `calldata`. Returns the execution context base pointer.
+fn load_l1_handler_execution_context(
+    vm: &mut VirtualMachine,
+    program: &Program,
+    contract_address: Felt,
+    selector: Felt,
+    calldata: &[Felt],
+) -> Relocatable {
+    let execution_info_base = vm.add_memory_segment();
+    insert_values_to_fields(
+        execution_info_base,
+        CairoStruct::ExecutionInfo,
+        vm,
+        &[("contract_address", contract_address.into()), ("selector", selector.into())],
+        program,
+    )
+    .expect("Failed to load ExecutionInfo.");
+
+    let calldata_base = vm.add_memory_segment();
+    let calldata_data: Vec<MaybeRelocatable> = calldata.iter().map(|felt| (*felt).into()).collect();
+    vm.load_data(calldata_base, &calldata_data).expect("Failed to load calldata.");
+
+    let execution_context_base = vm.add_memory_segment();
+    insert_values_to_fields(
+        execution_context_base,
+        CairoStruct::ExecutionContext,
+        vm,
+        &[
+            ("calldata_size", Felt::from(calldata.len()).into()),
+            ("calldata", calldata_base.into()),
+            ("execution_info", execution_info_base.into()),
+        ],
+        program,
+    )
+    .expect("Failed to load ExecutionContext.");
+
+    execution_context_base
+}
+
+/// Computes the L1-handler transaction hash via the OS Cairo hasher (Pedersen path).
+fn cairo_l1_handler_hash(
+    contract_address: Felt,
+    selector: Felt,
+    calldata: &[Felt],
+    chain_id: Felt,
+    nonce: Felt,
+) -> Felt {
+    let runner_config = os_tx_hasher_runner_config();
+    let implicit_args = vec![ImplicitArg::Builtin(BuiltinName::pedersen)];
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        &format!("{TRANSACTION_HASH_MODULE}.compute_l1_handler_transaction_hash"),
+        &implicit_args,
+        HashMap::new(),
+    )
+    .expect("Failed to initialize cairo runner.");
+
+    let execution_context_ptr = load_l1_handler_execution_context(
+        &mut runner.vm,
+        &program,
+        contract_address,
+        selector,
+        calldata,
+    );
+
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(execution_context_ptr.into())),
+        EndpointArg::from(chain_id),
+        EndpointArg::from(nonce),
+    ];
+
+    run_os_tx_hasher(
+        &runner_config,
+        &mut runner,
+        &program,
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+    )
+}
+
+/// Asserts the Rust `starknet_api` L1-handler hasher agrees with the OS Cairo hasher. This
+/// validates the Pedersen hash path independently of the Poseidon V3 path, varying nonce and
+/// calldata length.
+#[rstest]
+#[case::empty_calldata(Nonce(Felt::from(3)), vec![])]
+#[case::single_calldata(Nonce(Felt::from(0xfeed_u64)), vec![Felt::from(42)])]
+#[case::multi_calldata(Nonce(Felt::from(88)), vec![Felt::from(1), Felt::from(2), Felt::from(3)])]
+fn test_l1_handler_hash_consistency(#[case] nonce: Nonce, #[case] calldata: Vec<Felt>) {
+    let chain_id = ChainId::Other("SN_CONSISTENCY_TEST".to_string());
+    let contract_address = ContractAddress::try_from(Felt::from(0x9999_u64)).unwrap();
+    let entry_point_selector = EntryPointSelector(Felt::from(0x5555_u64));
+
+    let tx = L1HandlerTransaction {
+        version: L1HandlerTransaction::VERSION,
+        nonce,
+        contract_address,
+        entry_point_selector,
+        calldata: Calldata(Arc::new(calldata.clone())),
+    };
+
+    let rust_hash =
+        tx.calculate_transaction_hash(&chain_id, &L1HandlerTransaction::VERSION).unwrap().0;
+
+    let cairo_hash = cairo_l1_handler_hash(
+        *contract_address.0.key(),
+        entry_point_selector.0,
+        &calldata,
+        Felt::try_from(&chain_id).unwrap(),
+        nonce.0,
     );
 
     assert_eq!(rust_hash, cairo_hash);
