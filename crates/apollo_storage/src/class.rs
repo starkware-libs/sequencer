@@ -68,16 +68,23 @@
 #[path = "class_test.rs"]
 mod class_test;
 
+use std::collections::HashMap;
+
 use apollo_proc_macros::latency_histogram;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::SierraContractClass;
+use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 
 use crate::db::table_types::Table;
 use crate::db::RW;
 use crate::mmap_file::LocationInFile;
-use crate::state::{DeclaredClassesTable, DeprecatedDeclaredClassesTable, FileOffsetTable};
+use crate::state::{
+    DeclaredClassesTable,
+    DeprecatedDeclaredClassesTable,
+    FileOffsetTable,
+    StateStorageReader,
+};
 use crate::{
     DbTransaction,
     FileHandlers,
@@ -87,6 +94,8 @@ use crate::{
     StorageError,
     StorageResult,
     StorageTransaction,
+    StorageTxn,
+    TransactionKind,
 };
 
 /// Interface for reading data related to classes or deprecated classes.
@@ -203,6 +212,45 @@ impl<T: StorageTransaction> ClassStorageReader for T {
         let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default())
     }
+}
+
+/// Builds the map from each Cairo 1 class hash declared in `block_number` to its contract class
+/// component hashes, matching the `declared_class_hash_to_component_hashes` field of the OS block
+/// input. This excludes classes whose compiled class hash was merely migrated in `block_number`.
+pub fn get_declared_class_hash_to_component_hashes<Mode: TransactionKind>(
+    txn: &StorageTxn<'_, Mode>,
+    block_number: BlockNumber,
+) -> StorageResult<HashMap<ClassHash, ContractClassComponentHashes>> {
+    let state_diff = txn.get_state_diff(block_number)?.ok_or(StorageError::MissingObject {
+        object_name: "state diff".to_string(),
+        height: block_number,
+    })?;
+    let state_reader = txn.get_state_reader()?;
+
+    let mut declared_sierra_classes = Vec::new();
+    // Read all Sierra classes declared in this block from storage.
+    for class_hash in state_diff.class_hash_to_compiled_class_hash.keys() {
+        // `class_hash_to_compiled_class_hash` merges fresh declarations with migrated classes,
+        // while `declared_classes_block` records each class's original declaration block.
+        // Only classes first declared in this block contribute component hashes.
+        if state_reader.get_class_definition_block_number(class_hash)? != Some(block_number) {
+            // A migrated class that was declared in an earlier block.
+            continue;
+        }
+        let sierra_class = txn.get_class(class_hash)?.ok_or(StorageError::DBInconsistency {
+            msg: format!(
+                "Class {class_hash} is declared in block {} but its Sierra class is missing from \
+                 storage.",
+                block_number.0
+            ),
+        })?;
+        declared_sierra_classes.push((*class_hash, sierra_class));
+    }
+
+    Ok(declared_sierra_classes
+        .into_iter()
+        .map(|(class_hash, sierra_class)| (class_hash, sierra_class.get_component_hashes()))
+        .collect())
 }
 
 impl<T: StorageTransaction<Mode = RW>> ClassStorageWriter for T {
