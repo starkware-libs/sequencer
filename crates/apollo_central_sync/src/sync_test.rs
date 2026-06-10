@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,9 +12,10 @@ use apollo_starknet_client::reader::objects::state::StateDiff as ClientStateDiff
 use apollo_starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, PendingData};
 use apollo_storage::base_layer::BaseLayerStorageReader;
-use apollo_storage::header::HeaderStorageWriter;
-use apollo_storage::test_utils::get_test_storage;
-use apollo_storage::{StorageReader, StorageWriter};
+use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
+use apollo_storage::state::StateStorageWriter;
+use apollo_storage::test_utils::{get_test_storage, get_test_storage_with_config_by_scope};
+use apollo_storage::{open_storage, BatchConfig, StorageReader, StorageScope, StorageWriter};
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -25,14 +27,16 @@ use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockN
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{SierraContractClass, StateDiff};
+use starknet_api::state::{SierraContractClass, StateDiff, ThinStateDiff};
 use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
 use tokio::sync::{Mutex, RwLock};
+use tokio::time::Instant;
 
 use crate::sources::base_layer::MockBaseLayerSourceTrait;
 use crate::sources::central::MockCentralSourceTrait;
 use crate::sources::pending::MockPendingSourceTrait;
 use crate::{
+    check_sync_progress,
     sort_state_diff,
     stream_new_base_layer_block,
     sync_pending_data,
@@ -284,8 +288,19 @@ async fn test_pending_sync(
         });
     }
 
+    // Derive the tip the caller set up in storage and pass it explicitly, mirroring how the
+    // production caller anchors pending data on the latest synced block.
+    let latest_block_hash = {
+        let txn = reader.begin_ro_txn().unwrap();
+        match txn.get_header_marker().unwrap() {
+            BlockNumber(0) => BlockHash::GENESIS_PARENT_HASH,
+            header_marker => {
+                txn.get_block_header(header_marker.prev().unwrap()).unwrap().unwrap().block_hash
+            }
+        }
+    };
     sync_pending_data(
-        reader,
+        latest_block_hash,
         Arc::new(mock_central_source),
         Arc::new(mock_pending_source),
         pending_data_lock.clone(),
@@ -797,3 +812,71 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
 
 // TODO(guy.f): Add a test for the case of a block with old classes and config is set to not store
 // classes. Make sure the old classes are still stored.
+
+/// `check_sync_progress` must judge progress from the batched (active-transaction) marker view,
+/// not a read-only storage snapshot. With batching, a write is committed to the active transaction
+/// (advancing the markers there) before it is flushed to disk, so a RO snapshot lags. Reading the
+/// RO snapshot would make actively-syncing-but-batched progress look like a stall and emit a
+/// spurious `NoProgress` (which restarts the sync loop).
+#[tokio::test(start_paused = true)]
+async fn check_sync_progress_observes_batched_progress() {
+    // The test runs under `start_paused`, so the clock is virtual: this duration is logical time
+    // that auto-advances instantly between the watchdog's reads, so its magnitude does not affect
+    // wall-clock runtime or flakiness.
+    const PROGRESS_INTERVAL: Duration = Duration::from_secs(100);
+
+    // Open storage once to initialize the version (flushed), then reopen with batching enabled so
+    // subsequent writes accumulate in the active transaction without being flushed.
+    let ((reader, writer), mut config, _temp_dir) =
+        get_test_storage_with_config_by_scope(StorageScope::FullArchive);
+    drop(reader);
+    drop(writer);
+    config.batch_config =
+        BatchConfig { enabled: true, batch_size: NonZeroUsize::new(1_000).unwrap() };
+    let (_reader, writer) = open_storage(config).expect("Failed to reopen storage with batching");
+    let writer = Arc::new(Mutex::new(writer));
+
+    // Halfway through the first interval, store block 0 as a batched (unflushed) write, advancing
+    // the header and state markers in the active transaction only.
+    let writer_for_task = writer.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(PROGRESS_INTERVAL / 2).await;
+        let header = BlockHeader {
+            block_hash: BlockHash(felt!("0x1")),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        writer_for_task
+            .lock()
+            .await
+            .begin_rw_txn()
+            .unwrap()
+            .append_header(BlockNumber(0), &header)
+            .unwrap()
+            .append_state_diff(BlockNumber(0), ThinStateDiff::default())
+            .unwrap()
+            .commit()
+            .unwrap();
+    });
+
+    // A `store_sierras_and_casms_block_threshold` of 0 disables the casm-stuck check, so progress
+    // is judged purely on the header and state markers advancing.
+    let mut progress_stream = check_sync_progress(writer, 0, PROGRESS_INTERVAL).boxed();
+
+    let start = Instant::now();
+    let event = progress_stream.next().await.expect("stream should yield").expect("no error");
+    let elapsed = start.elapsed();
+
+    assert_matches!(event, SyncEvent::NoProgress);
+    // The batched write lands during the first interval, so that interval shows progress and no
+    // `NoProgress` is emitted until the second interval (when nothing new is written). Reading a
+    // RO snapshot would instead see flat flushed markers and wrongly emit `NoProgress` after the
+    // first interval.
+    assert!(
+        elapsed >= PROGRESS_INTERVAL * 2,
+        "NoProgress emitted too early ({elapsed:?}): batched progress was not observed"
+    );
+}
