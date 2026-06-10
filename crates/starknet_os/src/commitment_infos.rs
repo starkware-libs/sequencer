@@ -11,49 +11,17 @@ use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::RootHashes;
+// `CommitmentInfo` and `StateCommitmentInfos` were relocated to `starknet_committer` so that
+// lower layers (e.g. `apollo_storage`) can store them without depending on `starknet_os`. They
+// are re-exported here to keep this module's public API stable for OS consumers.
+pub use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalError;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_types_core::felt::Felt;
 use thiserror::Error;
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-#[derive(Debug)]
-pub struct CommitmentInfo {
-    pub previous_root: HashOutput,
-    pub updated_root: HashOutput,
-    pub tree_height: SubTreeHeight,
-    // TODO(Dori, 1/8/2025): The value type here should probably be more specific (NodeData<L> for
-    //   L: Leaf). This poses a problem in deserialization, as a serialized edge node and a
-    //   serialized contract state leaf are both currently vectors of 3 field elements; as the
-    //   semantics of the values are unimportant for the OS commitments, we make do with a vector
-    //   of field elements as values for now.
-    pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
-}
-
-#[cfg(any(feature = "testing", test))]
-impl Default for CommitmentInfo {
-    fn default() -> CommitmentInfo {
-        CommitmentInfo {
-            previous_root: HashOutput::default(),
-            updated_root: HashOutput::default(),
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: HashMap::default(),
-        }
-    }
-}
-
-// TODO(Aviv): Use this struct in `OsBlockInput`
-/// Contains all commitment information for a block's state trees.
-pub struct StateCommitmentInfos {
-    pub contracts_trie_commitment_info: CommitmentInfo,
-    pub classes_trie_commitment_info: CommitmentInfo,
-    pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
-}
 
 /// Error type for commitment infos creation.
 #[derive(Debug, Error)]
@@ -66,83 +34,82 @@ pub enum CommitmentInfosError {
     FetchStorageProofs(#[from] TraversalError),
 }
 
-impl StateCommitmentInfos {
-    /// Creates the commitment infos for the OS from previous and new state roots and the
-    /// keys that were read during execution.
-    pub async fn new(
-        previous_state_roots: &StateRoots,
-        new_state_roots: &StateRoots,
-        commitments: &mut MapStorage,
-        accessed_keys: &AccessedKeys,
-    ) -> Result<Self, CommitmentInfosError> {
-        let addresses: Vec<ContractAddress> =
-            accessed_keys.accessed_contracts.iter().copied().collect();
+/// Creates the commitment infos for the OS from previous and new state roots and the
+/// keys that were read during execution.
+// TODO(ItamarS): Temporary — to be deleted once the committer builds `StateCommitmentInfos` from
+// its own storage; tests against that new committer API will be added then. Kept here (as a free
+// function rather than an inherent method) because the struct now lives in `starknet_committer`
+// and the orphan rule forbids an inherent impl on a foreign type.
+pub async fn build_state_commitment_infos(
+    previous_state_roots: &StateRoots,
+    new_state_roots: &StateRoots,
+    commitments: &mut MapStorage,
+    accessed_keys: &AccessedKeys,
+) -> Result<StateCommitmentInfos, CommitmentInfosError> {
+    let addresses: Vec<ContractAddress> =
+        accessed_keys.accessed_contracts.iter().copied().collect();
 
-        let previous_storage_roots = get_storage_roots(
-            &addresses,
-            previous_state_roots.contracts_trie_root_hash,
-            commitments,
-        )
-        .await?;
-        let new_storage_roots =
-            get_storage_roots(&addresses, new_state_roots.contracts_trie_root_hash, commitments)
-                .await?;
+    let previous_storage_roots =
+        get_storage_roots(&addresses, previous_state_roots.contracts_trie_root_hash, commitments)
+            .await?;
+    let new_storage_roots =
+        get_storage_roots(&addresses, new_state_roots.contracts_trie_root_hash, commitments)
+            .await?;
 
-        let storage_proofs = fetch_previous_and_new_patricia_paths(
-            commitments,
-            RootHashes {
-                previous_root_hash: previous_state_roots.classes_trie_root_hash,
-                new_root_hash: new_state_roots.classes_trie_root_hash,
-            },
-            RootHashes {
-                previous_root_hash: previous_state_roots.contracts_trie_root_hash,
-                new_root_hash: new_state_roots.contracts_trie_root_hash,
-            },
-            accessed_keys,
-        )
-        .await?;
+    let storage_proofs = fetch_previous_and_new_patricia_paths(
+        commitments,
+        RootHashes {
+            previous_root_hash: previous_state_roots.classes_trie_root_hash,
+            new_root_hash: new_state_roots.classes_trie_root_hash,
+        },
+        RootHashes {
+            previous_root_hash: previous_state_roots.contracts_trie_root_hash,
+            new_root_hash: new_state_roots.contracts_trie_root_hash,
+        },
+        accessed_keys,
+    )
+    .await?;
 
-        let contracts_trie_commitment_info = CommitmentInfo {
-            previous_root: previous_state_roots.contracts_trie_root_hash,
-            updated_root: new_state_roots.contracts_trie_root_hash,
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
-        };
-        let classes_trie_commitment_info = CommitmentInfo {
-            previous_root: previous_state_roots.classes_trie_root_hash,
-            updated_root: new_state_roots.classes_trie_root_hash,
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
-        };
-        let storage_tries_commitment_infos = previous_storage_roots
-            .iter()
-            .map(|(address, previous_root_hash)| {
-                // Not all contracts in `previous_storage_roots` have storage proofs. For
-                // example, a contract that only had its nonce changed.
-                let storage_proof = flatten_preimages(
-                    storage_proofs
-                        .contracts_trie_storage_proofs
-                        .get(address)
-                        .unwrap_or(&HashMap::new()),
-                );
-                (
-                    *address,
-                    CommitmentInfo {
-                        previous_root: *previous_root_hash,
-                        updated_root: new_storage_roots[address],
-                        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-                        commitment_facts: storage_proof,
-                    },
-                )
-            })
-            .collect();
-
-        Ok(Self {
-            contracts_trie_commitment_info,
-            classes_trie_commitment_info,
-            storage_tries_commitment_infos,
+    let contracts_trie_commitment_info = CommitmentInfo {
+        previous_root: previous_state_roots.contracts_trie_root_hash,
+        updated_root: new_state_roots.contracts_trie_root_hash,
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
+    };
+    let classes_trie_commitment_info = CommitmentInfo {
+        previous_root: previous_state_roots.classes_trie_root_hash,
+        updated_root: new_state_roots.classes_trie_root_hash,
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
+    };
+    let storage_tries_commitment_infos = previous_storage_roots
+        .iter()
+        .map(|(address, previous_root_hash)| {
+            // Not all contracts in `previous_storage_roots` have storage proofs. For
+            // example, a contract that only had its nonce changed.
+            let storage_proof = flatten_preimages(
+                storage_proofs
+                    .contracts_trie_storage_proofs
+                    .get(address)
+                    .unwrap_or(&HashMap::new()),
+            );
+            (
+                *address,
+                CommitmentInfo {
+                    previous_root: *previous_root_hash,
+                    updated_root: new_storage_roots[address],
+                    tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+                    commitment_facts: storage_proof,
+                },
+            )
         })
-    }
+        .collect();
+
+    Ok(StateCommitmentInfos {
+        contracts_trie_commitment_info,
+        classes_trie_commitment_info,
+        storage_tries_commitment_infos,
+    })
 }
 
 /// Fetches the storage root hash of each contract from the contracts trie at the given root.
