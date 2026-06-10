@@ -30,7 +30,14 @@ use crate::partial_block_hash::PartialBlockHashComponentsStorageReader;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
 use crate::version::{Version, VersionStorageReader};
-use crate::{MarkerKind, OffsetKind, StorageError, StorageReader, TransactionMetadata};
+use crate::{
+    MarkerKind,
+    OffsetKind,
+    StorageError,
+    StorageReader,
+    StorageTransaction,
+    TransactionMetadata,
+};
 
 /// Type alias for the generic storage reader server.
 pub type GenericStorageReaderServer = StorageReaderServer<
