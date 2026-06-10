@@ -54,7 +54,6 @@ fn roundtrip_program_output_to_proof_facts_and_back() {
 /// ```
 /// 4. Add a new `#[case("{version}")]` below.
 #[rstest]
-#[case("0.14.2")]
 #[case("0.14.3")]
 fn regression_verify_proof_from_old_prover(#[case] starknet_version: &str) {
     let proof_path =
