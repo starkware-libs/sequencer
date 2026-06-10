@@ -11,7 +11,7 @@ use apollo_starknet_client::reader::objects::state::StateDiff as ClientStateDiff
 use apollo_starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, PendingData};
 use apollo_storage::base_layer::BaseLayerStorageReader;
-use apollo_storage::header::HeaderStorageWriter;
+use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageReader, StorageWriter};
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -284,8 +284,19 @@ async fn test_pending_sync(
         });
     }
 
+    // Derive the tip the caller set up in storage and pass it explicitly, mirroring how the
+    // production caller anchors pending data on the latest synced block.
+    let latest_block_hash = {
+        let txn = reader.begin_ro_txn().unwrap();
+        match txn.get_header_marker().unwrap() {
+            BlockNumber(0) => BlockHash::GENESIS_PARENT_HASH,
+            header_marker => {
+                txn.get_block_header(header_marker.prev().unwrap()).unwrap().unwrap().block_hash
+            }
+        }
+    };
     sync_pending_data(
-        reader,
+        latest_block_hash,
         Arc::new(mock_central_source),
         Arc::new(mock_pending_source),
         pending_data_lock.clone(),
