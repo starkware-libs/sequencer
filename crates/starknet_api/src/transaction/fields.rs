@@ -634,9 +634,6 @@ impl AccountDeploymentData {
 // Represent the string `VIRTUAL_SNOS` as a Felt.
 pub const VIRTUAL_SNOS: Felt = Felt::from_hex_unchecked("0x5649525455414c5f534e4f53");
 
-// Represent the `PROOF_VERSION_V0` marker as a Felt ('PROOF0').
-pub const PROOF_VERSION_V0: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
-
 // Represent the `PROOF_VERSION_V1` marker as a Felt ('PROOF1').
 pub const PROOF_VERSION_V1: Felt = Felt::from_hex_unchecked("0x50524f4f4631");
 
@@ -644,7 +641,6 @@ pub const PROOF_VERSION_V1: Felt = Felt::from_hex_unchecked("0x50524f4f4631");
 #[cfg_attr(any(test, feature = "testing"), derive(EnumIter))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProofVersion {
-    V0,
     V1,
 }
 
@@ -652,7 +648,6 @@ impl ProofVersion {
     /// Felt (Cairo short-string) representation written into proof facts.
     pub const fn as_felt(self) -> Felt {
         match self {
-            ProofVersion::V0 => PROOF_VERSION_V0,
             ProofVersion::V1 => PROOF_VERSION_V1,
         }
     }
@@ -660,7 +655,6 @@ impl ProofVersion {
     /// Human-readable short-string label (matches the Cairo constant value).
     pub const fn as_str(self) -> &'static str {
         match self {
-            ProofVersion::V0 => "PROOF0",
             ProofVersion::V1 => "PROOF1",
         }
     }
@@ -669,13 +663,7 @@ impl ProofVersion {
 impl TryFrom<Felt> for ProofVersion {
     type Error = ();
     fn try_from(value: Felt) -> Result<Self, Self::Error> {
-        if value == PROOF_VERSION_V0 {
-            Ok(ProofVersion::V0)
-        } else if value == PROOF_VERSION_V1 {
-            Ok(ProofVersion::V1)
-        } else {
-            Err(())
-        }
+        if value == PROOF_VERSION_V1 { Ok(ProofVersion::V1) } else { Err(()) }
     }
 }
 
@@ -736,8 +724,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         // Validate that the first element is a supported proof version marker.
         let proof_version = ProofVersion::try_from(*proof_version).map_err(|()| {
             StarknetApiError::InvalidProofFacts(format!(
-                "Expected first field to be {} or {}, but got {}",
-                ProofVersion::V0,
+                "Expected first field to be {}, but got {}",
                 ProofVersion::V1,
                 proof_version,
             ))
