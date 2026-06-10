@@ -58,7 +58,6 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     ProofFacts,
-    ProofVersion,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -92,7 +91,6 @@ use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_ha
 use starknet_os::hints::vars::Const;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
-use strum::IntoEnumIterator;
 
 use crate::initial_state::{
     create_default_initial_state_data,
@@ -3081,30 +3079,30 @@ async fn test_proof_facts_versions_and_program_hashes() {
     )])
     .await;
     let config_hash = test_builder.compute_virtual_os_config_hash();
-    let allowed_program_hashes = VersionedConstants::latest_constants()
-        .os_constants
-        .allowed_virtual_os_program_hashes
-        .clone();
+    let os_versioned_constants = &VersionedConstants::latest_constants().os_constants;
+    let allowed_program_hashes = os_versioned_constants.allowed_virtual_os_program_hashes.clone();
+    let allowed_proof_versions = os_versioned_constants.allowed_proof_versions.clone();
     let calldata = create_calldata(test_contract_address, "empty_function", &[]);
     let reference_program_hash =
         *allowed_program_hashes.first().expect("expected at least one allowed program hash");
-    let reference_proof_version =
-        ProofVersion::iter().next().expect("ProofVersion must have at least one variant");
+    let reference_proof_version = allowed_proof_versions
+        .first()
+        .expect("allowed_proof_versions must have at least one variant");
 
     // Cover every allowed program hash (with a fixed proof version).
     for program_hash in &allowed_program_hashes {
         let mut proof_facts =
             ProofFacts::custom_proof_facts_for_testing(*program_hash, config_hash);
-        Arc::make_mut(&mut proof_facts.0)[0] = reference_proof_version.as_felt();
+        Arc::make_mut(&mut proof_facts.0)[0] = *reference_proof_version;
         test_builder
             .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
     }
 
     // Cover every proof version (with a fixed program hash).
-    for proof_version in ProofVersion::iter() {
+    for proof_version in &allowed_proof_versions {
         let mut proof_facts =
             ProofFacts::custom_proof_facts_for_testing(reference_program_hash, config_hash);
-        Arc::make_mut(&mut proof_facts.0)[0] = proof_version.as_felt();
+        Arc::make_mut(&mut proof_facts.0)[0] = *proof_version;
         test_builder
             .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
     }

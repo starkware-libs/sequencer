@@ -40,7 +40,7 @@ use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::fields::{
     Fee,
     TransactionSignature,
-    PROOF_VERSION_V0,
+    PROOF_VERSION_V1,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
@@ -1239,7 +1239,7 @@ fn invoke_tx_with_snos_proof_facts(
     let block_hash = Felt::from(0xBB_u32);
     let config_hash = Felt::from(0xCC_u32);
     let proof_facts = proof_facts![
-        PROOF_VERSION_V0,
+        PROOF_VERSION_V1,
         VIRTUAL_SNOS,
         program_hash,
         VIRTUAL_OS_OUTPUT_VERSION,
