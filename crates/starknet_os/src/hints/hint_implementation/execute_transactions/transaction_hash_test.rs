@@ -26,6 +26,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -35,6 +36,7 @@ use starknet_api::transaction::{
     CalculateContractAddress,
     DeclareTransactionV3,
     DeployAccountTransactionV3,
+    InvokeTransactionV3,
     TransactionHasher,
     TransactionVersion,
 };
@@ -365,6 +367,144 @@ fn test_declare_v3_hash_consistency(#[case] nonce: Nonce, #[case] tip: Tip) {
         &resource_bounds,
         class_hash.0,
         compiled_class_hash.0,
+    );
+
+    assert_eq!(rust_hash, cairo_hash);
+}
+
+/// Builds a minimal Cairo `ExecutionContext` in fresh VM segments, setting only `calldata_size` and
+/// `calldata` (the only fields the invoke hasher reads), and returns its base pointer.
+fn load_minimal_execution_context(
+    vm: &mut VirtualMachine,
+    program: &Program,
+    calldata: &[Felt],
+) -> Relocatable {
+    let calldata_base = vm.add_memory_segment();
+    let calldata_data: Vec<MaybeRelocatable> = calldata.iter().map(|felt| (*felt).into()).collect();
+    vm.load_data(calldata_base, &calldata_data).expect("Failed to load calldata.");
+
+    let execution_context_base = vm.add_memory_segment();
+    insert_values_to_fields(
+        execution_context_base,
+        CairoStruct::ExecutionContext,
+        vm,
+        &[
+            ("calldata_size", Felt::from(calldata.len()).into()),
+            ("calldata", calldata_base.into()),
+        ],
+        program,
+    )
+    .expect("Failed to load ExecutionContext.");
+
+    execution_context_base
+}
+
+/// Computes the invoke V3 transaction hash via the OS Cairo hasher.
+#[allow(clippy::too_many_arguments)]
+fn cairo_invoke_v3_hash(
+    sender_address: Felt,
+    chain_id: Felt,
+    nonce: Felt,
+    tip: Felt,
+    resource_bounds: &ValidResourceBounds,
+    calldata: &[Felt],
+    proof_facts: &[Felt],
+) -> Felt {
+    let runner_config = os_tx_hasher_runner_config();
+    let implicit_args = vec![
+        ImplicitArg::Builtin(BuiltinName::range_check),
+        ImplicitArg::Builtin(BuiltinName::poseidon),
+    ];
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        &format!("{TRANSACTION_HASH_MODULE}.compute_invoke_transaction_hash"),
+        &implicit_args,
+        HashMap::new(),
+    )
+    .expect("Failed to initialize cairo runner.");
+
+    let common_fields_ptr = load_common_tx_fields(
+        &mut runner.vm,
+        &program,
+        ascii_as_felt("invoke").unwrap(),
+        sender_address,
+        chain_id,
+        nonce,
+        tip,
+        resource_bounds,
+    );
+    let execution_context_ptr = load_minimal_execution_context(&mut runner.vm, &program, calldata);
+
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(common_fields_ptr.into())),
+        EndpointArg::Value(ValueArg::Single(execution_context_ptr.into())),
+        // The OS asserts account_deployment_data_size == 0; the data pointer is an empty segment.
+        EndpointArg::from(0),
+        EndpointArg::Pointer(PointerArg::Array(vec![])),
+        EndpointArg::from(proof_facts.len()),
+        EndpointArg::Pointer(PointerArg::Array(
+            proof_facts.iter().map(|felt| (*felt).into()).collect(),
+        )),
+    ];
+
+    run_os_tx_hasher(
+        &runner_config,
+        &mut runner,
+        &program,
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+    )
+}
+
+/// Asserts the Rust `starknet_api` invoke V3 hasher agrees with the OS Cairo hasher, covering
+/// empty/single/multi calldata and the optional proof-facts tail (empty vs non-empty), which
+/// exercises the OS's backward-compatibility branch.
+#[rstest]
+#[case::empty_calldata_no_proof_facts(vec![], vec![])]
+#[case::single_calldata_no_proof_facts(vec![Felt::from(7)], vec![])]
+#[case::multi_calldata_no_proof_facts(vec![Felt::from(1), Felt::from(2), Felt::from(3)], vec![])]
+#[case::multi_calldata_with_proof_facts(
+    vec![Felt::from(8), Felt::from(9)],
+    vec![Felt::from(111), Felt::from(222)]
+)]
+fn test_invoke_v3_hash_consistency(#[case] calldata: Vec<Felt>, #[case] proof_facts: Vec<Felt>) {
+    let chain_id = ChainId::Other("SN_CONSISTENCY_TEST".to_string());
+    let sender_address = ContractAddress::try_from(Felt::from(0x4321_u64)).unwrap();
+    let nonce = Nonce(Felt::from(55));
+    let tip = Tip(77);
+    let resource_bounds = all_resource_bounds(
+        (u64::MAX - 1, u128::from(u64::MAX)),
+        (1_000_000, 2_000_000),
+        (12_345, 67_890),
+    );
+
+    let tx = InvokeTransactionV3 {
+        resource_bounds,
+        tip,
+        signature: TransactionSignature::default(),
+        nonce,
+        sender_address,
+        calldata: Calldata(Arc::new(calldata.clone())),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData::default(),
+        account_deployment_data: AccountDeploymentData::default(),
+        proof_facts: ProofFacts(Arc::new(proof_facts.clone())),
+    };
+
+    let rust_hash =
+        tx.calculate_transaction_hash(&chain_id, &TransactionVersion::THREE).unwrap().0;
+
+    let cairo_hash = cairo_invoke_v3_hash(
+        *sender_address.0.key(),
+        Felt::try_from(&chain_id).unwrap(),
+        nonce.0,
+        Felt::from(tip.0),
+        &resource_bounds,
+        &calldata,
+        &proof_facts,
     );
 
     assert_eq!(rust_hash, cairo_hash);

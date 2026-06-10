@@ -475,6 +475,10 @@ define_string_enum! {
         ),
         (ExecutionInfo, "starkware.starknet.common.new_syscalls.ExecutionInfo"),
         (
+            ExecutionContext,
+            "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
+        ),
+        (
             ExecutionContextPtr,
             "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext*"
         ),
