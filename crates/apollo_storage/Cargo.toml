@@ -9,6 +9,7 @@ description = "A storage implementation for a Starknet node."
 [features]
 os_input = ["dep:blockifier"]
 storage_cli = ["clap", "reqwest"]
+storage_validation = ["clap"]
 testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 
 [dependencies]
@@ -82,3 +83,7 @@ workspace = true
 [[bin]]
 name = "storage_cli"
 required-features = ["storage_cli"]
+
+[[bin]]
+name = "validate_storage"
+required-features = ["storage_validation"]
