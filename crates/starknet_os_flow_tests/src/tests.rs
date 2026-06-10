@@ -1721,6 +1721,96 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     ));
 }
 
+/// Runs one secp256r1 operation on the affine point with x == 0 (which exists on secp256r1 but not
+/// secp256k1) as a single tx in its own block, then runs the OS. The contract asserts the correct
+/// result, so the OS -- which mishandles the x == 0 point -- diverges and fails (not the
+/// blockifier, which computes it correctly). `args` are u256 (low, high) limb pairs: the inputs
+/// followed by the expected result.
+///
+/// TODO(Yonatan): prepared ahead of the OS fix. Once it lands the OS computes the correct results,
+/// so these run to completion -- remove `#[should_panic]` so the tests assert success.
+async fn run_secp256r1_zero_x_os_case(entry_point: &str, args: Vec<Felt>) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [main_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+
+    let calldata = create_calldata(main_contract_address, entry_point, &args);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    test_builder.build_and_run().await.perform_default_validations();
+}
+
+/// add(x == 0 point, generator): the OS's replayed secp256r1 result differs from the recorded
+/// (blockifier) execution -- a `DiffAssertValues` VM exception from the OS program.
+#[tokio::test]
+#[should_panic(expected = "DiffAssertValues")]
+async fn test_secp256r1_add_zero_x_point_triggers_os_failure() {
+    run_secp256r1_zero_x_os_case(
+        "test_add_secp256r1_checked",
+        vec![
+            Felt::ZERO,
+            Felt::ZERO,
+            Felt::from_hex_unchecked("0x541c2af31dae871728bf856a174f93f4"),
+            Felt::from_hex_unchecked("0x66485c780e2f83d72433bd5d84a06bb6"),
+            Felt::from_hex_unchecked("0x309d479ae02982a3a0c135a210379e6f"),
+            Felt::from_hex_unchecked("0x00486efab89170d45f6160cbc7d034a9"),
+            Felt::from_hex_unchecked("0xbe0766825f92a0794540ee7970f48bb9"),
+            Felt::from_hex_unchecked("0x651969b753803a6019cec6e6877a0ff8"),
+        ],
+    )
+    .await;
+}
+
+/// mul(x == 0 point, 3): like the add case, the OS's replayed result differs from the recorded
+/// (blockifier) execution -- a `DiffAssertValues` VM exception from the OS program.
+#[tokio::test]
+#[should_panic(expected = "DiffAssertValues")]
+async fn test_secp256r1_mul_zero_x_point_triggers_os_failure() {
+    run_secp256r1_zero_x_os_case(
+        "test_mul_point_secp256r1_checked",
+        vec![
+            Felt::ZERO,
+            Felt::ZERO,
+            Felt::from_hex_unchecked("0x541c2af31dae871728bf856a174f93f4"),
+            Felt::from_hex_unchecked("0x66485c780e2f83d72433bd5d84a06bb6"),
+            Felt::from(3_u8),
+            Felt::ZERO,
+            Felt::from_hex_unchecked("0x1e1338620020b5febb703b78a52557b1"),
+            Felt::from_hex_unchecked("0x4edb2f8a9b1b9d31dc704c71e17cd2d5"),
+            Felt::from_hex_unchecked("0x149ce1aa9aee2f11be92df6e405c55b8"),
+            Felt::from_hex_unchecked("0x9f6c246d01e73176c7318a8b17bd3ca2"),
+        ],
+    )
+    .await;
+}
+
+/// mul(P/2, 3), where 2 * (P/2) == the x == 0 point: it appears mid-computation as the scalar-mul
+/// precompute entry table[2], which the OS feeds to a degenerate fast_ec_add -- a division by zero
+/// in the OS EC slope computation.
+#[tokio::test]
+#[should_panic(expected = "is_multiple_of(prime)")]
+async fn test_secp256r1_mul_half_zero_x_point_triggers_os_failure() {
+    run_secp256r1_zero_x_os_case(
+        "test_mul_point_secp256r1_checked",
+        vec![
+            Felt::from_hex_unchecked("0x278e28febff3b05632eeff09011c5579"),
+            Felt::from_hex_unchecked("0x81bfb55b010b1bdf08b8d9d8590087aa"),
+            Felt::from_hex_unchecked("0x50799b354b0fb1e77eb75eba8bff3d58"),
+            Felt::from_hex_unchecked("0x8cd2f199d9815d7585073034eb76c93d"),
+            Felt::from(3_u8),
+            Felt::ZERO,
+            Felt::from_hex_unchecked("0x3987510e0f01f0675cab69d0ccb480b7"),
+            Felt::from_hex_unchecked("0x6f370ba949025de60e38bfaec452e3d5"),
+            Felt::from_hex_unchecked("0x5df6f10c46fb2a67036c5251f9e5c9af"),
+            Felt::from_hex_unchecked("0xd62ff00ad9d9eaa09da9ba13a1c26049"),
+        ],
+    )
+    .await;
+}
+
 /// Runs the same syscall several times from various call depths. E.g.,
 /// 1. sha256()
 /// 2. call_contract(sha256)
