@@ -427,6 +427,10 @@ define_string_enum! {
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
         (CallContractResponse, "starkware.starknet.common.new_syscalls.CallContractResponse"),
+        (
+            CommonTxFields,
+            "starkware.starknet.core.os.transaction_hash.transaction_hash.CommonTxFields"
+        ),
         (CompiledClass, "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClass"),
         (
             CompiledClassEntryPoint,
