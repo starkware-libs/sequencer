@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781096170811,
+  "lastUpdate": 1781097109702,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -339,6 +339,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1380.19534827,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "75e8b67ede21ddee7ec9ee33f43cb01d8328bcbb",
+          "message": "starknet_api: fix deploy_account V3 tx hash field ordering (nonce before DA mode) (#14428)\n\nget_deploy_account_transaction_v3_hash chained data_availability_mode\nbefore nonce, diverging from invoke_v3, declare_v3, the Cairo OS\nhash_tx_common_fields, and SNIP-8, which all chain\nchain_id -> nonce -> data_availability_mode.\n\nThe existing fixtures have nonce=0 and DA=L1=0, so the Poseidon hash was\norder-invariant and the bug was masked. Any deploy_account V3 with a\nnon-L1 nonce DA mode would hash differently in the Rust sequencer than\nin the Cairo prover/consensus.\n\nSwap the two chained fields so nonce is chained before\ndata_availability_mode.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-10T12:57:44Z",
+          "tree_id": "426097e64a6d9330992157a990f49ab380003b6c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/75e8b67ede21ddee7ec9ee33f43cb01d8328bcbb"
+        },
+        "date": 1781097109262,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 933.72875654,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1455.2247528599999,
             "unit": "ms"
           }
         ]
