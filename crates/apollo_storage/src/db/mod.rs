@@ -46,7 +46,7 @@ use crate::db::table_types::TableType;
 #[cfg(not(feature = "os_input"))]
 const MAX_DBS: u64 = 25;
 #[cfg(feature = "os_input")]
-const MAX_DBS: u64 = 26;
+const MAX_DBS: u64 = 27;
 
 // Note that NO_TLS mode is used by default.
 type EnvironmentKind = WriteMap;
