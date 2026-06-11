@@ -39,9 +39,9 @@ use starknet_committer::block_committer::measurements_util::{
 };
 #[cfg(feature = "os_input")]
 use starknet_committer::db::forest_trait::forest_trait_witnesses::{
+    CommitmentInfosUpdate,
+    CommitmentInfosWrite,
     ForestStorageWithWitnesses,
-    PatriciaProofsUpdate,
-    PatriciaProofsWrite,
 };
 use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
@@ -408,11 +408,11 @@ where
             #[cfg(feature = "os_input")]
             {
                 self.forest_storage
-                    .write_with_metadata_and_witnesses(
+                    .write_with_metadata_and_commitment_infos(
                         &filled_forest,
                         metadata,
                         deleted_nodes,
-                        PatriciaProofsUpdate::Delete(height),
+                        CommitmentInfosUpdate::Delete(height),
                     )
                     .await
             }
@@ -534,13 +534,13 @@ where
                         expected: digest,
                     });
                 }
-                let proofs = self
+                let state_commitment_infos = self
                     .forest_storage
-                    .read_witnesses(height)
+                    .read_commitment_infos(height)
                     .await
-                    .map_err(|error| self.map_internal_error_at_height(height, error))?;
-                let proofs = proofs.ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse { global_root, patricia_proofs: proofs })
+                    .map_err(|error| self.map_internal_error_at_height(height, error))?
+                    .ok_or(CommitterError::MissingPatriciaPaths { height })?;
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -563,11 +563,8 @@ where
                 let CommitBlockWithWitnessesOutput {
                     filled_forest,
                     deleted_nodes,
-                    patricia_proofs,
+                    state_commitment_infos,
                     global_root,
-                    // Built here but not yet wired into the response/storage; the follow-up
-                    // switches the stored and returned payload to commitment infos.
-                    ..
                 } = commit_block_with_witnesses(
                     input,
                     &sorted_leaves,
@@ -581,23 +578,23 @@ where
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
 
                 info!(
-                    "For block number {height}, writing filled forest and {witness_count} \
-                     witnesses to storage with metadata: {metadata:?}, delete \
-                     {deleted_nodes_count} nodes",
-                    witness_count = patricia_proofs.get_nodes_count(),
+                    "For block number {height}, writing filled forest and \
+                     {commitment_facts_count} commitment facts to storage with metadata: \
+                     {metadata:?}, delete {deleted_nodes_count} nodes",
+                    commitment_facts_count = state_commitment_infos.n_commitment_facts(),
                     deleted_nodes_count = deleted_nodes.len(),
                 );
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
                     .forest_storage
-                    .write_with_metadata_and_witnesses(
+                    .write_with_metadata_and_commitment_infos(
                         &filled_forest,
                         metadata,
                         deleted_nodes,
-                        PatriciaProofsUpdate::Write(PatriciaProofsWrite {
+                        CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                             block_number: height,
                             keys_digest: digest,
-                            witnesses: patricia_proofs.clone(),
+                            commitment_infos: state_commitment_infos.clone(),
                         }),
                     )
                     .await
@@ -606,7 +603,7 @@ where
                 block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
                 update_metrics(height, &block_measurements.block_measurement);
                 self.update_offset(next_offset);
-                Ok(ReadPathsAndCommitBlockResponse { global_root, patricia_proofs })
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
         }
     }

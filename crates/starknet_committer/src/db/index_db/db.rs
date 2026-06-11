@@ -42,10 +42,10 @@ use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageV
 use crate::db::db_layout::DbLayout;
 #[cfg(feature = "os_input")]
 use crate::db::forest_trait::forest_trait_witnesses::{
+    CommitmentInfosUpdate,
+    CommitmentInfosWrite,
     ForestReaderWithWitnesses,
     ForestWriterWithMetadataAndWitnesses,
-    PatriciaProofsUpdate,
-    PatriciaProofsWrite,
 };
 use crate::db::forest_trait::{
     read_forest,
@@ -84,7 +84,7 @@ use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::{fetch_all_patricia_paths, SortedLeafIndices};
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 #[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::StarknetForestProofs;
+use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
 pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
@@ -369,17 +369,19 @@ fn block_number_based_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> Vec
 impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReaderWithWitnesses
     for IndexDb<S>
 {
-    async fn read_witnesses(
+    async fn read_commitment_infos(
         &mut self,
         height: BlockNumber,
-    ) -> ForestResult<Option<StarknetForestProofs>> {
+    ) -> ForestResult<Option<StateCommitmentInfos>> {
         let db_key = DbKey(block_number_based_key(&PATRICIA_PATHS_PREFIX, DbBlockNumber(height)));
 
         Ok(match self.get_from_storage(db_key).await? {
             None => None,
             Some(DbValue(bytes)) => {
-                Some(StarknetForestProofs::deserialize(&DbValue(bytes)).map_err(|e| {
-                    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(e))
+                Some(StateCommitmentInfos::decompress(&bytes).map_err(|e| {
+                    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
+                        DeserializationError::ValueError(Box::new(e)),
+                    ))
                 })?)
             }
         })
@@ -427,17 +429,17 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
 #[cfg(feature = "os_input")]
 #[async_trait]
 impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
-    async fn write_with_metadata_and_witnesses(
+    async fn write_with_metadata_and_commitment_infos(
         &mut self,
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
-        patricia_proofs_update: PatriciaProofsUpdate,
+        commitment_infos_update: CommitmentInfosUpdate,
     ) -> SerializationResult<usize> {
         let mut operations = DbOperationMap::new();
         Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
-        match patricia_proofs_update {
-            PatriciaProofsUpdate::Delete(block_number) => {
+        match commitment_infos_update {
+            CommitmentInfosUpdate::Delete(block_number) => {
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
                         block_number,
@@ -452,12 +454,12 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
                     DbOperation::Delete,
                 );
             }
-            PatriciaProofsUpdate::Write(PatriciaProofsWrite {
+            CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                 block_number,
                 keys_digest,
-                witnesses,
+                commitment_infos,
             }) => {
-                let encoded = witnesses.serialize()?;
+                let encoded = DbValue(commitment_infos.compress()?);
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
                         block_number,
