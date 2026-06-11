@@ -15,6 +15,7 @@ use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
     ContractAddress,
+    Nonce,
     StateDiffCommitment,
     PATRICIA_KEY_UPPER_BOUND_FELT,
 };
@@ -26,18 +27,22 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
 };
 use starknet_committer::db::forest_trait::forest_trait_witnesses::ForestReaderWithWitnesses;
-use starknet_committer::db::forest_trait::{EmptyInitialReadContext, ForestReader};
-use starknet_committer::db::index_db::IndexDbReadContext;
 use starknet_committer::db::serde_db_utils::accessed_keys_digest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
 use starknet_committer::patricia_merkle_tree::types::{
     class_hash_into_node_index,
+    CommitmentInfo,
     CompiledClassHash as CommitterCompiledClassHash,
-    StarknetForestProofs,
+    StateCommitmentInfos,
 };
-use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    NodeData,
+    Preimage,
+    PreimageMap,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::storage_proof_verification::verify_patricia_proof;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -219,46 +224,52 @@ where
         .collect()
 }
 
-/// Verifies that `patricia_proofs` contains a valid proof for the membership of each leaf in
-/// `accessed_leaves`.
+/// Reconstructs a [`PreimageMap`] of inner nodes from a commitment info's flattened
+/// `commitment_facts`. This is the inverse of `flatten_preimages`; it relies on `commitment_facts`
+/// holding inner nodes only (binary `[left, right]` or edge `[length, path, bottom]`).
+fn preimage_map_from_commitment_info(commitment_info: &CommitmentInfo) -> PreimageMap {
+    commitment_info
+        .commitment_facts
+        .iter()
+        .map(|(hash, raw_preimage)| {
+            (*hash, Preimage::try_from(raw_preimage).expect("commitment fact is a valid preimage"))
+        })
+        .collect()
+}
+
+/// Verifies that `commitment_infos` contains valid Patricia proofs for the membership of each
+/// accessed leaf.
 fn verify_witness_patricia_paths(
-    patricia_proofs: &StarknetForestProofs,
+    commitment_infos: &StateCommitmentInfos,
     accessed_keys: &AccessedKeys,
     class_leaves: &HashMap<ClassHash, CommitterCompiledClassHash>,
+    contract_leaves: &HashMap<ContractAddress, ContractState>,
     storage_leaves: &HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
-    classes_trie_root: HashOutput,
-    contracts_trie_root: HashOutput,
 ) {
+    let classes_trie_info = &commitment_infos.classes_trie_commitment_info;
     verify_patricia_proof::<CommitterCompiledClassHash, TreeHashFunctionImpl>(
-        classes_trie_root,
-        &patricia_proofs.classes_trie_proof,
+        classes_trie_info.updated_root,
+        &preimage_map_from_commitment_info(classes_trie_info),
         &leaf_hashes(class_leaves, class_hash_into_node_index),
     )
     .unwrap_or_else(|error| panic!("classes trie proof verification failed: {error}"));
 
+    let contracts_trie_info = &commitment_infos.contracts_trie_commitment_info;
     verify_patricia_proof::<ContractState, TreeHashFunctionImpl>(
-        contracts_trie_root,
-        &patricia_proofs.contracts_trie_proof.nodes,
-        &leaf_hashes(
-            &patricia_proofs.contracts_trie_proof.leaves,
-            contract_address_into_node_index,
-        ),
+        contracts_trie_info.updated_root,
+        &preimage_map_from_commitment_info(contracts_trie_info),
+        &leaf_hashes(contract_leaves, contract_address_into_node_index),
     )
     .unwrap_or_else(|error| panic!("contracts trie proof verification failed: {error}"));
 
     for contract_address in &accessed_keys.accessed_contracts {
-        let storage_proof = patricia_proofs
-            .contracts_trie_storage_proofs
-            .get(contract_address)
-            .unwrap_or_else(|| panic!("missing storage trie proof for {contract_address:?}"));
-        let contract_state = patricia_proofs
-            .contracts_trie_proof
-            .leaves
-            .get(contract_address)
-            .unwrap_or_else(|| panic!("missing contracts trie leaf for {contract_address:?}"));
+        let storage_info =
+            commitment_infos.storage_tries_commitment_infos.get(contract_address).unwrap_or_else(
+                || panic!("missing storage trie commitment info for {contract_address:?}"),
+            );
         verify_patricia_proof::<StarknetStorageValue, TreeHashFunctionImpl>(
-            contract_state.storage_root_hash,
-            storage_proof,
+            storage_info.updated_root,
+            &preimage_map_from_commitment_info(storage_info),
             &leaf_hashes(
                 storage_leaves.get(contract_address).unwrap_or_else(|| {
                     panic!("missing storage leaves for contract {contract_address:?}")
@@ -275,15 +286,15 @@ fn verify_witness_patricia_paths(
 async fn assert_witnesses_and_digest_present(
     committer: &mut ApolloTestCommitter,
     height: BlockNumber,
-    expected_patricia_proofs: &StarknetForestProofs,
+    expected_commitment_infos: &StateCommitmentInfos,
 ) {
     assert_eq!(
         committer.load_witnesses_digest(height).await.unwrap(),
         Some(*EXPECTED_ACCESSED_KEYS_DIGEST),
     );
     assert_eq!(
-        committer.forest_storage.read_witnesses(height).await.unwrap().as_ref(),
-        Some(expected_patricia_proofs),
+        committer.forest_storage.read_commitment_infos(height).await.unwrap().as_ref(),
+        Some(expected_commitment_infos),
     );
 }
 
@@ -292,7 +303,7 @@ async fn assert_witnesses_and_digest_absent(
     height: BlockNumber,
 ) {
     assert!(committer.load_witnesses_digest(height).await.unwrap().is_none());
-    assert!(committer.forest_storage.read_witnesses(height).await.unwrap().is_none());
+    assert!(committer.forest_storage.read_commitment_infos(height).await.unwrap().is_none());
 }
 
 /// Flow overview:
@@ -319,27 +330,43 @@ async fn read_paths_and_commit_block_happy_flow() {
 
     let response = committer.read_paths_and_commit_block(request.clone()).await.unwrap();
     assert_eq!(committer.offset, BlockNumber(height + 1));
-    let roots =
-        committer.forest_storage.read_roots(IndexDbReadContext::create_empty()).await.unwrap();
+    // The commitment infos don't retain the contract-trie leaves, so reconstruct the expected
+    // contract states for the accessed contracts: storage root from the commitment infos, class
+    // hash from the block-0 deployment, and the default (zero) nonce.
+    let contract_leaves: HashMap<ContractAddress, ContractState> = response
+        .state_commitment_infos
+        .storage_tries_commitment_infos
+        .iter()
+        .map(|(address, storage_info)| {
+            (
+                *address,
+                ContractState {
+                    nonce: Nonce::default(),
+                    storage_root_hash: storage_info.updated_root,
+                    class_hash: *ACCESSED_CLASS_HASH,
+                },
+            )
+        })
+        .collect();
     verify_witness_patricia_paths(
-        &response.patricia_proofs,
+        &response.state_commitment_infos,
         &accessed_keys,
         &ACCESSED_CLASS_LEAVES,
+        &contract_leaves,
         &ACCESSED_STORAGE_LEAVES,
-        roots.classes_trie_root_hash,
-        roots.contracts_trie_root_hash,
     );
 
-    // Historical replay should load persisted witnesses, removing trie nodes to assert this.
+    // Historical replay should load the persisted commitment infos; remove trie nodes to assert
+    // the historical path reads from storage rather than recomputing.
     committer.forest_storage.clear_patricia_trie_nodes_for_test();
 
     let replay_response = committer.read_paths_and_commit_block(request).await.unwrap();
     assert_eq!(response.global_root, replay_response.global_root);
-    assert_eq!(response.patricia_proofs, replay_response.patricia_proofs);
+    assert_eq!(response.state_commitment_infos, replay_response.state_commitment_infos);
     assert_witnesses_and_digest_present(
         &mut committer,
         BlockNumber(height),
-        &response.patricia_proofs,
+        &response.state_commitment_infos,
     )
     .await;
 }
@@ -370,7 +397,7 @@ async fn revert_removes_witnesses_and_digest() {
     assert_witnesses_and_digest_present(
         &mut committer,
         BlockNumber(height_1),
-        &block_1_response.patricia_proofs,
+        &block_1_response.state_commitment_infos,
     )
     .await;
 
@@ -458,7 +485,11 @@ async fn test_bottom_of_new_edge_to_an_unmoidifed_subtree_is_present() {
     // This in turn also proves that G is not an edge node, as it's the bottom of an old
     // edge node, without explicitly requesting an opening of E.
     assert!(
-        response.patricia_proofs.classes_trie_proof.contains_key(&node_g_hash),
+        response
+            .state_commitment_infos
+            .classes_trie_commitment_info
+            .commitment_facts
+            .contains_key(&node_g_hash),
         "missing bottom of a new edge node in a proof",
     );
 }
@@ -527,7 +558,11 @@ async fn test_bottom_of_new_edge_which_was_not_bottom_of_an_old_edge_is_present(
     }));
 
     assert!(
-        response.patricia_proofs.classes_trie_proof.contains_key(&node_e_hash),
+        response
+            .state_commitment_infos
+            .classes_trie_commitment_info
+            .commitment_facts
+            .contains_key(&node_e_hash),
         "missing bottom of a new edge node in a proof",
     );
 }

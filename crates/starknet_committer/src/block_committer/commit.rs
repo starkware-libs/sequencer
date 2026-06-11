@@ -42,9 +42,9 @@ use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 #[cfg(feature = "os_input")]
 use crate::patricia_merkle_tree::tree::SortedLeavesRequest;
-use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
 #[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
+use crate::patricia_merkle_tree::types::StateCommitmentInfos;
+use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
 
 pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
@@ -85,7 +85,6 @@ pub type CommitBlockWithWitnessesResult<T> = Result<T, CommitBlockWithWitnessesE
 pub struct CommitBlockWithWitnessesOutput {
     pub filled_forest: FilledForest,
     pub deleted_nodes: DeletedNodes,
-    pub patricia_proofs: StarknetForestProofs,
     pub state_commitment_infos: StateCommitmentInfos,
     pub global_root: GlobalRoot,
 }
@@ -214,7 +213,6 @@ where
     Ok(CommitBlockWithWitnessesOutput {
         filled_forest,
         deleted_nodes,
-        patricia_proofs,
         state_commitment_infos,
         global_root,
     })
