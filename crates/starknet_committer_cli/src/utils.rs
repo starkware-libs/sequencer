@@ -77,6 +77,15 @@ impl MeasurementsTrait for BenchmarkMeasurements {
         Ok(duration_in_seconds)
     }
 
+    fn record_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+        duration_in_seconds: f64,
+    ) {
+        self.current_measurement.record_measurement(action, entries_count, duration_in_seconds);
+    }
+
     fn set_number_of_modifications(
         &mut self,
         block_modifications_counts: BlockModificationsCounts,
