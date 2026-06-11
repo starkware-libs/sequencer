@@ -11,6 +11,9 @@ mod OsResourcesTestContract {
     const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
     const EXECUTE_FUNCTION_SELECTOR: felt252 = selector!("__execute__");
 
+    // Define a large input length for variable-length input syscalls.
+    const LARGE_INPUT_LENGTH: usize = 100;
+
     #[storage]
     struct Storage {}
 
@@ -45,6 +48,12 @@ mod OsResourcesTestContract {
             return;
         }
 
+        // Define a large input for variable-length input syscalls.
+        let mut large_input: Array<felt252> = array![LARGE_INPUT_LENGTH.into()];
+        for _ in 0..LARGE_INPUT_LENGTH {
+            large_input.append(1);
+        }
+
         // call_contract syscall — calls external function on stable contract.
         call_contract_syscall(
             stable_address, STABLE_EXTERNAL_ENTRY_POINT_SELECTOR, array![0].span(),
@@ -69,7 +78,7 @@ mod OsResourcesTestContract {
         meta_tx_v0_syscall(
             address: stable_address,
             entry_point_selector: EXECUTE_FUNCTION_SELECTOR,
-            calldata: array![1, 0].span(),
+            calldata: large_input.span(),
             signature: array![].span(),
         )
             .unwrap_syscall();
@@ -77,10 +86,10 @@ mod OsResourcesTestContract {
         // deploy syscall. The resources this syscall consumes can vary depending on the deployed
         // contract address, in a non-trivial way (see `normalize_address` in the cairo0 core). For
         // this reason we deploy from zero, and choose a specific salt.
-        // base (no calldata):
+        // base:
         deploy_syscall(stable_class_hash, 1, array![0].span(), true).unwrap_syscall();
-        // linear factor (calldata len = 1):
-        deploy_syscall(stable_class_hash, 1, array![1, 0].span(), true).unwrap_syscall();
+        // linear factor:
+        deploy_syscall(stable_class_hash, 1, large_input.span(), true).unwrap_syscall();
 
         // emit event syscall.
         emit_event_syscall(array![5].span(), array![7].span()).unwrap_syscall();
