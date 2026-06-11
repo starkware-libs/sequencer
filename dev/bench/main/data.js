@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780948726328,
+  "lastUpdate": 1781175811493,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5643,6 +5643,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1270.62009924,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9beec14bc63a505d6d8718c0c9cc3632e9b4c6f4",
+          "message": "starknet_committer: split commit_block into read and compute phases (#14436)\n\nExtract the modified-index bookkeeping into ForestModifiedIndices and split\ncommit_block into commit_block_read_phase (storage-bound) and\ncommit_block_compute_phase (CPU-bound), exposing the read output via\nCommitReadPhaseOutput so the phases can be driven independently.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-11T10:38:47Z",
+          "tree_id": "ccbdc785db046d551a1044a55fd0fb48ce50cd2f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9beec14bc63a505d6d8718c0c9cc3632e9b4c6f4"
+        },
+        "date": 1781175811021,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 831.66852458,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1285.09740126,
             "unit": "ms"
           }
         ]
