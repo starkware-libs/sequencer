@@ -10,7 +10,11 @@ use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
-use crate::jsonnet::{test_consolidated_infra_matches_rust, test_hybrid_infra_matches_rust};
+use crate::jsonnet::{
+    test_consolidated_infra_matches_rust,
+    test_distributed_infra_matches_rust,
+    test_hybrid_infra_matches_rust,
+};
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
 
@@ -34,6 +38,16 @@ fn consolidated_infra_matches_rust() {
         .expect("Couldn't set working dir.");
 
     test_consolidated_infra_matches_rust();
+}
+
+/// Verifies the jsonnet distributed infra config matches the Rust deployment definitions
+/// (distributed.rs).
+#[test]
+fn distributed_infra_matches_rust() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_distributed_infra_matches_rust();
 }
 
 /// Test that the deployment file is up to date.
