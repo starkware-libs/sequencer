@@ -74,6 +74,14 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
+      # Integration tests assign node listener ports from a static range starting at BASE_PORT
+      # (11000), see crates/apollo_infra_utils/src/test_utils.rs. The kernel's default ephemeral
+      # range overlaps it, so an outbound connection can transiently claim a port that a node later
+      # tries to bind as a listener, causing EADDRINUSE and a node startup failure (flaky
+      # "should be alive" timeouts). Move the ephemeral range entirely below BASE_PORT so the two
+      # ranges can never overlap.
+      - name: "Move ephemeral port range below the integration-test static port range"
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="2000 10999"
       - name: "Run integration tests pull request"
         run: |
           scripts/run_tests.py --command integration --is_nightly
