@@ -57,8 +57,9 @@ pub struct StarknetForestProofs {
     pub contracts_trie_storage_proofs: HashMap<ContractAddress, PreimageMap>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "os_input", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "os_input", serde(deny_unknown_fields))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CommitmentInfo {
     pub previous_root: HashOutput,
     pub updated_root: HashOutput,
@@ -84,11 +85,37 @@ impl Default for CommitmentInfo {
 }
 
 /// Contains all commitment information for a block's state trees.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[cfg_attr(feature = "os_input", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StateCommitmentInfos {
     pub contracts_trie_commitment_info: CommitmentInfo,
     pub classes_trie_commitment_info: CommitmentInfo,
     pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
+}
+
+#[cfg(feature = "os_input")]
+#[derive(Debug, thiserror::Error)]
+pub enum StateCommitmentInfosCodecError {
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
+impl StateCommitmentInfos {
+    /// Bincode-serializes and zstd-compresses the commitment infos into a byte vector.
+    #[cfg(feature = "os_input")]
+    pub fn compress(&self) -> Result<Vec<u8>, StateCommitmentInfosCodecError> {
+        let bincode_payload = bincode::serialize(self)?;
+        Ok(zstd::encode_all(bincode_payload.as_slice(), zstd::DEFAULT_COMPRESSION_LEVEL)?)
+    }
+
+    /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
+    #[cfg(feature = "os_input")]
+    pub fn decompress(data: &[u8]) -> Result<Self, StateCommitmentInfosCodecError> {
+        let bincode_payload = zstd::decode_all(data)?;
+        Ok(bincode::deserialize(&bincode_payload)?)
+    }
 }
 
 impl StarknetForestProofs {
