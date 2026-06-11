@@ -5,6 +5,7 @@ use jrsonnet_evaluator::{FileImportResolver, State};
 use serde_json::Value;
 use strum::IntoEnumIterator;
 
+use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::service::{GetComponentConfigs, NodeService, NodeType};
 
@@ -61,6 +62,11 @@ where
 /// The jsonnet hybrid infra matches `deployments/hybrid.rs`.
 pub fn test_hybrid_infra_matches_rust() {
     assert_infra_matches_rust::<HybridNodeServiceName>();
+}
+
+/// The jsonnet consolidated infra matches `deployments/consolidated.rs`.
+pub fn test_consolidated_infra_matches_rust() {
+    assert_infra_matches_rust::<ConsolidatedNodeServiceName>();
 }
 
 /// Clones a `components` map with `url` and `port` removed from each component object — the two
