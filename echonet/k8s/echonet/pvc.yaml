@@ -8,7 +8,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: standard-rwo
+  storageClassName: hyperdisk-balanced-baseline
   resources:
     requests:
       storage: 100Gi
