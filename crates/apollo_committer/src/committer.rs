@@ -24,7 +24,10 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::commit_block;
 #[cfg(feature = "os_input")]
-use starknet_committer::block_committer::errors::CommitBlockWithWitnessesError;
+use starknet_committer::block_committer::commit::{
+    commit_block_with_witnesses,
+    CommitBlockWithWitnessesOutput,
+};
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
@@ -551,67 +554,25 @@ where
                 let mut block_measurements = SingleBlockMeasurements::default();
                 block_measurements.start_measurement(Action::EndToEnd);
 
-                let pre_roots = self
-                    .forest_storage
-                    .read_roots(ForestDB::InitialReadContext::create_empty())
-                    .await
-                    .map_err(|e| self.map_internal_error(e))?;
-                block_measurements.start_measurement(Action::FetchWitnessesFirstPass);
-                let mut patricia_proofs = self
-                    .forest_storage
-                    .fetch_patricia_witnesses(
-                        pre_roots.classes_trie_root_hash,
-                        pre_roots.contracts_trie_root_hash,
-                        sorted_leaves.class_sorted,
-                        sorted_leaves.contract_sorted,
-                        &sorted_leaves.storage_sorted,
-                        None,
-                    )
-                    .await
-                    .map_err(|e| {
-                        self.map_internal_error(CommitBlockWithWitnessesError::PreCommitWitnessFetch(
-                            e,
-                        ))
-                    })?;
-                block_measurements
-                    .attempt_to_stop_measurement(
-                        Action::FetchWitnessesFirstPass,
-                        patricia_proofs.get_nodes_count(),
-                    )
-                    .ok();
+                let input = Input {
+                    state_diff: state_diff.into(),
+                    initial_read_context: ForestDB::InitialReadContext::create_empty(),
+                    config: self.config.reader_config.clone(),
+                };
 
-                let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
-                    self.commit_state_diff(state_diff, &mut block_measurements).await?;
-                let post_roots = filled_forest.state_roots();
-
-                let forest_updates = ForestDB::serialize_forest(&filled_forest)
-                    .map_err(|e| self.map_internal_error(e))?;
-
-                block_measurements.start_measurement(Action::FetchWitnessesSecondPass);
-                let proof_after = self
-                    .forest_storage
-                    .fetch_patricia_witnesses(
-                        post_roots.classes_trie_root_hash,
-                        post_roots.contracts_trie_root_hash,
-                        sorted_leaves.class_sorted,
-                        sorted_leaves.contract_sorted,
-                        &sorted_leaves.storage_sorted,
-                        Some(forest_updates),
-                    )
-                    .await
-                    .map_err(|e| {
-                        self.map_internal_error(
-                            CommitBlockWithWitnessesError::PostCommitWitnessFetch(e),
-                        )
-                    })?;
-                block_measurements
-                    .attempt_to_stop_measurement(
-                        Action::FetchWitnessesSecondPass,
-                        proof_after.get_nodes_count(),
-                    )
-                    .ok();
-
-                patricia_proofs.extend(proof_after);
+                let CommitBlockWithWitnessesOutput {
+                    filled_forest,
+                    deleted_nodes,
+                    patricia_proofs,
+                    global_root,
+                } = commit_block_with_witnesses(
+                    input,
+                    &sorted_leaves,
+                    &mut self.forest_storage,
+                    &mut block_measurements,
+                )
+                .await
+                .map_err(|err| self.map_internal_error(err))?;
 
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
