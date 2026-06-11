@@ -10,11 +10,21 @@ use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
+use crate::jsonnet::test_hybrid_infra_matches_rust;
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
+
+/// Verifies the jsonnet hybrid infra config matches the Rust deployment definitions (hybrid.rs).
+#[test]
+fn hybrid_infra_matches_rust() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_hybrid_infra_matches_rust();
+}
 
 /// Test that the deployment file is up to date.
 #[test]
