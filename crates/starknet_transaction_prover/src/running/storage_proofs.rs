@@ -41,7 +41,8 @@ use crate::running::virtual_block_executor::VirtualBlockExecutionData;
 /// `class_hashes.len() + contract_addresses.len() + total_storage_keys`.
 const MAX_KEYS_PER_REQUEST: usize = 100;
 
-/// Default number of attempts for a single `get_storage_proof` call before giving up.
+/// Default number of retries for a single `get_storage_proof` call, *on top of* the
+/// initial attempt — so the default `5` allows up to 6 calls (1 + 5) before giving up.
 /// Proving a virtual block fetches a storage proof per chunk of touched state; a public
 /// node will rate-limit a burst of these. Without retry, a single transient failure
 /// anywhere in input collection aborts a multi-minute prove. Overridable via
@@ -49,7 +50,8 @@ const MAX_KEYS_PER_REQUEST: usize = 100;
 const DEFAULT_RPC_MAX_RETRIES: u32 = 5;
 /// First backoff delay; each subsequent retry doubles it, capped at [`RPC_RETRY_MAX_DELAY`].
 const RPC_RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
-/// Upper bound on a single backoff delay (5 attempts ≈ 0.5 + 1 + 2 + 4 = 7.5s of waiting).
+/// Upper bound on a single backoff delay (default 5 retries wait
+/// 0.5 + 1 + 2 + 4 + 8 = 15.5s in total).
 const RPC_RETRY_MAX_DELAY: Duration = Duration::from_secs(8);
 
 fn rpc_max_retries() -> u32 {
@@ -59,25 +61,32 @@ fn rpc_max_retries() -> u32 {
         .unwrap_or(DEFAULT_RPC_MAX_RETRIES)
 }
 
+/// Substrings that mark a rate-limit / throttling response, whether it arrives as a raw
+/// HTTP body or as the message of a structured JSON-RPC error.
+const RATE_LIMIT_NEEDLES: [&str; 4] =
+    ["too many requests", "rate limit", "limit exceeded", "429"];
+
 /// Whether a `get_storage_proof` failure is transient and worth retrying.
 ///
-/// A public node throttling a request returns a non-JSON body (an HTTP 429/5xx page),
-/// which `starknet-rs` fails to deserialize and surfaces as
+/// A public node throttling a request usually returns a non-JSON body (an HTTP 429/5xx
+/// page), which `starknet-rs` fails to deserialize and surfaces as
 /// `ProviderError::Other(..)` carrying a transport/parse message such as
-/// `expected value at line 1 column 1` — NOT as a structured JSON-RPC error. Those, plus
-/// explicit rate-limit / connection / timeout signals, are retryable.
+/// `expected value at line 1 column 1`. Some nodes instead signal throttling as a valid
+/// JSON-RPC error (e.g. "too many requests"). Both of those, plus explicit
+/// connection / timeout signals, are retryable.
 ///
-/// Structured upstream JSON-RPC errors (e.g. block-not-found, code `-32xxx`) are
-/// deterministic — retrying only wastes time — so they are explicitly excluded, mirroring
-/// the downcast in `impl From<ProviderError> for ProofProviderError`.
+/// Any *other* structured JSON-RPC error (e.g. block-not-found, code `-32xxx`) is
+/// deterministic — retrying only wastes time — so it fails fast, mirroring the downcast in
+/// `impl From<ProviderError> for ProofProviderError`.
 fn is_retryable_rpc_error(err: &ProviderError) -> bool {
     if let ProviderError::Other(inner) = err {
-        let is_structured_rpc_error = inner
-            .as_any()
-            .downcast_ref::<JsonRpcClientError<HttpTransportError>>()
-            .is_some_and(|e| matches!(e, JsonRpcClientError::JsonRpcError(_)));
-        if is_structured_rpc_error {
-            return false;
+        if let Some(JsonRpcClientError::JsonRpcError(rpc_err)) =
+            inner.as_any().downcast_ref::<JsonRpcClientError<HttpTransportError>>()
+        {
+            // A structured JSON-RPC error is deterministic — except when a node uses it to
+            // signal rate-limiting instead of returning an HTTP 429. Retry only that case.
+            let message = rpc_err.message.to_ascii_lowercase();
+            return RATE_LIMIT_NEEDLES.iter().any(|needle| message.contains(needle));
         }
     }
     let msg = err.to_string().to_ascii_lowercase();
@@ -85,6 +94,7 @@ fn is_retryable_rpc_error(err: &ProviderError) -> bool {
         "too many requests",
         "429",
         "rate limit",
+        "limit exceeded",
         "502",
         "503",
         "504",
