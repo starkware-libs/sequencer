@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
-use privacy_circuit_verify_v1::{verify_recursive_circuit, PrivacyProofOutput, Version};
+use privacy_circuit_verify_v1::{verify_recursive_circuit, PrivacyProofOutput};
 use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_proof_verifier::ProgramOutput;
@@ -50,7 +50,6 @@ async fn test_prove_cairo_pie_10_transfers() {
     let proof_output = PrivacyProofOutput {
         proof: output.proof.0.to_vec(),
         output_preimage,
-        version: Version::current(),
     };
     verify_recursive_circuit(&proof_output).expect("Failed to verify proof");
 
