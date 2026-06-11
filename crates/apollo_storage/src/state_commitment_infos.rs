@@ -7,7 +7,6 @@ pub use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 #[path = "state_commitment_infos_test.rs"]
 mod state_commitment_infos_test;
 
-use crate::compression_utils::{compress, decompress};
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
@@ -15,15 +14,13 @@ use crate::{OffsetKind, StorageResult, StorageTxn};
 
 impl StorageSerde for StateCommitmentInfos {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        let bytes = serde_json::to_vec(self)?;
-        let compressed = compress(bytes.as_slice())?;
+        let compressed = self.compress()?;
         compressed.serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
         let compressed = Vec::<u8>::deserialize_from(bytes)?;
-        let data = decompress(compressed.as_slice()).ok()?;
-        serde_json::from_slice(&data).ok()
+        Self::decompress(&compressed).ok()
     }
 }
 

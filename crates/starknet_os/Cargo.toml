@@ -11,6 +11,7 @@ deserialize = [
   "blockifier/transaction_serde",
   "shared_execution_objects/deserialize",
   "starknet-types-core/serde",
+  "starknet_committer/os_input",
   "starknet_patricia/deserialize",
 ]
 include_program_output = []
