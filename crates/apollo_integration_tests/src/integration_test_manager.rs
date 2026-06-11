@@ -349,15 +349,25 @@ impl RunningNode {
             })
         });
 
-        join_all(await_alive_tasks).await;
+        // Race the health-check loop against a periodic crash detector. If any executable
+        // handle finishes (its process exited), propagate_executable_panic fires immediately
+        // rather than waiting for the full timeout to expire.
+        tokio::select! {
+            _ = join_all(await_alive_tasks) => {},
+            _ = async {
+                loop {
+                    sleep(Duration::from_millis(interval)).await;
+                    self.propagate_executable_panic();
+                }
+            } => {},
+        }
     }
 
     fn propagate_executable_panic(&self) {
-        for handle in self.executable_handles.values() {
-            // A finished handle implies a running node executable has panicked.
+        for (service, handle) in &self.executable_handles {
             if handle.is_finished() {
                 // Panic, dropping all other handles, which should drop.
-                panic!("A running node executable has unexpectedly panicked.");
+                panic!("Node service {service:?} unexpectedly stopped.");
             }
         }
     }
