@@ -11,6 +11,7 @@ use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
+use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::jsonnet::assert_infra_matches_rust;
 use crate::service::NodeType;
@@ -36,6 +37,16 @@ fn consolidated_infra_matches_rust() {
         .expect("Couldn't set working dir.");
 
     assert_infra_matches_rust::<ConsolidatedNodeServiceName>();
+}
+
+/// Verifies the jsonnet distributed infra config matches the Rust deployment definitions
+/// (distributed.rs).
+#[test]
+fn distributed_infra_matches_rust() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    assert_infra_matches_rust::<DistributedNodeServiceName>();
 }
 
 /// Test that the deployment file is up to date.
