@@ -241,7 +241,7 @@ jobs:
           kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
-          kubectl wait --namespace ${{ env.dummy_eth_to_strk_namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 60s
+          kubectl wait --namespace ${{ env.dummy_eth_to_strk_namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 300s
           echo "🚀 Dummy Eth2Strk Oracle deployed successfully."
 
       - name: Deploy Anvil
