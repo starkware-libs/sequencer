@@ -31,7 +31,7 @@ starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
 strum.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
 tracing.workspace = true
 zstd = { workspace = true, optional = true }
 
