@@ -11,6 +11,7 @@ use blockifier::blockifier_versioned_constants::{
 use blockifier::context::BlockContext;
 use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector as Selector;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::transaction::objects::ExecutionResourcesTraits;
 use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -77,21 +78,24 @@ const UNMEASURABLE_SYSCALLS: [Selector; 28] = [
 
 /// Store a mapping from a linearly-charged syscall, with the number of "linear elements" in it's
 /// first measurement. For example, if we measure the base and linear costs of a [Selector::Deploy]
-/// by running:
+/// by measuring:
 /// ```
-/// deploy_syscall(stable_class_hash, 3, array![2, 0, 0].span(), true).unwrap_syscall();
-/// deploy_syscall(stable_class_hash, 3, array![3, 0, 0, 0].span(), true).unwrap_syscall();
+/// let deploy_from_zero = true;
+/// let M1 = COST(deploy_syscall(class_hash, salt, calldata: [0], deploy_from_zero));
+/// let M2 = COST(deploy_syscall(class_hash, salt, calldata: [100] + [1; 100], deploy_from_zero));
 /// ```
-/// ... then the linear factor is exactly the difference between the two measurements, because the
-/// second measurement has one more linear element (4) than the first measurement (3). However, the
-/// first call has 3 elements in it's calldata, so to compute the estimated cost of a zero-element
-/// call (base) we need to subtract three times the linear factor from the first measurement. In
-/// this case, the value in the mapping will be 3.
-/// The second call will always have one more linear element than the first call.
+/// then the base and linear parts can be computed by:
+/// ```
+/// let LINEAR = (M2 - M1) / 100;
+/// let BASE = M1 - LINEAR;
+/// ```
+/// The formula for `LINEAR` is simple, and note that we must subtract one `LINEAR` from `M1` to get
+/// `BASE` because the `M1` measurement has a single calldata element (length of calldata: 0).
 /// Note: Keccak does not store the linear factor in the same entry in the versioned constants, but
 /// it does have a measurable linear factor stored under [Selector::KeccakRound].
 static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> =
     LazyLock::new(|| HashMap::from([(Selector::Deploy, 1), (Selector::MetaTxV0, 1)]));
+const LARGE_INPUT_LENGTH: usize = 100;
 
 /// Expected syscalls in the fee transfer call. Should be removed from the list of syscalls during
 /// measurement iteration - only the syscalls called during __execute__ should be measured.
@@ -349,7 +353,9 @@ async fn test_os_resources_regression() {
             );
             let next_resources =
                 maybe_deduct_inner(next_syscall_trace.get_resources().unwrap().clone(), selector);
-            let linear_factor_resources = (&next_resources - &resources).filter_unused_builtins();
+            let linear_factor_resources = (&next_resources - &resources)
+                .div_ceil(LARGE_INPUT_LENGTH)
+                .filter_unused_builtins();
 
             // Linear factor is computed; deduct the linear overhead from the base cost to get the
             // real base cost.
