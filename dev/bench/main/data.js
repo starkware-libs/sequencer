@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781175811493,
+  "lastUpdate": 1781180640891,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5677,6 +5677,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1285.09740126,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a58fac0c73ffc278dbd36131698e330d0cbb1449",
+          "message": "starknet_patricia: derive Serialize and Deserialize for SubTreeHeight (#14446)",
+          "timestamp": "2026-06-11T12:04:46Z",
+          "tree_id": "38e9e1c6d648e0303b05939a1fce196e10c56d05",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a58fac0c73ffc278dbd36131698e330d0cbb1449"
+        },
+        "date": 1781180640476,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 913.11766611,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1419.9920636,
             "unit": "ms"
           }
         ]
