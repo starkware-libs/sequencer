@@ -77,12 +77,12 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
     expect!["range_check_builtin: 581"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["23616"];
 // Allowed margin between estimated and actual execution resources.
-// Larger than strictly needed (max observed margin is ~370 on `test_contract`) so adding new
-// feature contracts doesn't immediately bust the budget. The residual gap comes from non-Blake
-// constants in `casm_hash_estimation` (entry-point / segment overheads that slightly under-count,
-// proportional to the number of entry points and segments); the Blake step formula itself is exact
-// for every input checked in `blake2s_test`.
-const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 400;
+// Upper bound on |estimate - actual| across the feature-contract suite, after the V2-specific
+// per-entry-point correction in `casm_hash_estimation`. The estimate only corrects the
+// per-entry-point overhead that scales with contract size; a small content-dependent constant
+// residual remains and is absorbed by this margin. The Blake step formula itself is exact for
+// every input checked in `blake2s_test`.
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 100;
 const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
 
 const CLASS_HASH_WITH_SEGMENTATION: &str =
