@@ -61,10 +61,12 @@ fn rpc_max_retries() -> u32 {
         .unwrap_or(DEFAULT_RPC_MAX_RETRIES)
 }
 
-/// Substrings that mark a rate-limit / throttling response, whether it arrives as a raw
-/// HTTP body or as the message of a structured JSON-RPC error.
-const RATE_LIMIT_NEEDLES: [&str; 4] =
-    ["too many requests", "rate limit", "limit exceeded", "429"];
+/// Phrases that *unambiguously* mark a rate-limit / throttling response. These are matched
+/// against the message of a structured JSON-RPC error, which is otherwise deterministic, so
+/// the set must exclude loose tokens that deterministic errors also contain — e.g.
+/// "limit exceeded" (also "gas/query limit exceeded") or "429" (can appear inside a block
+/// number). Transport/parse failures get the broader needle list in `is_retryable_rpc_error`.
+const RATE_LIMIT_NEEDLES: [&str; 3] = ["too many requests", "rate limit", "throttled"];
 
 /// Whether a `get_storage_proof` failure is transient and worth retrying.
 ///
@@ -83,8 +85,10 @@ fn is_retryable_rpc_error(err: &ProviderError) -> bool {
         if let Some(JsonRpcClientError::JsonRpcError(rpc_err)) =
             inner.as_any().downcast_ref::<JsonRpcClientError<HttpTransportError>>()
         {
-            // A structured JSON-RPC error is deterministic — except when a node uses it to
-            // signal rate-limiting instead of returning an HTTP 429. Retry only that case.
+            // A structured JSON-RPC error is deterministic (block-not-found, gas/query
+            // limit exceeded, bad params, ...) — except when a node signals throttling this
+            // way instead of via an HTTP 429. Match only unambiguous rate-limit wording (see
+            // RATE_LIMIT_NEEDLES); never loose tokens that deterministic errors also carry.
             let message = rpc_err.message.to_ascii_lowercase();
             return RATE_LIMIT_NEEDLES.iter().any(|needle| message.contains(needle));
         }
@@ -94,7 +98,7 @@ fn is_retryable_rpc_error(err: &ProviderError) -> bool {
         "too many requests",
         "429",
         "rate limit",
-        "limit exceeded",
+        "throttled",
         "502",
         "503",
         "504",
