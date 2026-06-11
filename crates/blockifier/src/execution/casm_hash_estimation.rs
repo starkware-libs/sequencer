@@ -27,6 +27,17 @@ pub trait EstimateCasmHashResources {
     // Estimated fixed Cairo steps for `bytecode_hash_internal_node` leaf case.
     const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize;
 
+    // Implementation-specific additive correction to the fixed per-`compiled_class_hash` step
+    // count. Captures hash-function-specific overhead that is independent of the contract's entry
+    // points and bytecode structure. Defaults to 0 (no correction).
+    const EXTRA_BASE_STEPS: usize = 0;
+
+    // Implementation-specific additive correction applied once per entry point. Captures
+    // hash-function-specific per-entry-point overhead (e.g. folding each entry point's
+    // selector/offset/builtins into the entry-point hashes) that the generic estimate undercounts.
+    // Defaults to 0 (no correction).
+    const EXTRA_STEPS_PER_ENTRY_POINT: usize = 0;
+
     /// Creates an `ExtendedExecutionResources` from a given `ExecutionResources`, with an empty
     /// opcode counter.
     fn from_resources(resources: ExecutionResources) -> ExtendedExecutionResources {
@@ -52,7 +63,7 @@ pub trait EstimateCasmHashResources {
         const BASE_COMPILED_CLASS_HASH_STEPS: usize = 54;
 
         let mut resources = Self::from_resources(ExecutionResources {
-            n_steps: BASE_COMPILED_CLASS_HASH_STEPS,
+            n_steps: BASE_COMPILED_CLASS_HASH_STEPS + Self::EXTRA_BASE_STEPS,
             ..Default::default()
         });
 
@@ -193,7 +204,7 @@ pub trait EstimateCasmHashResources {
         const BASE_HASH_UPDATE_WITH_NESTED_HASH_STEPS: usize = 3;
 
         let mut resources = Self::from_resources(ExecutionResources {
-            n_steps: BASE_HASH_ENTRY_POINTS_INNER_STEPS,
+            n_steps: BASE_HASH_ENTRY_POINTS_INNER_STEPS + Self::EXTRA_STEPS_PER_ENTRY_POINT,
             ..Default::default()
         });
 
@@ -329,6 +340,14 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     // 30 = 2*`if` + `return` + `alloc_locals` + `let` + 2*`tempvar` + 2*`hash_update_single` +
     // `call_bytecode_hash_internal_node`. Verified across running multiple contracts.
     const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize = 30;
+
+    // V2 (Blake)-specific corrections, fit empirically across the feature-contract suite so the
+    // generic estimate (which is near-exact for V1/Poseidon) tracks the Blake `compiled_class_hash`
+    // step count. The Blake hashing path carries a fixed per-call overhead and a per-entry-point
+    // overhead that the structure-driven estimate alone undercounts; without these the estimate is
+    // a systematic under-estimate that grows with the number of entry points.
+    const EXTRA_BASE_STEPS: usize = 42;
+    const EXTRA_STEPS_PER_ENTRY_POINT: usize = 4;
 
     /// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
     ///
