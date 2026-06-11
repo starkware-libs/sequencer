@@ -246,11 +246,11 @@ pub mod expected {
     use expect_test::{expect, Expect};
 
     pub static STEPS_EMPTY_INPUT_EXPECT: Expect = expect!["167"];
-    pub static STEPS_PER_LARGE_FELT_EXPECT: Expect = expect!["38"];
-    pub static STEPS_PER_SMALL_FELT_EXPECT: Expect = expect!["15"];
+    pub static STEPS_PER_LARGE_FELT_EXPECT: Expect = expect!["50"];
+    pub static STEPS_PER_SMALL_FELT_EXPECT: Expect = expect!["18"];
     pub static BASE_STEPS_FULL_MSG_EXPECT: Expect = expect!["216"];
     pub static BASE_STEPS_PARTIAL_MSG_EXPECT: Expect = expect!["192"];
-    pub static STEPS_DISCOUNT_PER_FULL_MSG_EXPECT: Expect = expect!["2"];
+    pub static STEPS_DISCOUNT_PER_FULL_MSG_EXPECT: Expect = expect!["26"];
 }
 
 pub struct CasmV2HashResourceEstimate {}
@@ -271,19 +271,17 @@ impl CasmV2HashResourceEstimate {
     // The constants used are empirical, based on running `encode_felt252_data_and_calc_blake_hash`
     // on combinations of large and small felts and varying numbers of Blake messages.
     // VM steps per large felt.
-    pub const STEPS_PER_LARGE_FELT: usize = 38;
+    pub const STEPS_PER_LARGE_FELT: usize = 50;
     // VM steps per small felt.
-    pub const STEPS_PER_SMALL_FELT: usize = 15;
+    pub const STEPS_PER_SMALL_FELT: usize = 18;
     // Base overhead when input exactly fills full 16-u32 Blake messages, before per-message
     // amortization.
     pub const BASE_STEPS_FULL_MSG: usize = 216;
     // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message, before
     // per-message amortization.
     pub const BASE_STEPS_PARTIAL_MSG: usize = 192;
-    // Extra VM steps added per 2-u32 remainder in partial Blake messages.
-    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
     // VM steps saved per full Blake message processed (amortized fixed-cost per block).
-    pub const STEPS_DISCOUNT_PER_FULL_MSG: usize = 2;
+    pub const STEPS_DISCOUNT_PER_FULL_MSG: usize = 26;
 
     /// Estimates the number of VM steps required to hash the given felts with Blake in Starknet OS.
     ///
@@ -306,12 +304,8 @@ impl CasmV2HashResourceEstimate {
         let rem_u32s = encoded_u32_len % Self::U32_WORDS_PER_MESSAGE;
 
         // Pick base cost depending on whether the total fits exactly into full 16-u32 messages.
-        // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
-        let base_steps = if rem_u32s == 0 {
-            Self::BASE_STEPS_FULL_MSG
-        } else {
-            Self::BASE_STEPS_PARTIAL_MSG + (rem_u32s / 2) * Self::STEPS_PER_2_U32_REMINDER
-        };
+        let base_steps =
+            if rem_u32s == 0 { Self::BASE_STEPS_FULL_MSG } else { Self::BASE_STEPS_PARTIAL_MSG };
 
         let per_felt_steps = felt_size_groups.large * Self::STEPS_PER_LARGE_FELT
             + felt_size_groups.small * Self::STEPS_PER_SMALL_FELT;
