@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
+use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::jsonnet::assert_infra_matches_rust;
 use crate::service::NodeType;
@@ -25,6 +26,16 @@ fn hybrid_infra_matches_rust() {
         .expect("Couldn't set working dir.");
 
     assert_infra_matches_rust::<HybridNodeServiceName>();
+}
+
+/// Verifies the jsonnet consolidated infra config matches the Rust deployment definitions
+/// (consolidated.rs).
+#[test]
+fn consolidated_infra_matches_rust() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    assert_infra_matches_rust::<ConsolidatedNodeServiceName>();
 }
 
 /// Test that the deployment file is up to date.
