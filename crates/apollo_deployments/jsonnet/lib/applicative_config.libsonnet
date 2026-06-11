@@ -431,6 +431,7 @@ function(overrides)
             optimization_level: 2,
           },
         },
+        max_concurrent_declare_compilations: 40,
         proof_archive_writer_config: {
           bucket_name: overrides.gateway_config.static_config.proof_archive_writer_config.bucket_name,
         },
