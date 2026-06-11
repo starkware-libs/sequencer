@@ -399,7 +399,7 @@ impl RpcStorageProofsProvider {
                         block_number = block_number.0,
                         attempt,
                         max_retries,
-                        backoff_ms = delay.as_millis() as u64,
+                        backoff_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX),
                         error = %err,
                         "get_storage_proof failed with a transient error; retrying after backoff",
                     );
