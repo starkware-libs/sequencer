@@ -13,7 +13,7 @@ use crate::deployment_definitions::ComponentConfigInService;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::jsonnet::assert_infra_matches_rust;
+use crate::jsonnet::{assert_build_deserializes, assert_infra_matches_rust};
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
 
@@ -47,6 +47,33 @@ fn distributed_infra_matches_rust() {
         .expect("Couldn't set working dir.");
 
     assert_infra_matches_rust::<DistributedNodeServiceName>();
+}
+
+/// Verifies build('consolidated', overrides) deserializes into SequencerNodeConfig per service.
+#[test]
+fn build_consolidated_deserializes_into_node_config() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    assert_build_deserializes::<ConsolidatedNodeServiceName>();
+}
+
+/// Verifies build('hybrid', overrides) deserializes into SequencerNodeConfig per service.
+#[test]
+fn build_hybrid_deserializes_into_node_config() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    assert_build_deserializes::<HybridNodeServiceName>();
+}
+
+/// Verifies build('distributed', overrides) deserializes into SequencerNodeConfig per service.
+#[test]
+fn build_distributed_deserializes_into_node_config() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    assert_build_deserializes::<DistributedNodeServiceName>();
 }
 
 /// Test that the deployment file is up to date.

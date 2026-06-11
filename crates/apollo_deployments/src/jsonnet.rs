@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use apollo_node_config::node_config::SequencerNodeConfig;
 use jrsonnet_evaluator::trace::PathResolver;
 use jrsonnet_evaluator::{FileImportResolver, State};
 use serde_json::Value;
@@ -8,14 +9,23 @@ use strum::IntoEnumIterator;
 use crate::service::{GetComponentConfigs, NodeService, NodeType};
 
 const JSONNET_DIR: &str = "crates/apollo_deployments/jsonnet";
+const TESTING_OVERRIDES_PATH: &str = "testing/overrides.libsonnet";
+
+/// Evaluates a jsonnet `snippet` against a fresh evaluator (stdlib installed, imports resolved
+/// relative to the jsonnet dir) and converts the result to a serde `Value`. `context` labels the
+/// evaluation in panic messages.
+fn eval_jsonnet(context: &str, snippet: String) -> Value {
+    let state = jsonnet_state();
+    let _guard = state.enter();
+    let val = state
+        .evaluate_snippet(context.to_owned(), snippet)
+        .expect("Failed to evaluate jsonnet snippet.");
+    serde_json::to_value(&val).expect("Failed to serialize jsonnet result to Value.")
+}
 
 /// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
 fn eval_layout_infra(layout: &str) -> Value {
-    let state = jsonnet_state();
-    let _guard = state.enter();
-    let entry = format!("services/{layout}.jsonnet");
-    let val = state.import(entry.as_str()).expect("failed to evaluate the layout infra renderer");
-    serde_json::to_value(&val).expect("infra config is not serializable")
+    eval_jsonnet("layout infra", format!("import 'services/{layout}.jsonnet'"))
 }
 
 /// A jrsonnet evaluator with the stdlib installed and file imports resolved relative to the jsonnet
@@ -54,6 +64,41 @@ where
             without_url_port(legacy_components),
             "infra config mismatch for service {service_name} (url/port excluded)"
         );
+    }
+}
+
+/// Evaluates `build(layout, overrides)` and returns its JSON: a map from service name to that
+/// service's fully-assembled config.
+fn eval_build(layout: &str, overrides: &str) -> Value {
+    let layout_literal = serde_json::to_string(layout).unwrap();
+    eval_jsonnet(
+        "build",
+        format!("(import 'lib/build.libsonnet').build({layout_literal}, import '{overrides}')"),
+    )
+}
+
+/// Asserts that `build(layout, testing_overrides)` produces, for every service of layout `S`, an
+/// object that deserializes into `SequencerNodeConfig`.
+pub(crate) fn assert_build_deserializes<S>()
+where
+    S: GetComponentConfigs + IntoEnumIterator + Into<NodeService>,
+{
+    let some_service: NodeService =
+        S::iter().next().expect("a layout has at least one service").into();
+    let layout = NodeType::from(&some_service).to_string();
+    let built = eval_build(&layout, TESTING_OVERRIDES_PATH);
+    let services = built.as_object().unwrap();
+
+    // Sanity check: the build result should have at least one service.
+    assert!(!services.is_empty(), "build({layout}) produced no services");
+
+    for (service_name, config) in services {
+        serde_json::from_value::<SequencerNodeConfig>(config.clone()).unwrap_or_else(|error| {
+            panic!(
+                "service {service_name} of layout {layout} does not deserialize into \
+                 SequencerNodeConfig: {error}"
+            )
+        });
     }
 }
 
