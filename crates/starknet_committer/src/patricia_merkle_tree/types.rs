@@ -2,10 +2,13 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
-use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    flatten_preimages,
+    PreimageMap,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use starknet_types_core::felt::{Felt, FromStrError};
@@ -115,6 +118,80 @@ impl StateCommitmentInfos {
     pub fn decompress(data: &[u8]) -> Result<Self, StateCommitmentInfosCodecError> {
         let bincode_payload = zstd::decode_all(data)?;
         Ok(bincode::deserialize(&bincode_payload)?)
+    }
+
+    /// Builds the commitment infos directly from the pre- and post-commit state roots and the
+    /// merged Patricia witness proofs gathered during a commit, without re-reading the tries.
+    ///
+    /// `previous_storage_roots` holds each accessed contract's storage root in the *pre-commit*
+    /// contracts trie. The post-commit storage roots are read from
+    /// `merged_proofs.contracts_trie_proof.leaves`. The `commitment_facts` are the flattened
+    /// preimages from `merged_proofs`.
+    pub fn from_commit_witnesses(
+        previous_state_roots: &StateRoots,
+        new_state_roots: &StateRoots,
+        previous_storage_roots: &HashMap<ContractAddress, HashOutput>,
+        merged_proofs: &StarknetForestProofs,
+    ) -> Self {
+        let contracts_trie_commitment_info = CommitmentInfo {
+            previous_root: previous_state_roots.contracts_trie_root_hash,
+            updated_root: new_state_roots.contracts_trie_root_hash,
+            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+            commitment_facts: flatten_preimages(&merged_proofs.contracts_trie_proof.nodes),
+        };
+        let classes_trie_commitment_info = CommitmentInfo {
+            previous_root: previous_state_roots.classes_trie_root_hash,
+            updated_root: new_state_roots.classes_trie_root_hash,
+            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+            commitment_facts: flatten_preimages(&merged_proofs.classes_trie_proof),
+        };
+        // Iterate the post-commit contract leaves, which cover every accessed contract (including
+        // ones newly deployed in this block). A contract absent from `previous_storage_roots` did
+        // not exist pre-commit, so its previous storage root is the empty-tree root.
+        let storage_tries_commitment_infos = merged_proofs
+            .contracts_trie_proof
+            .leaves
+            .iter()
+            .map(|(address, new_contract_state)| {
+                let previous_root = previous_storage_roots
+                    .get(address)
+                    .copied()
+                    .unwrap_or(HashOutput::ROOT_OF_EMPTY_TREE);
+                // Not all accessed contracts have storage proofs (e.g. a contract whose nonce
+                // changed but no storage slot did).
+                let commitment_facts = merged_proofs
+                    .contracts_trie_storage_proofs
+                    .get(address)
+                    .map_or_else(HashMap::new, flatten_preimages);
+                (
+                    *address,
+                    CommitmentInfo {
+                        previous_root,
+                        updated_root: new_contract_state.storage_root_hash,
+                        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+                        commitment_facts,
+                    },
+                )
+            })
+            .collect();
+
+        Self {
+            contracts_trie_commitment_info,
+            classes_trie_commitment_info,
+            storage_tries_commitment_infos,
+        }
+    }
+
+    /// Total number of `commitment_facts` entries across all tries (for logging/metrics).
+    #[cfg(feature = "os_input")]
+    pub fn n_commitment_facts(&self) -> usize {
+        self.contracts_trie_commitment_info.commitment_facts.len()
+            + self.classes_trie_commitment_info.commitment_facts.len()
+            + self
+                .storage_tries_commitment_infos
+                .values()
+                .map(|info| info.commitment_facts.len())
+                .sum::<usize>()
     }
 }
 

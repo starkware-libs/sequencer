@@ -565,6 +565,9 @@ where
                     deleted_nodes,
                     patricia_proofs,
                     global_root,
+                    // Built here but not yet wired into the response/storage; the follow-up
+                    // switches the stored and returned payload to commitment infos.
+                    ..
                 } = commit_block_with_witnesses(
                     input,
                     &sorted_leaves,
