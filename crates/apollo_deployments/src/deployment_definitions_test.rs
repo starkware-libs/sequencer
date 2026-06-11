@@ -10,11 +10,14 @@ use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
-use crate::service::NodeType;
+use crate::service::{NodeType, KEYS_TO_BE_REPLACED};
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
+
+const APPLICATIVE_CONFIG_JSONNET_PATH: &str =
+    "crates/apollo_deployments/jsonnet/lib/applicative_config.libsonnet";
 
 /// Test that the deployment file is up to date.
 #[test]
@@ -39,6 +42,82 @@ fn replacer_config_entries_are_in_config() {
     for node_type in NodeType::iter() {
         node_type.test_all_replacers_are_accounted_for();
     }
+}
+
+/// Collects the overrided keys from the applicative-config jsonnet, i.e all keys that are
+/// referenced as `overrides.<path>`.
+fn override_schema_keys(jsonnet_source: &str) -> HashSet<String> {
+    const MARKER: &str = "overrides.";
+    let is_key_char = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '.';
+    jsonnet_source
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        // The text following the (single) `overrides.` occurrence on the line, if any.
+        .filter_map(|line| line.split_once(MARKER))
+        // A key is the leading run of identifier/dot characters following the marker.
+        .filter_map(|(_, after_marker)| {
+            let key = after_marker.split(|c| !is_key_char(c)).next().unwrap_or("");
+            let key = key.trim_end_matches('.');
+            (!key.is_empty()).then(|| key.to_string())
+        })
+        .collect()
+}
+
+/// Enforces the invariant tying the Rust replacer set to the jsonnet override schema, both ways:
+/// (1) every key `f` in `KEYS_TO_BE_REPLACED` is covered by exactly one override key `t` that is a
+/// path-prefix of it (`t == f`, or `f` starts with `t.`); and (2) every `overrides.<path>` the
+/// applicative reads corresponds to some `KEYS_TO_BE_REPLACED` entry (one is a path-prefix of the
+/// other) — so no non-overridable (constant) value is read from `overrides`.
+#[test]
+fn keys_to_be_replaced_are_covered_by_override_schema() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let jsonnet_source = std::fs::read_to_string(APPLICATIVE_CONFIG_JSONNET_PATH)
+        .expect("Failed to read applicative_config.libsonnet");
+    let override_keys = override_schema_keys(&jsonnet_source);
+
+    let is_path_prefix = |prefix: &str, key: &str| {
+        key == prefix || key.strip_prefix(prefix).is_some_and(|rest| rest.starts_with('.'))
+    };
+
+    let mut uncovered_keys: Vec<&str> = Vec::new();
+    let mut ambiguous_keys: Vec<(&str, Vec<String>)> = Vec::new();
+    for replacer_key in KEYS_TO_BE_REPLACED.iter().copied() {
+        let covering_overrides: Vec<String> = override_keys
+            .iter()
+            .filter(|override_key| is_path_prefix(override_key, replacer_key))
+            .cloned()
+            .collect();
+        match covering_overrides.len() {
+            1 => {}                                 // Covered by exactly one override.
+            0 => uncovered_keys.push(replacer_key), // Not covered by any override.
+            _ => ambiguous_keys.push((replacer_key, covering_overrides)), /* Covered by more than
+                                                      * one override. */
+        }
+    }
+
+    // Reverse direction: every `overrides.<path>` the applicative reads must correspond to an
+    // overridable key — otherwise a constant is being read from `overrides` per-environment.
+    let non_overridable_refs: Vec<&str> = override_keys
+        .iter()
+        .filter(|override_key| {
+            !KEYS_TO_BE_REPLACED
+                .iter()
+                .any(|key| is_path_prefix(override_key, key) || is_path_prefix(key, override_key))
+        })
+        .map(String::as_str)
+        .collect();
+
+    assert!(
+        uncovered_keys.is_empty() && ambiguous_keys.is_empty() && non_overridable_refs.is_empty(),
+        "The applicative-config override schema drifted from KEYS_TO_BE_REPLACED.\nReplacer keys \
+         with no covering override (add an `overrides.<path>` that is a prefix): \
+         {uncovered_keys:#?}\nReplacer keys covered by more than one override (the override \
+         schema is ambiguous): {ambiguous_keys:#?}\n`overrides.<path>` references not in \
+         KEYS_TO_BE_REPLACED (make them constants, or add the key to KEYS_TO_BE_REPLACED): \
+         {non_overridable_refs:#?}"
+    );
 }
 
 // TODO(Tsabary): consider adding a test that loads a config and validates it; the challenge will be
