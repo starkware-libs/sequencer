@@ -147,9 +147,6 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
             let proof_output = privacy_circuit_verify_v1::PrivacyProofOutput {
                 proof: proof_bytes,
                 output_preimage,
-                // The verifier ignores the version; it only records which `privacy-prove` version
-                // generated the proof.
-                version: privacy_circuit_verify_v1::Version::current(),
             };
             privacy_circuit_verify_v1::verify_recursive_circuit(&proof_output)
                 .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
