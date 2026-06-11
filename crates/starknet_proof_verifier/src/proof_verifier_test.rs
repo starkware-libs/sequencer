@@ -1,9 +1,36 @@
+use std::sync::{Arc, LazyLock};
+
 use rstest::rstest;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
-use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion};
+use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion, PROOF_VERSION_V0};
 use starknet_types_core::felt::Felt;
 
-use crate::{reconstruct_output_preimage, verify_proof, ProgramOutput};
+use crate::{reconstruct_output_preimage, verify_proof, ProgramOutput, VerifyProofError};
+
+/// Version directory under `resources/regression_test/` whose pinned, valid proof fixture the
+/// negative tests below mutate. Keep in sync with the newest `#[case]` of
+/// `regression_verify_proof_from_old_prover`.
+const FIXTURE_PROOF_VERSION: &str = "0.14.3";
+
+/// Upper bound, in bytes, on the decompressed proof size used by the negative tests that mutate the
+/// uncompressed proof. The fixture decompresses to ~258 KiB; this only needs to exceed that.
+const MAX_DECOMPRESSED_PROOF_BYTES: usize = 16 * 1024 * 1024;
+
+/// Valid proof facts and (still zstd-compressed) proof bytes for [`FIXTURE_PROOF_VERSION`], loaded
+/// once and shared by the negative tests so each `.clone()` avoids re-reading from disk.
+static FIXTURE: LazyLock<(ProofFacts, Vec<u8>)> =
+    LazyLock::new(|| load_proof_fixture(FIXTURE_PROOF_VERSION));
+
+/// Loads the pinned, valid proof facts and (still zstd-compressed) proof bytes for a version.
+fn load_proof_fixture(starknet_version: &str) -> (ProofFacts, Vec<u8>) {
+    let proof_path =
+        path_in_resources(format!("regression_test/{starknet_version}/example_proof.bin"));
+    let compressed_proof = std::fs::read(&proof_path)
+        .unwrap_or_else(|e| panic!("Failed to read proof for version {starknet_version}: {e}"));
+    let proof_facts: ProofFacts =
+        read_json_file(format!("regression_test/{starknet_version}/example_proof_facts.json"));
+    (proof_facts, compressed_proof)
+}
 
 /// Verifies that converting ProgramOutput -> ProofFacts -> output preimage produces the
 /// original program output.
@@ -56,16 +83,96 @@ fn roundtrip_program_output_to_proof_facts_and_back() {
 #[rstest]
 #[case("0.14.3")]
 fn regression_verify_proof_from_old_prover(#[case] starknet_version: &str) {
-    let proof_path =
-        path_in_resources(format!("regression_test/{starknet_version}/example_proof.bin"));
-    let raw_bytes = std::fs::read(&proof_path)
-        .unwrap_or_else(|e| panic!("Failed to read proof for version {starknet_version}: {e}"));
-    let proof = Proof::from(raw_bytes);
-
-    let proof_facts: ProofFacts =
-        read_json_file(format!("regression_test/{starknet_version}/example_proof_facts.json"));
-
-    verify_proof(proof_facts, proof).unwrap_or_else(|e| {
+    let (proof_facts, compressed_proof) = load_proof_fixture(starknet_version);
+    verify_proof(proof_facts, Proof::from(compressed_proof)).unwrap_or_else(|e| {
         panic!("Proof verification failed for version {starknet_version}: {e}")
     });
+}
+
+// The negative tests below all start from the valid `FIXTURE` proof / proof-facts pair and apply
+// one small mutation, asserting that verification then fails.
+
+/// An empty proof payload is rejected before the verifier runs.
+#[test]
+fn verify_proof_rejects_empty_proof() {
+    let (proof_facts, _compressed_proof) = FIXTURE.clone();
+    let result = verify_proof(proof_facts, Proof::from(Vec::new()));
+    assert_eq!(result, Err(VerifyProofError::EmptyProof));
+}
+
+/// Proof facts shorter than `[version, variant, program_hash]` cannot reconstruct an output
+/// preimage, even with a valid version marker.
+#[test]
+fn verify_proof_rejects_proof_facts_too_short() {
+    let (_proof_facts, compressed_proof) = FIXTURE.clone();
+    let short_facts = ProofFacts(Arc::new(vec![ProofVersion::V1.as_felt(), Felt::ZERO]));
+    let result = verify_proof(short_facts, Proof::from(compressed_proof));
+    assert_eq!(result, Err(VerifyProofError::ProofFactsTooShort { length: 2 }));
+}
+
+/// A version marker that is not V1 is rejected: an arbitrary unsupported marker, and V0 — whose
+/// circuit was removed, so it must be rejected up front rather than dispatched to a verifier.
+#[rstest]
+#[case::unsupported(Felt::from(0xDEAD_u64))]
+#[case::v0(PROOF_VERSION_V0)]
+fn verify_proof_rejects_non_v1_proof_version(#[case] version_marker: Felt) {
+    let (proof_facts, compressed_proof) = FIXTURE.clone();
+    let mut tampered_facts = (*proof_facts.0).clone();
+    tampered_facts[0] = version_marker;
+    let result = verify_proof(ProofFacts(Arc::new(tampered_facts)), Proof::from(compressed_proof));
+    assert_eq!(result, Err(VerifyProofError::InvalidProofVersion { actual: version_marker }));
+}
+
+/// Tampering with the proof facts while leaving the proof intact must fail: the verifier derives
+/// the expected circuit output from the facts, so perturbing the program hash makes the otherwise
+/// valid proof no longer match.
+#[test]
+fn verify_proof_rejects_tampered_proof_facts() {
+    let (proof_facts, compressed_proof) = FIXTURE.clone();
+    // Index 2 is the program hash (first task-content field); bumping it changes the reconstructed
+    // output preimage.
+    let mut tampered_facts = (*proof_facts.0).clone();
+    tampered_facts[2] += Felt::ONE;
+    let result = verify_proof(ProofFacts(Arc::new(tampered_facts)), Proof::from(compressed_proof));
+    assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
+}
+
+/// Flipping a byte in the compressed proof payload must be rejected (whether it surfaces as a
+/// decompression or a verification failure, both map to `Verification`).
+#[test]
+fn verify_proof_rejects_corrupted_compressed_proof() {
+    let (proof_facts, mut compressed_proof) = FIXTURE.clone();
+    let middle = compressed_proof.len() / 2;
+    compressed_proof[middle] ^= 0xFF;
+    let result = verify_proof(proof_facts, Proof::from(compressed_proof));
+    assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
+}
+
+/// Corrupts the *decompressed* proof and re-compresses it, so the verifier decompresses cleanly and
+/// the noise reaches the circuit verifier itself. The structurally valid but cryptographically
+/// wrong proof must be rejected — i.e. this exercises a real verification failure, not a mere
+/// decompression error.
+#[test]
+fn verify_proof_rejects_corrupted_uncompressed_proof() {
+    let (proof_facts, compressed_proof) = FIXTURE.clone();
+    let mut decompressed_proof =
+        zstd::bulk::decompress(&compressed_proof, MAX_DECOMPRESSED_PROOF_BYTES).unwrap();
+    let middle = decompressed_proof.len() / 2;
+    decompressed_proof[middle] ^= 0xFF;
+    let recompressed_proof = zstd::bulk::compress(&decompressed_proof, 0).unwrap();
+    let result = verify_proof(proof_facts, Proof::from(recompressed_proof));
+    assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
+}
+
+/// Dropping bytes from the decompressed proof (then re-compressing) leaves the deserializer without
+/// enough data — a distinct uncompressed-domain failure from full-length corruption above.
+#[test]
+fn verify_proof_rejects_truncated_uncompressed_proof() {
+    let (proof_facts, compressed_proof) = FIXTURE.clone();
+    let mut decompressed_proof =
+        zstd::bulk::decompress(&compressed_proof, MAX_DECOMPRESSED_PROOF_BYTES).unwrap();
+    decompressed_proof.truncate(decompressed_proof.len() - 100);
+    let recompressed_proof = zstd::bulk::compress(&decompressed_proof, 0).unwrap();
+    let result = verify_proof(proof_facts, Proof::from(recompressed_proof));
+    assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
 }

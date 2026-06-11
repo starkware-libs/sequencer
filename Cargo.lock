@@ -12970,6 +12970,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "zstd",
 ]
 
 [[package]]
