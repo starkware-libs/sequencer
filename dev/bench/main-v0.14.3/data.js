@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781244943684,
+  "lastUpdate": 1781257137958,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -407,6 +407,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1298.30734126,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "578fbab67b7e9c3c3e03dcf398c85dcd1ef1dca5",
+          "message": "workspace: upgrade cairo compiler to v2.19.0-rc.3 (#14430)\n\n* workspace,blockifier,starknet_os_flow_tests: upgrade cairo compiler to v2.19.0-rc.3\n\nBump cairo-lang workspace dependencies and the cairo_compiler_version.txt\npin from 2.19.0-rc.2 to 2.19.0-rc.3.\n\nApply the snapshot value changes caused by rc.3 codegen:\n- blockifier secp test_secp256k1_point_from_x gas: 183190 -> 181710\n- blockifier bouncer migration_sierra_gas: 107086865 -> 106858386\n- blockifier bouncer migration_proving_gas: 231505645 -> 230976513\n- starknet_os_flow_tests experimental_libfuncs poseidon usage: 66->67, 57->58\n- starknet_os_flow_tests fuzz orchestrator address\n- central_systest_blobs cende operator + fee-token addresses, plus the\n  regenerated chain_info.json + preconfirmed_block.json and the regression\n  blob re-uploaded to GCS (generation 30 -> 39)\n\nThe fuzz cairo0/cairo1 addresses and the proof-flow fee-token and\ngenesis-root constants were verified unchanged under rc.3.\n\nrc.3 raises its MSRV to rustc 1.94. To keep the prover's stwo stack building,\nbump proving-utils (privacy-prove, privacy-circuit-verify-v1) to tag\nv0.14.3-rust-bump, which pulls the fixed stwo at git rev 489a0f3e, and bump\ncrates/starknet_transaction_prover/rust-toolchain.toml to nightly-2026-01-15\n(rustc 1.94.0-nightly). The fixed stwo was verified to compile on this\ntoolchain.\nAdapt starknet_proof_verifier and the prover test to the new privacy-circuit-verify API: the\nPrivacyProofOutput `version` field was removed (the prover now embeds the\nversion as a prefix in the proof bytes), so drop it at the construction site.\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* starknet_proof_verifier: restore deleted proof regression test\n\nThe cairo rc.3 bump commit silently dropped the\n`regression_verify_proof_from_old_prover` test and its 0.14.3 proof\nfixtures. Restore both.\n\nThe `v0.14.3-rust-bump` proving-utils tag changed the proof format\n(\"Unknown frame descriptor\" on the old fixture), so regenerate the\n0.14.3 fixture from the PR's freshly-generated example proof, per the\ntest's documented procedure. `cargo test -p starknet_proof_verifier`\npasses (roundtrip + regression).\n\n* starknet_proof_verifier: fix negative proof tests for version-prefixed wire format\n\nThe rc.3 proving-utils (`v0.14.3-rust-bump`) changed the on-the-wire proof\nformat to a `VERSION_BYTES`-long version prefix followed by the\nzstd-compressed payload (the verifier strips it via `split_proof_version`).\nThe uncompressed-domain negative tests added in #14462 zstd-decompressed\nthe whole blob, which now fails with \"Unknown frame descriptor\" on the\nversion prefix.\n\nSplit off the version prefix before decompressing and re-prepend it after\nrecompressing, mirroring the verifier's own framing via the public\n`VERSION_BYTES`. All 10 starknet_proof_verifier tests pass.\n\n---------\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-12T09:10:25Z",
+          "tree_id": "158fc2e065a0aed3131d02c96d8b32ee981f5d91",
+          "url": "https://github.com/starkware-libs/sequencer/commit/578fbab67b7e9c3c3e03dcf398c85dcd1ef1dca5"
+        },
+        "date": 1781257137526,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 797.26243026,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1223.33698829,
             "unit": "ms"
           }
         ]
