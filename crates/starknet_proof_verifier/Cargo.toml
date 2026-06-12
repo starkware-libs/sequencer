@@ -20,3 +20,4 @@ thiserror.workspace = true
 [dev-dependencies]
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+zstd.workspace = true
