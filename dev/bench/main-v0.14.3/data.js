@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781097109702,
+  "lastUpdate": 1781244943684,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -373,6 +373,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1455.2247528599999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "750c4d7a670568ccbbfbe4c53172f9b0e478cba3",
+          "message": "starknet_proof_verifier: add negative tests for verify_proof (#14462)\n\nStarting from the valid pinned proof fixture, each test applies one\nmutation and asserts verification fails: empty proof, too-short facts,\nunsupported and V0 version markers, tampered facts, a corrupted\ncompressed byte, and corrupting/truncating the decompressed proof (so\nthe noise reaches the circuit verifier rather than failing as a mere\ndecompression error). Shared fixture loading is factored into a helper.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-12T06:01:23Z",
+          "tree_id": "4fbd2f38d0afb03c922ac05c58024fceae812034",
+          "url": "https://github.com/starkware-libs/sequencer/commit/750c4d7a670568ccbbfbe4c53172f9b0e478cba3"
+        },
+        "date": 1781244943297,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 812.5676921200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1298.30734126,
             "unit": "ms"
           }
         ]
