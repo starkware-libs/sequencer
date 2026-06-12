@@ -1,5 +1,6 @@
 use std::sync::{Arc, LazyLock};
 
+use privacy_circuit_verify_v1::VERSION_BYTES;
 use rstest::rstest;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion, PROOF_VERSION_V0};
@@ -92,6 +93,25 @@ fn regression_verify_proof_from_old_prover(#[case] starknet_version: &str) {
 // The negative tests below all start from the `VALID_PROOF_FIXTURE` proof / proof-facts pair and
 // apply one small mutation, asserting that verification then fails.
 
+/// Splits a wire-format proof into its `VERSION_BYTES`-long version prefix and the zstd-compressed
+/// payload, then decompresses the payload. Mirrors the verifier's own `split_proof_version` +
+/// decompress framing, which the uncompressed-domain negative tests need so they mutate the proof
+/// the verifier actually deserializes rather than the version header.
+fn split_and_decompress_proof(proof: &[u8]) -> (&[u8], Vec<u8>) {
+    let (version_prefix, compressed_payload) = proof.split_at(VERSION_BYTES);
+    let decompressed_payload =
+        zstd::bulk::decompress(compressed_payload, MAX_DECOMPRESSED_PROOF_BYTES).unwrap();
+    (version_prefix, decompressed_payload)
+}
+
+/// Re-frames a (mutated) decompressed payload back into the wire format the verifier expects: the
+/// original version prefix followed by the zstd-compressed payload.
+fn reframe_proof(version_prefix: &[u8], decompressed_payload: &[u8]) -> Vec<u8> {
+    let mut proof = version_prefix.to_vec();
+    proof.extend(zstd::bulk::compress(decompressed_payload, 0).unwrap());
+    proof
+}
+
 /// An empty proof payload is rejected before the verifier runs.
 #[test]
 fn verify_proof_rejects_empty_proof() {
@@ -155,12 +175,11 @@ fn verify_proof_rejects_corrupted_compressed_proof() {
 #[test]
 fn verify_proof_rejects_corrupted_uncompressed_proof() {
     let (proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
-    let mut decompressed_proof =
-        zstd::bulk::decompress(&compressed_proof, MAX_DECOMPRESSED_PROOF_BYTES).unwrap();
+    let (version_prefix, mut decompressed_proof) = split_and_decompress_proof(&compressed_proof);
     let middle = decompressed_proof.len() / 2;
     decompressed_proof[middle] ^= 0xFF;
-    let recompressed_proof = zstd::bulk::compress(&decompressed_proof, 0).unwrap();
-    let result = verify_proof(proof_facts, Proof::from(recompressed_proof));
+    let result =
+        verify_proof(proof_facts, Proof::from(reframe_proof(version_prefix, &decompressed_proof)));
     assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
 }
 
@@ -169,10 +188,9 @@ fn verify_proof_rejects_corrupted_uncompressed_proof() {
 #[test]
 fn verify_proof_rejects_truncated_uncompressed_proof() {
     let (proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
-    let mut decompressed_proof =
-        zstd::bulk::decompress(&compressed_proof, MAX_DECOMPRESSED_PROOF_BYTES).unwrap();
+    let (version_prefix, mut decompressed_proof) = split_and_decompress_proof(&compressed_proof);
     decompressed_proof.truncate(decompressed_proof.len() - 100);
-    let recompressed_proof = zstd::bulk::compress(&decompressed_proof, 0).unwrap();
-    let result = verify_proof(proof_facts, Proof::from(recompressed_proof));
+    let result =
+        verify_proof(proof_facts, Proof::from(reframe_proof(version_prefix, &decompressed_proof)));
     assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
 }
