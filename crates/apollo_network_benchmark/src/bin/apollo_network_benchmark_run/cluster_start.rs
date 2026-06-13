@@ -143,7 +143,7 @@ fn run_experiment(args: ClusterStartArgs) -> anyhow::Result<()> {
     let deployment_file = cluster_deployment_file_path()?;
     write_deployment_file(&deployment_file, &deployment_data)?;
 
-    create_namespace(&namespace_name)?;
+    create_namespace(&namespace_name, false)?;
 
     let file_names = write_json_files(&image_tag, &args, &namespace_name)?;
     deployment_data["json_files"] = serde_json::json!(file_names);

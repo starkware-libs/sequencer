@@ -245,13 +245,18 @@ pub fn upload_image_to_registry(image_tag: &str) -> anyhow::Result<()> {
     )
 }
 
-pub fn create_namespace(namespace_name: &str) -> anyhow::Result<()> {
+pub fn create_namespace(namespace_name: &str, may_fail: bool) -> anyhow::Result<()> {
     pr!("Creating namespace {}", namespace_name);
-    run_cmd(&format!("kubectl create namespace {}", namespace_name), "none", false)
+    run_cmd(&format!("kubectl create namespace {}", namespace_name), "none", may_fail)
 }
 
 pub fn delete_namespace(namespace_name: &str, may_fail: bool) -> anyhow::Result<()> {
-    run_cmd(&format!("kubectl delete namespace {}", namespace_name), "none", may_fail)
+    // --ignore-not-found so deleting an already-gone namespace is a no-op rather than an error.
+    run_cmd(
+        &format!("kubectl delete namespace {} --ignore-not-found", namespace_name),
+        "none",
+        may_fail,
+    )
 }
 
 pub fn deploy_json_files_to_cluster(

@@ -32,9 +32,12 @@ pub fn run() -> anyhow::Result<()> {
         )?;
 
         // Namespace deletion can hang in "Terminating" state due to stuck finalizers.
-        // Re-creating then deleting forces Kubernetes to clean up.
+        // Re-creating then deleting forces Kubernetes to clean up. The re-create tolerates
+        // failure: when the first delete already finished (the common case) the namespace is
+        // mid-termination, so `kubectl create` errors with "being deleted" — that's expected
+        // and must not abort cleanup, which the surrounding deletes complete anyway.
         delete_namespace(namespace_name, true)?;
-        create_namespace(namespace_name)?;
+        create_namespace(namespace_name, true)?;
         delete_namespace(namespace_name, false)?;
     }
 
