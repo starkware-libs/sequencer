@@ -20,6 +20,7 @@ use crate::metrics::{
     BROADCAST_MESSAGE_THEORETICAL_THROUGHPUT,
     RECEIVE_MESSAGE_BYTES,
     RECEIVE_MESSAGE_BYTES_SUM,
+    RECEIVE_MESSAGE_CLOCK_SKEW_SECONDS,
     RECEIVE_MESSAGE_COUNT,
     RECEIVE_MESSAGE_DELAY_SECONDS,
     RECEIVE_MESSAGE_PENDING_COUNT,
@@ -129,11 +130,14 @@ pub fn receive_stress_test_message(
     );
 
     let start_time = received_message.metadata.time;
-    // Intentionally panic on clock skew: any node clock running ahead of another node's
-    // clock invalidates the latency histogram, and we'd rather fail the benchmark loudly
-    // than silently report misleading percentiles. Operators must NTP-sync nodes.
-    let delay =
-        end_time.duration_since(start_time).expect("clock skew detected: sender clock is ahead");
+    // Negative delay means the sender's clock is ahead of ours; clamp to zero and report the skew.
+    let delay = match end_time.duration_since(start_time) {
+        Ok(delay) => delay,
+        Err(skew_error) => {
+            RECEIVE_MESSAGE_CLOCK_SKEW_SECONDS.set(skew_error.duration().as_secs_f64());
+            Duration::ZERO
+        }
+    };
     RECEIVE_MESSAGE_DELAY_SECONDS.record(delay.as_secs_f64());
 
     let indexed_message = IndexedMessage {

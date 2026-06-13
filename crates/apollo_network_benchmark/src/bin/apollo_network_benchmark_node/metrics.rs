@@ -26,6 +26,7 @@ pub(crate) fn register_metrics() {
     RECEIVE_MESSAGE_COUNT.register();
     RECEIVE_MESSAGE_BYTES_SUM.register();
     RECEIVE_MESSAGE_DELAY_SECONDS.register();
+    RECEIVE_MESSAGE_CLOCK_SKEW_SECONDS.register();
     RECEIVE_MESSAGE_PENDING_COUNT.register();
 }
 
