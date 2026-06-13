@@ -19,7 +19,6 @@ use starknet_api::crypto::utils::{
 };
 use starknet_core::crypto::{ecdsa_sign, ecdsa_verify, EcdsaVerifyError};
 use starknet_core::types::Felt;
-use starknet_crypto::get_public_key;
 use thiserror::Error;
 
 use crate::blake_utils::blake2s_to_felt;
@@ -93,11 +92,6 @@ pub struct LocalKeyStore {
 }
 
 impl LocalKeyStore {
-    fn _new(private_key: PrivateKey) -> Self {
-        let public_key = PublicKey(get_public_key(&private_key));
-        Self { private_key, public_key }
-    }
-
     pub(crate) const fn new_for_testing() -> Self {
         // Created using `cairo-lang`.
         const PRIVATE_KEY: PrivateKey = PrivateKey(Felt::from_hex_unchecked(
