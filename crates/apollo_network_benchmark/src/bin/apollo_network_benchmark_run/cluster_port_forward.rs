@@ -1,8 +1,28 @@
 use std::process::{Command, Stdio};
 use std::thread;
 
-use crate::mod_utils::{connect_to_cluster, get_deployment_namespace, read_cluster_deployment};
+use crate::mod_utils::{
+    connect_to_cluster,
+    get_deployment_namespace,
+    read_cluster_deployment,
+    run_cmd,
+};
 use crate::pr;
+
+/// Block until the StatefulSet has a ready replica, so `kubectl port-forward service/...` finds
+/// a backing endpoint instead of failing immediately when the pods are still starting (a short
+/// benchmark can otherwise miss its whole window). Best-effort: a timeout still falls through to
+/// the port-forward attempt so the user can debug.
+fn wait_for_statefulset_ready(statefulset_name: &str, namespace_name: &str) {
+    let _ = run_cmd(
+        &format!(
+            "kubectl rollout status statefulset/{statefulset_name} -n {namespace_name} \
+             --timeout=180s"
+        ),
+        "none",
+        true,
+    );
+}
 
 fn port_forward(service_name: &str, local_port: u16, remote_port: u16, namespace_name: &str) {
     let status = Command::new("kubectl")
@@ -35,6 +55,10 @@ pub fn run() -> anyhow::Result<()> {
     let namespace_name = get_deployment_namespace(&deployment_data)?.to_string();
 
     connect_to_cluster()?;
+
+    pr!("Waiting for Prometheus and Grafana to be ready in namespace: {namespace_name}");
+    wait_for_statefulset_ready("prometheus", &namespace_name);
+    wait_for_statefulset_ready("grafana", &namespace_name);
 
     pr!("Port forwarding in namespace: {namespace_name}");
     pr!("  → Grafana:    http://localhost:3000");
