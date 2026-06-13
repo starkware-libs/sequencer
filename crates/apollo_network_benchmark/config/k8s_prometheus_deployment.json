@@ -93,6 +93,7 @@
           "accessModes": [
             "ReadWriteOnce"
           ],
+          "storageClassName": "hyperdisk-balanced-baseline",
           "resources": {
             "requests": {
               "storage": "16Gi"
