@@ -274,6 +274,21 @@ pub fn get_prometheus_rbac_json(namespace: &str) -> anyhow::Result<String> {
     generate_json(data)
 }
 
+/// Opts the namespace out of the cluster's `sleepod` controller, which otherwise scales the
+/// Prometheus/Grafana StatefulSets to zero during its nightly sleep window.
+pub fn get_sleep_policy_json() -> anyhow::Result<String> {
+    generate_json(json!({
+        "apiVersion": "sleepod.sleepod.io/v1alpha1",
+        "kind": "SleepPolicy",
+        "metadata": {"name": "default-sleeppolicy"},
+        "spec": {
+            "deployments": {"default": {"enable": false}},
+            "statefulSets": {"default": {"enable": false}},
+            "timezone": "UTC"
+        }
+    }))
+}
+
 pub fn get_grafana_configmap_json_file() -> anyhow::Result<String> {
     use crate::grafana_config::*;
 
