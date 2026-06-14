@@ -16,6 +16,8 @@ use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::EntryPoint;
 use starknet_types_core::felt::Felt;
 
+use super::block::Block;
+
 /// A state update derived from a single block as returned by the starknet gateway.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct StateUpdate {
@@ -23,6 +25,16 @@ pub struct StateUpdate {
     pub new_root: GlobalRoot,
     pub old_root: GlobalRoot,
     pub state_diff: StateDiff,
+}
+
+/// A combined block, state update, and block signature as returned by the starknet gateway when
+/// querying get_state_update with includeBlock=true and includeSignature=true.
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+pub struct BlockStateUpdate {
+    pub block: Block,
+    pub state_update: StateUpdate,
+    /// Bare 2-felt signature `[r, s]` as returned by the merged endpoint.
+    pub signature: [Felt; 2],
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
