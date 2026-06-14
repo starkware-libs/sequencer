@@ -91,6 +91,8 @@ pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
+#[cfg(feature = "os_input")]
+pub mod state_commitment_infos;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
@@ -186,6 +188,8 @@ use crate::header::StorageBlockHeader;
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
+#[cfg(feature = "os_input")]
+use crate::state_commitment_infos::StateCommitmentInfos;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -280,6 +284,8 @@ fn open_storage_internal(
             .create_simple_table("stateless_compiled_class_hash_v2")?,
         #[cfg(feature = "os_input")]
         accessed_keys: db_writer.create_simple_table("accessed_keys")?,
+        #[cfg(feature = "os_input")]
+        state_commitment_infos: db_writer.create_simple_table("state_commitment_infos")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -993,7 +999,9 @@ struct_field_names! {
         stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
 
         #[cfg(feature = "os_input")]
-        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
+        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
+        #[cfg(feature = "os_input")]
+        state_commitment_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
     }
 }
 
@@ -1164,6 +1172,8 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     #[cfg(feature = "os_input")]
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
+    #[cfg(feature = "os_input")]
+    state_commitment_infos: FileHandler<VersionZeroWrapper<StateCommitmentInfos>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -1206,6 +1216,14 @@ impl FileHandlers<RW> {
         self.clone().accessed_keys.append(accessed_keys)
     }
 
+    #[cfg(feature = "os_input")]
+    fn append_state_commitment_infos(
+        &self,
+        state_commitment_infos: &StateCommitmentInfos,
+    ) -> LocationInFile {
+        self.clone().state_commitment_infos.append(state_commitment_infos)
+    }
+
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
@@ -1218,6 +1236,8 @@ impl FileHandlers<RW> {
         self.transaction.flush();
         #[cfg(feature = "os_input")]
         self.accessed_keys.flush();
+        #[cfg(feature = "os_input")]
+        self.state_commitment_infos.flush();
     }
 }
 
@@ -1233,6 +1253,8 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("transaction".to_string(), self.transaction.stats()),
             #[cfg(feature = "os_input")]
             ("accessed_keys".to_string(), self.accessed_keys.stats()),
+            #[cfg(feature = "os_input")]
+            ("state_commitment_infos".to_string(), self.state_commitment_infos.stats()),
         ])
     }
 
@@ -1302,6 +1324,17 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("AccessedKeys at location {location:?} not found."),
         })
     }
+
+    #[cfg(feature = "os_input")]
+    // Returns the commitment infos at the given location or an error in case they don't exist.
+    pub(crate) fn get_state_commitment_infos_unchecked(
+        &self,
+        location: LocationInFile,
+    ) -> StorageResult<StateCommitmentInfos> {
+        self.state_commitment_infos.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("StateCommitmentInfos at location {location:?} not found."),
+        })
+    }
 }
 
 fn open_storage_files(
@@ -1340,6 +1373,9 @@ fn open_storage_files(
     #[cfg(feature = "os_input")]
     let (accessed_keys_writer, accessed_keys_reader) =
         open_storage_file!("accessed_keys", AccessedKeys)?;
+    #[cfg(feature = "os_input")]
+    let (state_commitment_infos_writer, state_commitment_infos_reader) =
+        open_storage_file!("state_commitment_infos", StateCommitmentInfos)?;
 
     Ok((
         FileHandlers {
@@ -1351,6 +1387,8 @@ fn open_storage_files(
             transaction: transaction_writer,
             #[cfg(feature = "os_input")]
             accessed_keys: accessed_keys_writer,
+            #[cfg(feature = "os_input")]
+            state_commitment_infos: state_commitment_infos_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -1361,6 +1399,8 @@ fn open_storage_files(
             transaction: transaction_reader,
             #[cfg(feature = "os_input")]
             accessed_keys: accessed_keys_reader,
+            #[cfg(feature = "os_input")]
+            state_commitment_infos: state_commitment_infos_reader,
         },
     ))
 }
@@ -1383,4 +1423,7 @@ pub enum OffsetKind {
     /// An accessed-keys file.
     #[cfg(feature = "os_input")]
     AccessedKeys,
+    /// A state-commitment-infos file.
+    #[cfg(feature = "os_input")]
+    StateCommitmentInfos,
 }

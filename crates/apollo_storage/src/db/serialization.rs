@@ -166,6 +166,8 @@ pub enum StorageSerdeError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
     /// An error occurred during migration.
     #[error("Failed to migrate value")]
     Migration,
