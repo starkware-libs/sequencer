@@ -20,6 +20,8 @@ pub enum BatcherError {
          being executed)."
     )]
     ExecutedProposalNotFound { proposal_id: ProposalId },
+    #[error("Failed to get state commitment infos for block number {block_number}.")]
+    GetStateCommitmentInfosError { block_number: BlockNumber },
     #[error("Height is in progress.")]
     HeightInProgress,
     #[error("Internal server error.")]
@@ -49,6 +51,8 @@ pub enum BatcherError {
     ProposingNotSupported,
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
+    #[error("State commitment infos not found for block number {0}.")]
+    StateCommitmentInfosNotFound(BlockNumber),
     #[error(
         "Storage height marker mismatch. Storage marker (first unwritten height): \
          {marker_height}, requested height: {requested_height}."
