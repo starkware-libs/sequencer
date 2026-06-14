@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781180640891,
+  "lastUpdate": 1781444153756,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5711,6 +5711,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1419.9920636,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62c30ea8371aa6a0d3179974363b8622568a0061",
+          "message": "starknet_committer,starknet_os: relocate commitment infos to starknet_committer (#14447)",
+          "timestamp": "2026-06-14T13:23:04Z",
+          "tree_id": "14d7e99f93ecd679e82855ba81a1c0fc64484c0f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/62c30ea8371aa6a0d3179974363b8622568a0061"
+        },
+        "date": 1781444153378,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 855.32762028,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1391.6894366,
             "unit": "ms"
           }
         ]
