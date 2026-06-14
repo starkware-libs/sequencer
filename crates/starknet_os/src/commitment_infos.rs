@@ -66,83 +66,78 @@ pub enum CommitmentInfosError {
     FetchStorageProofs(#[from] TraversalError),
 }
 
-impl StateCommitmentInfos {
-    /// Creates the commitment infos for the OS from previous and new state roots and the
-    /// keys that were read during execution.
-    pub async fn new(
-        previous_state_roots: &StateRoots,
-        new_state_roots: &StateRoots,
-        commitments: &mut MapStorage,
-        accessed_keys: &AccessedKeys,
-    ) -> Result<Self, CommitmentInfosError> {
-        let addresses: Vec<ContractAddress> =
-            accessed_keys.accessed_contracts.iter().copied().collect();
+/// Creates the commitment infos for the OS from previous and new state roots and the
+/// keys that were read during execution.
+pub async fn build_state_commitment_infos(
+    previous_state_roots: &StateRoots,
+    new_state_roots: &StateRoots,
+    commitments: &mut MapStorage,
+    accessed_keys: &AccessedKeys,
+) -> Result<StateCommitmentInfos, CommitmentInfosError> {
+    let addresses: Vec<ContractAddress> =
+        accessed_keys.accessed_contracts.iter().copied().collect();
 
-        let previous_storage_roots = get_storage_roots(
-            &addresses,
-            previous_state_roots.contracts_trie_root_hash,
-            commitments,
-        )
-        .await?;
-        let new_storage_roots =
-            get_storage_roots(&addresses, new_state_roots.contracts_trie_root_hash, commitments)
-                .await?;
+    let previous_storage_roots =
+        get_storage_roots(&addresses, previous_state_roots.contracts_trie_root_hash, commitments)
+            .await?;
+    let new_storage_roots =
+        get_storage_roots(&addresses, new_state_roots.contracts_trie_root_hash, commitments)
+            .await?;
 
-        let storage_proofs = fetch_previous_and_new_patricia_paths(
-            commitments,
-            RootHashes {
-                previous_root_hash: previous_state_roots.classes_trie_root_hash,
-                new_root_hash: new_state_roots.classes_trie_root_hash,
-            },
-            RootHashes {
-                previous_root_hash: previous_state_roots.contracts_trie_root_hash,
-                new_root_hash: new_state_roots.contracts_trie_root_hash,
-            },
-            accessed_keys,
-        )
-        .await?;
+    let storage_proofs = fetch_previous_and_new_patricia_paths(
+        commitments,
+        RootHashes {
+            previous_root_hash: previous_state_roots.classes_trie_root_hash,
+            new_root_hash: new_state_roots.classes_trie_root_hash,
+        },
+        RootHashes {
+            previous_root_hash: previous_state_roots.contracts_trie_root_hash,
+            new_root_hash: new_state_roots.contracts_trie_root_hash,
+        },
+        accessed_keys,
+    )
+    .await?;
 
-        let contracts_trie_commitment_info = CommitmentInfo {
-            previous_root: previous_state_roots.contracts_trie_root_hash,
-            updated_root: new_state_roots.contracts_trie_root_hash,
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
-        };
-        let classes_trie_commitment_info = CommitmentInfo {
-            previous_root: previous_state_roots.classes_trie_root_hash,
-            updated_root: new_state_roots.classes_trie_root_hash,
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
-        };
-        let storage_tries_commitment_infos = previous_storage_roots
-            .iter()
-            .map(|(address, previous_root_hash)| {
-                // Not all contracts in `previous_storage_roots` have storage proofs. For
-                // example, a contract that only had its nonce changed.
-                let storage_proof = flatten_preimages(
-                    storage_proofs
-                        .contracts_trie_storage_proofs
-                        .get(address)
-                        .unwrap_or(&HashMap::new()),
-                );
-                (
-                    *address,
-                    CommitmentInfo {
-                        previous_root: *previous_root_hash,
-                        updated_root: new_storage_roots[address],
-                        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-                        commitment_facts: storage_proof,
-                    },
-                )
-            })
-            .collect();
-
-        Ok(Self {
-            contracts_trie_commitment_info,
-            classes_trie_commitment_info,
-            storage_tries_commitment_infos,
+    let contracts_trie_commitment_info = CommitmentInfo {
+        previous_root: previous_state_roots.contracts_trie_root_hash,
+        updated_root: new_state_roots.contracts_trie_root_hash,
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
+    };
+    let classes_trie_commitment_info = CommitmentInfo {
+        previous_root: previous_state_roots.classes_trie_root_hash,
+        updated_root: new_state_roots.classes_trie_root_hash,
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
+    };
+    let storage_tries_commitment_infos = previous_storage_roots
+        .iter()
+        .map(|(address, previous_root_hash)| {
+            // Not all contracts in `previous_storage_roots` have storage proofs. For
+            // example, a contract that only had its nonce changed.
+            let storage_proof = flatten_preimages(
+                storage_proofs
+                    .contracts_trie_storage_proofs
+                    .get(address)
+                    .unwrap_or(&HashMap::new()),
+            );
+            (
+                *address,
+                CommitmentInfo {
+                    previous_root: *previous_root_hash,
+                    updated_root: new_storage_roots[address],
+                    tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+                    commitment_facts: storage_proof,
+                },
+            )
         })
-    }
+        .collect();
+
+    Ok(StateCommitmentInfos {
+        contracts_trie_commitment_info,
+        classes_trie_commitment_info,
+        storage_tries_commitment_infos,
+    })
 }
 
 /// Fetches the storage root hash of each contract from the contracts trie at the given root.
