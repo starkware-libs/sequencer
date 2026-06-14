@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781444153756,
+  "lastUpdate": 1781453579072,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5745,6 +5745,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1391.6894366,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f012c83fd0b76d49b975cd154de5c3f8e770d0e6",
+          "message": "apollo_storage,starknet_api: add helper to build declared class component hashes for a block (#14460)\n\nAdd `get_declared_class_hash_to_component_hashes`, mapping each Cairo 1 class\nfreshly declared in a block to its contract class component hashes (matching the\nOS block input). Classes whose compiled class hash was merely migrated in the\nblock (declared in an earlier block) are excluded.\n\nThe helper takes `impl StateStorageReader + ClassStorageReader` rather than a\nconcrete transaction. Derive `Eq`/`PartialEq` for `ContractClassComponentHashes`\nso the test can assert on the returned map directly.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-14T15:56:09Z",
+          "tree_id": "189d9103f34c85f66496899c6013c9107af771b5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f012c83fd0b76d49b975cd154de5c3f8e770d0e6"
+        },
+        "date": 1781453578709,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 772.11831563,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1193.64792517,
             "unit": "ms"
           }
         ]
