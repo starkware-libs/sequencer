@@ -614,6 +614,8 @@ impl SequencerConsensusContext {
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                // TODO(ItamarS): populate from the batcher's committer-produced commitment infos.
+                state_commitment_infos: None,
             })
             .await
         {

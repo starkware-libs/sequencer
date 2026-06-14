@@ -3870,5 +3870,6 @@
       "block_number": 2,
       "block_hash": "0x2"
     }
-  ]
+  ],
+  "state_commitment_infos": null
 }

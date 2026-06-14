@@ -40,6 +40,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{info, warn, Instrument};
@@ -93,6 +94,9 @@ pub struct AerospikeBlob {
     proposal_commitment: ProposalCommitment,
     parent_proposal_commitment: Option<ProposalCommitment>,
     recent_block_hashes: Vec<BlockHashAndNumber>,
+    // The committer-produced state-trie commitment infos consumed by the Starknet OS. `None` for
+    // synced blocks and non-`os_input` flows, which do not produce commitment infos.
+    state_commitment_infos: Option<StateCommitmentInfos>,
 }
 
 #[cfg_attr(test, automock)]
@@ -375,6 +379,9 @@ pub struct BlobParameters {
     pub proposal_commitment: ProposalCommitment,
     pub parent_proposal_commitment: Option<ProposalCommitment>,
     pub recent_block_hashes: Vec<BlockHashAndNumber>,
+    // The committer-produced state-trie commitment infos consumed by the Starknet OS. `None` for
+    // synced blocks and non-`os_input` flows, which do not produce commitment infos.
+    pub state_commitment_infos: Option<StateCommitmentInfos>,
 }
 
 impl AerospikeBlob {
@@ -430,6 +437,7 @@ impl AerospikeBlob {
             proposal_commitment: blob_parameters.proposal_commitment,
             parent_proposal_commitment: blob_parameters.parent_proposal_commitment,
             recent_block_hashes: blob_parameters.recent_block_hashes,
+            state_commitment_infos: blob_parameters.state_commitment_infos,
         })
     }
 }

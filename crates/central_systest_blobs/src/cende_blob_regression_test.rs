@@ -244,6 +244,7 @@ impl From<BlockData> for BlobParameters {
             proposal_commitment,
             parent_proposal_commitment,
             recent_block_hashes,
+            state_commitment_infos: None,
         }
     }
 }
