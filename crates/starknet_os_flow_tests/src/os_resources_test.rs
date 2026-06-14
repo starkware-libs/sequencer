@@ -20,9 +20,11 @@ use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
+use starknet_api::core::EthAddress;
 use starknet_api::executable_transaction::InvokeTransaction;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
@@ -47,7 +49,7 @@ use crate::test_manager::{
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 24] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 23] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::GetBlockNumber,
@@ -69,7 +71,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 24] = [
     Selector::Secp256r1GetXy,
     Selector::Secp256r1Mul,
     Selector::Secp256r1New,
-    Selector::SendMessageToL1,
     Selector::StorageRead,
     Selector::StorageWrite,
 ];
@@ -287,6 +288,13 @@ async fn test_os_resources_regression() {
             }),
         }]),
     );
+
+    // Add the expected message to L1.
+    test_builder.messages_to_l1.push(MessageToL1 {
+        from_address: os_resources_contract_address,
+        to_address: EthAddress::try_from(Felt::from(100)).unwrap(),
+        payload: L2ToL1Payload(vec![]),
+    });
 
     // Run test. Grab the execution info from the runner (for later) before consuming it.
     let test_runner = test_builder.build().await;
