@@ -61,6 +61,8 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
+#[cfg(feature = "os_input")]
+use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageReader;
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
     DynamicConfigProvider,
@@ -115,6 +117,8 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
@@ -1493,6 +1497,17 @@ impl Batcher {
         Ok(block_hash)
     }
 
+    #[cfg(feature = "os_input")]
+    pub fn get_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherResult<Option<StateCommitmentInfos>> {
+        self.storage_reader.get_state_commitment_infos(block_number).map_err(|err| {
+            error!("Failed to get state commitment infos from storage: {err}");
+            BatcherError::GetStateCommitmentInfosError { block_number }
+        })
+    }
+
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -1689,6 +1704,12 @@ pub trait BatcherStorageReader: Send + Sync {
 
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 
+    #[cfg(feature = "os_input")]
+    fn get_state_commitment_infos(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<StateCommitmentInfos>>;
+
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -1778,6 +1799,14 @@ impl BatcherStorageReader for StorageReader {
 
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>> {
         self.begin_ro_txn()?.get_block_hash(&height)
+    }
+
+    #[cfg(feature = "os_input")]
+    fn get_state_commitment_infos(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<StateCommitmentInfos>> {
+        self.begin_ro_txn()?.get_state_commitment_infos(height)
     }
 
     fn get_parent_hash_and_partial_block_hash_components(

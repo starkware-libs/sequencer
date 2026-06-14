@@ -20,6 +20,8 @@ pub enum BatcherError {
          being executed)."
     )]
     ExecutedProposalNotFound { proposal_id: ProposalId },
+    #[error("Failed to get state commitment infos for block number {block_number}.")]
+    GetStateCommitmentInfosError { block_number: BlockNumber },
     #[error("Height is in progress.")]
     HeightInProgress,
     #[error("Internal server error.")]

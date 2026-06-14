@@ -15,6 +15,8 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
@@ -54,6 +56,11 @@ pub trait BatcherClient: Send + Sync {
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
     /// Gets the block hash for a given block number.
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<Option<StateCommitmentInfos>>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -110,6 +117,8 @@ pub trait BatcherClient: Send + Sync {
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetBlockHash(BlockNumber),
+    #[cfg(feature = "os_input")]
+    GetStateCommitmentInfos(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -136,6 +145,8 @@ generate_permutation_labels! {
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
+    #[cfg(feature = "os_input")]
+    GetStateCommitmentInfos(BatcherResult<Option<StateCommitmentInfos>>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -184,6 +195,23 @@ where
             request,
             BatcherResponse,
             GetBlockHash,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<Option<StateCommitmentInfos>> {
+        let request = BatcherRequest::GetStateCommitmentInfos(block_number);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            GetStateCommitmentInfos,
             BatcherClientError,
             BatcherError,
             Direct
