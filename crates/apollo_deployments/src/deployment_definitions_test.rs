@@ -13,15 +13,30 @@ use crate::deployment_definitions::ComponentConfigInService;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::jsonnet::{assert_build_deserializes, assert_infra_matches_rust};
+use crate::jsonnet::{
+    assert_build_deserializes,
+    assert_infra_matches_rust,
+    test_applicative_matches_app_configs,
+};
 use crate::service::{NodeType, KEYS_TO_BE_REPLACED};
-use crate::test_utils::SecretsConfigOverride;
+use crate::test_utils::{is_path_prefix, SecretsConfigOverride};
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
 
 const APPLICATIVE_CONFIG_JSONNET_PATH: &str =
     "crates/apollo_deployments/jsonnet/lib/applicative_config.libsonnet";
+
+/// Verifies the applicative config emitted by jsonnet matches the committed `app_configs/*.json`
+/// (the deployment's non-overridable value layer), up to overridable keys, secrets, and integers
+/// jsonnet can't represent.
+#[test]
+fn applicative_matches_app_configs() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_applicative_matches_app_configs();
+}
 
 /// Verifies the jsonnet hybrid infra config matches the Rust deployment definitions (hybrid.rs).
 #[test]
@@ -136,10 +151,6 @@ fn keys_to_be_replaced_are_covered_by_override_schema() {
     let jsonnet_source = std::fs::read_to_string(APPLICATIVE_CONFIG_JSONNET_PATH)
         .expect("Failed to read applicative_config.libsonnet");
     let override_keys = override_schema_keys(&jsonnet_source);
-
-    let is_path_prefix = |prefix: &str, key: &str| {
-        key == prefix || key.strip_prefix(prefix).is_some_and(|rest| rest.starts_with('.'))
-    };
 
     let mut uncovered_keys: Vec<&str> = Vec::new();
     let mut ambiguous_keys: Vec<(&str, Vec<String>)> = Vec::new();
