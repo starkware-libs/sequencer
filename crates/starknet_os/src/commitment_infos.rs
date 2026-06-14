@@ -11,49 +11,17 @@ use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::RootHashes;
+// `CommitmentInfo` and `StateCommitmentInfos` were relocated to `starknet_committer` so that
+// lower layers (e.g. `apollo_storage`) can store them without depending on `starknet_os`. They
+// are re-exported here to keep this module's public API stable for OS consumers.
+pub use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalError;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_types_core::felt::Felt;
 use thiserror::Error;
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-#[derive(Debug)]
-pub struct CommitmentInfo {
-    pub previous_root: HashOutput,
-    pub updated_root: HashOutput,
-    pub tree_height: SubTreeHeight,
-    // TODO(Dori, 1/8/2025): The value type here should probably be more specific (NodeData<L> for
-    //   L: Leaf). This poses a problem in deserialization, as a serialized edge node and a
-    //   serialized contract state leaf are both currently vectors of 3 field elements; as the
-    //   semantics of the values are unimportant for the OS commitments, we make do with a vector
-    //   of field elements as values for now.
-    pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
-}
-
-#[cfg(any(feature = "testing", test))]
-impl Default for CommitmentInfo {
-    fn default() -> CommitmentInfo {
-        CommitmentInfo {
-            previous_root: HashOutput::default(),
-            updated_root: HashOutput::default(),
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: HashMap::default(),
-        }
-    }
-}
-
-// TODO(Aviv): Use this struct in `OsBlockInput`
-/// Contains all commitment information for a block's state trees.
-pub struct StateCommitmentInfos {
-    pub contracts_trie_commitment_info: CommitmentInfo,
-    pub classes_trie_commitment_info: CommitmentInfo,
-    pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
-}
 
 /// Error type for commitment infos creation.
 #[derive(Debug, Error)]
@@ -68,6 +36,10 @@ pub enum CommitmentInfosError {
 
 /// Creates the commitment infos for the OS from previous and new state roots and the
 /// keys that were read during execution.
+// TODO(ItamarS): Temporary — to be deleted once the committer builds `StateCommitmentInfos` from
+// its own storage; tests against that new committer API will be added then. Kept here (as a free
+// function rather than an inherent method) because the struct now lives in `starknet_committer`
+// and the orphan rule forbids an inherent impl on a foreign type.
 pub async fn build_state_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
