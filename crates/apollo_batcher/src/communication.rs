@@ -25,6 +25,12 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::GetBlockHash(block_number) => {
                 BatcherResponse::GetBlockHash(self.get_block_hash(block_number))
             }
+            #[cfg(feature = "os_input")]
+            BatcherRequest::GetStateCommitmentInfos(block_number) => {
+                BatcherResponse::GetStateCommitmentInfos(
+                    self.get_state_commitment_infos(block_number),
+                )
+            }
             BatcherRequest::GetCurrentHeight => {
                 BatcherResponse::GetCurrentHeight(self.get_height().await)
             }
