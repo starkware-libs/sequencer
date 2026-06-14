@@ -8,7 +8,8 @@ mod deployment_definitions_test;
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const RETRIES_FOR_L1_SERVICES: usize = 0;
 
-const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
+pub(crate) const BASE_APP_CONFIGS_DIR_PATH: &str =
+    "crates/apollo_deployments/resources/app_configs";
 
 #[derive(
     Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter, AsRefStr,
