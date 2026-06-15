@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781525890465,
+  "lastUpdate": 1781534334412,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5847,6 +5847,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1275.89039748,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6a465742f753d0de07ecf18b61706495bfac098",
+          "message": "apollo_committer,starknet_committer: parallelize witness fetch with compute phase (#14437)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-15T14:15:52Z",
+          "tree_id": "3c0b664b7c4664f5ac8ce40c90132344988a7148",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c6a465742f753d0de07ecf18b61706495bfac098"
+        },
+        "date": 1781534333769,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1019.70837686,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1763.4353717899999,
             "unit": "ms"
           }
         ]
