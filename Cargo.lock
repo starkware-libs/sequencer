@@ -1545,6 +1545,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_node_config",
+ "clap",
  "jrsonnet-evaluator",
  "jrsonnet-stdlib",
  "phf",
