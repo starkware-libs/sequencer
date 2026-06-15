@@ -41,7 +41,7 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing_test::traced_test;
 
-use super::{run_consensus, MultiHeightManager, RunHeightRes};
+use super::{run_consensus, ConsensusCache, MultiHeightManager, RunHeightRes, NUM_VOTE_TYPES};
 use crate::manager::CONSENSUS_RUNNING_PAST_STOP_HEIGHT;
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
@@ -1289,6 +1289,59 @@ async fn cache_future_vote_deduplication(consensus_config: ConsensusConfig) {
         reported_messages_receiver.try_next().is_err(),
         "Expected no additional report_peer calls (duplicate should be silently ignored)"
     );
+}
+
+/// Builds `n` distinct validator ids, for use as distinct vote voters.
+fn distinct_voters(n: usize) -> Vec<ValidatorId> {
+    (0..n)
+        .map(|i| {
+            let offset = u64::try_from(i).expect("voter index should fit in u64");
+            (DEFAULT_VALIDATOR_ID + 1 + offset).into()
+        })
+        .collect()
+}
+
+/// The number of future votes cached for a height is bounded by the committee-size-derived cap,
+/// even when flooded with votes from arbitrary (forged) voters.
+#[test]
+fn future_votes_capped_by_committee_size() {
+    let committee_size = 3;
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    cache.set_committee_size(committee_size);
+    let cached_rounds = usize::try_from(FutureMsgLimitsConfig::default().future_height_round_limit)
+        .expect("future_height_round_limit should fit in usize")
+        + 1;
+    let expected_cap = committee_size * NUM_VOTE_TYPES * cached_rounds;
+
+    // Flood far more distinct-voter future votes than the cap allows.
+    for voter in distinct_voters(expected_cap * 10) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+
+    assert_eq!(cache.future_votes[&HEIGHT_1].len(), expected_cap);
+}
+
+/// Before any committee is known the committee size is `0`; future votes are dropped (not cached
+/// unboundedly), so a syncing node that has not yet learned a committee cannot be OOM'd.
+#[test]
+fn future_votes_dropped_when_committee_size_unknown() {
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    for voter in distinct_voters(50) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+    assert!(cache.future_votes.get(&HEIGHT_1).is_none_or(|votes| votes.is_empty()));
+}
+
+/// Honest volume (at most one vote per committee member) is well under the cap and fully retained.
+#[test]
+fn future_votes_below_cap_are_all_retained() {
+    let committee_size = 10;
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    cache.set_committee_size(committee_size);
+    for voter in distinct_voters(committee_size) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+    assert_eq!(cache.future_votes[&HEIGHT_1].len(), committee_size);
 }
 
 #[rstest]
