@@ -4,13 +4,13 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_node_config::config_utils::{config_to_preset, private_parameters};
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
-use serde_json::Value;
+use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
-use crate::jsonnet_generation::{eval_build, jsonnet_state};
+use crate::jsonnet_generation::{eval_build, jsonnet_state, overrides_from_sequencer_config};
 use crate::service::{GetComponentConfigs, NodeService, NodeType, KEYS_TO_BE_REPLACED};
-use crate::test_utils::is_path_prefix;
+use crate::utils::is_path_prefix;
 
 /// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
 fn eval_layout_infra(layout: &str) -> Value {
@@ -200,4 +200,67 @@ fn without_url_port(components: &serde_json::Map<String, Value>) -> serde_json::
             (name.clone(), config)
         })
         .collect()
+}
+
+fn flat(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
+    pairs.iter().map(|(key, value)| (key.to_string(), value.clone())).collect()
+}
+
+#[test]
+fn overrides_nest_and_fold_none() {
+    let input = flat(&[
+        ("chain_id", json!("SN_SEPOLIA")),
+        ("batcher_config.dynamic_config.n_concurrent_txs", json!(100)),
+        // `None` scalar option: marker `true` + placeholder value -> `null`.
+        ("consensus_manager_config.network_config.advertised_multiaddr", json!("")),
+        ("consensus_manager_config.network_config.advertised_multiaddr.#is_none", json!(true)),
+        // `Some` scalar option: marker `false` + value -> the value.
+        ("consensus_manager_config.network_config.bootstrap_peer_multiaddr", json!("/dns/x")),
+        ("consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none", json!(false)),
+        // `None` struct option: marker `true` + materialized children -> `null`, children dropped.
+        ("batcher_config.static_config.first_block_with_partial_block_hash.#is_none", json!(true)),
+        ("batcher_config.static_config.first_block_with_partial_block_hash.block_number", json!(0)),
+        (
+            "batcher_config.static_config.first_block_with_partial_block_hash.block_hash",
+            json!("0x0"),
+        ),
+        // `Some` struct option with no sub-field overrides: marker `false`, no children -> `{}`
+        // (present, so it deserializes to `Some(default)` rather than an absent field).
+        ("state_sync_config.static_config.p2p_sync_client_config.#is_none", json!(false)),
+        ("components.batcher.port", json!(55000)),
+        ("components.class_manager.url", json!("sequencer-core-service")),
+    ]);
+
+    let expected = json!({
+        "chain_id": "SN_SEPOLIA",
+        "batcher_config": {
+            "dynamic_config": { "n_concurrent_txs": 100 },
+            "static_config": { "first_block_with_partial_block_hash": null },
+        },
+        "consensus_manager_config": {
+            "network_config": {
+                "advertised_multiaddr": null,
+                "bootstrap_peer_multiaddr": "/dns/x",
+            },
+        },
+        "state_sync_config": { "static_config": { "p2p_sync_client_config": {} } },
+        "components": {
+            "batcher": { "port": 55000 },
+            "class_manager": { "url": "sequencer-core-service" },
+        },
+    });
+
+    assert_eq!(overrides_from_sequencer_config(&input), expected);
+}
+
+#[test]
+fn overrides_none_option_does_not_collapse_prefix_sibling() {
+    // A `None` option must not collapse a sibling whose name it merely string-prefixes.
+    let input = flat(&[
+        ("a.b.range_check.#is_none", json!(true)),
+        ("a.b.range_check", json!(123)),
+        ("a.b.range_check96", json!(456)),
+    ]);
+    let expected = json!({ "a": { "b": { "range_check": null, "range_check96": 456 } } });
+    assert_eq!(overrides_from_sequencer_config(&input), expected);
 }
