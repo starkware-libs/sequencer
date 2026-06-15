@@ -93,7 +93,12 @@ const UNMEASURABLE_SYSCALLS: [Selector; 23] = [
 /// Note: Keccak does not store the linear factor in the same entry in the versioned constants, but
 /// it does have a measurable linear factor stored under [Selector::KeccakRound].
 static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> = LazyLock::new(|| {
-    HashMap::from([(Selector::Deploy, 1), (Selector::Keccak, 0), (Selector::MetaTxV0, 1)])
+    HashMap::from([
+        (Selector::Deploy, 1),
+        (Selector::Keccak, 0),
+        (Selector::MetaTxV0, 1),
+        (Selector::SendMessageToL1, 0),
+    ])
 });
 const LARGE_INPUT_LENGTH: usize = 100;
 
@@ -289,11 +294,16 @@ async fn test_os_resources_regression() {
         }]),
     );
 
-    // Add the expected message to L1.
+    // Add the expected messages to L1.
     test_builder.messages_to_l1.push(MessageToL1 {
         from_address: os_resources_contract_address,
         to_address: EthAddress::try_from(Felt::from(100)).unwrap(),
         payload: L2ToL1Payload(vec![]),
+    });
+    test_builder.messages_to_l1.push(MessageToL1 {
+        from_address: os_resources_contract_address,
+        to_address: EthAddress::try_from(Felt::from(100)).unwrap(),
+        payload: L2ToL1Payload(vec![Felt::ONE; LARGE_INPUT_LENGTH]),
     });
 
     // Run test. Grab the execution info from the runner (for later) before consuming it.
