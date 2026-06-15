@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781257137958,
+  "lastUpdate": 1781523289091,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -441,6 +441,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1223.33698829,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9cd7bf120ed9d81deb37fc863b64446bb3d9d42f",
+          "message": "starknet_api: guard L1HandlerTransaction::payload_size against empty calldata (#14495)\n\npayload_size computed self.tx.calldata.0.len() - 1 unconditionally. Calldata\nhas no non-empty invariant and L1HandlerTransaction derives Deserialize, so an\nempty calldata is constructible; len() - 1 then panics in debug or wraps to\nusize::MAX in release (corrupting downstream fee/message-segment accounting).\n\nUse saturating_sub(1) so an empty calldata yields a payload size of 0. Add a\nregression test that constructs an executable L1HandlerTransaction with empty\ncalldata and asserts payload_size() == 0 (it panics on the old code).\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-15T11:19:03Z",
+          "tree_id": "2d314ef6d6a5d34775a9389b71d1f4d17823d765",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9cd7bf120ed9d81deb37fc863b64446bb3d9d42f"
+        },
+        "date": 1781523288669,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 845.4945350099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1382.8492216,
             "unit": "ms"
           }
         ]
