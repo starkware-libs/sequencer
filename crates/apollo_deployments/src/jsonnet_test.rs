@@ -10,6 +10,8 @@ use strum::IntoEnumIterator;
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
 use crate::jsonnet_generation::{
     eval_build_with_expr,
+    eval_build_with_overrides,
+    eval_overrides_file,
     jsonnet_state,
     overrides_from_sequencer_config,
 };
@@ -86,6 +88,42 @@ where
 
 fn eval_test_build(layout: &str) -> Value {
     eval_build_with_expr(layout, "import 'testing/overrides.libsonnet'")
+}
+
+/// Flattens a nested JSON object into a map from dot-separated leaf path to value. Non-empty
+/// objects recurse; scalars, arrays, nulls, and empty objects are leaves (the inverse of the
+/// generator's nesting, so the round-trip below is well-defined).
+fn flatten(value: &Value, prefix: &str, out: &mut BTreeMap<String, Value>) {
+    match value {
+        Value::Object(map) if !map.is_empty() => {
+            for (key, child) in map {
+                let path = if prefix.is_empty() { key.clone() } else { format!("{prefix}.{key}") };
+                flatten(child, &path, out);
+            }
+        }
+        leaf => {
+            out.insert(prefix.to_owned(), leaf.clone());
+        }
+    }
+}
+
+/// The generator's flat-input path — flatten the nested overrides, run them back through
+/// `overrides_from_sequencer_config`, and `build` — reproduces building directly from the nested
+/// fixture, over a complete (59-key) override set. (`testing/overrides.libsonnet` encodes `None` as
+/// `null`, not the `#is_none` marker; that folding is covered by the mapping's own unit tests.)
+pub fn test_generator_flat_input_matches_direct_build() {
+    let nested = eval_overrides_file("testing/overrides.libsonnet");
+    let mut flat = BTreeMap::new();
+    flatten(&nested, "", &mut flat);
+
+    // The mapping inverts the flattening.
+    assert_eq!(overrides_from_sequencer_config(&flat), nested);
+
+    // ...so the generator yields the same per-service config as building from the fixture directly.
+    assert_eq!(
+        eval_build_with_overrides("hybrid", &overrides_from_sequencer_config(&flat)),
+        eval_test_build("hybrid"),
+    );
 }
 
 /// Asserts the applicative config emitted by jsonnet reproduces the committed `app_configs/*.json`
