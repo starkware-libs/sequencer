@@ -1,13 +1,9 @@
-# syntax = devthefuture/dockerfile-x
-# docker-ci/images/sequencer-ci.Dockerfile
+# deployments/images/sequencer/Dockerfile
 
 # Dockerfile with multi-stage builds for efficient dependency caching and lightweight final image.
 # For more on Docker stages, visit: https://docs.docker.com/build/building/multi-stage/
-# We use dockerfile-x, for more information visit: https://github.com/devthefuture-org/dockerfile-x/blob/master/README.md
 
-INCLUDE deployments/images/base/Dockerfile
-
-FROM base AS builder
+FROM ghcr.io/starkware-libs/sequencer/base:latest
 
 ARG USERNAME=sequencer
 ARG USER_UID=1000
