@@ -23,6 +23,8 @@ use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::commit_block;
+#[cfg(feature = "os_input")]
+use starknet_committer::block_committer::errors::CommitBlockWithWitnessesError;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
@@ -566,9 +568,10 @@ where
                         None,
                     )
                     .await
-                    .map_err(|e| CommitterError::PatriciaPathsCollectionFailed {
-                        height,
-                        message: format!("pre-commit witness paths: {e:?}"),
+                    .map_err(|e| {
+                        self.map_internal_error(
+                            CommitBlockWithWitnessesError::PreCommitWitnessFetch(e),
+                        )
                     })?;
                 block_measurements
                     .attempt_to_stop_measurement(
@@ -596,9 +599,10 @@ where
                         Some(forest_updates),
                     )
                     .await
-                    .map_err(|e| CommitterError::PatriciaPathsCollectionFailed {
-                        height,
-                        message: format!("post-commit witness paths: {e:?}"),
+                    .map_err(|e| {
+                        self.map_internal_error(
+                            CommitBlockWithWitnessesError::PostCommitWitnessFetch(e),
+                        )
                     })?;
                 block_measurements
                     .attempt_to_stop_measurement(
