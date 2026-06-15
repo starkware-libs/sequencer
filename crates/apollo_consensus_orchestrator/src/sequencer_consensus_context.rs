@@ -78,6 +78,8 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
+#[cfg(feature = "os_input")]
+use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{
     BlobParameters,
     CendeContext,
@@ -614,6 +616,10 @@ impl SequencerConsensusContext {
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                #[cfg(feature = "os_input")]
+                recent_state_commitment_infos: self
+                    .collect_recent_state_commitment_infos(height)
+                    .await,
             })
             .await
         {
@@ -680,6 +686,39 @@ impl SequencerConsensusContext {
             }
         }
         recent_block_hashes
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn collect_recent_state_commitment_infos(
+        &self,
+        height: BlockNumber,
+    ) -> Vec<StateCommitmentInfosAndNumber> {
+        let mut recent_state_commitment_infos = Vec::with_capacity(
+            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
+                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
+                + 1,
+        );
+        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        for height in lowest_height..=height.0 {
+            let block_number = BlockNumber(height);
+            match self.deps.batcher.get_state_commitment_infos(block_number).await {
+                Ok(state_commitment_infos) => recent_state_commitment_infos
+                    .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+                Err(err) => {
+                    // This error is expected if the block is not yet committed.
+                    if !matches!(
+                        err,
+                        BatcherClientError::BatcherError(
+                            BatcherError::StateCommitmentInfosNotFound(_)
+                        )
+                    ) {
+                        warn!("Failed to get state commitment infos from batcher: {err:?}");
+                    }
+                    break;
+                }
+            }
+        }
+        recent_state_commitment_infos
     }
 }
 

@@ -40,6 +40,8 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{info, warn, Instrument};
@@ -71,6 +73,13 @@ pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
+#[cfg(feature = "os_input")]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct StateCommitmentInfosAndNumber {
+    pub state_commitment_infos: StateCommitmentInfos,
+    pub block_number: BlockNumber,
+}
+
 /// A chunk of all the data to write to Aersopike.
 #[cfg_attr(any(feature = "testing", test), derive(Deserialize, PartialEq))]
 #[derive(Debug, Serialize)]
@@ -93,6 +102,8 @@ pub struct AerospikeBlob {
     proposal_commitment: ProposalCommitment,
     parent_proposal_commitment: Option<ProposalCommitment>,
     recent_block_hashes: Vec<BlockHashAndNumber>,
+    #[cfg(feature = "os_input")]
+    recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
 }
 
 #[cfg_attr(test, automock)]
@@ -375,6 +386,8 @@ pub struct BlobParameters {
     pub proposal_commitment: ProposalCommitment,
     pub parent_proposal_commitment: Option<ProposalCommitment>,
     pub recent_block_hashes: Vec<BlockHashAndNumber>,
+    #[cfg(feature = "os_input")]
+    pub recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
 }
 
 impl AerospikeBlob {
@@ -430,6 +443,8 @@ impl AerospikeBlob {
             proposal_commitment: blob_parameters.proposal_commitment,
             parent_proposal_commitment: blob_parameters.parent_proposal_commitment,
             recent_block_hashes: blob_parameters.recent_block_hashes,
+            #[cfg(feature = "os_input")]
+            recent_state_commitment_infos: blob_parameters.recent_state_commitment_infos,
         })
     }
 }

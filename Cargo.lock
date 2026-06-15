@@ -1454,6 +1454,7 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "strum",
  "thiserror 1.0.69",
  "tokio",
