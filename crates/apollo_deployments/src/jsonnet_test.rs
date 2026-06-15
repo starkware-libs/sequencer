@@ -1,20 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_node_config::config_utils::{config_to_preset, private_parameters};
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
-use jrsonnet_evaluator::trace::PathResolver;
-use jrsonnet_evaluator::{FileImportResolver, State};
 use serde_json::Value;
 use strum::IntoEnumIterator;
 
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
+use crate::jsonnet_generation::{eval_build, jsonnet_state};
 use crate::service::{GetComponentConfigs, NodeService, NodeType, KEYS_TO_BE_REPLACED};
 use crate::test_utils::is_path_prefix;
-
-const JSONNET_DIR: &str = "crates/apollo_deployments/jsonnet";
 
 /// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
 fn eval_layout_infra(layout: &str) -> Value {
@@ -23,15 +19,6 @@ fn eval_layout_infra(layout: &str) -> Value {
     let entry = format!("services/{layout}.jsonnet");
     let val = state.import(entry.as_str()).expect("failed to evaluate the layout infra renderer");
     serde_json::to_value(&val).expect("infra config is not serializable")
-}
-
-/// A jrsonnet evaluator with the stdlib installed and file imports resolved relative to the jsonnet
-/// dir (so the libraries' `std.*` calls and relative `import`s work).
-fn jsonnet_state() -> State {
-    let mut builder = State::builder();
-    builder.context_initializer(jrsonnet_stdlib::ContextInitializer::new(PathResolver::Absolute));
-    builder.import_resolver(FileImportResolver::new(vec![PathBuf::from(JSONNET_DIR)]));
-    builder.build()
 }
 
 /// Asserts the jsonnet-derived infra of every service of layout `S` matches the Rust source of
@@ -68,20 +55,6 @@ where
             "infra config mismatch for service {service_name} (url/port excluded)"
         );
     }
-}
-
-/// Evaluates `build(layout, overrides)` and returns its JSON: a map from service name to that
-/// service's fully-assembled config.
-fn eval_build(layout: &str, overrides: &str) -> Value {
-    let state = jsonnet_state();
-    let _guard = state.enter();
-    let layout_literal = serde_json::to_string(layout).expect("layout is serializable");
-    let snippet =
-        format!("(import 'lib/build.libsonnet').build({layout_literal}, import '{overrides}')");
-    let val = state
-        .evaluate_snippet("build_entry.jsonnet", snippet)
-        .expect("build.libsonnet failed to evaluate");
-    serde_json::to_value(&val).expect("build result is not serializable")
 }
 
 /// Asserts that `build(layout, testing_overrides)` produces, for every service of layout `S`, an
