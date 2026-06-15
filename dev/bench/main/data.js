@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781515433936,
+  "lastUpdate": 1781525890465,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5813,6 +5813,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1431.6815141400002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c8bf43b8f91841165723dc151149eaae10f93f5c",
+          "message": "apollo_committer,starknet_committer: add CommitBlockWithWitnessesError and use it for witness fetch (#14465)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-15T11:58:48Z",
+          "tree_id": "e0070fede6f52a09c428f8b9855478bcb4bf2ffc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c8bf43b8f91841165723dc151149eaae10f93f5c"
+        },
+        "date": 1781525890054,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 861.13269845,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1275.89039748,
             "unit": "ms"
           }
         ]
