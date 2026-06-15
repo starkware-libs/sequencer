@@ -13,7 +13,7 @@ use crate::deployment_definitions::ComponentConfigInService;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::jsonnet::{
+use crate::jsonnet_test::{
     assert_build_deserializes,
     assert_infra_matches_rust,
     test_applicative_matches_app_configs,
