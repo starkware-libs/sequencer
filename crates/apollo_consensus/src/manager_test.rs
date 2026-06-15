@@ -26,6 +26,7 @@ use apollo_staking::committee_provider::{
     MockCommitteeProvider,
     MockCommitteeTrait,
     Staker,
+    MAX_COMMITTEE_SIZE,
 };
 use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -41,7 +42,7 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing_test::traced_test;
 
-use super::{run_consensus, MultiHeightManager, RunHeightRes};
+use super::{run_consensus, ConsensusCache, MultiHeightManager, RunHeightRes, NUM_VOTE_TYPES};
 use crate::manager::CONSENSUS_RUNNING_PAST_STOP_HEIGHT;
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
@@ -1289,6 +1290,45 @@ async fn cache_future_vote_deduplication(consensus_config: ConsensusConfig) {
         reported_messages_receiver.try_next().is_err(),
         "Expected no additional report_peer calls (duplicate should be silently ignored)"
     );
+}
+
+/// Builds `n` distinct validator ids, for use as distinct vote voters.
+fn distinct_voters(n: usize) -> Vec<ValidatorId> {
+    (0..n)
+        .map(|i| {
+            let offset = u64::try_from(i).expect("voter index should fit in u64");
+            (DEFAULT_VALIDATOR_ID + 1 + offset).into()
+        })
+        .collect()
+}
+
+/// The number of future votes cached for a height is statically bounded by the
+/// `MAX_COMMITTEE_SIZE`-derived cap, even when flooded with votes from arbitrary (forged) voters.
+#[test]
+fn future_votes_capped() {
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    let cached_rounds = usize::try_from(FutureMsgLimitsConfig::default().future_height_round_limit)
+        .expect("future_height_round_limit should fit in usize")
+        + 1;
+    let expected_cap = MAX_COMMITTEE_SIZE * NUM_VOTE_TYPES * cached_rounds;
+
+    // Flood more distinct-voter future votes than the cap allows.
+    for voter in distinct_voters(expected_cap + 5) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+
+    assert_eq!(cache.future_votes[&HEIGHT_1].len(), expected_cap);
+}
+
+/// Honest volume (well under the cap) is fully retained.
+#[test]
+fn future_votes_below_cap_are_all_retained() {
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    let num_votes = 50;
+    for voter in distinct_voters(num_votes) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+    assert_eq!(cache.future_votes[&HEIGHT_1].len(), num_votes);
 }
 
 #[rstest]
