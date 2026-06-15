@@ -37,6 +37,8 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
+#[cfg(feature = "os_input")]
+use starknet_api::hash::HashOutput;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
@@ -44,7 +46,9 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 #[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::{ContractsTrieProof, StarknetForestProofs};
+use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
+#[cfg(feature = "os_input")]
+use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
@@ -305,7 +309,7 @@ impl Default for MockClients {
             Box::pin(async {
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root: GlobalRoot::default(),
-                    patricia_proofs: empty_patricia_proofs(),
+                    state_commitment_infos: empty_state_commitment_infos(),
                 })
             })
         });
@@ -393,11 +397,17 @@ pub async fn wait_for_n_items<T>(receiver: &mut Receiver<T>, expected_n_results:
 }
 
 #[cfg(feature = "os_input")]
-pub(crate) fn empty_patricia_proofs() -> StarknetForestProofs {
-    StarknetForestProofs {
-        classes_trie_proof: HashMap::new(),
-        contracts_trie_proof: ContractsTrieProof { nodes: HashMap::new(), leaves: HashMap::new() },
-        contracts_trie_storage_proofs: HashMap::new(),
+pub(crate) fn empty_state_commitment_infos() -> StateCommitmentInfos {
+    let empty_commitment_info = || CommitmentInfo {
+        previous_root: HashOutput::default(),
+        updated_root: HashOutput::default(),
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: HashMap::new(),
+    };
+    StateCommitmentInfos {
+        contracts_trie_commitment_info: empty_commitment_info(),
+        classes_trie_commitment_info: empty_commitment_info(),
+        storage_tries_commitment_infos: HashMap::new(),
     }
 }
 

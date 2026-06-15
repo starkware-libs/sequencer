@@ -118,13 +118,19 @@ async fn perform_task(
     }
 }
 
+/// Commits the block via `CommitBlock`, storing no Patricia witnesses.
 async fn perform_commit_block_task(
     commit_block_request: CommitBlockRequest,
     committer_client: &SharedCommitterClient,
 ) -> CommitterClientResult<CommitterTaskOutput> {
     let height = commit_block_request.height;
     let response = committer_client.commit_block(commit_block_request).await?;
-    Ok(CommitterTaskOutput::Commit(CommitmentTaskOutput { response, height }))
+    Ok(CommitterTaskOutput::Commit(CommitmentTaskOutput {
+        response,
+        height,
+        #[cfg(feature = "os_input")]
+        state_commitment_infos: None,
+    }))
 }
 
 /// Commits the block and fetches the Patricia witnesses for the accessed keys via
@@ -135,11 +141,12 @@ async fn perform_read_paths_and_commit_block_task(
     committer_client: &SharedCommitterClient,
 ) -> CommitterClientResult<CommitterTaskOutput> {
     let height = request.commit.height;
-    let ReadPathsAndCommitBlockResponse { global_root, patricia_proofs: _ } =
+    let ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos } =
         committer_client.read_paths_and_commit_block(request).await?;
     Ok(CommitterTaskOutput::ReadPathsAndCommitBlock(CommitmentTaskOutput {
         response: CommitBlockResponse { global_root },
         height,
+        state_commitment_infos: Some(state_commitment_infos),
     }))
 }
 
