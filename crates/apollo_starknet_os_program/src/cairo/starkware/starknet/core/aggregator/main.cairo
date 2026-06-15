@@ -38,7 +38,7 @@ func main{
     local n_public_keys: felt;
     %{ GetPublicKeys %}
 
-    check_public_keys{hash_ptr=pedersen_ptr}(
+    check_public_keys(
         n_public_keys=n_public_keys,
         public_keys=public_keys,
         starknet_os_config_hash=os_outputs[0].header.starknet_os_config_hash,
@@ -128,7 +128,7 @@ func output_blocks{
     );
 }
 
-func check_public_keys{hash_ptr: HashBuiltin*}(
+func check_public_keys{range_check_ptr}(
     n_public_keys: felt, public_keys: felt*, starknet_os_config_hash: felt
 ) {
     let (public_keys_hash) = get_public_keys_hash(

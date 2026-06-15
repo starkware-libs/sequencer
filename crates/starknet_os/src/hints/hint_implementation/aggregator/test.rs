@@ -16,6 +16,7 @@ use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::ToPrimitive;
 use rstest::rstest;
+use starknet_api::block::StarknetVersion;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, OsChainInfo};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -62,7 +63,7 @@ static OS_CONFIG_HASH: LazyLock<Felt> = LazyLock::new(|| {
         chain_id: ChainId::Other("\0".to_string()),
         strk_fee_token_address: ContractAddress::default(),
     }
-    .compute_os_config_hash(None)
+    .compute_os_config_hash(None, StarknetVersion::LATEST)
     .unwrap()
 });
 
