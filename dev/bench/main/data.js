@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781453579072,
+  "lastUpdate": 1781515433936,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5779,6 +5779,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1193.64792517,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a589cc7e5d85b0aae0108a85614bc0655e54c04f",
+          "message": "starknet_committer,starknet_committer_cli: add record_measurement util (#14464)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-15T08:58:43Z",
+          "tree_id": "ae4d8b6b495a16ca8038c3bbc6297a0fabf75b97",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a589cc7e5d85b0aae0108a85614bc0655e54c04f"
+        },
+        "date": 1781515433415,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 963.06112466,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1431.6815141400002,
             "unit": "ms"
           }
         ]
