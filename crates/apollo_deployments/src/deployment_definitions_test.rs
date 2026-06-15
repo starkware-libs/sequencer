@@ -19,7 +19,8 @@ use crate::jsonnet_test::{
     test_applicative_matches_app_configs,
 };
 use crate::service::{NodeType, KEYS_TO_BE_REPLACED};
-use crate::test_utils::{is_path_prefix, SecretsConfigOverride};
+use crate::test_utils::SecretsConfigOverride;
+use crate::utils::is_path_prefix;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
