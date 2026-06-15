@@ -37,6 +37,8 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
+#[cfg(feature = "os_input")]
+use starknet_api::hash::HashOutput;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};

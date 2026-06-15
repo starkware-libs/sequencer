@@ -67,6 +67,11 @@ use apollo_storage::partial_block_hash::{
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 #[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageReader;
+#[cfg(feature = "os_input")]
+use apollo_storage::state_commitment_infos::{
+    StateCommitmentInfos,
+    StateCommitmentInfosStorageWriter,
+};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
     DynamicConfigProvider,
@@ -121,8 +126,6 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
@@ -1873,11 +1876,26 @@ pub trait BatcherStorageWriter: Send + Sync {
     /// Sets the global root and block hash (unless it's None) for the given height.
     /// Increments the block hash marker by 1.
     /// Block hash is optional because for old blocks, the block hash was set separately.
+    #[cfg(not(feature = "os_input"))]
     fn set_global_root_and_block_hash(
         &mut self,
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
+    ) -> StorageResult<()>;
+
+    /// Sets the global root and block hash (unless it's None) for the given height, and persists
+    /// the commitment infos (when present) in the same transaction.
+    /// Increments the block hash marker by 1.
+    /// Block hash is optional because for old blocks, the block hash was set separately.
+    /// Commitment infos are optional for blocks that doesn't come from decision_reached flow.
+    #[cfg(feature = "os_input")]
+    fn set_global_root_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        global_root: GlobalRoot,
+        block_hash: Option<BlockHash>,
+        state_commitment_infos: Option<StateCommitmentInfos>,
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
@@ -1923,10 +1941,20 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
+        #[cfg(feature = "os_input")] state_commitment_infos: Option<StateCommitmentInfos>,
     ) -> StorageResult<()> {
+        #[cfg(not(feature = "os_input"))]
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
              hash: {block_hash:?}."
+        );
+        #[cfg(feature = "os_input")]
+        info!(
+            "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
+             hash: {block_hash:?}, number of storage-trie commitment infos: {:?}.",
+            state_commitment_infos.as_ref().map(|state_commitment_infos| state_commitment_infos
+                .storage_tries_commitment_infos
+                .len())
         );
         let mut txn = self
             .begin_rw_txn()?
@@ -1934,6 +1962,10 @@ impl BatcherStorageWriter for StorageWriter {
             .checked_increment_global_root_marker(height)?;
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
+        }
+        #[cfg(feature = "os_input")]
+        if let Some(state_commitment_infos) = state_commitment_infos {
+            txn = txn.append_state_commitment_infos(height, &state_commitment_infos)?;
         }
         txn.commit()
     }

@@ -1827,12 +1827,17 @@ async fn get_block_hash_after_reading_commitment_results() {
         .expect_get_parent_hash_and_partial_block_hash_components()
         .with(eq(INITIAL_HEIGHT))
         .returning(move |_| Ok((Some(parent_hash), Some(partial_components.clone()))));
-    mock_dependencies
-        .storage_writer
-        .expect_set_global_root_and_block_hash()
-        .times(1)
+    let set_global_root_expectation =
+        mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
+    set_global_root_expectation.times(1);
+    #[cfg(not(feature = "os_input"))]
+    set_global_root_expectation
         .with(eq(INITIAL_HEIGHT), eq(global_root), always())
         .returning(|_, _, _| Ok(()));
+    #[cfg(feature = "os_input")]
+    set_global_root_expectation
+        .with(eq(INITIAL_HEIGHT), eq(global_root), always(), always())
+        .returning(|_, _, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 

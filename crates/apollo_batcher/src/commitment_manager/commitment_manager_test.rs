@@ -270,7 +270,7 @@ async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependenci
 }
 
 /// When no accessed keys are stored for a height, the catch-up flow must fall back to `CommitBlock`
-/// (not `ReadPathsAndCommitBlock`).
+/// (not `ReadPathsAndCommitBlock`), and the resulting commitment carries no Patricia witnesses.
 #[cfg(feature = "os_input")]
 #[rstest]
 #[tokio::test]
@@ -325,6 +325,10 @@ async fn test_add_missing_commitment_tasks_without_accessed_keys(
     let results = await_items(&mut commitment_manager.results_receiver, 1).await;
     let result = results.first().unwrap().clone().expect_commitment();
     assert_eq!(result.height, global_root_height);
+    assert!(
+        result.state_commitment_infos.is_none(),
+        "The CommitBlock fallback should not produce commitment infos."
+    );
 }
 
 #[rstest]
@@ -396,12 +400,15 @@ async fn test_add_task_wait_for_full_channel(mut mock_dependencies: MockDependen
             .times(expected_n_calls.clone())
             .with(eq(height))
             .returning(|height| get_dummy_parent_hash_and_partial_block_hash_components(&height));
-        mock_dependencies
-            .storage_writer
-            .expect_set_global_root_and_block_hash()
-            .times(expected_n_calls)
-            .withf(move |h, _, _| *h == height)
-            .returning(|_, _, _| Ok(()));
+        let set_global_root_expectation =
+            mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
+        set_global_root_expectation.times(expected_n_calls);
+        #[cfg(not(feature = "os_input"))]
+        set_global_root_expectation.withf(move |h, _, _| *h == height).returning(|_, _, _| Ok(()));
+        #[cfg(feature = "os_input")]
+        set_global_root_expectation
+            .withf(move |h, _, _, _| *h == height)
+            .returning(|_, _, _, _| Ok(()));
     }
 
     let (mut commitment_manager, storage_reader, mut storage_writer) =
