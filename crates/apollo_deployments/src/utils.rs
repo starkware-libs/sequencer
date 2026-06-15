@@ -6,6 +6,11 @@ use static_assertions::const_assert_ne;
 const INFRA_PORT_PLACEHOLDER: u16 = 1;
 const_assert_ne!(INFRA_PORT_PLACEHOLDER, DEFAULT_INVALID_PORT);
 
+/// Returns `true` if `prefix` is a path-prefix of the dotted config key `path`.
+pub(crate) fn is_path_prefix(prefix: &str, path: &str) -> bool {
+    path.strip_prefix(prefix).is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
+}
+
 /// A generator-like for setting infra ports in different services.
 /// - If constructed with `Some(vec)`: yields values from the vec, up to `expected_len` times.
 /// - If constructed with `None`: yields `INFRA_PORT_PLACEHOLDER`, up to `expected_len` times.
