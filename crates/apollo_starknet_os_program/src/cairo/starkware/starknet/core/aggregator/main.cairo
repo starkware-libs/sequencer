@@ -128,12 +128,16 @@ func output_blocks{
     );
 }
 
-func check_public_keys{hash_ptr: HashBuiltin*}(
+func check_public_keys{hash_ptr: HashBuiltin*, range_check_ptr}(
     n_public_keys: felt, public_keys: felt*, starknet_os_config_hash: felt
 ) {
+    alloc_locals;
     let (public_keys_hash) = get_public_keys_hash(
         n_public_keys=n_public_keys, public_keys=public_keys
     );
+    // `get_starknet_os_config_hash` uses Blake (range_check_ptr) and does not thread `hash_ptr`,
+    // so anchor `hash_ptr` in a local to keep it alive across that call for the implicit return.
+    local hash_ptr_after_public_keys: HashBuiltin* = hash_ptr;
     tempvar chain_id;
     tempvar fee_token_address;
     %{ GetChainIdAndFeeTokenAddressFromInput %}
@@ -143,6 +147,7 @@ func check_public_keys{hash_ptr: HashBuiltin*}(
     let (guessed_starknet_os_config_hash) = get_starknet_os_config_hash(
         starknet_os_config=guessed_starknet_os_config
     );
+    let hash_ptr = hash_ptr_after_public_keys;
     assert guessed_starknet_os_config_hash = starknet_os_config_hash;
     return ();
 }

@@ -186,8 +186,13 @@ impl OsTestExpectedValues {
 
         // Config hash and flags.
         let config = &os_hints.os_hints_config;
-        let config_hash =
-            config.chain_info.compute_os_config_hash(config.public_keys.as_ref()).unwrap();
+        let config_hash = config
+            .chain_info
+            .compute_os_config_hash(
+                config.public_keys.as_ref(),
+                first_block.block_info.starknet_version,
+            )
+            .unwrap();
         Self {
             previous_global_root,
             new_global_root,
@@ -514,8 +519,10 @@ impl<S: FlowTestState> TestBuilder<S> {
     /// Computes the virtual OS config hash for proof facts validation using the test environment's
     /// chain info.
     pub(crate) fn compute_virtual_os_config_hash(&self) -> Felt {
-        let chain_info = self.initial_state.block_context.chain_info();
-        OsChainInfo::from(chain_info).compute_virtual_os_config_hash().unwrap()
+        let block_context = &self.initial_state.block_context;
+        OsChainInfo::from(block_context.chain_info())
+            .compute_virtual_os_config_hash(block_context.block_info().starknet_version)
+            .unwrap()
     }
 
     /// Advances the manager to the next block when adding new transactions.
