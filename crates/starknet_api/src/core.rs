@@ -14,8 +14,9 @@ use primitive_types::H160;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
-use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
+use starknet_types_core::hash::{Blake2Felt252, Pedersen, StarkHash as CoreStarkHash};
 
+use crate::block::StarknetVersion;
 use crate::crypto::utils::PublicKey;
 use crate::hash::{HashOutput, PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
@@ -99,15 +100,51 @@ impl ChainId {
     }
 }
 
-/// Hex of 'StarknetOsConfig3'.
-pub const STARKNET_OS_CONFIG_HASH_VERSION: Felt =
+/// Hex of 'StarknetOsConfig3' (Pedersen-based OS config hash, used before the V4 cutover).
+pub const STARKNET_OS_CONFIG_HASH_VERSION_V3: Felt =
     Felt::from_hex_unchecked("0x537461726b6e65744f73436f6e66696733");
+
+/// Hex of 'StarknetOsConfig4' (Blake-based OS config hash, used from the V4 cutover).
+pub const STARKNET_OS_CONFIG_HASH_VERSION_V4: Felt =
+    Felt::from_hex_unchecked("0x537461726b6e65744f73436f6e66696734");
+
+/// The first Starknet version at which the OS config hash is computed with Blake (V4) instead of
+/// Pedersen (V3).
+const OS_CONFIG_HASH_V4_CUTOVER: StarknetVersion = StarknetVersion::V0_14_3;
+
+/// Selects the hash function and version short-string used to compute the OS config hash.
+/// Gated by the block's Starknet version so that blocks produced before the cutover remain
+/// re-executable / re-provable with their original (Pedersen) hash.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OsConfigHashVersion {
+    /// Pedersen hash, prefixed with 'StarknetOsConfig3'.
+    V3,
+    /// Blake hash, prefixed with 'StarknetOsConfig4'.
+    V4,
+}
+
+impl From<StarknetVersion> for OsConfigHashVersion {
+    fn from(starknet_version: StarknetVersion) -> Self {
+        if starknet_version < OS_CONFIG_HASH_V4_CUTOVER { Self::V3 } else { Self::V4 }
+    }
+}
+
+impl From<OsConfigHashVersion> for Felt {
+    fn from(hash_version: OsConfigHashVersion) -> Self {
+        match hash_version {
+            OsConfigHashVersion::V3 => STARKNET_OS_CONFIG_HASH_VERSION_V3,
+            OsConfigHashVersion::V4 => STARKNET_OS_CONFIG_HASH_VERSION_V4,
+        }
+    }
+}
 
 const DEFAULT_PUBLIC_KEYS_HASH: Felt = Felt::ZERO;
 
 fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
     match public_keys {
-        Some(public_keys) if !public_keys.is_empty() => Pedersen::hash_array(public_keys),
+        Some(public_keys) if !public_keys.is_empty() => {
+            Blake2Felt252::encode_felt252_data_and_calc_blake_hash(public_keys)
+        }
         _ => DEFAULT_PUBLIC_KEYS_HASH,
     }
 }
@@ -133,13 +170,18 @@ impl Default for OsChainInfo {
 }
 
 impl OsChainInfo {
-    /// Computes the OS config hash for the given chain info.
+    /// Computes the OS config hash for the given chain info and Starknet version.
+    /// The hash function (Pedersen for V3, Blake for V4) and the version short-string are selected
+    /// by `starknet_version`; see [`OsConfigHashVersion`]. The public keys hash, when present, is
+    /// computed with Blake (matching the Cairo `get_public_keys_hash`).
     pub fn compute_os_config_hash(
         &self,
         public_keys: Option<&Vec<Felt>>,
+        starknet_version: StarknetVersion,
     ) -> Result<Felt, StarknetApiError> {
+        let hash_version = OsConfigHashVersion::from(starknet_version);
         let mut data = vec![
-            STARKNET_OS_CONFIG_HASH_VERSION,
+            Felt::from(hash_version),
             (&self.chain_id).try_into().map_err(|_| StarknetApiError::OutOfRange {
                 string: format!("Invalid chain ID (cannot convert to Felt): {:?}", self.chain_id),
             })?,
@@ -149,12 +191,20 @@ impl OsChainInfo {
         if public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH {
             data.push(public_keys_hash);
         }
-        Ok(Pedersen::hash_array(&data))
+        Ok(match hash_version {
+            OsConfigHashVersion::V3 => Pedersen::hash_array(&data),
+            OsConfigHashVersion::V4 => {
+                Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&data)
+            }
+        })
     }
 
     /// Computes the virtual OS config hash (without public keys).
-    pub fn compute_virtual_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
-        self.compute_os_config_hash(None)
+    pub fn compute_virtual_os_config_hash(
+        &self,
+        starknet_version: StarknetVersion,
+    ) -> Result<Felt, StarknetApiError> {
+        self.compute_os_config_hash(None, starknet_version)
     }
 
     #[cfg(any(test, feature = "testing"))]
