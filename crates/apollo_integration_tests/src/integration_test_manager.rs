@@ -712,7 +712,7 @@ impl IntegrationTestManager {
         info!("All nodes have been shut down.");
 
         // Brief pause to let the OS release ports after SIGKILL before new processes bind them.
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_secs(2)).await;
     }
 
     pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
