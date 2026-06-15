@@ -117,6 +117,15 @@ impl BlockingCheckClient {
                 }
             };
 
+        // Only a 2xx response carries a trustworthy decision. A non-success status (e.g. a 5xx
+        // from a broken upstream) may still return a body without an `error` field, which would
+        // otherwise deserialize to `Allowed` and bypass the operator's fail-close policy.
+        let status = response.status();
+        if !status.is_success() {
+            warn!("Blocking check returned non-success HTTP status: {status}");
+            return BlockingCheckResult::Inconclusive;
+        }
+
         let body = match response.text().await {
             Ok(text) => text,
             Err(err) => {
