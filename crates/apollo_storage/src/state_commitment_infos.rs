@@ -2,12 +2,12 @@
 
 use starknet_api::block::BlockNumber;
 pub use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfosCodecError;
 
 #[cfg(test)]
 #[path = "state_commitment_infos_test.rs"]
 mod state_commitment_infos_test;
 
-use crate::compression_utils::{compress, decompress};
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
@@ -18,15 +18,22 @@ use crate::{OffsetKind, StorageResult, StorageTransaction};
 // bincode is positional and not schema-evolution tolerant, which is acceptable here.
 impl StorageSerde for StateCommitmentInfos {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        let bytes = bincode::serialize(self)?;
-        let compressed = compress(bytes.as_slice())?;
+        let compressed = self.compress()?;
         compressed.serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
         let compressed = Vec::<u8>::deserialize_from(bytes)?;
-        let data = decompress(compressed.as_slice()).ok()?;
-        bincode::deserialize(&data).ok()
+        Self::decompress(&compressed).ok()
+    }
+}
+
+impl From<StateCommitmentInfosCodecError> for StorageSerdeError {
+    fn from(error: StateCommitmentInfosCodecError) -> Self {
+        match error {
+            StateCommitmentInfosCodecError::Bincode(error) => StorageSerdeError::Bincode(error),
+            StateCommitmentInfosCodecError::Io(error) => StorageSerdeError::Io(error),
+        }
     }
 }
 
