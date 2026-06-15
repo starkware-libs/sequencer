@@ -24,7 +24,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
-use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait};
+use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait, MAX_COMMITTEE_SIZE};
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc::{self};
 use futures::future::BoxFuture;
@@ -211,6 +211,10 @@ pub struct EquivocationVoteReport {
     pub new_vote: Vote,
 }
 
+/// Number of vote types a validator can cast per round ([`VoteType::Prevote`] and
+/// [`VoteType::Precommit`]). Used to bound the future-vote cache.
+const NUM_VOTE_TYPES: usize = 2;
+
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
 struct ConsensusCache<ContextT: ConsensusContext> {
@@ -286,8 +290,21 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
         self.get_current_height_proposals(height);
     }
 
+    /// Maximum number of future votes cached per height: an upper bound on the number of distinct,
+    /// non-equivocating votes an honest committee can produce across the cached future rounds
+    /// (`MAX_COMMITTEE_SIZE * NUM_VOTE_TYPES * rounds`). Uses the static `MAX_COMMITTEE_SIZE`
+    /// rather than the live committee size so the cap is always available (e.g. on syncing
+    /// nodes that never run a height locally).
+    fn future_votes_cap(&self) -> usize {
+        let cached_rounds = usize::try_from(self.future_msg_limit.future_height_round_limit)
+            .expect("future_height_round_limit should fit in usize")
+            + 1;
+        MAX_COMMITTEE_SIZE.saturating_mul(NUM_VOTE_TYPES).saturating_mul(cached_rounds)
+    }
+
     /// Caches a vote for a future height.
     fn cache_future_vote(&mut self, vote: Vote) -> Result<(), Box<EquivocationVoteReport>> {
+        let cap = self.future_votes_cap();
         let votes = self.future_votes.entry(vote.height).or_default();
         // Find a vote in the list with the same type, round, and voter. If found, do not add it to
         // list.
@@ -306,8 +323,23 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
                 }))
             }
         } else {
-            // If no duplicate vote was found, we add the vote to the list.
-            votes.push(vote);
+            // Bound the cache to what an honest committee could produce. Since vote signatures are
+            // not yet verified, a peer can forge votes with arbitrary voter addresses; without this
+            // cap that would grow `future_votes` without bound and exhaust memory.
+            if votes.len() < cap {
+                votes.push(vote);
+            } else {
+                // TODO(Matan): once the network expands beyond the current trusted set, rate-limit
+                // this log (e.g. `trace_every_n_ms!`) so that dropping votes can't itself be used
+                // as a log-flood DoS.
+                warn!(
+                    height = vote.height.0,
+                    round = vote.round,
+                    voter = ?vote.voter,
+                    cap,
+                    "Dropping future vote: per-height cache cap reached."
+                );
+            }
             Ok(())
         }
     }
