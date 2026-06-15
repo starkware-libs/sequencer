@@ -54,27 +54,18 @@ impl MeasurementsTrait for BenchmarkMeasurements {
             .current_measurement
             .attempt_to_stop_measurement(action, entries_count)
             .expect("Failed to stop measurement");
-        info!(
-            "Time elapsed for {action:?} in iteration {}: {} milliseconds",
-            self.n_results(),
-            duration_in_seconds * 1000.0,
-        );
-
-        match action {
-            Action::Write => {
-                self.initial_db_entry_count.push(self.total_db_entry_count);
-                self.total_db_entry_count += entries_count;
-            }
-            Action::EndToEnd => {
-                self.total_time += duration_in_seconds;
-                self.block_number += 1;
-                self.block_measurements.push(take(&mut self.current_measurement.block_measurement));
-                self.time_of_measurement
-                    .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
-            }
-            _ => {}
-        }
+        self.update_aggregates_after_action(action, entries_count, duration_in_seconds);
         Ok(duration_in_seconds)
+    }
+
+    fn record_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+        duration_in_seconds: f64,
+    ) {
+        self.current_measurement.record_measurement(action, entries_count, duration_in_seconds);
+        self.update_aggregates_after_action(action, entries_count, duration_in_seconds);
     }
 
     fn set_number_of_modifications(
@@ -96,6 +87,36 @@ impl BenchmarkMeasurements {
             initial_db_entry_count: Vec::with_capacity(size),
             time_of_measurement: Vec::with_capacity(size),
             storage_stat_columns,
+        }
+    }
+
+    /// Updates the cross-block aggregate statistics after a measurement for `action` has been
+    /// finalized.
+    fn update_aggregates_after_action(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+        duration_in_seconds: f64,
+    ) {
+        info!(
+            "Time elapsed for {action:?} in iteration {}: {} milliseconds",
+            self.n_results(),
+            duration_in_seconds * 1000.0,
+        );
+
+        match action {
+            Action::Write => {
+                self.initial_db_entry_count.push(self.total_db_entry_count);
+                self.total_db_entry_count += entries_count;
+            }
+            Action::EndToEnd => {
+                self.total_time += duration_in_seconds;
+                self.block_number += 1;
+                self.block_measurements.push(take(&mut self.current_measurement.block_measurement));
+                self.time_of_measurement
+                    .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
+            }
+            _ => {}
         }
     }
 
