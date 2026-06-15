@@ -344,6 +344,53 @@ async fn proposals_from_different_rounds() {
     assert!(fin_receiver_future_round.now_or_never().is_none());
 }
 
+// Regression test: a round skip (e.g. round 1 times out) must not strand a queued future
+// proposal nor permanently poison the queue. Previously the round comparison in
+// set_height_and_round was inverted, so a queued proposal for a skipped past round caused an
+// early return that halted consensus liveness for the height.
+#[tokio::test]
+async fn skipped_round_does_not_block_future_proposal() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
+    let mut context = deps.build_context();
+    // Initialize the context for a specific height, starting with round 0.
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
+
+    let prop_part_txs =
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    let prop_part_fin = ProposalPart::Fin(ProposalFin {
+        proposal_commitment: *TEST_PROPOSAL_COMMITMENT,
+        executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+        fin_payload: Some(ProposalFinPayload::default()),
+    });
+
+    // Queue a proposal for round 1 (a future round while we are at round 0).
+    let (mut content_sender_round_1, content_receiver_round_1) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    content_sender_round_1.send(prop_part_txs.clone()).await.unwrap();
+    let fin_receiver_round_1 = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_1), TIMEOUT, content_receiver_round_1)
+        .await;
+
+    // Queue a proposal for round 2 (also a future round while we are at round 0).
+    let (mut content_sender_round_2, content_receiver_round_2) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    content_sender_round_2.send(prop_part_txs.clone()).await.unwrap();
+    content_sender_round_2.send(prop_part_fin.clone()).await.unwrap();
+    let fin_receiver_round_2 = context
+        .validate_proposal(proposal_init(HEIGHT_0, 2), TIMEOUT, content_receiver_round_2)
+        .await;
+
+    // Advance directly to round 2, skipping round 1 (e.g. round 1 timed out).
+    context.set_height_and_round(HEIGHT_0, 2).await.unwrap();
+
+    // The skipped round-1 proposal is discarded; its fin sender is dropped.
+    assert!(fin_receiver_round_1.await.is_err());
+    // The round-2 proposal is found in the queue and validated, proving the skipped past round
+    // did not poison the queue.
+    assert_eq!(fin_receiver_round_2.await.unwrap(), *TEST_PROPOSAL_COMMITMENT);
+}
+
 #[tokio::test]
 async fn interrupt_active_proposal() {
     let (mut deps, _network) = create_test_and_network_deps();
