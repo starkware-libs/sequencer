@@ -144,6 +144,25 @@ async fn test_network_error_returns_inconclusive() {
 }
 
 #[tokio::test]
+async fn test_non_success_status_without_error_field_returns_inconclusive() {
+    // A broken upstream may return a 5xx whose body lacks an `error` field. Without a status
+    // check this would deserialize to `Allowed` and bypass the operator's fail-close policy.
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/")
+        .with_status(500)
+        .with_body(r#"{"jsonrpc":"2.0","id":1}"#)
+        .create_async()
+        .await;
+
+    let client = client_for_server(&server);
+    let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
+
+    assert_eq!(result, BlockingCheckResult::Inconclusive);
+    mock.assert_async().await;
+}
+
+#[tokio::test]
 async fn test_malformed_response_returns_inconclusive() {
     let mut server = Server::new_async().await;
     let mock = server.mock("POST", "/").with_status(200).with_body("not json").create_async().await;
