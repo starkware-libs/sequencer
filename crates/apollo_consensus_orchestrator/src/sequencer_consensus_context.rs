@@ -71,6 +71,8 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -585,6 +587,9 @@ impl SequencerConsensusContext {
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
 
+        #[cfg(feature = "os_input")]
+        let state_commitment_infos = self.get_state_commitment_infos(height).await;
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -614,6 +619,8 @@ impl SequencerConsensusContext {
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                #[cfg(feature = "os_input")]
+                state_commitment_infos,
             })
             .await
         {
@@ -680,6 +687,22 @@ impl SequencerConsensusContext {
             }
         }
         recent_block_hashes
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos(
+        &self,
+        height: BlockNumber,
+    ) -> Option<StateCommitmentInfos> {
+        match self.deps.batcher.get_state_commitment_infos(height).await {
+            Ok(state_commitment_infos) => state_commitment_infos,
+            Err(err) => {
+                warn!(
+                    "Failed to get state commitment infos from batcher at height {height}: {err:?}"
+                );
+                None
+            }
+        }
     }
 }
 

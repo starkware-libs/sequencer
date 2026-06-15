@@ -760,6 +760,8 @@ fn central_blob() -> AerospikeBlob {
             BlockHashAndNumber { number: BlockNumber(1), hash: BlockHash(felt!("0x1")) },
             BlockHashAndNumber { number: BlockNumber(2), hash: BlockHash(felt!("0x2")) },
         ],
+        #[cfg(feature = "os_input")]
+        state_commitment_infos: None,
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -789,6 +791,8 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         proposal_commitment: ProposalCommitment(felt!("0x80020000")),
         parent_proposal_commitment: None,
         recent_block_hashes: vec![],
+        #[cfg(feature = "os_input")]
+        state_commitment_infos: None,
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
