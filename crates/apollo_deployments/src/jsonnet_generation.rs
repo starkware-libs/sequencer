@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_node_config::config_utils::config_to_preset;
-use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use jrsonnet_evaluator::trace::PathResolver;
 use jrsonnet_evaluator::{FileImportResolver, State};
 use serde_json::{Map, Value};
@@ -38,7 +38,47 @@ pub fn eval_build_with_overrides(layout: &str, overrides: &Value) -> Value {
 pub fn service_config_to_preset(service_config: &Value) -> Value {
     let parsed: SequencerNodeConfig = serde_json::from_value(service_config.clone())
         .expect("service config deserializes into SequencerNodeConfig");
-    config_to_preset(&serde_json::json!(parsed.dump()))
+    let mut preset = config_to_preset(&serde_json::json!(parsed.dump()));
+    unresolve_pointers(&mut preset);
+    preset
+}
+
+// TODO(Nimrod): Remove this (and its `service_config_to_preset` call) once the config-pointer
+// mechanism is removed.
+/// Jsonnet `build` writes config-pointer values at every pointing path (e.g. `chain_id` at each
+/// `…chain_info.chain_id`), but the node's loader resolves each pointer from a single target key.
+/// Rewrite the resolved form back to the target form (drop the pointing paths, emit the target) so
+/// the generator's output is node-loadable.
+fn unresolve_pointers(preset: &mut Value) {
+    let map = preset.as_object_mut().expect("preset is a JSON object");
+    for ((target, _param), pointing_paths) in CONFIG_POINTERS.iter() {
+        // A pointing path inside a `None` option carries that field's (ignored) default rather than
+        // the resolved value, so take the target value from an active (non-`None`) pointing path;
+        // fall back to any path if all are under `None` (the value is unused anyway).
+        let value = pointing_paths
+            .iter()
+            .filter(|path| !is_under_none_option(map, path))
+            .find_map(|path| map.get(path.as_str()).cloned())
+            .or_else(|| pointing_paths.iter().find_map(|path| map.get(path.as_str()).cloned()));
+        for path in pointing_paths {
+            map.remove(path.as_str());
+        }
+        if let Some(value) = value {
+            map.insert(target.clone(), value);
+        }
+    }
+}
+
+// TODO(Nimrod): Remove with `unresolve_pointers` once the config-pointer mechanism is removed (P4).
+/// True if `path` lies under an `Option` set to `None` (some ancestor has `<ancestor>.#is_none:
+/// true`).
+fn is_under_none_option(preset: &Map<String, Value>, path: &str) -> bool {
+    let parts: Vec<&str> = path.split(FIELD_SEPARATOR).collect();
+    (1..parts.len()).any(|end| {
+        let ancestor = parts[..end].join(FIELD_SEPARATOR);
+        preset.get(&format!("{ancestor}{FIELD_SEPARATOR}{IS_NONE_MARK}"))
+            == Some(&Value::Bool(true))
+    })
 }
 
 /// Evaluates a nested-overrides jsonnet/JSON file (relative to the jsonnet dir) to JSON.

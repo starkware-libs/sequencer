@@ -17,6 +17,7 @@ use crate::jsonnet_test::{
     assert_build_deserializes,
     assert_infra_matches_rust,
     test_applicative_matches_app_configs,
+    test_generator_config_is_node_loadable,
     test_generator_flat_input_matches_direct_build,
 };
 use crate::service::{NodeType, KEYS_TO_BE_REPLACED};
@@ -103,6 +104,15 @@ fn generator_flat_input_matches_direct_build() {
         .expect("Couldn't set working dir.");
 
     test_generator_flat_input_matches_direct_build();
+}
+
+/// Verifies the generator's flat output is node-loadable and round-trips through the node loader.
+#[test]
+fn generator_config_is_node_loadable() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_generator_config_is_node_loadable();
 }
 
 /// Test that the deployment file is up to date.

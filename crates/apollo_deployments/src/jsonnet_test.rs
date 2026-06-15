@@ -6,6 +6,7 @@ use apollo_node_config::config_utils::{config_to_preset, private_parameters};
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
+use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
 use crate::jsonnet_generation::{
@@ -14,6 +15,7 @@ use crate::jsonnet_generation::{
     eval_overrides_file,
     jsonnet_state,
     overrides_from_sequencer_config,
+    service_config_to_preset,
 };
 use crate::service::{GetComponentConfigs, NodeService, NodeType, KEYS_TO_BE_REPLACED};
 use crate::utils::is_path_prefix;
@@ -127,6 +129,59 @@ pub fn test_generator_flat_input_matches_direct_build() {
         eval_build_with_overrides("hybrid", &overrides_from_sequencer_config(&flat)),
         eval_test_build("hybrid"),
     );
+}
+
+/// The generator's flat output is node-loadable, valid, and faithful: for every hybrid service,
+/// feeding `service_config_to_preset` (the binary's output) through the node's real loader
+/// (`SequencerNodeConfig::load_and_process`, which resolves `CONFIG_POINTERS` + `#is_none`)
+/// reconstructs exactly the `SequencerNodeConfig` that `build` produced and passes
+/// `validate_node_config` — in particular the cross-member rule that each `<component>_config` is
+/// set iff that component runs locally, which is what the per-service-tailored `build` satisfies.
+/// Uses `testing/overrides`.
+pub fn test_generator_config_is_node_loadable() {
+    let built = eval_test_build("hybrid");
+    let services = built.as_object().unwrap();
+    for (service, config) in services {
+        let direct: SequencerNodeConfig = serde_json::from_value(config.clone()).unwrap();
+        let preset_file = NamedTempFile::new().unwrap();
+        let preset = service_config_to_preset(config);
+        std::fs::write(preset_file.path(), serde_json::to_string(&preset).unwrap()).unwrap();
+        let dummy_entrypoint = String::new();
+        let loaded = SequencerNodeConfig::load_and_process(vec![
+            dummy_entrypoint,
+            "--config_file".to_string(),
+            preset_file.path().to_str().unwrap().to_string(),
+        ])
+        .unwrap();
+
+        // Set dummy urls to pass the validation, other validations are done too.
+        let mut validated = loaded.clone();
+        validated.components.set_urls_to_localhost();
+        validated.validate_node_config().unwrap();
+
+        if direct != loaded {
+            // Find the exact differences between the two configs.
+            let mut direct_flat = BTreeMap::new();
+            flatten(&serde_json::to_value(&direct).unwrap(), "", &mut direct_flat);
+            let mut loaded_flat = BTreeMap::new();
+            flatten(&serde_json::to_value(&loaded).unwrap(), "", &mut loaded_flat);
+            let diffs: Vec<String> = direct_flat
+                .keys()
+                .chain(loaded_flat.keys())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .filter(|key| direct_flat.get(*key) != loaded_flat.get(*key))
+                .map(|key| {
+                    format!(
+                        "{key}: direct={:?} loaded={:?}",
+                        direct_flat.get(key),
+                        loaded_flat.get(key)
+                    )
+                })
+                .collect();
+            panic!("service {service} round-trip diffs:\n  {}", diffs.join("\n  "));
+        }
+    }
 }
 
 /// Asserts the applicative config emitted by jsonnet reproduces the committed `app_configs/*.json`
