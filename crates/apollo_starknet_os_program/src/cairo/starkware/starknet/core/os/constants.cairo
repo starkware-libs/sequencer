@@ -68,7 +68,17 @@ const STORED_BLOCK_HASH_BUFFER = 10;
 const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 = (
     0x03407278ca9b0b286f26f83750dd476af19491da55691e93269792e5aed503f0
 );
+<<<<<<< HEAD
 const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN = 1;
+=======
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1 = (
+    0x06ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2
+);
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2 = (
+    0x071b2cbda34c4c72ac01a2ab746b0ef64c8b46cf509f342df2cd140cc9d6c6d8
+);
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN = 3;
+>>>>>>> ff56b92853 (starknet_api,apollo_starknet_os_program: compute OS config hash with Blake from V0_14_3)
 
 // Gas constants.
 

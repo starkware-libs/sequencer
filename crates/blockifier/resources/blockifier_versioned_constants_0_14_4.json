@@ -127,10 +127,9 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
-            "0x3407278ca9b0b286f26f83750dd476af19491da55691e93269792e5aed503f0"
-        ],
-        "allowed_proof_versions": [
-            "0x50524f4f4631"
+            "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
+            "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2",
+            "0x71b2cbda34c4c72ac01a2ab746b0ef64c8b46cf509f342df2cd140cc9d6c6d8"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
@@ -227,7 +226,7 @@
     "os_resources": {
         "execute_syscalls": {
             "CallContract": {
-                "n_steps": 903,
+                "n_steps": 901,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 18
@@ -265,17 +264,17 @@
                 }
             },
             "EmitEvent": {
-                "n_steps": 61,
+                "n_steps": 47,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 }
             },
             "GetBlockHash": {
-                "n_steps": 107,
+                "n_steps": 106,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
-                    "range_check_builtin": 2
+                    "range_check_builtin": 3
                 }
             },
             "GetBlockNumber": {
@@ -296,7 +295,7 @@
                 }
             },
             "GetClassHashAt": {
-                "n_steps": 89,
+                "n_steps": 75,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
@@ -310,7 +309,7 @@
                 }
             },
             "GetExecutionInfo": {
-                "n_steps": 125,
+                "n_steps": 111,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 2
@@ -339,16 +338,16 @@
                 "builtin_instance_counter": {}
             },
             "KeccakRound": {
-                "n_steps": 281,
+                "n_steps": 223,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
-                    "range_check_builtin": 56,
+                    "range_check_builtin": 45,
                     "keccak_builtin": 1,
                     "bitwise_builtin": 6
                 }
             },
             "LibraryCall": {
-                "n_steps": 879,
+                "n_steps": 874,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 18
@@ -363,7 +362,7 @@
             },
             "MetaTxV0": {
                 "constant": {
-                    "n_steps": 1301,
+                    "n_steps": 1307,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 20,
@@ -379,7 +378,7 @@
                 }
             },
             "ReplaceClass": {
-                "n_steps": 106,
+                "n_steps": 92,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
@@ -456,14 +455,21 @@
                 }
             },
             "SendMessageToL1": {
-                "n_steps": 144,
-                "n_memory_holes": 0,
-                "builtin_instance_counter": {
-                    "range_check_builtin": 1
+                "constant": {
+                    "n_steps": 127,
+                    "n_memory_holes": 0,
+                    "builtin_instance_counter": {
+                        "range_check_builtin": 1
+                    }
+                },
+                "calldata_factor": {
+                    "n_steps": 6,
+                    "n_memory_holes": 0,
+                    "builtin_instance_counter": {}
                 }
             },
             "Sha256ProcessBlock": {
-                "n_steps": 1867,
+                "n_steps": 1854,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 65,

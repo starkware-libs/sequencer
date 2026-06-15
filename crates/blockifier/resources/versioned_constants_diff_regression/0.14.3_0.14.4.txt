@@ -1,0 +1,17 @@
+~ /os_resources/execute_syscalls/CallContract/n_steps: 901
+~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
+~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
+~ /os_resources/execute_syscalls/GetBlockHash/n_steps: 106
+~ /os_resources/execute_syscalls/GetClassHashAt/n_steps: 75
+~ /os_resources/execute_syscalls/GetExecutionInfo/n_steps: 111
+~ /os_resources/execute_syscalls/KeccakRound/builtin_instance_counter/range_check_builtin: 45
+~ /os_resources/execute_syscalls/KeccakRound/n_steps: 223
+~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
+~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1307
+~ /os_resources/execute_syscalls/ReplaceClass/n_steps: 92
++ /os_resources/execute_syscalls/SendMessageToL1/calldata_factor: {"builtin_instance_counter":{},"n_memory_holes":0,"n_steps":6}
++ /os_resources/execute_syscalls/SendMessageToL1/constant: {"builtin_instance_counter":{"range_check_builtin":1},"n_memory_holes":0,"n_steps":127}
+- /os_resources/execute_syscalls/SendMessageToL1/builtin_instance_counter
+- /os_resources/execute_syscalls/SendMessageToL1/n_memory_holes
+- /os_resources/execute_syscalls/SendMessageToL1/n_steps
+~ /os_resources/execute_syscalls/Sha256ProcessBlock/n_steps: 1854

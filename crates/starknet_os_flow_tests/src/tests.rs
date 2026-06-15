@@ -1287,7 +1287,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         .copied()
         .unwrap_or(0);
     expect![[r#"
-        553
+        560
     "#]]
     .assert_debug_eq(&blakes);
 

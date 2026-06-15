@@ -1,6 +1,13 @@
 {
+<<<<<<< HEAD
   "os": "0x6ca9b5d60ffa6def2406636ed2f20644a04c41114b3121bfb72e1eef29d02a3",
   "virtual_os": "0x3407278ca9b0b286f26f83750dd476af19491da55691e93269792e5aed503f0",
   "aggregator": "0x700786d51b3854af43d8e12180380bda3029be6c1767e007858de6ca2edac40",
   "aggregator_with_prefix": "0xe08d300e3f5996e43d6d7cc5a20068e0e58cf1309089f2348317ac580f6c1f"
+=======
+  "os": "0x4faf396d3d910b861288d6a4ac3cb6793280dbe07a9a8d012a53170cbf5983d",
+  "virtual_os": "0x71b2cbda34c4c72ac01a2ab746b0ef64c8b46cf509f342df2cd140cc9d6c6d8",
+  "aggregator": "0x59a2770c78cf2315ab381bdc328928bb957dac17ecfded7e8b35b1f505fa4da",
+  "aggregator_with_prefix": "0x280f8ffa80541495057295857e2f03d07b0f78a3273eaa81ed72f2a3bc08987"
+>>>>>>> ff56b92853 (starknet_api,apollo_starknet_os_program: compute OS config hash with Blake from V0_14_3)
 }

@@ -1,12 +1,13 @@
 use apollo_starknet_os_program::{OS_PROGRAM, PROGRAM_HASHES};
 use blockifier::abi::constants::{L1_TO_L2_MSG_HEADER_SIZE, L2_TO_L1_MSG_HEADER_SIZE};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use rstest::rstest;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
 use starknet_api::core::{
     GLOBAL_STATE_VERSION,
     L2_ADDRESS_UPPER_BOUND,
-    STARKNET_OS_CONFIG_HASH_VERSION,
+    STARKNET_OS_CONFIG_HASH_VERSION_V4,
 };
 use starknet_api::transaction::fields::{
     PROOF_VERSION_V1,
@@ -88,30 +89,32 @@ fn test_proof_version() {
     assert_eq!(Const::ProofVersionV1.fetch_from_os_program().unwrap(), PROOF_VERSION_V1);
 }
 
-/// Asserts that the Rust STARKNET_OS_CONFIG_HASH_VERSION constant matches the Cairo constant.
+/// Asserts that the Rust STARKNET_OS_CONFIG_HASH_VERSION_V4 constant matches the Cairo constant.
 #[test]
 fn test_starknet_os_config_hash_version() {
     assert_eq!(
         Const::StarknetOsConfigVersion.fetch_from_os_program().unwrap(),
-        STARKNET_OS_CONFIG_HASH_VERSION
+        STARKNET_OS_CONFIG_HASH_VERSION_V4
     );
 }
 
-/// Verifies that the virtual OS program hash from PROGRAM_HASHES is in the list of
-/// allowed virtual OS program hashes in the latest versioned constants.
-#[test]
-fn test_virtual_os_program_hash_is_allowed() {
+/// Verifies that the virtual OS program hash from PROGRAM_HASHES is in the list of allowed
+/// virtual OS program hashes for every version that runs the current virtual OS program.
+/// This includes `LATEST` and the OS-config-hash Blake cutover (V0_14_3): from the cutover
+/// onward, blocks are proven by the current (Blake) virtual OS program, so its hash must be
+/// allowed there too — otherwise proof-facts validation would reject those blocks.
+#[rstest]
+#[case::latest(StarknetVersion::LATEST)]
+#[case::os_config_hash_blake_cutover(StarknetVersion::V0_14_3)]
+fn test_virtual_os_program_hash_is_allowed(#[case] version: StarknetVersion) {
     let virtual_os_hash = PROGRAM_HASHES.virtual_os;
 
-    // Get the latest versioned constants
-    let latest_constants = VersionedConstants::get(&StarknetVersion::LATEST).unwrap();
-
-    // Check if the virtual OS program hash is in the allowed list
-    let allowed_hashes = &latest_constants.os_constants.allowed_virtual_os_program_hashes;
+    let versioned_constants = VersionedConstants::get(&version).unwrap();
+    let allowed_hashes = &versioned_constants.os_constants.allowed_virtual_os_program_hashes;
 
     assert!(
         allowed_hashes.contains(&virtual_os_hash),
-        "Virtual OS program hash {:#x} is not in the allowed list: {:?}",
+        "Virtual OS program hash {:#x} is not in the allowed list for {version}: {:?}",
         virtual_os_hash,
         allowed_hashes.iter().map(|h| format!("{:#x}", h)).collect::<Vec<_>>()
     );
