@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+#[cfg(feature = "os_input")]
+use std::collections::HashMap;
 use std::future::ready;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -61,7 +63,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 
+#[cfg(feature = "os_input")]
+use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
@@ -743,6 +749,48 @@ async fn decision_reached_sends_correct_values() {
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+}
+
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn decision_reached_attaches_state_commitment_infos_to_blob() {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    let state_commitment_infos = StateCommitmentInfos {
+        contracts_trie_commitment_info: CommitmentInfo::default(),
+        classes_trie_commitment_info: CommitmentInfo::default(),
+        storage_tries_commitment_infos: HashMap::new(),
+    };
+
+    let returned_infos = state_commitment_infos.clone();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .times(1)
+        .return_once(move |_| Ok(returned_infos));
+
+    deps.setup_deps_for_build(SetupDepsArgs::default());
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
+        move |blob_parameters| {
+            assert_eq!(
+                blob_parameters.recent_state_commitment_infos,
+                vec![StateCommitmentInfosAndNumber {
+                    state_commitment_infos,
+                    block_number: HEIGHT_0
+                }]
+            );
+            Ok(())
+        },
+    );
+
+    let mut context = deps.build_context();
+    let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
+    context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:

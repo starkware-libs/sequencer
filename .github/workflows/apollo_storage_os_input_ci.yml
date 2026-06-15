@@ -12,8 +12,11 @@ on:
       - ".github/workflows/apollo_storage_os_input_ci.yml"
       - "Cargo.lock"
       - "Cargo.toml"
+      - "crates/apollo_batcher/**"
+      - "crates/apollo_batcher_types/**"
       - "crates/apollo_committer/**"
       - "crates/apollo_committer_types/**"
+      - "crates/apollo_consensus_orchestrator/**"
       - "crates/apollo_storage/**"
       - "crates/apollo_config/**"
       - "crates/apollo_infra_utils/**"
@@ -65,5 +68,6 @@ jobs:
       - run: cargo test -p apollo_committer --features os_input
       - run: cargo build -p apollo_batcher --features os_input
       - run: cargo test -p apollo_batcher --features os_input
+      - run: cargo test -p apollo_consensus_orchestrator --features os_input,testing
       - run: cargo test -p apollo_reverts --features os_input
       - run: cargo test -p apollo_storage --features os_input
