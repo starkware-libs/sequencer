@@ -4,7 +4,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
+use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_node_config::config_utils::config_to_preset;
+use apollo_node_config::node_config::SequencerNodeConfig;
 use jrsonnet_evaluator::trace::PathResolver;
 use jrsonnet_evaluator::{FileImportResolver, State};
 use serde_json::{Map, Value};
@@ -22,14 +25,40 @@ pub(crate) fn jsonnet_state() -> State {
     builder.build()
 }
 
-/// Evaluates `build(layout, overrides)` and returns its JSON: a map from service name to that
-/// service's fully-assembled config.
-pub fn eval_build(layout: &str, overrides: &str) -> Value {
+/// Evaluates `build(layout, overrides)`.
+pub fn eval_build_with_overrides(layout: &str, overrides: &Value) -> Value {
+    let overrides_literal = serde_json::to_string(overrides).expect("overrides is serializable");
+    eval_build_with_expr(layout, &overrides_literal)
+}
+
+/// Renders one service's nested `build` output in the node-loadable flat dotted dump/preset format
+/// — the format `load_and_process_config` ingests, and the same shape today's ConfigMap uses (so
+/// the generator's output is a drop-in for the assembled config). Round-trips through
+/// `SequencerNodeConfig`.
+pub fn service_config_to_preset(service_config: &Value) -> Value {
+    let parsed: SequencerNodeConfig = serde_json::from_value(service_config.clone())
+        .expect("service config deserializes into SequencerNodeConfig");
+    config_to_preset(&serde_json::json!(parsed.dump()))
+}
+
+/// Evaluates a nested-overrides jsonnet/JSON file (relative to the jsonnet dir) to JSON.
+pub fn eval_overrides_file(overrides_path: &str) -> Value {
+    let state = jsonnet_state();
+    let _guard = state.enter();
+    let val = state
+        .evaluate_snippet("overrides_entry.jsonnet", format!("import '{overrides_path}'"))
+        .expect("overrides file failed to evaluate");
+    serde_json::to_value(&val).expect("overrides is not serializable")
+}
+
+/// Evaluates `build(layout, <overrides_expr>)`, where `overrides_expr` is a jsonnet expression for
+/// the overrides (a file `import` or an inlined JSON literal).
+pub(crate) fn eval_build_with_expr(layout: &str, overrides_expr: &str) -> Value {
     let state = jsonnet_state();
     let _guard = state.enter();
     let layout_literal = serde_json::to_string(layout).expect("layout is serializable");
     let snippet =
-        format!("(import 'lib/build.libsonnet').build({layout_literal}, import '{overrides}')");
+        format!("(import 'lib/build.libsonnet').build({layout_literal}, {overrides_expr})");
     let val = state
         .evaluate_snippet("build_entry.jsonnet", snippet)
         .expect("build.libsonnet failed to evaluate");
@@ -87,6 +116,8 @@ pub fn overrides_from_sequencer_config(flat: &BTreeMap<String, Value>) -> Value 
     Value::Object(root)
 }
 
+// TODO(Nimrod): Remove with `overrides_from_sequencer_config` once overrides are provided as a
+// nested JSON object.
 /// Inserts `value` at the dot-separated `path` within `root`, creating intermediate objects.
 fn insert_nested(root: &mut Map<String, Value>, path: &str, value: Value) {
     let mut current = root;

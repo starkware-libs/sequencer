@@ -8,7 +8,11 @@ use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
-use crate::jsonnet_generation::{eval_build, jsonnet_state, overrides_from_sequencer_config};
+use crate::jsonnet_generation::{
+    eval_build_with_expr,
+    jsonnet_state,
+    overrides_from_sequencer_config,
+};
 use crate::service::{GetComponentConfigs, NodeService, NodeType, KEYS_TO_BE_REPLACED};
 use crate::utils::is_path_prefix;
 
@@ -66,7 +70,7 @@ where
     let some_service: NodeService =
         S::iter().next().expect("a layout has at least one service").into();
     let layout = NodeType::from(&some_service).to_string();
-    let built = eval_build(&layout, "testing/overrides.libsonnet");
+    let built = eval_test_build(&layout);
     let services = built.as_object().expect("build result is a service-keyed object");
     assert!(!services.is_empty(), "build({layout}) produced no services");
 
@@ -80,6 +84,10 @@ where
     }
 }
 
+fn eval_test_build(layout: &str) -> Value {
+    eval_build_with_expr(layout, "import 'testing/overrides.libsonnet'")
+}
+
 /// Asserts the applicative config emitted by jsonnet reproduces the committed `app_configs/*.json`
 /// — the deployment's non-overridable value layer (loaded on top of `config_schema.json` at deploy)
 /// — for every key those files define. Excludes keys that are overridable, secret, or under
@@ -87,7 +95,7 @@ where
 pub fn test_applicative_matches_app_configs() {
     // Applicative side: the single consolidated `node` service carries every component's business
     // config; round-trip through the config struct and render it in the app_configs preset format.
-    let built = eval_build("consolidated", "testing/overrides.libsonnet");
+    let built = eval_test_build("consolidated");
     let node = built.get("node").expect("consolidated has a `node` service").clone();
     let parsed: SequencerNodeConfig =
         serde_json::from_value(node).expect("build output deserializes into SequencerNodeConfig");
