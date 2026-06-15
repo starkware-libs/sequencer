@@ -57,8 +57,9 @@ pub struct StarknetForestProofs {
     pub contracts_trie_storage_proofs: HashMap<ContractAddress, PreimageMap>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "deserialize", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CommitmentInfo {
     pub previous_root: HashOutput,
     pub updated_root: HashOutput,
@@ -84,7 +85,8 @@ impl Default for CommitmentInfo {
 }
 
 /// Contains all commitment information for a block's state trees.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[cfg_attr(feature = "deserialize", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StateCommitmentInfos {
     pub contracts_trie_commitment_info: CommitmentInfo,
     pub classes_trie_commitment_info: CommitmentInfo,
