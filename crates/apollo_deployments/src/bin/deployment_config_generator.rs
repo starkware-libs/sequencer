@@ -1,9 +1,10 @@
 //! Generates the non-secret deployment config for a layout from `build(layout, overrides)`.
 //!
 //! Reads the deploy's flat dotted `sequencerConfig` overrides from a JSON file, translates them
-//! into the nested `overrides` shape, evaluates `build(layout, overrides)`, and prints the
-//! resulting config JSON to stdout (the whole service-keyed map, or a single service with
-//! `--service`). Secrets are never produced here — they remain a separate mounted file.
+//! into the nested `overrides` shape, evaluates `build(layout, overrides)`, and prints each
+//! service's config in the node-loadable flat dotted format (the whole service-keyed map, or a
+//! single service with `--service`). Secrets are never produced here — they remain a separate
+//! mounted file.
 
 use std::collections::BTreeMap;
 use std::env;
@@ -12,6 +13,7 @@ use std::path::PathBuf;
 use apollo_deployments::jsonnet_generation::{
     eval_build_with_overrides,
     overrides_from_sequencer_config,
+    service_config_to_preset,
 };
 use apollo_deployments::service::NodeType;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -56,13 +58,20 @@ fn main() {
 
     let overrides = overrides_from_sequencer_config(&flat_overrides);
     let service_configs = eval_build_with_overrides(&args.layout, &overrides);
+    let services = service_configs.as_object().expect("build result is a service-keyed object");
 
     let output = match &args.service {
-        Some(service) => service_configs
-            .get(service)
-            .cloned()
-            .unwrap_or_else(|| panic!("layout '{}' has no service '{service}'", args.layout)),
-        None => service_configs,
+        Some(service) => service_config_to_preset(
+            services
+                .get(service)
+                .unwrap_or_else(|| panic!("layout '{}' has no service '{service}'", args.layout)),
+        ),
+        None => Value::Object(
+            services
+                .iter()
+                .map(|(name, config)| (name.clone(), service_config_to_preset(config)))
+                .collect(),
+        ),
     };
 
     println!("{}", serde_json::to_string_pretty(&output).expect("config is serializable"));
