@@ -22,16 +22,30 @@ pub(crate) fn jsonnet_state() -> State {
     builder.build()
 }
 
-/// Evaluates `build(layout, overrides)` and returns its JSON: a map from service name to that
-/// service's fully-assembled config. `layout` and the `overrides` fixture path are interpolated as
-/// jsonnet string literals via `serde_json` (JSON is a subset of jsonnet), so they are escaped and
-/// cannot break out of the literal regardless of their contents.
-pub fn eval_build(layout: &str, overrides: &str) -> Value {
+/// Evaluates `build(layout, import '<overrides_path>')` — the overrides come from a jsonnet/JSON
+/// file (relative to the jsonnet dir) — and returns its JSON: a map from service name to that
+/// service's fully-assembled config.
+pub fn eval_build(layout: &str, overrides_path: &str) -> Value {
+    eval_build_with_expr(layout, &format!("import '{overrides_path}'"))
+}
+
+/// Evaluates `build(layout, overrides)` with an in-memory nested `overrides` object, injected as a
+/// JSON literal (JSON is a subset of jsonnet).
+pub fn eval_build_with_overrides(layout: &str, overrides: &Value) -> Value {
+    let overrides_literal = serde_json::to_string(overrides).expect("overrides is serializable");
+    eval_build_with_expr(layout, &overrides_literal)
+}
+
+/// Evaluates `build(layout, <overrides_expr>)`, where `overrides_expr` is a jsonnet expression for
+/// the overrides (a file `import` or an inlined JSON literal). `layout` is interpolated as an
+/// escaped jsonnet string literal, so it cannot break out of the literal regardless of its
+/// contents.
+fn eval_build_with_expr(layout: &str, overrides_expr: &str) -> Value {
     let state = jsonnet_state();
     let _guard = state.enter();
     let layout_literal = serde_json::to_string(layout).expect("layout is serializable");
     let snippet =
-        format!("(import 'lib/build.libsonnet').build({layout_literal}, import '{overrides}')");
+        format!("(import 'lib/build.libsonnet').build({layout_literal}, {overrides_expr})");
     let val = state
         .evaluate_snippet("build_entry.jsonnet", snippet)
         .expect("build.libsonnet failed to evaluate");
