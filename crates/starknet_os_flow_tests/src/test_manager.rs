@@ -984,6 +984,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 prev_block_hash,
                 new_block_hash,
                 block_info,
+                starknet_version_override: None,
                 block_hash_commitments,
                 old_block_number_and_hash,
                 class_hashes_to_migrate: Vec::new(),

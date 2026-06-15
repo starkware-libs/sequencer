@@ -78,7 +78,7 @@ impl SierraVersion {
     /// Version of deprecated contract class (Cairo 0).
     pub const DEPRECATED: Self = Self(Version::new(0, 0, 0));
 
-    pub const LATEST: Self = Self(Version::new(1, 8, 0));
+    pub const LATEST: Self = Self(Version::new(1, 9, 0));
 
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self(Version::new(major, minor, patch))
@@ -139,6 +139,12 @@ impl FromStr for SierraVersion {
 impl From<(u64, u64, u64)> for SierraVersion {
     fn from((major, minor, patch): (u64, u64, u64)) -> Self {
         Self::new(major, minor, patch)
+    }
+}
+
+impl Display for SierraVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}.{}", self.0.major, self.0.minor, self.0.patch)
     }
 }
 

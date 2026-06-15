@@ -29,6 +29,7 @@ use serde_json::{json, Value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -44,11 +45,7 @@ use crate::errors::{
     ReexecutionResult,
 };
 use crate::retry_request;
-use crate::serde_utils::{
-    deserialize_transaction_json_to_starknet_api_tx,
-    hashmap_from_raw,
-    nested_hashmap_from_raw,
-};
+use crate::serde_utils::{hashmap_from_raw, nested_hashmap_from_raw};
 use crate::state_reader::config::RpcStateReaderConfig;
 use crate::state_reader::offline_state_reader::{
     SerializableDataBaseBlock,

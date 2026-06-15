@@ -168,16 +168,40 @@ impl Display for ErrorStack {
         let error_stack_str = self.stack.iter().map(String::from).join("\n");
 
         // When the trace string is too long, trim it in a way that keeps both the beginning and
-        // end.
+        // end. The cut points are snapped to char boundaries: trace content includes
+        // contract/VM-controlled strings (revert reasons, error attributes), so a multi-byte
+        // UTF-8 character straddling a raw byte index would panic the formatter.
         let final_str = if error_stack_str.len() > TRACE_LENGTH_CAP + TRACE_EXTRA_CHARS_SLACK {
-            error_stack_str[..(TRACE_LENGTH_CAP / 2)].to_string()
-                + "\n\n...\n\n"
-                + &error_stack_str[(error_stack_str.len() - TRACE_LENGTH_CAP / 2)..]
+            let half_cap = TRACE_LENGTH_CAP / 2;
+            let head_end = floor_char_boundary(&error_stack_str, half_cap);
+            let tail_start = ceil_char_boundary(&error_stack_str, error_stack_str.len() - half_cap);
+            error_stack_str[..head_end].to_string() + "\n\n...\n\n" + &error_stack_str[tail_start..]
         } else {
             error_stack_str
         };
         write!(f, "{}{}", self.header, final_str)
     }
+}
+
+/// Returns the largest index `<= idx` that lies on a `char` boundary of `s` (or `s.len()` if `idx`
+/// is past the end). Replacement for the unstable `str::floor_char_boundary`.
+fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
+    if idx >= s.len() {
+        return s.len();
+    }
+    while !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    idx
+}
+
+/// Returns the smallest index `>= idx` that lies on a `char` boundary of `s` (or `s.len()` if no
+/// such index exists below the end). Replacement for the unstable `str::ceil_char_boundary`.
+fn ceil_char_boundary(s: &str, mut idx: usize) -> usize {
+    while idx < s.len() && !s.is_char_boundary(idx) {
+        idx += 1;
+    }
+    idx
 }
 
 impl ErrorStack {

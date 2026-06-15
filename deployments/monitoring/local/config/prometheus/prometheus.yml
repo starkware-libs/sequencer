@@ -9,4 +9,8 @@ scrape_configs:
    metrics_path: /monitoring/metrics
    static_configs:
     - targets:
-       - sequencer_node:8082
+       - sequencer-node-0:8082
+       - sequencer-node-1:8082
+       - sequencer-node-2:8082
+       - sequencer-node-3:8082
+       - sequencer-node-4:8082

@@ -2,11 +2,11 @@ use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::utils::get_chain_info;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, GasPrice, GasPricePerToken, StarknetVersion};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -15,6 +15,8 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::virtual_block_executor::{
+    starknet_version_or_latest,
+    BaseBlockInfo,
     RpcVirtualBlockExecutor,
     RpcVirtualBlockExecutorConfig,
     VirtualBlockExecutor,
@@ -265,4 +267,92 @@ fn test_execute_rejected_by_tight_bouncer_limits(
         VirtualBlockExecutorError::TransactionExecutionError(msg)
             if msg.contains("Transaction size exceeds the maximum block capacity")
     );
+}
+
+/// Returns a block header with the given version string and nonzero gas prices (zero gas prices
+/// fail the `BlockInfo` conversion).
+fn block_header_with_version(starknet_version: &str) -> BlockHeader {
+    let nonzero_gas_price =
+        GasPricePerToken { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
+    BlockHeader {
+        starknet_version: starknet_version.to_string(),
+        l1_gas_price: nonzero_gas_price,
+        l1_data_gas_price: nonzero_gas_price,
+        l2_gas_price: nonzero_gas_price,
+        ..Default::default()
+    }
+}
+
+/// Verifies that the base block info keeps the raw version string for the OS while falling back
+/// to the latest known version for execution when the block's version is newer than this binary.
+#[rstest]
+#[case::known_version("0.14.2", StarknetVersion::V0_14_2)]
+#[case::unknown_newer_version("0.20.0", StarknetVersion::LATEST)]
+fn test_base_block_info_starknet_version_handling(
+    #[case] version_string: &str,
+    #[case] expected_execution_version: StarknetVersion,
+    #[values(true, false)] use_latest_versioned_constants: bool,
+) {
+    let base_block_info = BaseBlockInfo::new(
+        block_header_with_version(version_string),
+        get_chain_info(&ChainId::Mainnet, None),
+        use_latest_versioned_constants,
+    )
+    .unwrap();
+
+    assert_eq!(base_block_info.raw_starknet_version, version_string);
+    assert_eq!(
+        base_block_info.block_context.block_info().starknet_version,
+        expected_execution_version
+    );
+}
+
+#[rstest]
+#[case::non_numeric_version("not.a.version")]
+#[case::unknown_old_version("0.13.7")]
+fn test_base_block_info_rejects_invalid_version(#[case] version_string: &str) {
+    let base_block_info_result = BaseBlockInfo::new(
+        block_header_with_version(version_string),
+        get_chain_info(&ChainId::Mainnet, None),
+        true,
+    );
+    assert!(base_block_info_result.is_err());
+}
+
+/// Verifies the version-string parsing of `starknet_version_or_latest`: known version strings
+/// parse to their exact variant, and strings strictly newer than `LATEST` fall back to `LATEST`.
+#[rstest]
+#[case::known_three_segment_version("0.13.2", StarknetVersion::V0_13_2)]
+#[case::known_four_segment_version("0.13.1.1", StarknetVersion::V0_13_1_1)]
+#[case::newer_minor_version("0.15.0", StarknetVersion::LATEST)]
+#[case::newer_major_version("1.0.0", StarknetVersion::LATEST)]
+fn test_starknet_version_or_latest_parsing(
+    #[case] version_string: &str,
+    #[case] expected_version: StarknetVersion,
+) {
+    assert_eq!(starknet_version_or_latest(version_string).unwrap(), expected_version);
+}
+
+/// The exact `LATEST` version string must parse back to `LATEST`, regardless of which version
+/// that currently is.
+#[test]
+fn test_starknet_version_or_latest_roundtrips_latest() {
+    assert_eq!(
+        starknet_version_or_latest(&StarknetVersion::LATEST.to_string()).unwrap(),
+        StarknetVersion::LATEST
+    );
+}
+
+/// Verifies that `starknet_version_or_latest` rejects malformed version strings and unknown
+/// versions that are not newer than `LATEST` (only newer-than-`LATEST` versions fall back).
+#[rstest]
+#[case::unknown_older_version("0.13.7")]
+#[case::truncated_latest_version("0.14")]
+#[case::non_numeric_version("not.a.version")]
+#[case::empty_string("")]
+#[case::segment_exceeding_u8("0.14.300")]
+#[case::trailing_dot("0.14.3.")]
+#[case::release_candidate_suffix("0.15.0-rc.1")]
+fn test_starknet_version_or_latest_rejects_invalid_version(#[case] version_string: &str) {
+    assert!(starknet_version_or_latest(version_string).is_err());
 }

@@ -21,6 +21,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -116,6 +117,9 @@ impl RawVersionedConstants {
 pub struct RawOsConstants {
     // Allowed virtual OS program hashes for client-side proving.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+
+    // Proof fact version markers (felts) accepted under this protocol version.
+    pub allowed_proof_versions: Vec<Felt>,
 
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
@@ -1198,6 +1202,9 @@ pub struct OsConstants {
     // Allowed virtual OS program hashes for client-side proving.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
 
+    // Proof fact version markers (felts) accepted under this protocol version.
+    pub allowed_proof_versions: Vec<Felt>,
+
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
     pub default_entry_point_selector: EntryPointSelector,
@@ -1281,6 +1288,7 @@ impl OsConstants {
             allowed_virtual_os_program_hashes: raw_constants
                 .allowed_virtual_os_program_hashes
                 .clone(),
+            allowed_proof_versions: raw_constants.allowed_proof_versions.clone(),
             constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
             default_entry_point_selector: raw_constants.default_entry_point_selector,
             execute_entry_point_selector: raw_constants.execute_entry_point_selector,
