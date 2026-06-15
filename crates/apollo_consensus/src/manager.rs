@@ -211,6 +211,10 @@ pub struct EquivocationVoteReport {
     pub new_vote: Vote,
 }
 
+/// Number of vote types a validator can cast per round ([`VoteType::Prevote`] and
+/// [`VoteType::Precommit`]). Used to bound the future-vote cache.
+const NUM_VOTE_TYPES: usize = 2;
+
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
 struct ConsensusCache<ContextT: ConsensusContext> {
@@ -221,6 +225,9 @@ struct ConsensusCache<ContextT: ConsensusContext> {
         BTreeMap<BlockNumber, BTreeMap<Round, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     /// Configuration for determining which messages should be cached.
     future_msg_limit: FutureMsgLimitsConfig,
+    /// Size of the committee of the most recent height we ran. Used to bound the number of cached
+    /// future votes (see `cache_future_vote`). `0` until the first height sets it.
+    committee_size: usize,
 }
 
 impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
@@ -229,12 +236,18 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
             future_votes: BTreeMap::new(),
             future_proposals_cache: BTreeMap::new(),
             future_msg_limit,
+            committee_size: 0,
         }
     }
 
     /// Update the future message limits configuration.
     fn set_future_msg_limit(&mut self, future_msg_limit: FutureMsgLimitsConfig) {
         self.future_msg_limit = future_msg_limit;
+    }
+
+    /// Update the committee size used to bound the future-vote cache.
+    fn set_committee_size(&mut self, committee_size: usize) {
+        self.committee_size = committee_size;
     }
 
     /// Filters the cached messages:
@@ -286,8 +299,20 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
         self.get_current_height_proposals(height);
     }
 
+    /// Maximum number of future votes cached per height: the number of distinct, non-equivocating
+    /// votes an honest full committee can produce across the cached future rounds
+    /// (`committee_size * NUM_VOTE_TYPES * rounds`). Returns `0` when the committee size is not yet
+    /// known, which disables the cap.
+    fn future_votes_cap(&self) -> usize {
+        let cached_rounds = usize::try_from(self.future_msg_limit.future_height_round_limit)
+            .expect("future_height_round_limit should fit in usize")
+            + 1;
+        self.committee_size.saturating_mul(NUM_VOTE_TYPES).saturating_mul(cached_rounds)
+    }
+
     /// Caches a vote for a future height.
     fn cache_future_vote(&mut self, vote: Vote) -> Result<(), Box<EquivocationVoteReport>> {
+        let cap = self.future_votes_cap();
         let votes = self.future_votes.entry(vote.height).or_default();
         // Find a vote in the list with the same type, round, and voter. If found, do not add it to
         // list.
@@ -306,8 +331,25 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
                 }))
             }
         } else {
-            // If no duplicate vote was found, we add the vote to the list.
-            votes.push(vote);
+            // Bound the cache to what an honest committee could produce. Since vote signatures are
+            // not yet verified, a peer can forge votes with arbitrary voter addresses; without this
+            // cap that would grow `future_votes` without bound and exhaust memory. `cap == 0` means
+            // the committee size is not yet known, in which case we don't cap.
+            if cap == 0 || votes.len() < cap {
+                // There is room (or the cap is not yet known): add the vote to the list.
+                votes.push(vote);
+            } else {
+                // TODO(Matan): once the network expands beyond the current trusted set, rate-limit
+                // this log (e.g. `trace_every_n_ms!`) so that dropping votes can't itself be used
+                // as a log-flood DoS.
+                warn!(
+                    height = vote.height.0,
+                    round = vote.round,
+                    voter = ?vote.voter,
+                    cap,
+                    "Dropping future vote: per-height cache cap reached."
+                );
+            }
             Ok(())
         }
     }
@@ -616,6 +658,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             .map_err(|e| ConsensusError::CommitteeError(e.to_string()))?;
 
         let validators: Vec<_> = committee.members().iter().map(|s| s.address).collect();
+        // Bound the future-vote cache by this height's committee size. Committee size is stable
+        // across nearby heights, so it's a sound bound for the (near-future) heights we cache.
+        self.cache.set_committee_size(validators.len());
         let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
         IS_OBSERVER.set(if is_observer { 1.0 } else { 0.0 });
         info!(
