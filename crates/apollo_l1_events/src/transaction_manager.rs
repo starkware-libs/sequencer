@@ -148,10 +148,11 @@ impl TransactionManager {
             self.with_record(tx_hash, |r| r.mark_committed()).unwrap();
         }
         for &tx_hash in rejected_txs {
-            self.with_record(tx_hash, |r| r.mark_rejected()).expect(
-                "Storage inconsistency: a transaction sent to the batcher was removed \
-                 unexpectedly.",
-            );
+            // A proposer may include fake or unknown L1 handler transactions that were never
+            // scraped locally; treat missing records as a no-op rather than crashing.
+            if self.with_record(tx_hash, |r| r.mark_rejected()).is_none() {
+                warn!("Rejected L1 handler transaction {tx_hash} not found in records; ignoring.");
+            }
         }
     }
 
