@@ -1,14 +1,6 @@
 {
-<<<<<<< HEAD
-  "os": "0x2c0f1c7ff190c6efb9f586bbbf7575b982e0391e2ddf03ca919b72d8be5e2f3",
-  "virtual_os": "0x65f41fa333ab7a6f65b5259a0b6fba24a912ba937652faba34c93f71bb1c00a",
-||||||| b392cf22a9
-  "os": "0x783b9a9b8e6204534cd82ea7a594892bff6c44e0cc7cbbc09698e9c66ec9784",
-  "virtual_os": "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2",
-=======
-  "os": "0x6ca9b5d60ffa6def2406636ed2f20644a04c41114b3121bfb72e1eef29d02a3",
-  "virtual_os": "0x3407278ca9b0b286f26f83750dd476af19491da55691e93269792e5aed503f0",
->>>>>>> origin/main-v0.14.3
+  "os": "0x724e734c7ba51a61634f7e4aaf3c7efe71e09da59de328326dd07697b71aad6",
+  "virtual_os": "0x18b277f22918f093cd200673128c74d932fcd984b31cf7c80b6ecdd0f1f5ce0",
   "aggregator": "0x700786d51b3854af43d8e12180380bda3029be6c1767e007858de6ca2edac40",
   "aggregator_with_prefix": "0xe08d300e3f5996e43d6d7cc5a20068e0e58cf1309089f2348317ac580f6c1f"
 }
