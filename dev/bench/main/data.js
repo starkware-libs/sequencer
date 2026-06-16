@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781534334412,
+  "lastUpdate": 1781593978244,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5881,6 +5881,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1763.4353717899999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8f81ba8b4e55436929a894cd5668af798ba987fc",
+          "message": "starknet_committer,apollo_storage: add shared StateCommitmentInfos compression codec (#14468)\n\nAdd StateCommitmentInfos::compress/decompress (bincode + zstd) and a\nStateCommitmentInfosCodecError on starknet_committer, and use them from\napollo_storage's StorageSerde impl in place of its local compress/decompress\nhelpers and inline bincode. A From<StateCommitmentInfosCodecError> for\nStorageSerdeError preserves the underlying Bincode/Io variant.\n\napollo_storage/os_input now enables starknet_committer/os_input for the codec.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T06:49:21Z",
+          "tree_id": "0fc9a135f7becb6b4e71b8e312bcf7279ca92bf4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8f81ba8b4e55436929a894cd5668af798ba987fc"
+        },
+        "date": 1781593977828,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1031.54195678,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1362.79848696,
             "unit": "ms"
           }
         ]
