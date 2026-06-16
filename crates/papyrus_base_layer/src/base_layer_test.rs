@@ -4,6 +4,7 @@ use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use pretty_assertions::assert_eq;
+use url::Url;
 
 use crate::eth_events::{create_l1_event_data, felt_max_u256, u256_exceeds_felt};
 use crate::ethereum_base_layer_contract::{
@@ -100,6 +101,37 @@ async fn get_gas_price_and_timestamps() {
     // Roughly e ** (BLOB_GAS / eip7691::BLOB_GASPRICE_UPDATE_FRACTION_PECTRA)
     let expected_pectra_blob_calc = 7;
     assert_eq!(header.blob_fee, expected_pectra_blob_calc);
+}
+
+#[tokio::test]
+async fn test_cycle_wraps_to_primary_through_full_list() {
+    let primary_url = Url::parse("http://primary-endpoint.test/").unwrap();
+    let secondary_url = Url::parse("http://secondary-endpoint.test/").unwrap();
+    let tertiary_url = Url::parse("http://tertiary-endpoint.test/").unwrap();
+    let config = EthereumBaseLayerConfig {
+        ordered_l1_endpoint_urls: vec![
+            primary_url.clone().into(),
+            secondary_url.clone().into(),
+            tertiary_url.clone().into(),
+        ],
+        ..Default::default()
+    };
+    let mut base_layer = EthereumBaseLayerContract::new(config);
+
+    // The live provider starts on the primary (first) endpoint.
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), primary_url);
+
+    // First cycle moves to the secondary endpoint.
+    base_layer.cycle_provider_url().await.unwrap();
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), secondary_url);
+
+    // Second cycle moves to the tertiary endpoint.
+    base_layer.cycle_provider_url().await.unwrap();
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), tertiary_url);
+
+    // Third cycle wraps back to the primary endpoint.
+    base_layer.cycle_provider_url().await.unwrap();
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), primary_url);
 }
 
 #[test]
