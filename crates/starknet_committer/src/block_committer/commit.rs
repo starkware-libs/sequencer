@@ -5,6 +5,8 @@ use std::time::Instant;
 #[cfg(feature = "os_input")]
 use starknet_api::core::GlobalRoot;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+#[cfg(feature = "os_input")]
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_types_core::felt::Felt;
@@ -40,9 +42,9 @@ use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 #[cfg(feature = "os_input")]
 use crate::patricia_merkle_tree::tree::SortedLeavesRequest;
-#[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::StarknetForestProofs;
 use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
 
 pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
@@ -84,6 +86,7 @@ pub struct CommitBlockWithWitnessesOutput {
     pub filled_forest: FilledForest,
     pub deleted_nodes: DeletedNodes,
     pub patricia_proofs: StarknetForestProofs,
+    pub state_commitment_infos: StateCommitmentInfos,
     pub global_root: GlobalRoot,
 }
 
@@ -188,13 +191,31 @@ where
         )
         .ok();
 
+    // Capture each accessed contract's pre-commit storage root before merging the proofs:
+    // `extend` overwrites the pre-commit contract leaves with the post-commit ones, after which
+    // only the post-commit storage roots remain recoverable from the merged proof.
+    let previous_storage_roots: HashMap<ContractAddress, HashOutput> = patricia_proofs
+        .contracts_trie_proof
+        .leaves
+        .iter()
+        .map(|(address, contract_state)| (*address, contract_state.storage_root_hash))
+        .collect();
+
     patricia_proofs.extend(proof_after);
 
-    let global_root = filled_forest.state_roots().global_root();
+    let state_commitment_infos = StateCommitmentInfos::from_commit_witnesses(
+        &pre_roots,
+        &post_roots,
+        &previous_storage_roots,
+        &patricia_proofs,
+    );
+
+    let global_root = post_roots.global_root();
     Ok(CommitBlockWithWitnessesOutput {
         filled_forest,
         deleted_nodes,
         patricia_proofs,
+        state_commitment_infos,
         global_root,
     })
 }
