@@ -92,6 +92,9 @@ pub trait BaseLayerContract {
     async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error>;
     async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error>;
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error>;
+    /// Resets the provider to the primary (first) endpoint. This is a no-op if the provider is
+    /// already on the primary endpoint.
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.

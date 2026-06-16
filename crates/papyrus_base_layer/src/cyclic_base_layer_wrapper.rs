@@ -1,4 +1,5 @@
 use std::ops::RangeInclusive;
+use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
@@ -15,11 +16,24 @@ pub mod cyclic_base_layer_wrapper_test;
 #[derive(Debug)]
 pub struct CyclicBaseLayerWrapper<B: BaseLayerContract + Send + Sync> {
     base_layer: B,
+    retry_primary_interval: Duration,
+    last_primary_retry: std::time::Instant,
 }
 
 impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
-    pub fn new(base_layer: B) -> Self {
-        Self { base_layer }
+    pub fn new(base_layer: B, retry_primary_interval: Duration) -> Self {
+        Self { base_layer, retry_primary_interval, last_primary_retry: std::time::Instant::now() }
+    }
+
+    // If the retry-primary interval has elapsed, attempt to revert to the primary endpoint so a
+    // recovered primary is used again. Resets the timer regardless, to keep a fixed cadence and
+    // avoid thrashing.
+    async fn retry_primary_if_due(&mut self) -> Result<(), B::Error> {
+        if self.last_primary_retry.elapsed() >= self.retry_primary_interval {
+            self.last_primary_retry = std::time::Instant::now();
+            self.base_layer.reset_provider_url_to_primary().await?;
+        }
+        Ok(())
     }
 
     // Check the result of a function call to the base layer. If it fails, cycle the URL and signal
@@ -69,6 +83,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
         &mut self,
         l1_block: L1BlockNumber,
     ) -> Result<BlockHashAndNumber, Self::Error> {
+        self.retry_primary_if_due().await?;
         let start_url = self.base_layer.get_url().await?;
         loop {
             let result = self.base_layer.get_proved_block_at(l1_block).await;
@@ -79,6 +94,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
     }
 
     async fn latest_l1_block_number(&mut self) -> Result<L1BlockNumber, Self::Error> {
+        self.retry_primary_if_due().await?;
         let start_url = self.base_layer.get_url().await?;
         loop {
             let result = self.base_layer.latest_l1_block_number().await;
@@ -92,6 +108,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
         &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockReference>, Self::Error> {
+        self.retry_primary_if_due().await?;
         let start_url = self.base_layer.get_url().await?;
         loop {
             let result = self.base_layer.l1_block_at(block_number).await;
@@ -106,6 +123,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error> {
+        self.retry_primary_if_due().await?;
         let start_url = self.base_layer.get_url().await?;
         loop {
             let result = self.base_layer.events(block_range.clone(), event_identifiers).await;
@@ -119,6 +137,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
         &mut self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error> {
+        self.retry_primary_if_due().await?;
         let start_url = self.base_layer.get_url().await?;
         loop {
             let result = self.base_layer.get_block_header(block_number).await;
@@ -128,6 +147,8 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
         }
     }
 
+    // Takes &self so it cannot cycle or retry endpoints; callers needing resilience use the &mut
+    // self methods.
     async fn get_block_header_immutable(
         &self,
         block_number: L1BlockNumber,
@@ -145,5 +166,9 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for CyclicBaseLayerWr
 
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
         self.base_layer.cycle_provider_url().await
+    }
+
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error> {
+        self.base_layer.reset_provider_url_to_primary().await
     }
 }
