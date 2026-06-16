@@ -344,6 +344,53 @@ async fn proposals_from_different_rounds() {
     assert!(fin_receiver_future_round.now_or_never().is_none());
 }
 
+// Regression test: a round skip (e.g. round 1 times out) must not strand a queued future
+// proposal nor permanently poison the queue. Previously the round comparison in
+// set_height_and_round was inverted, so a queued proposal for a skipped past round caused an
+// early return that halted consensus liveness for the height.
+#[tokio::test]
+async fn skipped_round_does_not_block_future_proposal() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
+    let mut context = deps.build_context();
+    // Initialize the context for a specific height, starting with round 0.
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
+
+    let prop_part_txs =
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    let prop_part_fin = ProposalPart::Fin(ProposalFin {
+        proposal_commitment: *TEST_PROPOSAL_COMMITMENT,
+        executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+        fin_payload: Some(ProposalFinPayload::default()),
+    });
+
+    // Queue a proposal for round 1 (a future round while we are at round 0).
+    let (mut content_sender_round_1, content_receiver_round_1) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    content_sender_round_1.send(prop_part_txs.clone()).await.unwrap();
+    let fin_receiver_round_1 = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_1), TIMEOUT, content_receiver_round_1)
+        .await;
+
+    // Queue a proposal for round 2 (also a future round while we are at round 0).
+    let (mut content_sender_round_2, content_receiver_round_2) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    content_sender_round_2.send(prop_part_txs.clone()).await.unwrap();
+    content_sender_round_2.send(prop_part_fin.clone()).await.unwrap();
+    let fin_receiver_round_2 = context
+        .validate_proposal(proposal_init(HEIGHT_0, 2), TIMEOUT, content_receiver_round_2)
+        .await;
+
+    // Advance directly to round 2, skipping round 1 (e.g. round 1 timed out).
+    context.set_height_and_round(HEIGHT_0, 2).await.unwrap();
+
+    // The skipped round-1 proposal is discarded; its fin sender is dropped.
+    assert!(fin_receiver_round_1.await.is_err());
+    // The round-2 proposal is found in the queue and validated, proving the skipped past round
+    // did not poison the queue.
+    assert_eq!(fin_receiver_round_2.await.unwrap(), *TEST_PROPOSAL_COMMITMENT);
+}
+
 #[tokio::test]
 async fn interrupt_active_proposal() {
     let (mut deps, _network) = create_test_and_network_deps();
@@ -743,6 +790,55 @@ async fn decision_reached_sends_correct_values() {
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+}
+
+// The blob's `parent_proposal_commitment` must bind the parent block's `fee_proposal_fri`, which
+// is read from `fee_proposals_window`. Build/decide at HEIGHT_1 so the parent (HEIGHT_0) exists,
+// seed the window with a parent fee distinct from the current block's, and assert the blob carries
+// the V0_14_3 commitment `Poseidon(partial_block_hash, parent_fee_proposal)`.
+#[tokio::test]
+async fn blob_parent_proposal_commitment_binds_parent_fee_proposal() {
+    const PARENT_FEE_PROPOSAL: GasPrice = GasPrice(5_000_000_000);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT_1, ..Default::default() });
+
+    deps.batcher.expect_decision_reached().times(1).return_once(move |_| {
+        Ok(DecisionReachedResponse {
+            central_objects: CentralObjects {
+                parent_proposal_commitment: Some(BatcherProposalCommitment {
+                    partial_block_hash: PARTIAL_BLOCK_HASH,
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    });
+
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+
+    let expected_parent_commitment =
+        proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(PARENT_FEE_PROPOSAL));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
+        move |params| {
+            assert_eq!(params.proposal_commitment, *TEST_PROPOSAL_COMMITMENT);
+            assert_eq!(params.parent_proposal_commitment, Some(expected_parent_commitment));
+            Ok(())
+        },
+    );
+
+    let mut context = deps.build_context();
+
+    let _fin = context
+        .build_proposal(BuildParam { height: HEIGHT_1, ..Default::default() }, TIMEOUT)
+        .await
+        .unwrap()
+        .await;
+    // Seed the parent fee after building, so the current block still uses the default fee_proposal.
+    context.fee_proposals_window.insert(HEIGHT_0, Some(PARENT_FEE_PROPOSAL));
+
+    context.decision_reached(HEIGHT_1, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:

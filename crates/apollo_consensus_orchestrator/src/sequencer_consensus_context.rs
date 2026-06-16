@@ -1091,14 +1091,17 @@ impl ConsensusContext for SequencerConsensusContext {
         let mut to_process = None;
         while let Some(entry) = self.queued_proposals.first_entry() {
             match self.current_round.cmp(entry.key()) {
-                std::cmp::Ordering::Less => {
+                // The queued proposal is for a past round; drop it and keep scanning.
+                std::cmp::Ordering::Greater => {
                     entry.remove();
                 }
+                // The queued proposal is for the current round; take it and stop.
                 std::cmp::Ordering::Equal => {
                     to_process = Some(entry.remove());
                     break;
                 }
-                std::cmp::Ordering::Greater => return Ok(()),
+                // The queued proposal is for a future round; preserve it for later.
+                std::cmp::Ordering::Less => break,
             }
         }
         // Validate the proposal for the current round if exists.

@@ -9,7 +9,6 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Pedersen, StarkHash as StarkHashTrait};
 
 use crate::block::{
     BlockHash,
@@ -23,7 +22,7 @@ use crate::block::{
     StarknetVersion,
 };
 use crate::contract_class::{ContractClass, SierraVersion};
-use crate::core::{ChainId, ContractAddress, Nonce, STARKNET_OS_CONFIG_HASH_VERSION};
+use crate::core::{ChainId, ContractAddress, Nonce, OsChainInfo};
 use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
@@ -35,18 +34,22 @@ use crate::transaction::fields::{
     ProofFacts,
     ResourceBounds,
     ValidResourceBounds,
-    PROOF_VERSION_V0,
+    PROOF_VERSION_V1,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
 use crate::transaction::{Transaction, TransactionHash};
 
-/// OS config hash for testing.
-/// This is the Pedersen hash of [STARKNET_OS_CONFIG_HASH_VERSION, chain_id, strk_fee_token_address]
+/// OS config hash for testing, matching what a test `BlockContext` (which uses
+/// `StarknetVersion::LATEST`) computes for `CHAIN_ID_FOR_TESTS` and `TEST_ERC20_CONTRACT_ADDRESS2`.
+/// Computed via the production function so it stays in sync with the version-gated hash logic.
 pub static TEST_OS_CONFIG_HASH: LazyLock<Felt> = LazyLock::new(|| {
-    let chain_id_felt: Felt = (&*CHAIN_ID_FOR_TESTS).try_into().unwrap();
-    let strk_fee_token_address: Felt = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2).into();
-    Pedersen::hash_array(&[STARKNET_OS_CONFIG_HASH_VERSION, chain_id_felt, strk_fee_token_address])
+    OsChainInfo {
+        chain_id: CHAIN_ID_FOR_TESTS.clone(),
+        strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
+    }
+    .compute_virtual_os_config_hash(StarknetVersion::LATEST)
+    .unwrap()
 });
 use crate::{contract_address, felt};
 
@@ -413,7 +416,7 @@ impl ProofFacts {
         // These fields are not verified by the OS (they are application-related).
         let l2_to_l1_messages_segment_size = Felt::ZERO;
         proof_facts![
-            PROOF_VERSION_V0,
+            PROOF_VERSION_V1,
             VIRTUAL_SNOS,
             program_hash,
             VIRTUAL_OS_OUTPUT_VERSION,

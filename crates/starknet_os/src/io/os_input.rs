@@ -50,6 +50,11 @@ pub struct OsBlockInput {
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
     pub declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
     pub block_info: BlockInfo,
+    // When set, the OS recomputes the block hash from this exact version string instead of
+    // `block_info.starknet_version`. Required when the block's on-chain version is newer than the
+    // latest known `StarknetVersion` variant.
+    #[cfg_attr(feature = "deserialize", serde(default))]
+    pub starknet_version_override: Option<String>,
     pub block_hash_commitments: BlockHeaderCommitments,
     pub prev_block_hash: BlockHash,
     pub new_block_hash: BlockHash,

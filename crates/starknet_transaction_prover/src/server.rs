@@ -43,6 +43,9 @@ pub use health::{HealthLayer, HEALTH_PATH};
 mod rpc_spec_test;
 
 #[cfg(test)]
+mod request_body_size_test;
+
+#[cfg(test)]
 #[path = "server/ohttp_integration_test.rs"]
 mod ohttp_integration_test;
 

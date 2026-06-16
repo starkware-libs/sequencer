@@ -152,9 +152,20 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
                 .expect("Failed to construct get latest received block URL"),
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-                .build(),
+            // Bound each attempt by the max retry interval. Without a per-attempt timeout
+            // `RetryTransientMiddleware` only retries attempts that *return* a transient error, so
+            // a request that hangs against a slow recorder would block until the build deadline
+            // instead of being retried. Capping an attempt at the backoff's upper bound turns such
+            // a hang into a timeout error the retry policy can act on, while leaving room for
+            // multiple attempts within `max_retry_duration_secs`.
+            client: ClientBuilder::new(
+                reqwest::Client::builder()
+                    .timeout(cende_config.max_retry_interval_ms)
+                    .build()
+                    .expect("Failed to build cende recorder client"),
+            )
+            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+            .build(),
             class_manager,
         }
     }

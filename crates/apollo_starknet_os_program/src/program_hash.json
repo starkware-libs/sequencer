@@ -1,6 +1,18 @@
 {
+<<<<<<< HEAD
   "os": "0x2c0f1c7ff190c6efb9f586bbbf7575b982e0391e2ddf03ca919b72d8be5e2f3",
   "virtual_os": "0x65f41fa333ab7a6f65b5259a0b6fba24a912ba937652faba34c93f71bb1c00a",
   "aggregator": "0x700786d51b3854af43d8e12180380bda3029be6c1767e007858de6ca2edac40",
   "aggregator_with_prefix": "0xe08d300e3f5996e43d6d7cc5a20068e0e58cf1309089f2348317ac580f6c1f"
+||||||| b392cf22a9
+  "os": "0x783b9a9b8e6204534cd82ea7a594892bff6c44e0cc7cbbc09698e9c66ec9784",
+  "virtual_os": "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2",
+  "aggregator": "0x700786d51b3854af43d8e12180380bda3029be6c1767e007858de6ca2edac40",
+  "aggregator_with_prefix": "0xe08d300e3f5996e43d6d7cc5a20068e0e58cf1309089f2348317ac580f6c1f"
+=======
+  "os": "0x46f93875b62cb80d59a129df06e3274fcc731dbb90fb301716d5fecb43bdaf8",
+  "virtual_os": "0x53f6c9fcfd31d27279ff7d7e422b44623550a732b59fe193354a7316a96daa1",
+  "aggregator": "0x3e4ce8340259e374200ed856e597a0c0b268d1021119d33573d7c759c5320f9",
+  "aggregator_with_prefix": "0x2526c12112a2d7f57f7ae74af7be1fe1b2766e4c34b0c88ceda16b70ed2d6c2"
+>>>>>>> origin/main-v0.14.3
 }
