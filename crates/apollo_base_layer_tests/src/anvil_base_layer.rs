@@ -267,6 +267,10 @@ impl BaseLayerContract for AnvilBaseLayer {
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
     }
+
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 /// Converts a given [L1 handler transaction](starknet_api::transaction::L1HandlerTransaction)
