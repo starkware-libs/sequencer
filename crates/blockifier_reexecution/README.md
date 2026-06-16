@@ -143,11 +143,16 @@ cargo run --bin blockifier_reexecution write-to-file -n <node_url> -b <block_num
 cargo run --bin blockifier_reexecution upload-files -b <block_number_1> ... <block_number_n>
 ```
 
-- 3. Add the block numbers to the file `block_numbers_for_reexecution.json`
+- 3. Add the block numbers to the static lists in `cli.rs`: a version block goes in
+  `REEXECUTION_BLOCK_PER_VERSION` (tagged with its `StarknetVersion`), a transaction/RPC example
+  goes in `REEXECUTION_EXAMPLE_BLOCKS`.
 
-- 4. Add the block numbers to the cases in the test `test_block_reexecution`
+- 4. Add the block numbers to the cases in the test `test_block_reexecution`, and to
+  `REEXECUTION_TEST_CASE_BLOCK_NUMBERS` next to it.
 
-To remove blocks from the reexecution tests, simply remove the corresponding block numbers from the file `block_numbers_for_reexecution.json` and remove the corresponding test cases from the test `test_block_reexecution`.
+To remove blocks from the reexecution tests, remove the corresponding entries from the static lists in `cli.rs` and the corresponding test cases (and `REEXECUTION_TEST_CASE_BLOCK_NUMBERS` entries) in `test_block_reexecution`.
+
+Two unit tests guard these lists: `test_reexecution_cases_match_block_numbers` ensures the test cases and the block lists stay in sync, and `test_all_starknet_versions_are_reexecuted` ensures every Starknet version (except the latest two) has a re-execution block.
 
 ## Changing Reexecution Files' Format
 If the files format changes, all the offline reexecution files need to be re-uploaded to the GC bucket. Since files cannot be overwritten in the GC bucket (for backwards compatibility), this requires uploading to a new folder, which is determined by the prefix hash in the file `offline_reexecution_files_prefix`. 

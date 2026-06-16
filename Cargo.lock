@@ -3875,6 +3875,7 @@ dependencies = [
  "starknet-core",
  "starknet-types-core",
  "starknet_api",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

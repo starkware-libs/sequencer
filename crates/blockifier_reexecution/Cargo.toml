@@ -41,6 +41,7 @@ cairo-lang-starknet-classes.workspace = true
 mockito.workspace = true
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+strum.workspace = true
 
 [lints]
 workspace = true

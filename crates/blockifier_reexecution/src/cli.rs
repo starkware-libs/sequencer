@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-use std::fs::read_to_string;
-
 use clap::{Args, Parser, Subcommand};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{chain_id_from_hex_str, ChainId};
 
 use crate::errors::{ReexecutionError, ReexecutionResult};
@@ -196,21 +193,54 @@ pub struct GlobalOptions {}
 pub fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber> {
     block_numbers
         .map(|block_numbers| block_numbers.into_iter().map(BlockNumber).collect())
-        .unwrap_or_else(|| get_block_numbers_for_reexecution(None))
+        .unwrap_or_else(get_block_numbers_for_reexecution)
 }
 
-/// Returns the block numbers for re-execution.
-/// There is a block number for each Starknet Version (starting v0.13)
-/// And some additional blocks with specific transactions.
-pub fn get_block_numbers_for_reexecution(relative_path: Option<String>) -> Vec<BlockNumber> {
-    let file_path = relative_path.unwrap_or_default()
-        + &(FULL_RESOURCES_DIR.to_string() + "/../block_numbers_for_reexecution.json");
-    let block_numbers_examples: HashMap<String, u64> =
-        serde_json::from_str(&read_to_string(file_path.clone()).unwrap_or_else(|_| {
-            panic!("Failed to read the block_numbers_for_reexecution file at {file_path}")
-        }))
-        .expect("Failed to deserialize block header");
-    block_numbers_examples.values().cloned().map(BlockNumber).collect()
+/// A mainnet block re-executed for each supported Starknet version.
+/// Multiple blocks may map to the same version; that is allowed. Every version from
+/// [`StarknetVersion::V0_13_0`] up to (but not including) the latest two must appear here -
+/// enforced by `test_all_starknet_versions_are_reexecuted`. The latest two versions are exempt
+/// because a freshly released version may not have a mainnet block to re-execute yet.
+pub static REEXECUTION_BLOCK_PER_VERSION: &[(StarknetVersion, BlockNumber)] = &[
+    (StarknetVersion::V0_13_0, BlockNumber(600001)),
+    (StarknetVersion::V0_13_1, BlockNumber(620978)),
+    (StarknetVersion::V0_13_1_1, BlockNumber(649367)),
+    (StarknetVersion::V0_13_2, BlockNumber(685878)),
+    (StarknetVersion::V0_13_2_1, BlockNumber(700000)),
+    (StarknetVersion::V0_13_3, BlockNumber(1000000)),
+    (StarknetVersion::V0_13_4, BlockNumber(1257000)),
+    (StarknetVersion::V0_13_5, BlockNumber(1300000)),
+    (StarknetVersion::V0_13_6, BlockNumber(1743490)),
+    (StarknetVersion::V0_14_0, BlockNumber(2509604)),
+    (StarknetVersion::V0_14_1, BlockNumber(4448394)),
+    // A second 0.14.1 block, covering the sierra-gas revert path.
+    (StarknetVersion::V0_14_1, BlockNumber(6481044)),
+    (StarknetVersion::V0_14_2, BlockNumber(9023035)),
+];
+
+/// Additional blocks exercising specific transaction types or RPC versions. These are extra
+/// coverage and are not tied to Starknet-version coverage; the label documents what each exercises.
+pub static REEXECUTION_EXAMPLE_BLOCKS: &[(&str, BlockNumber)] = &[
+    ("first_0.13.5_rpc_v0_8", BlockNumber(1400000)),
+    ("second_0.13.5_rpc_v0_8", BlockNumber(1450000)),
+    ("invoke_with_replace_class_syscall", BlockNumber(780008)),
+    ("invoke_with_deploy_syscall", BlockNumber(870136)),
+    ("deploy_account_v1", BlockNumber(837408)),
+    ("deploy_account_v3", BlockNumber(837792)),
+    ("declare_v1", BlockNumber(837461)),
+    ("declare_v2", BlockNumber(822636)),
+    ("declare_v3", BlockNumber(825013)),
+    ("l1_handler", BlockNumber(868429)),
+];
+
+/// Returns all block numbers for re-execution: one (or more) per Starknet version (starting v0.13)
+/// plus some additional blocks with specific transactions.
+pub fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
+    REEXECUTION_BLOCK_PER_VERSION
+        .iter()
+        .map(|(_version, block_number)| *block_number)
+        .chain(REEXECUTION_EXAMPLE_BLOCKS.iter().map(|(_label, block_number)| *block_number))
+        .collect()
 }
 
 pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
