@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,7 +20,9 @@ use tracing::{debug, warn};
 /// Caches commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
 pub struct Catchupper {
-    pub target_height: BlockNumber,
+    // Shared with the running sync task (rather than passed by value) so the target can be raised
+    // while the task is in flight; see `update_target_height`.
+    pub target_height: Arc<AtomicU64>,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
@@ -49,13 +51,13 @@ impl Catchupper {
             n_sync_health_check_failures: Default::default(),
             // This is overriden when starting the sync task (e.g., when provider starts
             // catching up).
-            target_height: BlockNumber(0),
+            target_height: Default::default(),
         }
     }
 
     /// Check if the caller has caught up with the catchupper.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        let is_caught_up = current_provider_height > self.target_height;
+        let is_caught_up = current_provider_height > self.target_height();
 
         self.sync_task_health_check(is_caught_up);
 
@@ -86,7 +88,8 @@ impl Catchupper {
         current_provider_height: BlockNumber,
         target_height: BlockNumber,
     ) {
-        self.target_height = target_height;
+        // Fresh shared target for this task; cloned into the task below so it shares the same cell.
+        self.target_height = Arc::new(AtomicU64::new(target_height.0));
         // FIXME: spawning a task like this is evil.
         // However, we aren't using the task executor, so no choice :(
         // Once we start using a centralized threadpool, spawn through it instead of the
@@ -95,7 +98,7 @@ impl Catchupper {
             self.l1_events_provider_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
-            target_height,
+            self.target_height.clone(),
             self.sync_retry_interval,
         ));
 
@@ -103,7 +106,18 @@ impl Catchupper {
     }
 
     pub fn target_height(&self) -> BlockNumber {
-        self.target_height
+        BlockNumber(self.target_height.load(Ordering::SeqCst))
+    }
+
+    /// Raises the target height of the running sync task so it keeps syncing up to `target_height`.
+    /// Uses `fetch_max` so the target only moves forward; a lower height is ignored.
+    pub fn update_target_height(&self, target_height: BlockNumber) {
+        self.target_height.fetch_max(target_height.0, Ordering::SeqCst);
+    }
+
+    /// Returns true while an L2 sync task is in flight (spawned and not yet finished).
+    pub fn is_sync_task_running(&self) -> bool {
+        matches!(&self.sync_task_handle, SyncTaskHandle::Started(sync_task) if !sync_task.is_finished())
     }
 
     fn sync_task_health_check(&self, is_caught_up: bool) {
@@ -129,7 +143,7 @@ impl Catchupper {
 
 impl PartialEq for Catchupper {
     fn eq(&self, other: &Self) -> bool {
-        self.target_height == other.target_height
+        self.target_height() == other.target_height()
             && self.commit_block_backlog == other.commit_block_backlog
     }
 }
@@ -139,7 +153,7 @@ impl Eq for Catchupper {}
 impl std::fmt::Debug for Catchupper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Catchupper")
-            .field("target_height", &self.target_height)
+            .field("target_height", &self.target_height())
             .field("commit_block_backlog", &self.commit_block_backlog)
             .field("sync_task_handle", &self.sync_task_handle)
             .finish_non_exhaustive()
@@ -150,14 +164,18 @@ async fn l2_sync_task(
     l1_events_provider_client: SharedL1EventsProviderClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
-    target_height: BlockNumber,
+    target_height: Arc<AtomicU64>,
     retry_interval: Duration,
 ) {
-    while current_height <= target_height {
+    // The target is re-read every iteration so an `update_target_height` call from the provider
+    // (a higher block committed before catch-up finishes) extends this same task instead of
+    // spawning a competing one.
+    while current_height.0 <= target_height.load(Ordering::SeqCst) {
         // TODO(Gilad): add tracing instrument.
         debug!(
             "Syncing L1EventsProvider with L2 height: {} to target height: {}",
-            current_height, target_height
+            current_height,
+            target_height.load(Ordering::SeqCst)
         );
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
 
