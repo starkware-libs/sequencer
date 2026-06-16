@@ -24,6 +24,11 @@
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY"
   },
+  "base_layer_config.retry_primary_interval_seconds": {
+    "description": "The interval (seconds) after which the next base-layer access retries the primary (first) endpoint.",
+    "privacy": "Public",
+    "value": 60
+  },
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "privacy": "Public",

@@ -134,6 +134,35 @@ async fn test_cycle_wraps_to_primary_through_full_list() {
     assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), primary_url);
 }
 
+#[tokio::test]
+async fn test_reset_provider_url_to_primary_repoints_live_provider() {
+    let primary_url = Url::parse("http://primary-endpoint.test/").unwrap();
+    let secondary_url = Url::parse("http://secondary-endpoint.test/").unwrap();
+    let tertiary_url = Url::parse("http://tertiary-endpoint.test/").unwrap();
+    let config = EthereumBaseLayerConfig {
+        ordered_l1_endpoint_urls: vec![
+            primary_url.clone().into(),
+            secondary_url.clone().into(),
+            tertiary_url.clone().into(),
+        ],
+        ..Default::default()
+    };
+    let mut base_layer = EthereumBaseLayerContract::new(config);
+
+    // Cycle twice to land on the tertiary endpoint.
+    base_layer.cycle_provider_url().await.unwrap();
+    base_layer.cycle_provider_url().await.unwrap();
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), tertiary_url);
+
+    // Reset to primary.
+    base_layer.reset_provider_url_to_primary().await.unwrap();
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), primary_url);
+
+    // Calling reset again when already on primary is a no-op.
+    base_layer.reset_provider_url_to_primary().await.unwrap();
+    assert_eq!(base_layer.get_url().await.unwrap().expose_secret(), primary_url);
+}
+
 #[test]
 fn create_l1_event_data_rejects_out_of_range_inputs() {
     let oversized = felt_max_u256() + U256::from(1_u8);
