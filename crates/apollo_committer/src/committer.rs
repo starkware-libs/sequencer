@@ -651,6 +651,11 @@ fn update_metrics(
         modifications_counts,
         #[cfg(feature = "os_input")]
         fetched_witnesses_count,
+        // TODO(Yoav): Remove the ".." where os_input becomes default.
+        // It is needed now for including `BlockMeasurement::fetched_witnesses_count` where
+        // `starknet_committer/os_input` is enabled by other crates, while
+        // `apollo_committer/os_input` is disabled.
+        ..
     }: &BlockMeasurement,
 ) {
     BLOCKS_COMMITTED.increment(1);

@@ -84,11 +84,14 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
@@ -3032,7 +3035,7 @@ async fn test_load_bottom() {
 async fn test_initial_empty_block() {
     let empty_initial_state = InitialState {
         updatable_state: DictStateReader::default(),
-        commitment_storage: Default::default(),
+        commitment_storage: IndexDb::new(MapStorage::default()),
         contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
         classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
         block_context: block_context_for_flow_tests(BlockNumber(0), false),

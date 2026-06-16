@@ -33,11 +33,11 @@ use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_N
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
-use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::index_db::IndexDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_transaction_prover::running::committer_utils::{
-    commit_state_diff,
+    commit_state_diff_to_index_db,
     state_maps_to_committer_state_diff,
 };
 use starknet_types_core::felt::Felt;
@@ -126,7 +126,7 @@ impl ExecutedContracts {
 
 pub(crate) struct InitialState<S: FlowTestState> {
     pub(crate) updatable_state: S,
-    pub(crate) commitment_storage: MapStorage,
+    pub(crate) commitment_storage: IndexDb<MapStorage>,
     // Current patricia roots.
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
@@ -280,19 +280,12 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
-) -> (StateRoots, MapStorage) {
-    let mut facts_db = FactsDb::new(MapStorage::default());
-    let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
-    let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
-    let state_roots = commit_state_diff(
-        &mut facts_db,
-        contract_trie_root,
-        classes_trie_root,
-        committer_state_diff,
-    )
-    .await
-    .expect("Failed to commit initial state diff.");
-    (state_roots, facts_db.consume_storage())
+) -> (StateRoots, IndexDb<MapStorage>) {
+    let mut index_db = IndexDb::new(MapStorage::default());
+    let state_roots = commit_state_diff_to_index_db(&mut index_db, committer_state_diff)
+        .await
+        .expect("Failed to commit initial state diff.");
+    (state_roots, index_db)
 }
 
 pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {

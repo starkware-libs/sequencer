@@ -36,7 +36,7 @@ starknet_os = { workspace = true, features = ["include_program_output", "testing
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 starknet_proof_verifier.workspace = true
-starknet_transaction_prover.workspace = true
+starknet_transaction_prover = { workspace = true, features = ["os_input"] }
 strum.workspace = true
 tokio.workspace = true
 
