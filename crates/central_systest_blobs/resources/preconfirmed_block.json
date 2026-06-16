@@ -73,26 +73,12 @@
         "storage_diffs": {
           "0x5945fa70ed44e5f6e5b56c59763dd3d6a8725ebce6f7448b0452f7cd6085056": [
             {
-<<<<<<< HEAD
-              "key": "0x2cbac7495ce24b399327e9282b09d029b1dd772b24b7e8dcd0467fedab5af58",
-              "value": "0xfffffffffffffffffffffffff98c284b"
-||||||| b392cf22a9
-              "key": "0x2cbac7495ce24b399327e9282b09d029b1dd772b24b7e8dcd0467fedab5af58",
-              "value": "0xfffffffffffffffffffffffff98b7243"
-=======
               "key": "0x262297cdc07010b3a84c11fb5224bbd39d5ea01fcdf82a261e6d6d5536cbede",
-              "value": "0xfffffffffffffffffffffffff98f3243"
->>>>>>> origin/main-v0.14.3
+              "value": "0xfffffffffffffffffffffffff98fe84b"
             },
             {
               "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
-<<<<<<< HEAD
-              "value": "0x673d7b4"
-||||||| b392cf22a9
-              "value": "0x6748dbc"
-=======
-              "value": "0x670cdbc"
->>>>>>> origin/main-v0.14.3
+              "value": "0x67017b4"
             }
           ]
         }
