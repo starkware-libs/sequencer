@@ -1265,24 +1265,12 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-<<<<<<< HEAD
-            65
-||||||| b392cf22a9
             66
-=======
-            67
->>>>>>> origin/main-v0.14.3
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-<<<<<<< HEAD
-            56
-||||||| b392cf22a9
             57
-=======
-            58
->>>>>>> origin/main-v0.14.3
         "#]]
         .assert_debug_eq(&poseidons);
     }
@@ -1296,13 +1284,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         .copied()
         .unwrap_or(0);
     expect![[r#"
-<<<<<<< HEAD
-        558
-||||||| b392cf22a9
-        553
-=======
-        555
->>>>>>> origin/main-v0.14.3
+        560
     "#]]
     .assert_debug_eq(&blakes);
 
