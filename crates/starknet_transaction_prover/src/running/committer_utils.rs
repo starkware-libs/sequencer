@@ -1,11 +1,18 @@
 use std::collections::HashSet;
 use std::hash::BuildHasher;
 
+#[cfg(feature = "os_input")]
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps, StorageDiff, StorageView};
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::commit::commit_block;
+#[cfg(feature = "os_input")]
+use starknet_committer::block_committer::commit::{
+    commit_block_with_witnesses,
+    CommitBlockWithWitnessesOutput,
+};
 use starknet_committer::block_committer::input::{
     Input,
     ReaderConfig,
@@ -18,9 +25,15 @@ use starknet_committer::db::facts_db::db::{FactDbFilledNode, FactsDb};
 use starknet_committer::db::facts_db::node_serde::{PatriciaPrefix, FACT_LAYOUT_DB_KEY_SEPARATOR};
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
+#[cfg(feature = "os_input")]
+use starknet_committer::db::index_db::{IndexDb, IndexDbReadContext};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
@@ -333,4 +346,49 @@ pub async fn commit_state_diff(
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
     })
+}
+
+/// Commits the state diff, collects the OS-input Patricia witness paths, and returns the new state
+/// roots together with the [`StateCommitmentInfos`] needed by the OS.
+#[cfg(feature = "os_input")]
+pub async fn commit_state_diff_with_witnesses(
+    index_db: &mut IndexDb<MapStorage>,
+    state_diff: StateDiff,
+    accessed_keys: &AccessedKeys,
+) -> Result<(StateRoots, StateCommitmentInfos), ProofProviderError> {
+    let warn_on_trivial_modifications = false;
+    let build_storage_tries_concurrently = false; // Map storage is used, no need for concurrency.
+    let config = ReaderConfig::new(warn_on_trivial_modifications, build_storage_tries_concurrently);
+    let input = Input { state_diff, initial_read_context: IndexDbReadContext, config };
+
+    let mut leaves_request = LeavesRequest::from(accessed_keys);
+    let sorted_leaves = leaves_request.sorted();
+
+    let CommitBlockWithWitnessesOutput {
+        filled_forest,
+        deleted_nodes: _,
+        state_commitment_infos,
+        global_root: _,
+    } = commit_block_with_witnesses(input, &sorted_leaves, index_db, &mut NoMeasurements)
+        .await
+        .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
+    index_db.write(&filled_forest).await?;
+
+    let state_roots = StateRoots {
+        contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
+        classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
+    };
+    Ok((state_roots, state_commitment_infos))
+}
+
+/// Commits the state diff (without collecting witnesses), persists the new forest, and returns the
+/// new state roots.
+#[cfg(feature = "os_input")]
+pub async fn commit_state_diff_to_index_db(
+    index_db: &mut IndexDb<MapStorage>,
+    state_diff: StateDiff,
+) -> Result<StateRoots, ProofProviderError> {
+    let (state_roots, _state_commitment_infos) =
+        commit_state_diff_with_witnesses(index_db, state_diff, &AccessedKeys::default()).await?;
+    Ok(state_roots)
 }
