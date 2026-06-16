@@ -96,28 +96,38 @@ pub(crate) struct FinalBlockCommitment {
 
 pub(crate) struct TaskTimer {
     pub(crate) commit: HashMap<BlockNumber, Instant>,
+    #[cfg(feature = "os_input")]
+    pub(crate) read_paths_and_commit_block: HashMap<BlockNumber, Instant>,
     pub(crate) revert: HashMap<BlockNumber, Instant>,
 }
 
 impl TaskTimer {
     pub(crate) fn new() -> Self {
-        Self { commit: HashMap::new(), revert: HashMap::new() }
+        Self {
+            commit: HashMap::new(),
+            #[cfg(feature = "os_input")]
+            read_paths_and_commit_block: HashMap::new(),
+            revert: HashMap::new(),
+        }
+    }
+
+    /// Returns the timer map for the given task label.
+    fn map_for_label(
+        &mut self,
+        task: CommitterRequestLabelValue,
+    ) -> &mut HashMap<BlockNumber, Instant> {
+        match task {
+            CommitterRequestLabelValue::CommitBlock => &mut self.commit,
+            #[cfg(feature = "os_input")]
+            CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
+                &mut self.read_paths_and_commit_block
+            }
+            CommitterRequestLabelValue::RevertBlock => &mut self.revert,
+        }
     }
 
     pub(crate) fn start_timer(&mut self, task: CommitterRequestLabelValue, height: BlockNumber) {
-        let instant = Instant::now();
-        match task {
-            CommitterRequestLabelValue::CommitBlock => {
-                self.commit.insert(height, instant);
-            }
-            #[cfg(feature = "os_input")]
-            CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
-                self.commit.insert(height, instant);
-            }
-            CommitterRequestLabelValue::RevertBlock => {
-                self.revert.insert(height, instant);
-            }
-        }
+        self.map_for_label(task).insert(height, Instant::now());
     }
 
     /// Returns the duration of the task in milliseconds.
@@ -126,15 +136,7 @@ impl TaskTimer {
         task: CommitterRequestLabelValue,
         height: BlockNumber,
     ) -> Option<u128> {
-        let map = match task {
-            CommitterRequestLabelValue::CommitBlock => &mut self.commit,
-            #[cfg(feature = "os_input")]
-            CommitterRequestLabelValue::ReadPathsAndCommitBlock => &mut self.commit,
-            CommitterRequestLabelValue::RevertBlock => &mut self.revert,
-        };
-
-        let instant = map.remove(&height);
-        let Some(instant) = instant else {
+        let Some(instant) = self.map_for_label(task).remove(&height) else {
             warn!(
                 "Can't stop timer for {task:?} task for block number {height} because timer was \
                  never started."
