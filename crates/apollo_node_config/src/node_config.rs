@@ -47,7 +47,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 use crate::component_config::{ComponentConfig, ValidateTxIngestionComponentsDisabled};
-use crate::component_execution_config::ExpectedComponentConfig;
+use crate::component_execution_config::{ExpectedComponentConfig, ReactiveComponentExecutionMode};
 use crate::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
@@ -554,6 +554,28 @@ impl SequencerNodeConfig {
             sierra_compiler_config
         );
         validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
+
+        // The config manager is a local infrastructure component: every node runs its own instance
+        // and its consumers (e.g. the mempool) reach it over an in-process channel. Allowing it to
+        // run remotely would turn the per-request `get_*_dynamic_config` calls into network RPCs,
+        // where a transient failure would crash the consuming component. Enforce here that it is
+        // never exposed over (or reached over) the network so that client is always local.
+        match self.components.config_manager.execution_mode {
+            ReactiveComponentExecutionMode::Remote
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                return Err(ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: format!(
+                        "config_manager must run locally without a remote server (execution mode \
+                         must be Disabled or LocalExecutionWithRemoteDisabled), but is {:?}. It \
+                         is a local infrastructure component and must be co-located with its \
+                         consumers.",
+                        self.components.config_manager.execution_mode
+                    ),
+                });
+            }
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::Disabled => {}
+        }
 
         // Validate proposer_idle_detection_delay < batcher_deadline.
         // The batcher_deadline = proposal_timeout - build_proposal_margin.
