@@ -128,8 +128,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Adds a task to the tasks channel. If the tasks channel is full, the behavior depends on the
     /// config: if `panic_if_task_channel_full` is true, it will panic; otherwise, it will retry
-    /// after reading results from the tasks channel. Any other error when sending the task will
-    /// also cause a panic.
+    /// after reading results from the tasks channel.
+    /// Any other error when sending the task will also cause a panic.
     async fn add_task_with_retries<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,

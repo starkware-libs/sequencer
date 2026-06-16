@@ -63,9 +63,6 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::db::facts_db::FactsDb;
-use starknet_committer::db::forest_trait::StorageInitializer;
-use starknet_os::commitment_infos::build_state_commitment_infos;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
@@ -79,7 +76,7 @@ use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_transaction_prover::running::committer_utils::{
-    commit_state_diff,
+    commit_state_diff_with_witnesses,
     commitment_state_diff_to_committer_state_diff,
     state_maps_to_committer_state_diff,
 };
@@ -859,15 +856,14 @@ impl<S: FlowTestState> TestBuilder<S> {
         // TODO(Yoni): make this func sync.
         let mut os_block_inputs = vec![];
         let mut state = CachedState::new(self.initial_state.updatable_state);
-        let mut map_storage = self.initial_state.commitment_storage;
+        let mut commitment_db = self.initial_state.commitment_storage;
         let base_block_context = self.initial_state.block_context;
 
-        // The state roots updated after each block.
+        // The initial state roots, used for block-hash computation in virtual OS mode.
         let base_block_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
-        let mut previous_state_roots = base_block_state_roots;
 
         let use_kzg_da = self.os_hints_config.use_kzg_da;
         let mut current_block_hash = BlockHash::default();
@@ -933,28 +929,17 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &commitment_state_diff,
                 &accessed_keys_versioned_constants,
             );
-            // Commit the state diff.
+            // Commit the state diff, building the OS-input commitment infos from the Patricia
+            // witness paths gathered during the commit.
             let committer_state_diff =
                 commitment_state_diff_to_committer_state_diff(commitment_state_diff);
-            let mut db = FactsDb::new(map_storage);
-            let new_state_roots = commit_state_diff(
-                &mut db,
-                previous_state_roots.contracts_trie_root_hash,
-                previous_state_roots.classes_trie_root_hash,
+            let (new_state_roots, commitment_infos) = commit_state_diff_with_witnesses(
+                &mut commitment_db,
                 committer_state_diff,
-            )
-            .await
-            .expect("Failed to commit state diff.");
-            map_storage = db.consume_storage();
-
-            let commitment_infos = build_state_commitment_infos(
-                &previous_state_roots,
-                &new_state_roots,
-                &mut map_storage,
                 &accessed_keys,
             )
             .await
-            .unwrap();
+            .expect("Failed to commit state diff.");
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())
@@ -998,7 +983,6 @@ impl<S: FlowTestState> TestBuilder<S> {
                 initial_reads,
             };
             os_block_inputs.push(os_block_input);
-            previous_state_roots = new_state_roots;
         }
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
