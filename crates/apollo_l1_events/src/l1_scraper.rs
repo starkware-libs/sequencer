@@ -103,9 +103,14 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
             sleep(self.config.polling_interval_seconds).await;
 
             match self.send_events_to_l1_events_provider().await {
-                Err(L1EventsScraperError::BaseLayerError(e)) => {
+                // Both are transient L1-RPC conditions: log and retry on the next interval rather
+                // than propagating the error to a node-aborting panic.
+                Err(
+                    error @ (L1EventsScraperError::BaseLayerError(_)
+                    | L1EventsScraperError::TransientL1Inconsistency { .. }),
+                ) => {
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                    warn!("BaseLayerError during scraping: {e:?}");
+                    warn!("Transient L1 error during scraping, will retry: {error:?}");
                 }
                 Ok(_) => {
                     L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
@@ -155,17 +160,19 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
         let l1_block_number_rewind = latest_l1_block_number.saturating_sub(safe_blocks_in_interval);
         debug!("L1 block number rewind: {l1_block_number_rewind}");
 
+        // An external L1 RPC node can transiently return `Ok(None)` for a block that is
+        // mathematically in range (sync skew across a multi-node pool, history pruning, an empty
+        // response). Treat that as a retryable transient inconsistency rather than panicking: a
+        // panic here propagates through `start()` and, via the process-wide panic hook, aborts the
+        // whole node.
         let block_reference_rewind = self
             .base_layer
             .l1_block_at(l1_block_number_rewind)
             .await
             .map_err(L1EventsScraperError::BaseLayerError)?
-            .unwrap_or_else(|| {
-                panic!(
-                    "Rewound L1 block number is between 0 and the verified latest L1 block \
-                     {latest_l1_block_number}, so should exist",
-                )
-            });
+            .ok_or(L1EventsScraperError::TransientL1Inconsistency {
+                block_number: l1_block_number_rewind,
+            })?;
         debug!("Block reference rewind: {block_reference_rewind:?}");
 
         Ok(block_reference_rewind)
@@ -281,7 +288,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
             .l1_block_at(latest_l1_block_number)
             .await
             .map_err(L1EventsScraperError::BaseLayerError)?
-            .ok_or(L1EventsScraperError::LatestL1BlockNumberNoBlockFound {
+            .ok_or(L1EventsScraperError::TransientL1Inconsistency {
                 block_number: latest_l1_block_number,
             })?;
 
@@ -385,15 +392,20 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
     {
         loop {
             match func(self).await {
-                Err(L1EventsScraperError::BaseLayerError(e)) => {
-                    warn!("Error while {description}: {e}");
+                // Both are transient L1-RPC conditions: retry in place with backoff rather than
+                // letting the error propagate to `start()` and abort the node.
+                Err(
+                    error @ (L1EventsScraperError::BaseLayerError(_)
+                    | L1EventsScraperError::TransientL1Inconsistency { .. }),
+                ) => {
+                    warn!("Error while {description}: {error}");
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     // TODO(guyn): consider using a different interval here? Maybe doesn't really
                     // matter.
                     sleep(self.config.polling_interval_seconds).await;
                     continue;
                 }
-                // Return a non-base layer error or success.
+                // Return a non-transient error or success.
                 e => return e,
             }
         }
@@ -464,8 +476,11 @@ pub enum L1EventsScraperError<BaseLayerType: BaseLayerContract + Send + Sync + D
          {latest_l1_block_no_finality:?}, finality: {finality:?}"
     )]
     LatestBlockNumberTooLow { latest_l1_block_no_finality: L1BlockNumber, finality: u64 },
-    #[error("Block number {block_number} not found")]
-    LatestL1BlockNumberNoBlockFound { block_number: L1BlockNumber },
+    // An L1 RPC node returned no block for a number that should exist (sync skew across a
+    // multi-node pool, history-node pruning, or a transient empty response). Treated as
+    // retryable.
+    #[error("Transient L1 inconsistency: L1 returned no block for number {block_number}")]
+    TransientL1Inconsistency { block_number: L1BlockNumber },
     #[error("Failed to calculate hash: {0}")]
     HashCalculationError(StarknetApiError),
     // Leaky abstraction, these errors should not propagate here.

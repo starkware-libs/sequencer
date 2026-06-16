@@ -1,10 +1,12 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use apollo_l1_events_config::config::L1EventsScraperConfig;
 use apollo_l1_events_types::errors::L1EventsProviderError;
 use apollo_l1_events_types::MockL1EventsProviderClient;
 use assert_matches::assert_matches;
+use futures::future::FutureExt;
 use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};
 
 use crate::event_identifiers_to_track;
@@ -34,6 +36,68 @@ async fn scraper_with_dummy() -> L1EventsScraper<MockBaseLayerContract> {
     // Skipping scraper run loop, instead must give it a start block.
     scraper.scrape_from_this_l1_block = Some(Default::default());
     scraper
+}
+
+async fn scraper_with_base_layer(
+    base_layer: MockBaseLayerContract,
+) -> L1EventsScraper<MockBaseLayerContract> {
+    let mut l1_events_provider_client = MockL1EventsProviderClient::default();
+    l1_events_provider_client.expect_add_events().returning(|_| Ok(()));
+    // Near-zero polling interval so the in-place retry backoff doesn't slow the test.
+    let config =
+        L1EventsScraperConfig { polling_interval_seconds: Duration::ZERO, ..Default::default() };
+    L1EventsScraper::new(
+        config,
+        Arc::new(l1_events_provider_client),
+        base_layer,
+        event_identifiers_to_track(),
+    )
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+/// The L1 RPC transiently returns `Ok(None)` for the rewound block on the first call, then a real
+/// block. The scraper must retry in place and proceed, rather than panicking (which would abort the
+/// whole node).
+async fn fetch_start_block_retries_on_transient_missing_block() {
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer.expect_latest_l1_block_number().returning(|| Ok(1_000_000));
+    let l1_block_at_call_count = Arc::new(AtomicU64::new(0));
+    let l1_block_at_call_count_clone = l1_block_at_call_count.clone();
+    base_layer.expect_l1_block_at().returning(move |_| {
+        if l1_block_at_call_count_clone.fetch_add(1, Ordering::SeqCst) == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(L1BlockReference::default()))
+        }
+    });
+    let mut scraper = scraper_with_base_layer(base_layer).await;
+
+    let result = scraper
+        .retry_until_base_layer_success(
+            |this| this.fetch_start_block().boxed(),
+            "fetching start block",
+        )
+        .await;
+
+    assert_matches!(result, Ok(_));
+    assert!(
+        l1_block_at_call_count.load(Ordering::SeqCst) >= 2,
+        "expected at least one retry after the transient missing block"
+    );
+}
+
+#[tokio::test]
+/// Normal startup: the rewound block is always present. Confirms the retry handling does not affect
+/// the happy path.
+async fn fetch_start_block_succeeds_when_block_present() {
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer.expect_latest_l1_block_number().returning(|| Ok(1_000_000));
+    base_layer.expect_l1_block_at().returning(|_| Ok(Some(L1BlockReference::default())));
+    let mut scraper = scraper_with_base_layer(base_layer).await;
+
+    assert_matches!(scraper.fetch_start_block().await, Ok(_));
 }
 
 #[tokio::test]
