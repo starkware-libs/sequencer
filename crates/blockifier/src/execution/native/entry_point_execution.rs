@@ -14,6 +14,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{EntryPointExecutionContext, ExecutableCallEntryPoint};
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
+use crate::execution::native::run_dispatch::run_native_executor;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
 use crate::transaction::objects::ExecutionResourcesTraits;
@@ -57,11 +58,12 @@ pub fn execute_entry_point_call(
         .checked_sub(initial_budget)
         .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
 
-    let execution_result = compiled_class.executor.run(
+    let execution_result = run_native_executor(
+        &compiled_class.executor,
         entry_point.selector.0,
         &syscall_handler.base.call.calldata.0.clone(),
         call_initial_gas,
-        Some(builtin_costs),
+        builtin_costs,
         &mut syscall_handler,
     );
 

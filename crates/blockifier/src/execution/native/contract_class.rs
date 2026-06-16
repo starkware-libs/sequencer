@@ -2,7 +2,11 @@ use std::borrow::Cow;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use cairo_native::executor::AotContractExecutor;
+#[cfg(feature = "with-libfunc-profiling")]
+use cairo_native::executor::AotWithProgram;
+#[cfg(feature = "sierra-emu")]
+use cairo_native::executor::EmuContractInfo;
+use cairo_native::executor::{AotContractExecutor, ContractExecutor};
 use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::core::EntryPointSelector;
 use starknet_types_core::felt::Felt;
@@ -30,7 +34,29 @@ impl NativeCompiledClassV1 {
     /// executor must be derived from sierra_program which in turn must be derived from
     /// sierra_contract_class.
     pub fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
-        let contract = NativeCompiledClassV1Inner::new(executor, casm);
+        let contract = NativeCompiledClassV1Inner::new(executor.into(), casm);
+
+        Self(Arc::new(contract))
+    }
+
+    /// Initialize a compiled class backed by the sierra-emu interpreter instead of the AOT
+    /// executor. Intended for the out-of-tree benchmarking / replay feature branch — those
+    /// tools are not expected to merge into this repo and will consume this constructor
+    /// from a fork. `pub` so a fork can reach it without patching this file.
+    #[cfg(feature = "sierra-emu")]
+    pub fn new_from_emu(info: EmuContractInfo, casm: CompiledClassV1) -> NativeCompiledClassV1 {
+        let contract = NativeCompiledClassV1Inner::new(info.into(), casm);
+
+        Self(Arc::new(contract))
+    }
+
+    /// Like [`Self::new`], but also stores the Sierra `Program` (via the cairo-native
+    /// [`AotWithProgram`] pairing) so [`cairo_native::ContractExecutor::run_with_profile`]
+    /// can resolve libfunc samples. Only callable when the `with-libfunc-profiling`
+    /// feature is enabled.
+    #[cfg(feature = "with-libfunc-profiling")]
+    pub fn new_with_program(info: AotWithProgram, casm: CompiledClassV1) -> NativeCompiledClassV1 {
+        let contract = NativeCompiledClassV1Inner::new(info.into(), casm);
 
         Self(Arc::new(contract))
     }
@@ -71,12 +97,12 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
-    pub executor: AotContractExecutor,
+    pub executor: ContractExecutor,
     casm: CompiledClassV1,
 }
 
 impl NativeCompiledClassV1Inner {
-    fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
+    fn new(executor: ContractExecutor, casm: CompiledClassV1) -> Self {
         NativeCompiledClassV1Inner { executor, casm }
     }
 }
