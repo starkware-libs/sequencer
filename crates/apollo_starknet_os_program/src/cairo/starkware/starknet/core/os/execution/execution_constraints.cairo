@@ -5,13 +5,7 @@ from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_le, assert_nn_le, assert_not_zero
 from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
-<<<<<<< HEAD
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1,
-    ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2,
-||||||| b392cf22a9
-    ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1,
-=======
->>>>>>> origin/main-v0.14.3
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
     STORED_BLOCK_HASH_BUFFER,
 )
@@ -30,19 +24,9 @@ func check_is_reverted(is_reverted: felt) {
 
 // Returns TRUE if the given virtual OS program hash is allowed, FALSE otherwise.
 func is_program_hash_allowed(program_hash: felt) -> felt {
-<<<<<<< HEAD
-    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 3;
-    if ((program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) *
-        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) *
-        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2) == 0) {
-||||||| b392cf22a9
     static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 2;
     if ((program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) *
         (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) == 0) {
-=======
-    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 1;
-    if (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 == 0) {
->>>>>>> origin/main-v0.14.3
         return TRUE;
     }
     return FALSE;

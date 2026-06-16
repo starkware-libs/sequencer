@@ -11,7 +11,7 @@ use crate::{reconstruct_output_preimage, verify_proof, ProgramOutput, VerifyProo
 /// Version directory under `resources/regression_test/` whose pinned, valid proof fixture the
 /// negative tests below mutate. Keep in sync with the newest `#[case]` of
 /// `regression_verify_proof_from_old_prover`.
-const FIXTURE_PROOF_VERSION: &str = "0.14.3";
+const FIXTURE_PROOF_VERSION: &str = "0.14.4";
 
 /// Upper bound, in bytes, on the decompressed proof size used by the negative tests that mutate the
 /// uncompressed proof. The fixture decompresses to ~258 KiB; this only needs to exceed that.
@@ -83,6 +83,7 @@ fn roundtrip_program_output_to_proof_facts_and_back() {
 /// 4. Add a new `#[case("{version}")]` below.
 #[rstest]
 #[case("0.14.3")]
+#[case("0.14.4")]
 fn regression_verify_proof_from_old_prover(#[case] starknet_version: &str) {
     let (proof_facts, compressed_proof) = load_proof_fixture(starknet_version);
     verify_proof(proof_facts, Proof::from(compressed_proof)).unwrap_or_else(|e| {
