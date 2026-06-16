@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781593978244,
+  "lastUpdate": 1781594873502,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5915,6 +5915,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1362.79848696,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9766fc69cc69a060b901cf9f92b0f69df648edfc",
+          "message": "starknet_committer: build StateCommitmentInfos in commit_block_with_witnesses (#14469)\n\nAdd StateCommitmentInfos::from_commit_witnesses and n_commitment_facts, and populate\na new state_commitment_infos field on CommitBlockWithWitnessesOutput. The committer\ndoes not consume it yet; persistence/return is switched in the follow-up, reusing the\nshared compress/decompress codec.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T07:15:16Z",
+          "tree_id": "c87c7152e04d806ef372526c39aef4480e9cd0e4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9766fc69cc69a060b901cf9f92b0f69df648edfc"
+        },
+        "date": 1781594873036,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 906.53630901,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1379.11737353,
             "unit": "ms"
           }
         ]
