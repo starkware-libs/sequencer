@@ -1861,6 +1861,62 @@ async fn test_stuck_sync() {
 }
 
 #[tokio::test]
+async fn restarting_catch_up_raises_target_without_spawning_second_sync_task() {
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(1);
+    const TARGET_HEIGHT: BlockNumber = BlockNumber(10);
+    const HIGHER_TARGET_HEIGHT: BlockNumber = BlockNumber(20);
+
+    // Always fail to fetch blocks, so the sync task never finishes on its own: it loops forever,
+    // sleeping between retries. This keeps a task in flight across the restart below.
+    let mut sync_client = MockStateSyncClient::default();
+    sync_client
+        .expect_get_block()
+        .returning(|height| Err(StateSyncError::BlockNotFound(height).into()));
+    let config = L1EventsProviderConfig {
+        startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
+        ..Default::default()
+    };
+    let mut l1_events_provider = L1EventsProvider::new(
+        config,
+        Arc::new(FakeL1EventsProviderClient::default()),
+        Arc::new(sync_client),
+        None,
+    );
+
+    // Start catching up and capture a handle to the first (forever-running) sync task.
+    l1_events_provider.initialize(STARTUP_HEIGHT, Default::default()).await.unwrap();
+    l1_events_provider.start_catching_up(TARGET_HEIGHT);
+    let SyncTaskHandle::Started(first_sync_task) =
+        l1_events_provider.catchupper.sync_task_handle.clone()
+    else {
+        panic!("First sync task should have started.");
+    };
+    assert!(!first_sync_task.is_finished(), "First sync task should be forever running.");
+    assert_eq!(l1_events_provider.catchupper.target_height(), TARGET_HEIGHT);
+
+    // Restart catching up with a higher target while the first task is still bootstrapping. This
+    // must NOT spawn a second task (a leaked task would race to commit the same blocks and spin in
+    // a retry loop forever): the existing task is kept and its shared target is raised instead.
+    l1_events_provider.start_catching_up(HIGHER_TARGET_HEIGHT);
+
+    let SyncTaskHandle::Started(sync_task_after_restart) =
+        l1_events_provider.catchupper.sync_task_handle.clone()
+    else {
+        panic!("Sync task handle should still be present after restart.");
+    };
+    assert!(
+        Arc::ptr_eq(&first_sync_task, &sync_task_after_restart),
+        "Restarting catch-up spawned a second sync task instead of reusing the running one."
+    );
+    assert!(!first_sync_task.is_finished(), "The original sync task should still be running.");
+    assert_eq!(
+        l1_events_provider.catchupper.target_height(),
+        HIGHER_TARGET_HEIGHT,
+        "Restarting catch-up should have raised the running task's target height."
+    );
+}
+
+#[tokio::test]
 async fn provider_initialized_in_pending_is_same_as_uninitialized_after_getting_initialize() {
     // Setup.
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(2);

@@ -351,8 +351,18 @@ impl L1EventsProvider {
 
     /// Go from current state to CatchingUp state and start the L2 sync.
     pub fn start_catching_up(&mut self, target_height: BlockNumber) {
-        self.reset_catchupper();
         self.state = ProviderState::CatchingUp;
+        // If a sync task is already bootstrapping the provider, raise its target instead of
+        // spawning a second one.
+        // The running task re-reads the shared target and keeps syncing up to it.
+        //
+        // We can't abort the running task safely (a client call is not cancel-safe)
+        // Recreating the catchupper here and detaching the current task would leak racing tasks.
+        if self.catchupper.is_sync_task_running() {
+            self.catchupper.update_target_height(target_height);
+            return;
+        }
+        self.reset_catchupper();
         self.catchupper.start_l2_sync(self.current_height, target_height);
     }
 
