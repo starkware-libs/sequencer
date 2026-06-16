@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781523289091,
+  "lastUpdate": 1781618039015,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -475,6 +475,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1382.8492216,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5114457ad4b5d6d1764b520dfa40b9e826f48854",
+          "message": "starknet_api,apollo_starknet_os_program: compute OS config hash with Blake from V0_14_3 (#14499)\n\nSwitch the OS config hash from Pedersen to Blake for quantum safety, version-gated at\n  V0_14_3: blocks below it keep Pedersen + 'StarknetOsConfig3', V0_14_3 onward use\n  Blake + 'StarknetOsConfig4'. Gating keeps pre-cutover blocks re-executable/re-provable\n  against their original hash. Cairo switches straight to Blake (per-binary versioning);\n  the Rust mirror selects the hash at runtime by StarknetVersion. public_keys_hash stays\n  Pedersen.\n\n  Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T13:34:23Z",
+          "tree_id": "e432d7ca9624d80ae1013974d1d591bd4d58033e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5114457ad4b5d6d1764b520dfa40b9e826f48854"
+        },
+        "date": 1781618038599,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 954.85778625,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1327.9457589600001,
             "unit": "ms"
           }
         ]
