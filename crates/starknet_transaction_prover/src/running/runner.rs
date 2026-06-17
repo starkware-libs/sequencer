@@ -56,6 +56,7 @@ pub(crate) struct VirtualOsBlockInput {
     base_block_header_commitments: BlockHeaderCommitments,
     prev_base_block_hash: BlockHash,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    use_blake_address_derivation: bool,
 }
 
 impl From<VirtualOsBlockInput> for OsHints {
@@ -102,7 +103,7 @@ impl From<VirtualOsBlockInput> for OsHints {
                 debug_mode: false,
                 full_output: false,
                 use_kzg_da: false,
-                use_blake_address_derivation: false,
+                use_blake_address_derivation: virtual_os_block_input.use_blake_address_derivation,
                 chain_info: virtual_os_block_input.chain_info,
                 public_keys: None,
                 rng_seed_salt: None,
@@ -194,6 +195,14 @@ where
         // Extract block number from base block info for storage proofs.
         let block_number = execution_data.base_block_info.block_context.block_info().block_number;
 
+        // The OS must derive contract addresses with the same hash the block's Starknet version
+        // mandates; source it from the block's versioned constants rather than assuming Pedersen.
+        let use_blake_address_derivation = execution_data
+            .base_block_info
+            .block_context
+            .versioned_constants()
+            .use_blake_address_derivation;
+
         // Fetch classes and storage proofs in parallel.
         let (classes, storage_proofs) = tokio::join!(
             classes_provider.get_classes(&execution_data.executed_class_hashes),
@@ -246,6 +255,7 @@ where
                 .base_block_header_commitments,
             prev_base_block_hash: execution_data.base_block_info.prev_base_block_hash,
             compiled_classes: classes.compiled_classes,
+            use_blake_address_derivation,
         };
 
         // Return OsHints.
