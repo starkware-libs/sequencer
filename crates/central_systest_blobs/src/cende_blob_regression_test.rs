@@ -20,7 +20,7 @@ use apollo_consensus_orchestrator::cende::{
 };
 use apollo_consensus_orchestrator::dynamic_gas_price::FeeProposalInfo;
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
@@ -125,9 +125,8 @@ const GCS_ERROR_CODE_NOT_FOUND: u16 = 404;
 
 const BLOBS_BUCKET_NAME: &str = "apollo-central-systest-blobs";
 const BLOBS_FILE_NAME: &str = "blobs.json";
-static BLOBS_GENERATION_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
-    PathBuf::from(compile_time_cargo_manifest_dir!()).join("resources/blob_file_generation")
-});
+static BLOBS_GENERATION_FILE: LazyLock<PathBuf> =
+    LazyLock::new(|| PathBuf::from(cargo_manifest_dir!()).join("resources/blob_file_generation"));
 
 static CHAIN_ID: LazyLock<ChainId> =
     LazyLock::new(|| ChainId::Other("SN_PREINTEGRATION_SEPOLIA".to_string()));

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use apollo_infra_utils::cairo0_compiler::{compile_cairo0_program, Cairo0CompilerError};
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 
 pub async fn compile_and_output_program(
     out_dir: PathBuf,
@@ -56,5 +56,5 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
 }
 
 pub fn cairo_root_path() -> PathBuf {
-    PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo")
+    PathBuf::from(cargo_manifest_dir!()).join("src/cairo")
 }

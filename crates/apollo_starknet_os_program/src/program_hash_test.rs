@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use expect_test::expect_file;
 use tokio::task::spawn_blocking;
 
@@ -13,9 +13,8 @@ use crate::program_hash::{
     ProgramHashes,
 };
 
-static PROGRAM_HASH_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-    PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/program_hash.json")
-});
+static PROGRAM_HASH_PATH: LazyLock<PathBuf> =
+    LazyLock::new(|| PathBuf::from(cargo_manifest_dir!()).join("src/program_hash.json"));
 
 /// Asserts the program hash of the compiled Starknet OS program matches the program hash in the
 /// JSON.

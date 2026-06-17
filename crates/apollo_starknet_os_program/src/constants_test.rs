@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use apollo_infra_utils::cairo0_compiler_test_utils::cairo0_format;
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use expect_test::expect_file;
@@ -248,8 +248,6 @@ fn generate_constants_file() -> String {
 fn test_os_constants() {
     // Generate `constants.cairo` from the current OS constants.
     let generated = generate_constants_file();
-    let path = PathBuf::from(compile_time_cargo_manifest_dir!())
-        .join("src/cairo")
-        .join(CONSTANTS_CAIRO_PATH);
+    let path = PathBuf::from(cargo_manifest_dir!()).join("src/cairo").join(CONSTANTS_CAIRO_PATH);
     expect_file![path].assert_eq(&generated);
 }

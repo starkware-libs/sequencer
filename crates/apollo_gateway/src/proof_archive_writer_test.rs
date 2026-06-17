@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use expect_test::expect_file;
 use starknet_api::proof_facts;
 use starknet_api::transaction::fields::ProofFacts;
@@ -10,8 +10,7 @@ use starknet_types_core::felt::Felt;
 use crate::proof_archive_writer::compute_big_storage_key;
 
 static PROOF_FACTS_BIG_STORAGE_KEYS_FIXTURE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-    PathBuf::from(compile_time_cargo_manifest_dir!())
-        .join("resources/proof_facts_big_storage_keys.json")
+    PathBuf::from(cargo_manifest_dir!()).join("resources/proof_facts_big_storage_keys.json")
 });
 
 /// Returns the cases pinned by the cross-language fixture.
