@@ -5,7 +5,7 @@
   eth_fee_token_address: '0x1',
   strk_fee_token_address: '0x2',
   recorder_url: 'https://recorder_url',
-  starknet_url: 'https://starknet_url',
+  starknet_url: 'https://starknet_url/',
   native_classes_whitelist: '[]',
   validator_id: '0x64',
   versioned_constants_overrides: null,
@@ -127,17 +127,14 @@
   },
   state_sync_config: {
     static_config: {
-      central_sync_client_config: null,
-      network_config: null,
-      p2p_sync_client_config: {
-        num_headers_per_query: 10000,
-        num_block_state_diffs_per_query: 100,
-        num_block_transactions_per_query: 100,
-        num_block_classes_per_query: 100,
-        wait_period_for_new_data: 50,
-        wait_period_for_other_protocol: 50,
-        buffer_size: 100000,
+      // Matches the real sepolia-alpha envs: central-sync active (a sparse override exercises the
+      // deep-merge onto the applicative default), p2p and network None. `null` = None; an object =
+      // active (default merged with the object).
+      central_sync_client_config: {
+        sync_config: { store_sierras_and_casms_block_threshold: 0 },
       },
+      network_config: null,
+      p2p_sync_client_config: null,
       rpc_config: {
         port: 8083,
       },
