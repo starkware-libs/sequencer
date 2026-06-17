@@ -9,6 +9,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::block::StarknetVersion;
+use starknet_api::core::AddressDerivationHash;
 
 use super::*;
 
@@ -42,6 +43,18 @@ fn test_versioned_constants_overrides() {
     assert_eq!(result.validate_max_n_steps, updated_validate_max_n_steps);
     assert_eq!(result.max_recursion_depth, updated_max_recursion_depth);
     assert_eq!(result.tx_event_limits.max_n_emitted_events, updated_max_n_events);
+}
+
+/// Assert the address-derivation hash is selected by the `use_blake_address_derivation` flag.
+#[test]
+fn test_address_derivation_hash_selection() {
+    let mut versioned_constants = VersionedConstants::latest_constants().clone();
+
+    versioned_constants.use_blake_address_derivation = false;
+    assert_eq!(versioned_constants.address_derivation_hash(), AddressDerivationHash::Pedersen);
+
+    versioned_constants.use_blake_address_derivation = true;
+    assert_eq!(versioned_constants.address_derivation_hash(), AddressDerivationHash::Blake2);
 }
 
 #[rstest]

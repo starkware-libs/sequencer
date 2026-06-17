@@ -8,7 +8,6 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
-    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EntryPointSelector,
@@ -408,7 +407,7 @@ impl<'state> SyscallHandlerBase<'state> {
             class_hash,
             &constructor_calldata,
             deployer_address_for_calculation,
-            AddressDerivationHash::Pedersen,
+            versioned_constants.address_derivation_hash(),
         )?;
 
         let ctor_context = ConstructorContext {

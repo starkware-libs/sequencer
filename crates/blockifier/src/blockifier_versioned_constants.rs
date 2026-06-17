@@ -14,7 +14,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{AddressDerivationHash, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -461,6 +461,15 @@ impl VersionedConstants {
 
     pub fn disable_casm_hash_migration(&mut self) {
         self.enable_casm_hash_migration = false;
+    }
+
+    /// The hash function used to derive contract addresses for blocks under these constants.
+    pub fn address_derivation_hash(&self) -> AddressDerivationHash {
+        if self.use_blake_address_derivation {
+            AddressDerivationHash::Blake2
+        } else {
+            AddressDerivationHash::Pedersen
+        }
     }
 
     #[cfg(any(feature = "testing", test))]
