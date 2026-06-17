@@ -5,6 +5,7 @@ from imports.com.google.cloud import (
     BackendConfigSpecConnectionDraining,
     BackendConfigSpecCustomRequestHeaders,
     BackendConfigSpecHealthCheck,
+    BackendConfigSpecLogging,
     BackendConfigSpecSecurityPolicy,
 )
 from src.constructs.base import BaseConstruct
@@ -29,6 +30,13 @@ class BackendConfigConstruct(BaseConstruct):
                 headers=self.service_config.backendConfig.customRequestHeaders
             ),
         }
+
+        # Only emit logging when configured, so omitting it leaves the output unchanged.
+        if self.service_config.backendConfig.logging is not None:
+            spec_kwargs["logging"] = BackendConfigSpecLogging(
+                enable=self.service_config.backendConfig.logging.enable,
+                sample_rate=self.service_config.backendConfig.logging.sampleRate,
+            )
 
         if self.service_config.backendConfig.connectionDrainingTimeoutSeconds is not None:
             spec_kwargs["connection_draining"] = BackendConfigSpecConnectionDraining(
