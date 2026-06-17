@@ -7,12 +7,15 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{calculate_contract_address, AddressDerivationHash};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
 use crate::execution::common_hints::ExecutionMode;
@@ -52,7 +55,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 155470,
+            gas_consumed: 167890,
         }
     "#]]
     .assert_debug_eq(&deploy_call.execution);
@@ -63,7 +66,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
         class_hash,
         &calldata![],
         deployer_contract.get_instance_address(0),
-        AddressDerivationHash::Pedersen,
+        AddressDerivationHash::for_version(StarknetVersion::LATEST),
     )
     .unwrap();
 
@@ -121,7 +124,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
         class_hash,
         &Calldata(constructor_calldata.clone().into()),
         deployer_contract.get_instance_address(0),
-        AddressDerivationHash::Pedersen,
+        AddressDerivationHash::for_version(StarknetVersion::LATEST),
     )
     .unwrap();
 
@@ -138,7 +141,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 232350,
+            gas_consumed: 238210,
         }
     "#]]
     .assert_debug_eq(&deploy_call.execution);
@@ -210,6 +213,13 @@ fn calldata_length(cairo_version: CairoVersion) {
     // Use the maximum sierra version to avoid using sierra gas as the tracked resource.
     let max_sierra_version = SierraVersion::new(u64::MAX, u64::MAX, u64::MAX);
     let mut block_context = BlockContext::create_for_testing();
+    // This test isolates the deploy syscall's address-derivation cost via the pedersen builtin
+    // counter, which only the Pedersen scheme's deploy os_resources carry (Blake2 uses range_check,
+    // which is shared with the constructor and can't be isolated). Pin to a pre-0.14.4 (Pedersen)
+    // versioned constants so the measurement stays clean; the Blake2 deploy calldata cost is
+    // covered by the os_resources regression.
+    block_context.versioned_constants =
+        VersionedConstants::get(&StarknetVersion::V0_14_3).unwrap().clone();
     block_context.versioned_constants.min_sierra_version_for_sierra_gas = max_sierra_version;
 
     // Flag of deploy syscall.

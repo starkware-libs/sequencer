@@ -34,7 +34,7 @@ from starkware.starknet.core.os.constants import (
     VALIDATE_MAX_SIERRA_GAS,
     VALIDATED,
 )
-from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
+from starkware.starknet.core.os.contract_address.contract_address import get_contract_address_blake
 from starkware.starknet.core.os.contract_class.contract_class import (
     ContractClassComponentHashes,
     finalize_class_hash,
@@ -533,17 +533,13 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
     %{ PrepareConstructorExecution %}
     assert_nn_le(constructor_calldata_size, SIERRA_ARRAY_LEN_BOUND - 1);
 
-    let hash_ptr = builtin_ptrs.selectable.pedersen;
-    with hash_ptr {
-        let (contract_address) = get_contract_address(
-            salt=contract_address_salt,
-            class_hash=class_hash,
-            constructor_calldata_size=constructor_calldata_size,
-            constructor_calldata=constructor_calldata,
-            deployer_address=0,
-        );
-    }
-    update_pedersen_in_builtin_ptrs(pedersen_ptr=hash_ptr);
+    let (contract_address) = get_contract_address_blake(
+        salt=contract_address_salt,
+        class_hash=class_hash,
+        constructor_calldata_size=constructor_calldata_size,
+        constructor_calldata=constructor_calldata,
+        deployer_address=0,
+    );
 
     let (tx_info_ptr: TxInfo*) = alloc();
     let (deprecated_tx_info_ptr: DeprecatedTxInfo*) = alloc();

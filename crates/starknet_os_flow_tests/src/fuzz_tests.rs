@@ -19,7 +19,6 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{
     calculate_contract_address,
-    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EntryPointSelector,
@@ -42,7 +41,12 @@ use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
 use tokio::task::JoinSet;
 
-use crate::test_manager::{EventPredicateExpectation, TestBuilder, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{
+    active_address_derivation_hash,
+    EventPredicateExpectation,
+    TestBuilder,
+    FUNDED_ACCOUNT_ADDRESS,
+};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
@@ -89,15 +93,15 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x6020d0bb6812673ad0285bac26e753da039337e142e5f0465513def9641a200"];
+    expect!["0x281a5095de550d47ccfa5537fa46b89823839f21d2a74cf3288851b784eabe5"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x2972235d87b56531511b26bef0b2f0e39965df14ef640e9b96cd98e0453ef0e"];
+    expect!["0x72a261e5649e94f313f52770fe183705a811d276f96f2161a2aa6e8a463fd7f"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0xe70a47648580e8bc91f8626a073c780e786bfee337158ba5764d284a096481"];
+    expect!["0x4552e79a0ade3e8ed483784549557d4e57eb50b05d20b99b0f04e713ccb5880"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x4c1fc5dac49ae4a5312e5220392e793e393682d10bca27b551f80911f9f2785"];
+    expect!["0x55b6945ddc469a33eb0d5bd392117a2a18b102e611745350852b56e1c289c28"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x736f82bdf9b4bb7545ff1aeef76db36dfaee4f8accfa92fb1bc1d9d928730d0"];
+    expect!["0x5448818f1a4c36f56e931eb2754c641fedddef7fe082355aac90b390441bfbe"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -825,7 +829,7 @@ impl FuzzTestContext {
             class_hash,
             &calldata![***FUZZ_ADDRESS_ORCHESTRATOR],
             ContractAddress::default(),
-            AddressDerivationHash::Pedersen,
+            active_address_derivation_hash(),
         )
         .unwrap()
     }

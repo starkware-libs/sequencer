@@ -9,6 +9,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::block::StarknetVersion;
+use starknet_api::core::AddressDerivationHash;
 
 use super::*;
 
@@ -42,6 +43,20 @@ fn test_versioned_constants_overrides() {
     assert_eq!(result.validate_max_n_steps, updated_validate_max_n_steps);
     assert_eq!(result.max_recursion_depth, updated_max_recursion_depth);
     assert_eq!(result.tx_event_limits.max_n_emitted_events, updated_max_n_events);
+}
+
+/// Assert the contract-address derivation hash is version-gated: Pedersen before 0.14.4, Blake2
+/// from 0.14.4.
+#[test]
+fn test_address_derivation_hash_selection() {
+    assert_eq!(
+        AddressDerivationHash::for_version(StarknetVersion::V0_14_3),
+        AddressDerivationHash::Pedersen
+    );
+    assert_eq!(
+        AddressDerivationHash::for_version(StarknetVersion::V0_14_4),
+        AddressDerivationHash::Blake2
+    );
 }
 
 #[rstest]

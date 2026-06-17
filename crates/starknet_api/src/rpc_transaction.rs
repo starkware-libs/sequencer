@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use starknet_core::types::EntryPointsByType as StarknetCoreEntryPointsByType;
 use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 
+use crate::block::StarknetVersion;
 use crate::contract_class::EntryPointType;
 use crate::core::{
     AddressDerivationHash,
@@ -94,10 +95,15 @@ impl TransactionHasher for InternalRpcDeployAccountTransaction {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
+        // Use the contract address already derived during conversion (with the version-gated hash)
+        // rather than recomputing it, so the tx hash embeds the same address execution will deploy.
         match &self.tx {
-            RpcDeployAccountTransaction::V3(tx) => {
-                tx.calculate_transaction_hash(chain_id, transaction_version)
-            }
+            RpcDeployAccountTransaction::V3(tx) => get_deploy_account_transaction_v3_hash(
+                tx,
+                chain_id,
+                transaction_version,
+                self.contract_address,
+            ),
         }
     }
 }
@@ -185,9 +191,13 @@ impl RpcTransaction {
         match self {
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => Ok(tx.sender_address),
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                // Pedersen-only convenience accessor (no consensus/production caller); the
-                // version-gated deploy-account address is derived during conversion.
-                tx.calculate_contract_address(AddressDerivationHash::Pedersen)
+                // Test-only convenience accessor (no consensus/production caller — production
+                // derives the deploy-account address during conversion). Mirrors the gateway's
+                // prediction (the latest version's scheme), so test setup that pre-funds the
+                // predicted address matches.
+                tx.calculate_contract_address(AddressDerivationHash::for_version(
+                    StarknetVersion::LATEST,
+                ))
             }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => Ok(tx.sender_address),
         }

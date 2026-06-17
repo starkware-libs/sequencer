@@ -9,10 +9,10 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::TransactionHashingData;
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
-use starknet_api::core::ClassHash;
+use starknet_api::core::{AddressDerivationHash, ClassHash};
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{CalculateContractAddress, Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use tokio::runtime::Handle;
 
@@ -64,18 +64,32 @@ pub trait ReexecutionStateReader {
     fn api_txs_to_blockifier_txs(
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
+        address_derivation_hash: AddressDerivationHash,
     ) -> ReexecutionResult<Vec<BlockifierTransaction>> {
         let execution_flags = ExecutionFlags::default();
         txs_and_hashes
             .into_iter()
             .map(|(tx, tx_hash)| match tx {
-                Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
+                Transaction::Invoke(_) => Ok(BlockifierTransaction::from_api(
+                    tx,
+                    tx_hash,
+                    None,
+                    None,
+                    None,
+                    execution_flags.clone(),
+                )?),
+                Transaction::DeployAccount(ref deploy_account_tx) => {
+                    // Derive the deployed address with the re-executed block's versioned-constants
+                    // hash so it matches the address the block originally deployed (Pedersen
+                    // pre-0.14.4, Blake2 from 0.14.4).
+                    let deployed_contract_address =
+                        deploy_account_tx.calculate_contract_address(address_derivation_hash)?;
                     Ok(BlockifierTransaction::from_api(
                         tx,
                         tx_hash,
                         None,
                         None,
-                        None,
+                        Some(deployed_contract_address),
                         execution_flags.clone(),
                     )?)
                 }

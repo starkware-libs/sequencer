@@ -21,7 +21,6 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     calculate_contract_address,
-    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EthAddress,
@@ -108,6 +107,7 @@ use crate::special_contracts::{
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
 };
 use crate::test_manager::{
+    active_address_derivation_hash,
     block_context_for_flow_tests,
     EventPredicateExpectation,
     TestBuilder,
@@ -241,7 +241,7 @@ async fn declare_deploy_scenario(
         class_hash,
         &Calldata(constructor_calldata[1..].to_vec().into()),
         *FUNDED_ACCOUNT_ADDRESS,
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata });
@@ -1159,7 +1159,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         test_class_hash,
         &Calldata(Arc::new(ctor_calldata)),
         main_contract_address,
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
 
@@ -1287,7 +1287,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         .copied()
         .unwrap_or(0);
     expect![[r#"
-        560
+        564
     "#]]
     .assert_debug_eq(&blakes);
 
@@ -1354,7 +1354,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         faulty_account_class_hash,
         &ctor_calldata,
         ContractAddress::default(),
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
     // Fund the address.
@@ -1371,7 +1371,12 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
     let deploy_account_tx =
         deploy_account_tx(deploy_tx_args, test_builder.next_nonce(faulty_account_address));
     test_builder.add_deploy_account_tx(
-        DeployAccountTransaction::create(deploy_account_tx, chain_id).unwrap(),
+        DeployAccountTransaction::create(
+            deploy_account_tx,
+            chain_id,
+            active_address_derivation_hash(),
+        )
+        .unwrap(),
     );
 
     // Declare a contract using the newly deployed account.
@@ -1847,7 +1852,7 @@ async fn test_deprecated_tx_info() {
         class_hash,
         &calldata![],
         ContractAddress::default(),
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
 
@@ -1863,6 +1868,7 @@ async fn test_deprecated_tx_info() {
     let deploy_account_tx = DeployAccountTransaction::create(
         deploy_account_tx(deploy_tx_args, test_builder.next_nonce(tx_info_account_address)),
         chain_id,
+        active_address_derivation_hash(),
     )
     .unwrap();
     test_builder.add_deploy_account_tx(deploy_account_tx.clone());
@@ -2114,7 +2120,7 @@ async fn test_inner_deploy_failure() {
         empty_class_hash,
         &calldata![],
         test_contract_address,
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
 
@@ -2194,7 +2200,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
         class_hash,
         &calldata![is_validate],
         ContractAddress::default(),
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
 
@@ -2215,6 +2221,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
             test_builder.next_nonce(block_info_account_address),
         ),
         chain_id,
+        active_address_derivation_hash(),
     )
     .unwrap();
     test_builder.add_deploy_account_tx(deploy_account_tx);

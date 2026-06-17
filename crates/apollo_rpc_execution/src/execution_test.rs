@@ -599,9 +599,7 @@ fn simulate_invoke_from_new_account_validate_and_charge() {
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
     prepare_storage(storage_writer);
 
-    // Taken from the trace of the deploy account transaction.
-    let new_account_address =
-        contract_address!("0x0153ade9ef510502c4f3b879c049dcc3ad5866706cae665f0d9df9b01e794fdb");
+    let new_account_address = *NEW_ACCOUNT_ADDRESS;
     let txs = TxsScenarioBuilder::default()
         // Invoke contract from a newly deployed account.
         .deploy_account()

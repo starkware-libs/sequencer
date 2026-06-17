@@ -20,7 +20,14 @@ use blockifier::state::utils::get_compiled_class_hash_v2 as default_get_compiled
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    AddressDerivationHash,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -109,7 +116,10 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
         // Use the declared classes from the reexecuted block to allow retrieving the class info.
         let reexecuted_block_transactions =
             OfflineStateReader { contract_class_mapping: declared_classes, ..Default::default() }
-                .api_txs_to_blockifier_txs(reexecuted_block_transactions)
+                .api_txs_to_blockifier_txs(
+                    reexecuted_block_transactions,
+                    AddressDerivationHash::for_version(starknet_version),
+                )
                 .expect("Failed to convert starknet-api transactions to blockifier transactions.");
 
         let mut versioned_constants = VersionedConstants::get(&starknet_version).unwrap().clone();

@@ -46,7 +46,14 @@ use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, Up
 use google_cloud_storage::http::Error as GcsError;
 use mockall::predicate::eq;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
@@ -137,9 +144,9 @@ const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
 const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
 
 const EXPECTED_OPERATOR_ADDRESS: Expect =
-    expect!["0x059bbf19eb197eb2e5685d4340720ddd7c1124795c736d6c7f2dcf78cd17690a"];
+    expect!["0x00ba852c7e551b07b4fd0af225a74ab7aa14b80aef19ac7582fe68bf9356d24a"];
 const EXPECTED_FEE_TOKEN_ADDRESS: Expect =
-    expect!["0x05945fa70ed44e5f6e5b56c59763dd3d6a8725ebce6f7448b0452f7cd6085056"];
+    expect!["0x0468786621e315f8866a4053dd7774fe1d62647c1c7b088d575391f5c620ec55"];
 static OPERATOR_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| contract_address!(EXPECTED_OPERATOR_ADDRESS.data));
 static FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
@@ -544,8 +551,11 @@ impl BlobFactory {
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
         };
-        let contract_address =
-            rpc_tx_unsigned.calculate_contract_address(AddressDerivationHash::Pedersen).unwrap();
+        // Derive with the active scheme (Blake2 from 0.14.4) so the deploy-account address — and
+        // the tx hash that embeds it — match what execution deploys.
+        let contract_address = rpc_tx_unsigned
+            .calculate_contract_address(AddressDerivationHash::for_version(StarknetVersion::LATEST))
+            .unwrap();
         let without_hash_unsigned = InternalRpcTransactionWithoutTxHash::DeployAccount(
             InternalRpcDeployAccountTransaction {
                 tx: RpcDeployAccountTransaction::V3(rpc_tx_unsigned.clone()),
@@ -570,6 +580,7 @@ impl BlobFactory {
         let executable = ExecutableDeployAccountTx::create(
             DeployAccountTransaction::V3(rpc_tx_signed.into()),
             &CHAIN_ID,
+            AddressDerivationHash::for_version(StarknetVersion::LATEST),
         )
         .unwrap();
         let internal = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
@@ -643,7 +654,8 @@ impl BlobFactory {
             class_hash,
             &constructor_calldata,
             *OPERATOR_ADDRESS,
-            AddressDerivationHash::Pedersen,
+            // Active scheme (Blake2 from 0.14.4) so the deployed address matches execution.
+            AddressDerivationHash::for_version(StarknetVersion::LATEST),
         )
         .unwrap();
         let calldata = [

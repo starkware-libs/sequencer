@@ -28,6 +28,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::AddressDerivationHash;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -575,13 +576,19 @@ async fn handle_proposal_part(
             // TODO(guyn): check that the length of txs and the number of batches we receive is not
             // so big it would fill up the memory (in case of a malicious proposal)
             debug!("Received transaction batch with {} txs", txs.len());
-            let conversion_results =
-                futures::future::join_all(txs.into_iter().map(|tx| {
-                    transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
-                }))
-                .await
-                .into_iter()
-                .collect::<Result<Vec<_>, _>>();
+            // Derive deploy-account addresses with the latest versioned constants' hash, matching
+            // the proposer's gateway (which also predicts the scheme via latest_constants) and the
+            // block's execution. Relies on the latest version being active fleet-wide -- same
+            // decision-A boundary hazard documented in apollo_gateway::gateway.
+            let address_derivation_hash =
+                AddressDerivationHash::for_version(StarknetVersion::LATEST);
+            let conversion_results = futures::future::join_all(txs.into_iter().map(|tx| {
+                transaction_converter
+                    .convert_consensus_tx_to_internal_consensus_tx(tx, address_derivation_hash)
+            }))
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>();
             let conversion_results = match conversion_results {
                 Ok(results) => results,
                 Err(e) => {

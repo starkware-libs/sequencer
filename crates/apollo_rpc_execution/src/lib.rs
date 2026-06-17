@@ -63,12 +63,19 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{
+    AddressDerivationHash,
+    ChainId,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
+    CalculateContractAddress,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -81,7 +88,7 @@ use starknet_api::transaction::{
     TransactionOptions,
     TransactionVersion,
 };
-use starknet_api::transaction_hash::get_transaction_hash;
+use starknet_api::transaction_hash::get_transaction_hash_with_address_derivation;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
@@ -207,6 +214,8 @@ pub enum ExecutionError {
     TransactionExecutionError { transaction_index: usize, execution_error: String },
     #[error("Failed to calculate transaction hash.")]
     TransactionHashCalculationFailed(StarknetApiError),
+    #[error("Failed to calculate the deploy-account contract address.")]
+    DeployAccountAddressCalculationFailed(StarknetApiError),
     #[error("Unknown builtin name: {builtin_name}")]
     UnknownBuiltin { builtin_name: BuiltinName },
     #[error(transparent)]
@@ -466,9 +475,18 @@ pub enum ExecutableTransactionInput {
 impl ExecutableTransactionInput {
     // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
     // instead.
-    fn calc_tx_hash(self, chain_id: &ChainId) -> ExecutionResult<(Self, TransactionHash)> {
+    fn calc_tx_hash(
+        self,
+        chain_id: &ChainId,
+        address_derivation_hash: AddressDerivationHash,
+    ) -> ExecutionResult<(Self, TransactionHash)> {
         match self.apply_on_transaction(|tx, only_query| {
-            get_transaction_hash(tx, chain_id, &TransactionOptions { only_query })
+            get_transaction_hash_with_address_derivation(
+                tx,
+                chain_id,
+                &TransactionOptions { only_query },
+                address_derivation_hash,
+            )
         }) {
             (original_tx, Ok(tx_hash)) => Ok((original_tx, tx_hash)),
             (_, Err(err)) => Err(ExecutionError::TransactionHashCalculationFailed(err)),
@@ -596,10 +614,11 @@ impl ExecutableTransactionInput {
 fn calc_tx_hashes(
     txs: Vec<ExecutableTransactionInput>,
     chain_id: &ChainId,
+    address_derivation_hash: AddressDerivationHash,
 ) -> ExecutionResult<(Vec<ExecutableTransactionInput>, Vec<TransactionHash>)> {
     Ok(txs
         .into_iter()
-        .map(|tx| tx.calc_tx_hash(chain_id))
+        .map(|tx| tx.calc_tx_hash(chain_id, address_derivation_hash))
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .unzip())
@@ -711,7 +730,11 @@ fn execute_transactions(
     let (txs, tx_hashes) = match tx_hashes {
         Some(tx_hashes) => (txs, tx_hashes),
         None => {
-            let tx_hashes = calc_tx_hashes(txs, chain_id)?;
+            let tx_hashes = calc_tx_hashes(
+                txs,
+                chain_id,
+                AddressDerivationHash::for_version(block_context.block_info().starknet_version),
+            )?;
             trace!("Calculated tx hashes: {:?}", tx_hashes);
             tx_hashes
         }
@@ -745,7 +768,14 @@ fn execute_transactions(
             ) => Some(*class_hash),
             _ => None,
         };
-        let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index, charge_fee, validate)?;
+        let blockifier_tx = to_blockifier_tx(
+            tx,
+            tx_hash,
+            transaction_index,
+            charge_fee,
+            validate,
+            AddressDerivationHash::for_version(block_context.block_info().starknet_version),
+        )?;
         // TODO(Yoni): use the TransactionExecutor instead.
         let tx_execution_info_result =
             blockifier_tx.execute(&mut transactional_state, &block_context);
@@ -807,6 +837,7 @@ fn to_blockifier_tx(
     transaction_index: usize,
     charge_fee: bool,
     validate: bool,
+    address_derivation_hash: AddressDerivationHash,
 ) -> ExecutionResult<BlockifierTransaction> {
     // TODO(yair): support only_query version bit (enable in the RPC v0.6 and use the correct
     // value).
@@ -829,12 +860,17 @@ fn to_blockifier_tx(
         ExecutableTransactionInput::DeployAccount(deploy_acc_tx, only_query) => {
             let execution_flags =
                 ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
+            // Derive the deployed address with the block's versioned-constants hash so it matches
+            // the address the block's execution deploys (Pedersen pre-0.14.4, Blake2 from 0.14.4).
+            let deployed_contract_address = deploy_acc_tx
+                .calculate_contract_address(address_derivation_hash)
+                .map_err(ExecutionError::DeployAccountAddressCalculationFailed)?;
             BlockifierTransaction::from_api(
                 Transaction::DeployAccount(deploy_acc_tx),
                 tx_hash,
                 None,
                 None,
-                None,
+                Some(deployed_contract_address),
                 execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
