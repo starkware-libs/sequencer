@@ -91,6 +91,19 @@ where
             RetdataDeserializationError::USizeConversionError { felt: raw_num_items }
         })?;
 
+        // Each array element consumes at least one Felt, so a declared count larger than the
+        // number of remaining Felts cannot be valid. Validate before allocating to prevent a
+        // contract-controlled length felt from triggering an unbounded `Vec::with_capacity`.
+        let num_remaining_felts = iter.len();
+        if num_items > num_remaining_felts {
+            return Err(RetdataDeserializationError::InvalidObjectLength {
+                message: format!(
+                    "declared array length {num_items} exceeds {num_remaining_felts} remaining \
+                     retdata felts"
+                ),
+            });
+        }
+
         let mut result = Vec::with_capacity(num_items);
         for _ in 0..num_items {
             let item = T::try_from_iter(&mut iter)?;

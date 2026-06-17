@@ -105,6 +105,7 @@ fn staker_array_retdata_try_from_valid() {
 #[case::empty_retdata(vec![])]
 #[case::invalid_length_1(vec![Felt::ONE; 3])]
 #[case::invalid_length_2(vec![Felt::ONE; 10])]
+#[case::declared_length_exceeds_retdata(vec![Felt::from(u64::MAX)])]
 fn staker_array_retdata_try_from_invalid_length(#[case] raw_felts: Vec<Felt>) {
     let err = ContractStaker::from_retdata_many(Retdata(raw_felts)).unwrap_err();
     assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
