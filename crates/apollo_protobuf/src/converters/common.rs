@@ -6,10 +6,21 @@ use super::ProtobufConversionError;
 use crate::protobuf;
 use crate::sync::{BlockHashOrNumber, Direction, Query};
 
+#[cfg(test)]
+#[path = "common_test.rs"]
+mod common_test;
+
 impl TryFrom<protobuf::Felt252> for starknet_types_core::felt::Felt {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Felt252) -> Result<Self, Self::Error> {
         let mut felt = [0; 32];
+        if value.elements.len() != 32 {
+            return Err(ProtobufConversionError::BytesDataLengthMismatch {
+                type_description: "Felt252",
+                num_expected: 32,
+                value: value.elements,
+            });
+        }
         felt.copy_from_slice(&value.elements);
         // TODO(Shahak): use from_bytes_checked once it's available.
         Ok(Self::from_bytes_be(&felt))
