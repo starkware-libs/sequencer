@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781695400010,
+  "lastUpdate": 1781696287919,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5983,6 +5983,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1315.01863981,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ab82655daeb6a59cddc2b9e9e5afc8b64e9e8f9",
+          "message": "apollo_committer,starknet_committer: store and return state commitment infos (#14470)\n\nSwitch the committer's stored and returned payload from StarknetForestProofs to\nStateCommitmentInfos: rename the witness write/read structs and methods, persist via\nthe shared StateCommitmentInfos::compress/decompress codec, return the infos from\nread_paths_and_commit_block, and have the historical/replay path read them back.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-17T11:23:42Z",
+          "tree_id": "728beaee58a1559e8edb7d29eff9c2c4506da95f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9ab82655daeb6a59cddc2b9e9e5afc8b64e9e8f9"
+        },
+        "date": 1781696287457,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 834.91449456,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1325.6771941,
             "unit": "ms"
           }
         ]
