@@ -73,6 +73,16 @@ pub(crate) fn write_use_kzg_da_and_full_output_to_memory<S: StateReader>(
     Ok(())
 }
 
+pub(crate) fn write_use_blake_address_derivation_to_memory<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    mut ctx: HintContext<'_>,
+) -> OsHintResult {
+    let use_blake_address_derivation =
+        Felt::from(hint_processor.os_hints_config.use_blake_address_derivation);
+    ctx.insert_value(Ids::UseBlakeAddressDerivation, use_blake_address_derivation)?;
+    Ok(())
+}
+
 pub(crate) fn configure_kzg_manager<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     _ctx: HintContext<'_>,

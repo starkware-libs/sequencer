@@ -129,6 +129,7 @@ use crate::hints::hint_implementation::os::{
     initialize_state_changes,
     log_remaining_blocks,
     starknet_os_input,
+    write_use_blake_address_derivation_to_memory,
     write_use_kzg_da_and_full_output_to_memory,
 };
 use crate::hints::hint_implementation::os_logger::{
@@ -475,6 +476,7 @@ define_hint_enum!(
     (EnterScopeWithBytecodeSegmentStructure, enter_scope_with_bytecode_segment_structure),
     (GuessBlockInfo, guess_block_info),
     (ChainIdAndFeeTokenAddress, chain_id_and_fee_token_address),
+    (WriteUseBlakeAddressDerivationToMemory, write_use_blake_address_derivation_to_memory),
     (WriteUseKzgDaAndFullOutputToMemory, write_use_kzg_da_and_full_output_to_memory),
     (UpdateBuiltinPtrs, update_builtin_ptrs),
     (ReadStorageKeyForRevert, read_storage_key_for_revert),

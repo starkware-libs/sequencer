@@ -315,6 +315,7 @@ define_string_enum! {
         (TxVersion),
         (UnpackedU32s),
         (UpdatePtr),
+        (UseBlakeAddressDerivation),
         (UseKzgDa),
         (Value),
         (Word),

@@ -455,6 +455,7 @@ impl<S: FlowTestState> TestBuilder<S> {
         let os_hints_config = OsHintsConfig {
             chain_info,
             use_kzg_da: config.use_kzg_da,
+            use_blake_address_derivation: false,
             full_output: config.full_output,
             public_keys,
             debug_mode: false,

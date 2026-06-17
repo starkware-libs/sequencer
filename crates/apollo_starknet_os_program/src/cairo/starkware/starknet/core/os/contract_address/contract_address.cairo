@@ -6,6 +6,15 @@ from starkware.cairo.common.hash_state import (
     hash_update_with_hashchain,
 )
 from starkware.starknet.common.storage import normalize_address
+from starkware.starknet.core.os.hash.hash_state_blake import HashState as BlakeHashState
+from starkware.starknet.core.os.hash.hash_state_blake import hash_finalize as hash_finalize_blake
+from starkware.starknet.core.os.hash.hash_state_blake import hash_init as hash_init_blake
+from starkware.starknet.core.os.hash.hash_state_blake import (
+    hash_update_single as hash_update_single_blake,
+)
+from starkware.starknet.core.os.hash.hash_state_blake import (
+    hash_update_with_nested_hash as hash_update_with_nested_hash_blake,
+)
 
 const CONTRACT_ADDRESS_PREFIX = 'STARKNET_CONTRACT_ADDRESS';
 
@@ -31,5 +40,61 @@ func get_contract_address{hash_ptr: HashBuiltin*, range_check_ptr}(
     let (contract_address_before_modulo) = hash_finalize(hash_state_ptr=hash_state_ptr);
     let (contract_address) = normalize_address(addr=contract_address_before_modulo);
 
+    return (contract_address=contract_address);
+}
+
+// Same as `get_contract_address`, but uses Blake2s (the optimized
+// `encode_felt252_data_and_calc_blake_hash` encoding) instead of Pedersen.
+func get_contract_address_blake{range_check_ptr}(
+    salt: felt,
+    class_hash: felt,
+    constructor_calldata_size: felt,
+    constructor_calldata: felt*,
+    deployer_address: felt,
+) -> (contract_address: felt) {
+    let hash_state: BlakeHashState = hash_init_blake();
+    with hash_state {
+        hash_update_single_blake(item=CONTRACT_ADDRESS_PREFIX);
+        hash_update_single_blake(item=deployer_address);
+        hash_update_single_blake(item=salt);
+        hash_update_single_blake(item=class_hash);
+        hash_update_with_nested_hash_blake(
+            data_ptr=constructor_calldata, data_length=constructor_calldata_size
+        );
+    }
+    let contract_address_before_modulo: felt = hash_finalize_blake(hash_state=hash_state);
+    let (contract_address) = normalize_address(addr=contract_address_before_modulo);
+
+    return (contract_address=contract_address);
+}
+
+// Derives a contract address using Pedersen (`use_blake == FALSE`) or Blake2s (`use_blake == TRUE`).
+// The Pedersen path advances `hash_ptr`; the Blake path leaves it unchanged. This keeps a uniform
+// implicit-argument signature so callers don't need to branch on the hash function themselves.
+func get_contract_address_with_hash{range_check_ptr, hash_ptr: HashBuiltin*}(
+    use_blake: felt,
+    salt: felt,
+    class_hash: felt,
+    constructor_calldata_size: felt,
+    constructor_calldata: felt*,
+    deployer_address: felt,
+) -> (contract_address: felt) {
+    if (use_blake != 0) {
+        let (contract_address) = get_contract_address_blake(
+            salt=salt,
+            class_hash=class_hash,
+            constructor_calldata_size=constructor_calldata_size,
+            constructor_calldata=constructor_calldata,
+            deployer_address=deployer_address,
+        );
+        return (contract_address=contract_address);
+    }
+    let (contract_address) = get_contract_address(
+        salt=salt,
+        class_hash=class_hash,
+        constructor_calldata_size=constructor_calldata_size,
+        constructor_calldata=constructor_calldata,
+        deployer_address=deployer_address,
+    );
     return (contract_address=contract_address);
 }

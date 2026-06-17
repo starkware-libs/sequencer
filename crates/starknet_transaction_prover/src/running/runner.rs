@@ -102,6 +102,7 @@ impl From<VirtualOsBlockInput> for OsHints {
                 debug_mode: false,
                 full_output: false,
                 use_kzg_da: false,
+                use_blake_address_derivation: false,
                 chain_info: virtual_os_block_input.chain_info,
                 public_keys: None,
                 rng_seed_salt: None,

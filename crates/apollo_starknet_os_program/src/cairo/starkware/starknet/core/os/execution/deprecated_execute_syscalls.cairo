@@ -60,7 +60,9 @@ from starkware.starknet.core.os.constants import (
     ENTRY_POINT_TYPE_L1_HANDLER,
     EXECUTE_ENTRY_POINT_SELECTOR,
 )
-from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
+from starkware.starknet.core.os.contract_address.contract_address import (
+    get_contract_address_with_hash,
+)
 from starkware.starknet.core.os.execution.account_backward_compatibility import (
     check_tip_for_v1_bound_accounts,
     is_v1_bound_account_cairo0,
@@ -247,7 +249,8 @@ func execute_deploy_syscall{
     let selectable_builtins = &builtin_ptrs.selectable;
     let hash_ptr = selectable_builtins.pedersen;
     with hash_ptr {
-        let (contract_address) = get_contract_address(
+        let (contract_address) = get_contract_address_with_hash(
+            use_blake=block_context.use_blake_address_derivation,
             salt=request.contract_address_salt,
             class_hash=request.class_hash,
             constructor_calldata_size=request.constructor_calldata_size,

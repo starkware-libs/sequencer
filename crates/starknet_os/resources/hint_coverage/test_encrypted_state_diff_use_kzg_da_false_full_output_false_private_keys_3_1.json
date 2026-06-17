@@ -192,6 +192,9 @@
     "OsHint": "ChainIdAndFeeTokenAddress"
   },
   {
+    "OsHint": "WriteUseBlakeAddressDerivationToMemory"
+  },
+  {
     "OsHint": "WriteUseKzgDaAndFullOutputToMemory"
   },
   {

@@ -47,6 +47,8 @@ struct BlockContext {
     // syscall during '__validate__'.
     // Some of the fields, which cannot be used in validate mode, are zeroed out.
     block_info_for_validate: BlockInfo*,
+    // Whether contract addresses are derived with Blake2s (TRUE) or Pedersen (FALSE).
+    use_blake_address_derivation: felt,
 }
 
 // Returns a BlockContext instance.
@@ -66,6 +68,12 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
         block_info.block_timestamp, VALIDATE_TIMESTAMP_ROUNDING
     );
     tempvar block_timestamp_for_validate = divided_block_timestamp * VALIDATE_TIMESTAMP_ROUNDING;
+
+    local use_blake_address_derivation;
+    %{ WriteUseBlakeAddressDerivationToMemory %}
+    // Verify the guessed value is 0 or 1.
+    assert use_blake_address_derivation * (use_blake_address_derivation - 1) = 0;
+
     local block_context: BlockContext = BlockContext(
         os_global_context=[os_global_context],
         block_info_for_execute=block_info,
@@ -74,6 +82,7 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
             block_timestamp=block_timestamp_for_validate,
             sequencer_address=0,
         ),
+        use_blake_address_derivation=use_blake_address_derivation,
     );
 
     let (__fp__, _) = get_fp_and_pc();
