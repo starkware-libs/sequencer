@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::DirEntry;
 use std::path::{Path, PathBuf};
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 
 /// Returns all cairo file paths in the given directory, recursively.
 pub fn get_cairo_file_paths(dir_path: &Path) -> Vec<PathBuf> {
@@ -33,7 +33,7 @@ pub fn dump_source_files(dump_to: &PathBuf) {
     println!("cargo::warning=Dumping OS source files...");
 
     // Recursively fetch all cairo files and contents, and convert the paths to relative paths.
-    let base_path = PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo");
+    let base_path = PathBuf::from(cargo_manifest_dir!()).join("src/cairo");
     let map_without_prefixes: HashMap<String, String> = get_cairo_file_paths(&base_path)
         .into_iter()
         .map(|path| {

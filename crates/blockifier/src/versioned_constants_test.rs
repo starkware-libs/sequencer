@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use cached::proc_macro::cached;
 use expect_test::expect_file;
 use glob::{glob, Paths};
@@ -17,7 +17,7 @@ use super::*;
 
 /// Returns all JSON files in the resources directory (should be all versioned constants files).
 fn all_jsons_in_dir() -> Paths {
-    glob(format!("{}/resources/*.json", compile_time_cargo_manifest_dir!()).as_str()).unwrap()
+    glob(format!("{}/resources/*.json", cargo_manifest_dir!()).as_str()).unwrap()
 }
 
 /// Assert versioned constants overrides are used when provided.

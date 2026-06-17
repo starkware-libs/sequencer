@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -178,7 +178,7 @@ impl MockRpcServer {
 
 /// Returns the path to the RPC records directory for the starknet_transaction_prover crate.
 pub fn records_dir() -> PathBuf {
-    PathBuf::from(compile_time_cargo_manifest_dir!()).join("resources").join("rpc_records")
+    PathBuf::from(cargo_manifest_dir!()).join("resources").join("rpc_records")
 }
 
 /// Returns the path to a specific test's record file.

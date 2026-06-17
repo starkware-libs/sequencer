@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use apollo_infra_utils::cairo0_compiler_test_utils::cairo0_format_batch;
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use expect_test::expect_file;
 use rstest::rstest;
 
@@ -24,8 +24,7 @@ static CAIRO_FILES_TO_FORMAT: LazyLock<HashMap<String, String>> = LazyLock::new(
 #[test]
 fn test_cairo0_formatting() {
     // Get the path to the apollo_starknet_os directory.
-    let apollo_starknet_os_path =
-        PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo");
+    let apollo_starknet_os_path = PathBuf::from(cargo_manifest_dir!()).join("src/cairo");
 
     // Format all files in a single batch (much faster than per-file).
     let formatted_files = cairo0_format_batch(CAIRO_FILES_TO_FORMAT.clone());

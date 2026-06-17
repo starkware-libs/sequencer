@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::SierraVersion;
@@ -599,7 +599,7 @@ pub fn get_raw_contract_class(contract_path: &str) -> String {
     let path: PathBuf = if std::path::Path::new(contract_path).is_absolute() {
         PathBuf::from(contract_path)
     } else {
-        [compile_time_cargo_manifest_dir!(), contract_path].iter().collect()
+        PathBuf::from(cargo_manifest_dir!()).join(contract_path)
     };
     fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read contract from {path:?}: {e}"))

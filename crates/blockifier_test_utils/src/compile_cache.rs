@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cargo_manifest_dir;
 use apollo_infra_utils::path::project_path;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use digest::Digest;
@@ -141,7 +141,7 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
     let casm_path = cached_compiled_path(contract);
     let sierra_path = cached_sierra_path(contract);
     let version = contract.fixed_version();
-    let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
+    let crate_root = PathBuf::from(cargo_manifest_dir!());
     let source_path = crate_root.join(contract.get_source_path());
     let libfunc_arg = contract.libfunc_arg();
     let abs_libfunc_arg = match &libfunc_arg {
@@ -188,7 +188,7 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
 pub fn ensure_erc20_compiled_class_hashes() {
     let contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-    let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
+    let crate_root = PathBuf::from(cargo_manifest_dir!());
     let casm_abs = crate_root.join(contract.get_compiled_path());
     let casm_content = fs::read_to_string(&casm_abs)
         .unwrap_or_else(|e| panic!("Cannot read ERC20 CASM at {casm_abs:?}: {e}"));
