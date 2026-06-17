@@ -11,6 +11,7 @@ use std::env;
 use std::path::PathBuf;
 
 use apollo_deployments::jsonnet_generation::{
+    eval_build_service_with_overrides,
     eval_build_with_overrides,
     overrides_from_sequencer_config,
     service_config_to_preset,
@@ -57,21 +58,26 @@ fn main() {
         .expect("Couldn't set working dir.");
 
     let overrides = overrides_from_sequencer_config(&flat_overrides);
-    let service_configs = eval_build_with_overrides(&args.layout, &overrides);
-    let services = service_configs.as_object().expect("build result is a service-keyed object");
 
     let output = match &args.service {
-        Some(service) => service_config_to_preset(
-            services
-                .get(service)
-                .unwrap_or_else(|| panic!("layout '{}' has no service '{service}'", args.layout)),
-        ),
-        None => Value::Object(
-            services
-                .iter()
-                .map(|(name, config)| (name.clone(), service_config_to_preset(config)))
-                .collect(),
-        ),
+        // Build only the requested service: a per-service deploy supplies just that service's
+        // overrides, so the other services' (absent) override keys must never be forced.
+        Some(service) => {
+            let service_config =
+                eval_build_service_with_overrides(&args.layout, &overrides, service);
+            service_config_to_preset(&service_config)
+        }
+        None => {
+            let service_configs = eval_build_with_overrides(&args.layout, &overrides);
+            let services =
+                service_configs.as_object().expect("build result is a service-keyed object");
+            Value::Object(
+                services
+                    .iter()
+                    .map(|(name, config)| (name.clone(), service_config_to_preset(config)))
+                    .collect(),
+            )
+        }
     };
 
     println!("{}", serde_json::to_string_pretty(&output).expect("config is serializable"));

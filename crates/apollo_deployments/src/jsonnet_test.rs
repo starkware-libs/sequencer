@@ -89,7 +89,7 @@ where
 }
 
 fn eval_test_build(layout: &str) -> Value {
-    eval_build_with_expr(layout, "import 'testing/overrides.libsonnet'")
+    eval_build_with_expr(layout, "import 'testing/overrides.libsonnet'", None)
 }
 
 /// Flattens a nested JSON object into a map from dot-separated leaf path to value. Non-empty
