@@ -34,7 +34,9 @@ from starkware.starknet.core.os.constants import (
     VALIDATE_MAX_SIERRA_GAS,
     VALIDATED,
 )
-from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
+from starkware.starknet.core.os.contract_address.contract_address import (
+    get_contract_address_with_hash,
+)
 from starkware.starknet.core.os.contract_class.contract_class import (
     ContractClassComponentHashes,
     finalize_class_hash,
@@ -522,7 +524,7 @@ func consume_l1_to_l2_message{outputs: OsCarriedOutputs*}(
 // Leaves 'execution_info.tx_info' and 'deprecated_tx_info' empty - should be filled later on.
 // TODO(Yoni, 1/1/2026): consider removing this function (used only once).
 func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: BuiltinPointers*}(
-    block_info: BlockInfo*
+    block_info: BlockInfo*, use_blake_address_derivation: felt
 ) -> (constructor_execution_context: ExecutionContext*, salt: felt) {
     alloc_locals;
 
@@ -535,7 +537,8 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
 
     let hash_ptr = builtin_ptrs.selectable.pedersen;
     with hash_ptr {
-        let (contract_address) = get_contract_address(
+        let (contract_address) = get_contract_address_with_hash(
+            use_blake=use_blake_address_derivation,
             salt=contract_address_salt,
             class_hash=class_hash,
             constructor_calldata_size=constructor_calldata_size,
@@ -579,7 +582,10 @@ func execute_deploy_account_transaction{
     // Calculate address and prepare constructor execution context.
     let (
         local constructor_execution_context: ExecutionContext*, local salt
-    ) = prepare_constructor_execution_context(block_info=block_context.block_info_for_validate);
+    ) = prepare_constructor_execution_context(
+        block_info=block_context.block_info_for_validate,
+        use_blake_address_derivation=block_context.use_blake_address_derivation,
+    );
     local constructor_execution_info: ExecutionInfo* = constructor_execution_context.execution_info;
     local sender_address = constructor_execution_info.contract_address;
 
