@@ -1419,6 +1419,32 @@
       "severity": "$$$l1_gas_price_scraper_success_count-severity$$$"
     },
     {
+      "name": "l1_handler_pending_too_long",
+      "title": "L1 handler pending on L1 too long",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "((time() - l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"}) and (l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"} > 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              600.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$l1_handler_pending_too_long-severity$$$"
+    },
+    {
       "name": "l1_message_no_successes",
       "title": "L1 message no successes",
       "ruleGroup": "evaluation_rate_default",
