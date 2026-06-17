@@ -94,10 +94,15 @@ impl TransactionHasher for InternalRpcDeployAccountTransaction {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
+        // Use the contract address already derived during conversion (with the version-gated hash)
+        // rather than recomputing it, so the tx hash embeds the same address execution will deploy.
         match &self.tx {
-            RpcDeployAccountTransaction::V3(tx) => {
-                tx.calculate_transaction_hash(chain_id, transaction_version)
-            }
+            RpcDeployAccountTransaction::V3(tx) => get_deploy_account_transaction_v3_hash(
+                tx,
+                chain_id,
+                transaction_version,
+                self.contract_address,
+            ),
         }
     }
 }

@@ -64,7 +64,7 @@ use starknet_api::block::{
 };
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, ContractAddress, Nonce};
+use starknet_api::core::{AddressDerivationHash, ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
@@ -115,10 +115,12 @@ pub(crate) static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>>
             .iter()
             .cloned()
             .map(|tx| {
-                let (internal_tx, _) = block_on(
-                    TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx),
-                )
-                .unwrap();
+                let (internal_tx, _) =
+                    block_on(TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(
+                        tx,
+                        AddressDerivationHash::Pedersen,
+                    ))
+                    .unwrap();
                 internal_tx
             })
             .collect()
@@ -308,9 +310,9 @@ impl TestDeps {
                 .returning(|_| Ok(tx.clone()));
             self.transaction_converter
                 .expect_convert_consensus_tx_to_internal_consensus_tx()
-                .withf(move |internal_tx| internal_tx == tx)
+                .withf(move |internal_tx, _| internal_tx == tx)
                 // TODO(Einat): Add verification handle when client-side proving is tested in the validate proposal test.
-                .returning(|_| Ok((internal_tx.clone(), None)));
+                .returning(|_, _| Ok((internal_tx.clone(), None)));
         }
     }
 

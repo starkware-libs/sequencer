@@ -82,6 +82,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
+        address_derivation_hash: AddressDerivationHash,
     ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerifyAndStoreProofTask>)>;
 
     async fn convert_internal_rpc_tx_to_rpc_tx(
@@ -92,6 +93,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
+        address_derivation_hash: AddressDerivationHash,
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)>;
 
     async fn convert_internal_rpc_tx_to_executable_tx(
@@ -184,11 +186,13 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
+        address_derivation_hash: AddressDerivationHash,
     ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerifyAndStoreProofTask>)>
     {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
-                let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
+                let (internal_tx, proof_data) =
+                    self.convert_rpc_tx_to_internal(tx, address_derivation_hash).await?;
                 let task = proof_data.map(|(proof_facts, proof)| {
                     self.spawn_verify_and_store_proof(proof_facts, proof)
                 });
@@ -256,8 +260,10 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
+        address_derivation_hash: AddressDerivationHash,
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
-        let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
+        let (internal_tx, proof_data) =
+            self.convert_rpc_tx_to_internal(tx, address_derivation_hash).await?;
         let verification_handle = proof_data
             .map(|(proof_facts, proof)| self.spawn_proof_verification(proof_facts, proof))
             .transpose()?;
@@ -334,6 +340,7 @@ impl TransactionConverter {
     async fn convert_rpc_tx_to_internal(
         &self,
         tx: RpcTransaction,
+        address_derivation_hash: AddressDerivationHash,
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<(ProofFacts, Proof)>)> {
         let (tx_without_hash, proof_data) = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
@@ -376,8 +383,7 @@ impl TransactionConverter {
                 )
             }
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                let contract_address =
-                    tx.calculate_contract_address(AddressDerivationHash::Pedersen)?;
+                let contract_address = tx.calculate_contract_address(address_derivation_hash)?;
                 (
                     InternalRpcTransactionWithoutTxHash::DeployAccount(
                         InternalRpcDeployAccountTransaction {
