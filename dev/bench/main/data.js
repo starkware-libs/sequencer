@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781696287919,
+  "lastUpdate": 1781702706937,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6017,6 +6017,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1325.6771941,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b5f4fc26f0d2f6d7eed563389914a0ee6df1a5b8",
+          "message": "apollo_batcher,apollo_batcher_types: add get_state_commitment_infos batcher API (#14504)",
+          "timestamp": "2026-06-17T12:45:28Z",
+          "tree_id": "05eaba9c2e4bcdd021f5d6a9648c60a4a6d2c2ad",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b5f4fc26f0d2f6d7eed563389914a0ee6df1a5b8"
+        },
+        "date": 1781702706497,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 889.54378012,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1361.0625013499998,
             "unit": "ms"
           }
         ]
