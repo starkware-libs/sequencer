@@ -21,6 +21,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -116,6 +117,9 @@ impl RawVersionedConstants {
 pub struct RawOsConstants {
     // Allowed virtual OS program hashes for client-side proving.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+
+    // Proof fact version markers (felts) accepted under this protocol version.
+    pub allowed_proof_versions: Vec<Felt>,
 
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
@@ -555,9 +559,11 @@ pub struct CairoNativeStackConfig {
 
 impl CairoNativeStackConfig {
     /// Rounds up the given size to the nearest multiple of MB.
+    /// Saturates to the largest multiple of MB that fits in a `u64` to avoid wrapping to 0 for
+    /// sizes close to `u64::MAX` (a 0-byte stack size would crash Cairo Native).
     pub fn round_up_to_mb(size: u64) -> u64 {
         const MB: u64 = 1024 * 1024;
-        size.div_ceil(MB) * MB
+        size.div_ceil(MB).checked_mul(MB).unwrap_or(u64::MAX / MB * MB)
     }
 
     /// Returns the stack size sufficient for running Cairo Native.
@@ -1070,9 +1076,18 @@ impl GasCosts {
         let base_costs = BaseGasCosts {
             step_gas_cost,
             memory_hole_gas_cost: os_constants.memory_hole_gas_cost.0,
-            default_initial_gas_cost: step_gas_cost * default_initial_gas_cost_in_steps.0,
-            entry_point_initial_budget: step_gas_cost * entry_point_initial_budget_in_steps.0,
-            syscall_base_gas_cost: step_gas_cost * syscall_base_gas_cost_in_steps.0,
+            default_initial_gas_cost: default_initial_gas_cost_in_steps
+                .checked_factor_mul(step_gas_cost)
+                .expect("The default initial gas cost should not overflow.")
+                .0,
+            entry_point_initial_budget: entry_point_initial_budget_in_steps
+                .checked_factor_mul(step_gas_cost)
+                .expect("The entry point initial budget should not overflow.")
+                .0,
+            syscall_base_gas_cost: syscall_base_gas_cost_in_steps
+                .checked_factor_mul(step_gas_cost)
+                .expect("The syscall base gas cost should not overflow.")
+                .0,
         };
 
         let summarize = |selector: SyscallSelector| match os_constants.syscall_gas_costs {
@@ -1198,6 +1213,9 @@ pub struct OsConstants {
     // Allowed virtual OS program hashes for client-side proving.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
 
+    // Proof fact version markers (felts) accepted under this protocol version.
+    pub allowed_proof_versions: Vec<Felt>,
+
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
     pub default_entry_point_selector: EntryPointSelector,
@@ -1281,6 +1299,7 @@ impl OsConstants {
             allowed_virtual_os_program_hashes: raw_constants
                 .allowed_virtual_os_program_hashes
                 .clone(),
+            allowed_proof_versions: raw_constants.allowed_proof_versions.clone(),
             constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
             default_entry_point_selector: raw_constants.default_entry_point_selector,
             execute_entry_point_selector: raw_constants.execute_entry_point_selector,

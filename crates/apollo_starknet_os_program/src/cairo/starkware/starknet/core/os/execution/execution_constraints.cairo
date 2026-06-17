@@ -6,13 +6,11 @@ from starkware.cairo.common.math import assert_le, assert_nn_le, assert_not_zero
 from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1,
-    ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
 from starkware.starknet.core.os.virtual_os_output import (
-    PROOF_VERSION_V0,
     PROOF_VERSION_V1,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
@@ -26,10 +24,9 @@ func check_is_reverted(is_reverted: felt) {
 
 // Returns TRUE if the given virtual OS program hash is allowed, FALSE otherwise.
 func is_program_hash_allowed(program_hash: felt) -> felt {
-    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 3;
+    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 2;
     if ((program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) *
-        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) *
-        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2) == 0) {
+        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) == 0) {
         return TRUE;
     }
     return FALSE;
@@ -55,8 +52,7 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     assert is_program_hash_allowed(proof_header.program_hash) = TRUE;
     // Proof version may be V0 (legacy) or V1 (current).
     with_attr error_message("Unsupported proof version") {
-        tempvar proof_version = proof_header.proof_version;
-        assert (proof_version - PROOF_VERSION_V0) * (proof_version - PROOF_VERSION_V1) = 0;
+        assert proof_header.proof_version = PROOF_VERSION_V1;
     }
 
     // Validate the virtual OS output header.

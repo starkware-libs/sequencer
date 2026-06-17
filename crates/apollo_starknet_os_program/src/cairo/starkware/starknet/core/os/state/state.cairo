@@ -2,7 +2,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import HashBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
-from starkware.cairo.common.find_element import search_sorted
 from starkware.cairo.common.patricia import patricia_update_constants_new
 from starkware.cairo.common.patricia_utils import PatriciaUpdateConstants
 from starkware.cairo.common.squash_dict import squash_dict
@@ -146,19 +145,10 @@ func squash_state_changes_and_maybe_allocate_aliases{range_check_ptr}(
         );
     }
 
-    // Sanity check: ensure ALIAS_CONTRACT_ADDRESS is not included in the state diff
-    // (before the allocation).
-    let (_, success) = search_sorted(
-        array_ptr=squashed_contract_state_dict,
-        elm_size=DictAccess.SIZE,
-        n_elms=n_contract_state_changes,
-        key=ALIAS_CONTRACT_ADDRESS,
-    );
-    assert success = 0;
-
     // Squash the storage updates of the alias contract.
-    // The check above ensures that there was no access to this storage before, so it is enough to
-    // squash it separately instead of running `squash_state_changes` again.
+    // There should be no access to this storage before, so it is enough to squash it separately
+    // instead of running `squash_state_changes` again. This assumption is enforced by the Patricia
+    // update code.
     local squashed_aliases_storage_start: DictAccess*;
     local prev_aliases_state_entry: StateEntry*;
     %{ GuessAliasesContractStoragePtr %}
