@@ -8,7 +8,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::calculate_contract_address;
+use starknet_api::core::{calculate_contract_address, AddressDerivationHash};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
@@ -489,6 +489,7 @@ fn test_deploy(
         class_hash,
         &Calldata(constructor_calldata.into()),
         test_contract.get_instance_address(0),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
     assert_eq!(

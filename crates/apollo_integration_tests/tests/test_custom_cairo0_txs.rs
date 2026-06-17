@@ -13,7 +13,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
-use starknet_api::core::calculate_contract_address;
+use starknet_api::core::{calculate_contract_address, AddressDerivationHash};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
@@ -130,6 +130,7 @@ fn generate_invoke_txs_tests_for_deploy_contract(
         test_contract.get_class_hash(),
         &calldata!(constructor_calldata_arg1, constructor_calldata_arg2),
         account_tx_generator.sender_address(),
+        AddressDerivationHash::Pedersen,
     )
     .expect("Failed to calculate contract address");
 
