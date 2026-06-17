@@ -1,7 +1,7 @@
 use starknet_crypto::Felt;
 
 use super::{NonceManager, TestingTxArgs};
-use crate::core::{ClassHash, Nonce};
+use crate::core::{AddressDerivationHash, ClassHash, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
     AccountTransaction,
@@ -125,7 +125,7 @@ pub fn executable_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> Acco
     let tx_hash = deploy_tx_args.tx_hash;
     let tx_nonce = deploy_tx_args.nonce;
     let tx = deploy_account_tx(deploy_tx_args, tx_nonce);
-    let contract_address = tx.calculate_contract_address().unwrap();
+    let contract_address = tx.calculate_contract_address(AddressDerivationHash::Pedersen).unwrap();
     let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
 
     AccountTransaction::DeployAccount(deploy_account_tx)
@@ -176,7 +176,7 @@ pub fn internal_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> Intern
         unreachable!();
     };
 
-    let contract_address = tx.calculate_contract_address().unwrap();
+    let contract_address = tx.calculate_contract_address(AddressDerivationHash::Pedersen).unwrap();
     let tx_without_hash =
         InternalRpcTransactionWithoutTxHash::DeployAccount(InternalRpcDeployAccountTransaction {
             tx: RpcDeployAccountTransaction::V3(tx),

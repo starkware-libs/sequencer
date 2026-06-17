@@ -21,6 +21,7 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EthAddress,
@@ -240,6 +241,7 @@ async fn declare_deploy_scenario(
         class_hash,
         &Calldata(constructor_calldata[1..].to_vec().into()),
         *FUNDED_ACCOUNT_ADDRESS,
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata });
@@ -1157,6 +1159,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         test_class_hash,
         &Calldata(Arc::new(ctor_calldata)),
         main_contract_address,
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
 
@@ -1351,6 +1354,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         faulty_account_class_hash,
         &ctor_calldata,
         ContractAddress::default(),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
     // Fund the address.
@@ -1843,6 +1847,7 @@ async fn test_deprecated_tx_info() {
         class_hash,
         &calldata![],
         ContractAddress::default(),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
 
@@ -2104,9 +2109,14 @@ async fn test_inner_deploy_failure() {
     // Precompute the expected deploy address of the new empty contract instance.
     let salt = ContractAddressSalt(Felt::from(127));
     let empty_class_hash = get_class_hash_of_feature_contract(empty_contract);
-    let expected_deploy_address =
-        calculate_contract_address(salt, empty_class_hash, &calldata![], test_contract_address)
-            .unwrap();
+    let expected_deploy_address = calculate_contract_address(
+        salt,
+        empty_class_hash,
+        &calldata![],
+        test_contract_address,
+        AddressDerivationHash::Pedersen,
+    )
+    .unwrap();
 
     let calldata = create_calldata(
         test_contract_address,
@@ -2184,6 +2194,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
         class_hash,
         &calldata![is_validate],
         ContractAddress::default(),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
 
