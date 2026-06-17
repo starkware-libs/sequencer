@@ -78,6 +78,25 @@ pub fn get_transaction_hash(
     chain_id: &ChainId,
     transaction_options: &TransactionOptions,
 ) -> Result<TransactionHash, StarknetApiError> {
+    get_transaction_hash_with_address_derivation(
+        transaction,
+        chain_id,
+        transaction_options,
+        AddressDerivationHash::Pedersen,
+    )
+}
+
+/// Like [get_transaction_hash], but derives the deploy / deploy-account contract address embedded
+/// in the hash with the given `address_derivation_hash`. Callers that recompute a deploy-account
+/// hash against a specific block (RPC execution, block re-execution) must pass that block's
+/// address-derivation hash, so the recomputed hash embeds the same address the block's execution
+/// deploys (Pedersen pre-0.14.4, Blake2 from 0.14.4).
+pub fn get_transaction_hash_with_address_derivation(
+    transaction: &Transaction,
+    chain_id: &ChainId,
+    transaction_options: &TransactionOptions,
+    address_derivation_hash: AddressDerivationHash,
+) -> Result<TransactionHash, StarknetApiError> {
     let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     match transaction {
         Transaction::Declare(declare) => match declare {
@@ -98,7 +117,7 @@ pub fn get_transaction_hash(
             deploy,
             chain_id,
             transaction_version,
-            deploy.calculate_contract_address(AddressDerivationHash::Pedersen)?,
+            deploy.calculate_contract_address(address_derivation_hash)?,
         ),
         Transaction::DeployAccount(deploy_account) => match deploy_account {
             DeployAccountTransaction::V1(deploy_account_v1) => {
@@ -106,8 +125,7 @@ pub fn get_transaction_hash(
                     deploy_account_v1,
                     chain_id,
                     transaction_version,
-                    deploy_account_v1
-                        .calculate_contract_address(AddressDerivationHash::Pedersen)?,
+                    deploy_account_v1.calculate_contract_address(address_derivation_hash)?,
                 )
             }
             DeployAccountTransaction::V3(deploy_account_v3) => {
@@ -115,8 +133,7 @@ pub fn get_transaction_hash(
                     deploy_account_v3,
                     chain_id,
                     transaction_version,
-                    deploy_account_v3
-                        .calculate_contract_address(AddressDerivationHash::Pedersen)?,
+                    deploy_account_v3.calculate_contract_address(address_derivation_hash)?,
                 )
             }
         },

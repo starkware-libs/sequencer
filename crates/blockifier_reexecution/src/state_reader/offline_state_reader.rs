@@ -109,7 +109,10 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
         // Use the declared classes from the reexecuted block to allow retrieving the class info.
         let reexecuted_block_transactions =
             OfflineStateReader { contract_class_mapping: declared_classes, ..Default::default() }
-                .api_txs_to_blockifier_txs(reexecuted_block_transactions)
+                .api_txs_to_blockifier_txs(
+                    reexecuted_block_transactions,
+                    VersionedConstants::get(&starknet_version).unwrap().address_derivation_hash(),
+                )
                 .expect("Failed to convert starknet-api transactions to blockifier transactions.");
 
         let mut versioned_constants = VersionedConstants::get(&starknet_version).unwrap().clone();

@@ -6,6 +6,7 @@ use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::{StorageReader, StorageWriter};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
 use lazy_static::lazy_static;
@@ -23,11 +24,18 @@ use starknet_api::block::{
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
+use starknet_api::core::{
+    calculate_contract_address,
+    ChainId,
+    ClassHash,
+    ContractAddress,
+    Nonce,
+    SequencerContractAddress,
+};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -37,6 +45,7 @@ use starknet_api::transaction::{
     InvokeTransactionV1,
     TransactionHash,
 };
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, class_hash, compiled_class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 
@@ -60,9 +69,17 @@ lazy_static! {
     pub static ref CONTRACT_ADDRESS: ContractAddress = contract_address!("0x2");
     pub static ref ACCOUNT_CLASS_HASH: ClassHash = class_hash!("0x333");
     pub static ref ACCOUNT_ADDRESS: ContractAddress = contract_address!("0x444");
-    // Taken from the trace of the deploy account transaction.
-    pub static ref NEW_ACCOUNT_ADDRESS: ContractAddress =
-        contract_address!("0x0153ade9ef510502c4f3b879c049dcc3ad5866706cae665f0d9df9b01e794fdb");
+    // The address of the account deployed by `TxsScenarioBuilder::deploy_account` (default salt
+    // and empty constructor calldata). Derived with the latest versioned constants' hash so it
+    // tracks the active address-derivation scheme (Pedersen, or Blake2 from 0.14.4).
+    pub static ref NEW_ACCOUNT_ADDRESS: ContractAddress = calculate_contract_address(
+        ContractAddressSalt::default(),
+        *ACCOUNT_CLASS_HASH,
+        &Calldata::default(),
+        ContractAddress::default(),
+        VersionedConstants::latest_constants().address_derivation_hash(),
+    )
+    .unwrap();
     pub static ref TEST_ERC20_CONTRACT_CLASS_HASH: ClassHash = class_hash!("0x1010");
     pub static ref TEST_ERC20_CONTRACT_ADDRESS: ContractAddress = contract_address!("0x1001");
     pub static ref ACCOUNT_INITIAL_BALANCE: Felt = felt!(2 * MAX_FEE.0);
