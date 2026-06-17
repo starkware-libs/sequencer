@@ -492,6 +492,17 @@ async fn handle_proposal_part(
                 );
             };
 
+            // `executed_transaction_count` comes straight off the wire, so a dishonest or
+            // spoofed `Fin` can claim more transactions than were actually streamed. Reject
+            // that here instead of trusting the count downstream.
+            let n_received_txs = content.iter().map(Vec::len).sum::<usize>();
+            if executed_txs_count > n_received_txs {
+                return HandledProposalPart::Failed(format!(
+                    "Fin claims {executed_txs_count} executed transactions but only \
+                     {n_received_txs} were received in the proposal."
+                ));
+            }
+
             *content = truncate_to_executed_txs(content, executed_txs_count);
 
             // Verification and store proof tasks are spawned during consensus transaction

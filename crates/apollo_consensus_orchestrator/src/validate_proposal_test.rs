@@ -8,6 +8,7 @@ use apollo_batcher_types::batcher_types::{
     FinishedProposalInfoWithoutParent,
     ProposalCommitment,
     ProposalId,
+    SendTxsForProposalStatus,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -203,6 +204,47 @@ async fn validate_proposal_success() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert_matches!(res, Ok(val) if val == expected);
+}
+
+#[tokio::test]
+async fn fin_with_inflated_executed_tx_count_is_rejected() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    proposal_args.deps.setup_default_expectations();
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_send_txs_for_proposal()
+        .times(1)
+        .returning(|_| Ok(SendTxsForProposalStatus::Processing));
+    // The inflated count must be rejected before reaching the batcher: `finish_proposal` is
+    // never called, and the in-progress proposal is aborted instead.
+    proposal_args.deps.batcher.expect_finish_proposal().times(0);
+    proposal_args.deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
+
+    // Stream TX_BATCH (3 txs), then claim one more was executed than was received.
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
+        .await
+        .unwrap();
+    let inflated_count = (TX_BATCH.len() + 1).try_into().unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: inflated_count,
+            fin_payload: None,
+        }))
+        .await
+        .unwrap();
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(res, Err(ValidateProposalError::ProposalPartFailed(_, _)));
 }
 
 #[tokio::test]
