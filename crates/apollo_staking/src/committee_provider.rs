@@ -39,6 +39,10 @@ pub enum CommitteeProviderError {
     InvalidHeight { height: BlockNumber },
     #[error("Missing epoch information for epoch {epoch_id}.")]
     MissingInformation { epoch_id: u64 },
+    #[error("Staking contract returned a duplicate staker address: {address}.")]
+    DuplicateStakerAddress { address: ContractAddress },
+    #[error("Staking contract returned no usable stakers (empty or all zero-weight).")]
+    EmptyStakerSet,
     #[error(transparent)]
     StakingContractError(#[from] StakingContractError),
     #[error(

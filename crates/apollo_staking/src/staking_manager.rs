@@ -298,6 +298,9 @@ impl StakingManager {
         let contract_stakers =
             self.staking_contract.get_stakers_with_config(epoch, &dynamic_config).await?;
 
+        // Validate the staker set returned by the contract before building the committee.
+        let contract_stakers = validate_stakers(contract_stakers)?;
+
         // Get the active committee config for this epoch (includes size and stakers).
         let active_config = get_config_for_epoch(
             &dynamic_config.default_committee,
@@ -469,6 +472,34 @@ impl StakingManager {
         info!("Resolved height={height} to epoch_id={epoch_id}.");
         Ok(epoch_id)
     }
+}
+
+// Validates the staker set returned by the staking contract before committee construction.
+// Rejects the whole response on a duplicate address (a corruption signal), drops zero-weight
+// stakers (they occupy a committee seat and count for voting membership but contribute nothing
+// to weighted thresholds), and rejects an empty result (an all-zero-weight or empty response
+// would make total_weight == 0 and panic proposer selection).
+fn validate_stakers(stakers: StakerSet) -> CommitteeProviderResult<StakerSet> {
+    let mut seen_addresses = HashSet::with_capacity(stakers.len());
+    for staker in &stakers {
+        if !seen_addresses.insert(staker.address) {
+            return Err(CommitteeProviderError::DuplicateStakerAddress { address: staker.address });
+        }
+    }
+
+    let initial_len = stakers.len();
+    let valid_stakers: StakerSet =
+        stakers.into_iter().filter(|staker| staker.weight.0 != 0).collect();
+    let num_zero_weight = initial_len - valid_stakers.len();
+    if num_zero_weight > 0 {
+        warn!("Filtered out {num_zero_weight} zero-weight staker(s) from the staking response.");
+    }
+
+    if valid_stakers.is_empty() {
+        return Err(CommitteeProviderError::EmptyStakerSet);
+    }
+
+    Ok(valid_stakers)
 }
 
 impl CommitteeTrait for Committee {
