@@ -57,6 +57,16 @@ const STAKER_4: Staker = Staker {
     weight: StakingWeight(4000),
     public_key: Felt::from_raw([0, 0, 0, 4]),
 };
+const ZERO_WEIGHT_STAKER_5: Staker = Staker {
+    address: ContractAddress(PatriciaKey::from_hex_unchecked("0x5")),
+    weight: StakingWeight(0),
+    public_key: Felt::from_raw([0, 0, 0, 5]),
+};
+const ZERO_WEIGHT_STAKER_6: Staker = Staker {
+    address: ContractAddress(PatriciaKey::from_hex_unchecked("0x6")),
+    weight: StakingWeight(0),
+    public_key: Felt::from_raw([0, 0, 0, 6]),
+};
 
 const EPOCH_0: Epoch = Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: 100 };
 const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 1000 };
@@ -152,7 +162,6 @@ fn make_generator_factory(value: u128) -> MockBlockRandomGeneratorFactory {
 }
 
 #[rstest]
-#[case::no_stakers(vec![], vec![])]
 #[case::single_staker(vec![STAKER_1], vec![STAKER_1])]
 #[case::multiple_stakers_less_than_committee_size(vec![STAKER_1, STAKER_2], vec![STAKER_2, STAKER_1])]
 #[case::multiple_stakers_equal_to_committee_size(vec![STAKER_1, STAKER_2, STAKER_3], vec![STAKER_3, STAKER_2, STAKER_1])]
@@ -184,6 +193,82 @@ async fn get_committee_success(
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
 
     assert_eq!(*committee.members(), expected_committee);
+}
+
+// Builds a StakingManager whose contract returns `stakers` for EPOCH_1, with all surrounding
+// epoch/block-hash mocks satisfied. Used by the staker-validation tests below.
+fn manager_returning_stakers(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    stakers: StakerSet,
+) -> StakingManager {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, stakers);
+
+    StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(3),
+            ..default_config
+        },
+        None,
+    )
+}
+
+#[rstest]
+#[tokio::test]
+async fn duplicate_staker_address_is_rejected(
+    default_config: StakingManagerConfig,
+    contract: MockStakingContract,
+) {
+    let committee_manager =
+        manager_returning_stakers(default_config, contract, vec![STAKER_1, STAKER_2, STAKER_1]);
+
+    let error = committee_manager.get_committee(E1_H1).await.err().unwrap();
+
+    assert_matches!(
+        error,
+        CommitteeProviderError::DuplicateStakerAddress { address } if address == STAKER_1.address
+    );
+}
+
+#[rstest]
+#[case::all_zero_weight_stakers(vec![ZERO_WEIGHT_STAKER_5, ZERO_WEIGHT_STAKER_6])]
+#[case::empty_staker_set_rejected(vec![])]
+#[tokio::test]
+async fn empty_staker_set_rejected(
+    #[case] stakers: StakerSet,
+    default_config: StakingManagerConfig,
+    contract: MockStakingContract,
+) {
+    let committee_manager = manager_returning_stakers(default_config, contract, stakers);
+
+    let error = committee_manager.get_committee(E1_H1).await.err().unwrap();
+
+    assert_matches!(error, CommitteeProviderError::EmptyStakerSet);
+}
+
+#[rstest]
+#[tokio::test]
+async fn zero_weight_stakers_are_filtered_out(
+    default_config: StakingManagerConfig,
+    contract: MockStakingContract,
+) {
+    // ZERO_WEIGHT_STAKER_5 must be dropped; the remaining stakers form the committee.
+    let committee_manager = manager_returning_stakers(
+        default_config,
+        contract,
+        vec![STAKER_2, ZERO_WEIGHT_STAKER_5, STAKER_1],
+    );
+
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+
+    // Sorted by weight descending: STAKER_2 (2000), STAKER_1 (1000). Zero-weight staker excluded.
+    assert_eq!(*committee.members(), vec![STAKER_2, STAKER_1]);
 }
 
 #[rstest]
@@ -492,7 +577,9 @@ async fn get_proposer_empty_committee(
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
     set_previous_epoch(&mut contract, Some(EPOCH_0));
-    set_stakers(&mut contract, EPOCH_1, vec![]);
+    // Provide a valid staker set; the empty committee arises from a zero committee_size truncating
+    // it away (an empty staker response is rejected by validate_stakers before this point).
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
