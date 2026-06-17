@@ -29,14 +29,23 @@ pub(crate) fn jsonnet_state() -> State {
 /// file (relative to the jsonnet dir) — and returns its JSON: a map from service name to that
 /// service's fully-assembled config.
 pub fn eval_build(layout: &str, overrides_path: &str) -> Value {
-    eval_build_with_expr(layout, &format!("import '{overrides_path}'"))
+    eval_build_with_expr(layout, &format!("import '{overrides_path}'"), None)
 }
 
 /// Evaluates `build(layout, overrides)` with an in-memory nested `overrides` object, injected as a
 /// JSON literal (JSON is a subset of jsonnet).
 pub fn eval_build_with_overrides(layout: &str, overrides: &Value) -> Value {
     let overrides_literal = serde_json::to_string(overrides).expect("overrides is serializable");
-    eval_build_with_expr(layout, &overrides_literal)
+    eval_build_with_expr(layout, &overrides_literal, None)
+}
+
+/// Evaluates only `build(layout, overrides)[service]`, so jsonnet forces just that one service's
+/// config. A per-service deploy supplies only the keys its own components reference (e.g. the
+/// gateway service's overrides carry no `committer_config`), and building just that service means
+/// the other services' overrides are never accessed — building the whole map would force them all.
+pub fn eval_build_service_with_overrides(layout: &str, overrides: &Value, service: &str) -> Value {
+    let overrides_literal = serde_json::to_string(overrides).expect("overrides is serializable");
+    eval_build_with_expr(layout, &overrides_literal, Some(service))
 }
 
 /// Renders one service's nested `build` output in the node-loadable flat dotted dump/preset format
@@ -100,15 +109,21 @@ pub fn eval_overrides_file(overrides_path: &str) -> Value {
 }
 
 /// Evaluates `build(layout, <overrides_expr>)`, where `overrides_expr` is a jsonnet expression for
-/// the overrides (a file `import` or an inlined JSON literal). `layout` is interpolated as an
-/// escaped jsonnet string literal, so it cannot break out of the literal regardless of its
-/// contents.
-fn eval_build_with_expr(layout: &str, overrides_expr: &str) -> Value {
+/// the overrides (a file `import` or an inlined JSON literal). With `service`, evaluates only that
+/// service's entry (`build(...)[service]`). `layout` and `service` are interpolated as escaped
+/// jsonnet string literals, so they cannot break out of the literal regardless of their contents.
+fn eval_build_with_expr(layout: &str, overrides_expr: &str, service: Option<&str>) -> Value {
     let state = jsonnet_state();
     let _guard = state.enter();
     let layout_literal = serde_json::to_string(layout).expect("layout is serializable");
+    let index = match service {
+        Some(service) => {
+            format!("[{}]", serde_json::to_string(service).expect("service is serializable"))
+        }
+        None => String::new(),
+    };
     let snippet =
-        format!("(import 'lib/build.libsonnet').build({layout_literal}, {overrides_expr})");
+        format!("(import 'lib/build.libsonnet').build({layout_literal}, {overrides_expr}){index}");
     let val = state
         .evaluate_snippet("build_entry.jsonnet", snippet)
         .expect("build.libsonnet failed to evaluate");
