@@ -20,13 +20,15 @@ curl -s -X POST http://localhost:3000 \
 Expected response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.1" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.3-rc.2" }
 ```
 
 ## API Reference
 
-The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is at
-`resources/proving_api_openrpc.json`.
+The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is the
+`proving-api/starknet_proving_api_openrpc.json` document in
+[starknet-specs](https://github.com/starkware-libs/starknet-specs), pinned to the revision recorded
+in `resources/starknet_specs_rev.txt`.
 
 ### `starknet_specVersion`
 
@@ -41,7 +43,7 @@ curl -s -X POST http://localhost:3000 \
 Response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.1" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.3-rc.2" }
 ```
 
 ### `starknet_proveTransaction`
