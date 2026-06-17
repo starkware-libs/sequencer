@@ -12,6 +12,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ClassHash,
     CompiledClassHash,
     ContractAddress,
@@ -375,6 +376,7 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt_and_deployer(
         class_hash,
         &ctor_calldata,
         if deploy_from_zero { ContractAddress::default() } else { *FUNDED_ACCOUNT_ADDRESS },
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
     (deploy_contract_tx, contract_address)
@@ -407,6 +409,7 @@ pub(crate) fn calculate_strk_fee_token_address() -> ContractAddress {
         strk_fee_token_class_hash(),
         &strk_fee_token_constructor_calldata(),
         *FUNDED_ACCOUNT_ADDRESS,
+        AddressDerivationHash::Pedersen,
     )
     .unwrap()
 }
