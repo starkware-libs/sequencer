@@ -93,6 +93,9 @@ impl Default for ExchangeRateOracleConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceProviderConfig {
     // TODO(guyn): these two fields need to go into VersionedConstants.
+    // Must be >= 1: the provider divides the summed prices by this window when computing the mean,
+    // so a value of 0 would cause a divide-by-zero panic during block production.
+    #[validate(range(min = 1))]
     pub number_of_blocks_for_mean: u64,
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
@@ -239,5 +242,26 @@ impl SerializeConfig for L1GasPriceScraperConfig {
             ParamPrivacyInput::Public,
         ));
         config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use validator::Validate;
+
+    use super::L1GasPriceProviderConfig;
+
+    // A zero mean window would make the provider divide by zero when computing the mean gas price,
+    // so it must be rejected at config load instead of panicking later during block production.
+    #[test]
+    fn rejects_zero_number_of_blocks_for_mean() {
+        let config =
+            L1GasPriceProviderConfig { number_of_blocks_for_mean: 0, ..Default::default() };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn accepts_default_number_of_blocks_for_mean() {
+        assert!(L1GasPriceProviderConfig::default().validate().is_ok());
     }
 }
