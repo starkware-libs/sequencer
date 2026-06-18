@@ -185,6 +185,11 @@ fn resolve_query(
     let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16).map_err(|e| {
         ExchangeRateOracleClientError::ParseError(format!("Failed to parse price {price}: {e}"))
     })?;
+    if rate == 0 {
+        return Err(ExchangeRateOracleClientError::InvalidRateError(
+            "rate must be non-zero".to_string(),
+        ));
+    }
     // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
     let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
         Some(decimals) => decimals,
