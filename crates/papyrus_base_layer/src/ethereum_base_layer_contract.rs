@@ -15,6 +15,7 @@ use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
     deserialize_vec,
     serialize_slice,
 };
@@ -83,6 +84,16 @@ impl CircularUrlIterator {
 
     pub fn get_current_url(&self) -> Sensitive<Url> {
         self.urls.get(self.index).cloned().expect("No endpoint URLs provided")
+    }
+
+    /// Returns true if the iterator is currently pointing at the primary (first) endpoint.
+    pub fn is_at_primary(&self) -> bool {
+        self.index == 0
+    }
+
+    /// Resets the iterator to point at the primary (first) endpoint.
+    pub fn reset_to_primary(&mut self) {
+        self.index = 0;
     }
 }
 
@@ -308,6 +319,19 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         // `contract` querying the previous (failed) endpoint.
         self.set_provider_url(next_url).await
     }
+
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error> {
+        // No-op if already on the primary endpoint, to avoid a needless provider rebuild.
+        if self.url_iterator.is_at_primary() {
+            return Ok(());
+        }
+        self.url_iterator.reset_to_primary();
+        self.set_provider_url(self.url_iterator.get_current_url()).await
+    }
+
+    async fn is_at_primary(&self) -> Result<bool, Self::Error> {
+        Ok(self.url_iterator.is_at_primary())
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -397,6 +421,10 @@ pub struct EthereumBaseLayerConfig {
     pub bpo2_start_block_number: L1BlockNumber,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
+    /// The interval (seconds) after which the next base-layer access retries the primary (first)
+    /// endpoint.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub retry_primary_interval_seconds: Duration,
 }
 
 impl Validate for EthereumBaseLayerConfig {
@@ -476,6 +504,13 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "retry_primary_interval_seconds",
+                &self.retry_primary_interval_seconds.as_secs(),
+                "The interval (seconds) after which the next base-layer access retries the \
+                 primary (first) endpoint.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -494,6 +529,7 @@ impl Default for EthereumBaseLayerConfig {
             bpo1_start_block_number: 0,
             bpo2_start_block_number: 0,
             timeout_millis: Duration::from_millis(1000),
+            retry_primary_interval_seconds: Duration::from_secs(60),
         }
     }
 }
