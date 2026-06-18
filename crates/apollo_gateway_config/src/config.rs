@@ -24,6 +24,13 @@ use crate::compiler_version::VersionId;
 
 const DEFAULT_BUCKET_NAME: &str = "proof-archive";
 
+// Compiling a declared Sierra class to CASM is CPU- and memory-intensive (each compilation may
+// use several GiB and a full core), and it happens during transaction ingestion before the
+// transaction's signature and balance are verified. Bound the number of compilations running
+// concurrently to protect the node from resource exhaustion. Legitimate traffic rarely has more
+// than one declare being compiled at a time, so this default leaves ample headroom.
+const DEFAULT_MAX_CONCURRENT_DECLARE_COMPILATIONS: usize = 5;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayStaticConfig {
     #[validate(nested)]
@@ -36,6 +43,11 @@ pub struct GatewayStaticConfig {
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
+    /// Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) allowed
+    /// to run concurrently. Declares that arrive while this limit is reached are rejected
+    /// immediately rather than queued.
+    #[validate(range(min = 1))]
+    pub max_concurrent_declare_compilations: usize,
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
 }
 
@@ -51,6 +63,7 @@ impl Default for GatewayStaticConfig {
             chain_info: ChainInfo::default(),
             block_declare: false,
             authorized_declarer_accounts: None,
+            max_concurrent_declare_compilations: DEFAULT_MAX_CONCURRENT_DECLARE_COMPILATIONS,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         }
     }
@@ -85,6 +98,14 @@ impl SerializeConfig for GatewayStaticConfig {
              Addresses are in hex format and separated by a comma with no space.",
             ParamPrivacyInput::Public,
         ));
+        dump.extend([ser_param(
+            "max_concurrent_declare_compilations",
+            &self.max_concurrent_declare_compilations,
+            "Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) \
+             allowed to run concurrently. Declares arriving while this limit is reached are \
+             rejected immediately.",
+            ParamPrivacyInput::Public,
+        )]);
         dump.extend(prepend_sub_config_name(
             self.proof_archive_writer_config.dump(),
             "proof_archive_writer_config",

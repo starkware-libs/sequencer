@@ -140,6 +140,7 @@ fn mock_dependencies() -> MockDependencies {
             chain_info: ChainInfo::create_for_testing(),
             block_declare: false,
             authorized_declarer_accounts: None,
+            max_concurrent_declare_compilations: 5,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         },
         ..Default::default()
@@ -707,6 +708,24 @@ async fn test_block_declare_config(mut mock_dependencies: MockDependencies) {
     assert_eq!(result.unwrap_err().code, expected_code);
 }
 
+#[rstest]
+#[tokio::test]
+async fn test_declare_compilation_concurrency_limit(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.config.static_config.max_concurrent_declare_compilations = 1;
+    // No transaction converter expectations are set: the declare must be rejected before
+    // compilation is triggered, otherwise the mock would panic on an unexpected call.
+    let gateway = mock_dependencies.gateway();
+
+    // Exhaust the single compilation permit so the incoming declare cannot acquire one.
+    let _held_permit = gateway.declare_compilation_semaphore.try_acquire().unwrap();
+
+    let err = gateway.add_tx(declare_tx(), None).await.unwrap_err();
+    assert_eq!(
+        err.code,
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::TransactionLimitExceeded)
+    );
+}
+
 #[test]
 fn test_register_metrics() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -851,6 +870,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        declare_compilation_semaphore: Arc::new(tokio::sync::Semaphore::new(5)),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -908,6 +928,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        declare_compilation_semaphore: Arc::new(tokio::sync::Semaphore::new(5)),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
