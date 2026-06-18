@@ -7,7 +7,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EventsProviderConfig {
@@ -114,7 +114,18 @@ pub struct L1EventsScraperConfig {
     pub polling_interval_seconds: Duration,
     pub set_provider_historic_height_to_l2_genesis: bool,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[validate(custom(function = "validate_non_zero_secs"))]
     pub l1_block_time_seconds: Duration,
+}
+
+/// The scraper uses `l1_block_time_seconds.as_secs()` (whole seconds) as a division divisor when
+/// estimating how many L1 blocks to rewind on startup, so a value rounding down to zero seconds
+/// would cause a division-by-zero panic. Reject such values at config-load time.
+fn validate_non_zero_secs(l1_block_time_seconds: &Duration) -> Result<(), ValidationError> {
+    if l1_block_time_seconds.as_secs() == 0 {
+        return Err(ValidationError::new("l1_block_time_seconds must be at least one second"));
+    }
+    Ok(())
 }
 
 impl Default for L1EventsScraperConfig {
