@@ -242,6 +242,16 @@ impl TransactionPayload {
             TransactionPayload::Full { tx, .. } => tx.tx_hash,
         }
     }
+
+    /// The L1 block timestamp this tx was created at, if the full payload is present.
+    pub fn created_at_block_timestamp(&self) -> Option<BlockTimestamp> {
+        match self {
+            TransactionPayload::Full { created_at_block_timestamp, .. } => {
+                Some(*created_at_block_timestamp)
+            }
+            TransactionPayload::HashOnly(_) => None,
+        }
+    }
 }
 
 impl Default for TransactionPayload {
