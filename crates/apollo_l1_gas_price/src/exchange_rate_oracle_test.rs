@@ -237,8 +237,7 @@ async fn eth_to_fri_rate_zero_price_rejected() {
 
     let mut server = mockito::Server::new_async().await;
 
-    let _mock_response =
-        make_server(&mut server, json!({"price": "0x0", "decimals": 18})).await;
+    let _mock_response = make_server(&mut server, json!({"price": "0x0", "decimals": 18})).await;
 
     let url_and_headers =
         UrlAndHeaders { url: Url::parse(&server.url()).unwrap(), headers: BTreeMap::new() };
