@@ -45,6 +45,8 @@ use blockifier::fee::resources::{
     StateResources,
     TransactionResources,
 };
+#[cfg(feature = "os_input")]
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{
     CommitmentStateDiff,
     StateChangesCount,
@@ -781,6 +783,8 @@ fn central_blob() -> AerospikeBlob {
         ],
         #[cfg(feature = "os_input")]
         recent_state_commitment_infos: recent_state_commitment_infos(),
+        #[cfg(feature = "os_input")]
+        accessed_keys: AccessedKeys::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -812,6 +816,8 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         recent_block_hashes: vec![],
         #[cfg(feature = "os_input")]
         recent_state_commitment_infos: vec![],
+        #[cfg(feature = "os_input")]
+        accessed_keys: AccessedKeys::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -1167,14 +1173,15 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
     let python_json: serde_json::Value = read_json_file(python_json_path);
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
-    // `recent_state_commitment_infos` is os_input-only and absent from the central (python) blob,
-    // so strip it before comparing.
-    // TODO(Itamar): Remove this stripping once the python blob includes the field.
+    // `recent_state_commitment_infos` and `accessed_keys` are os_input-only and absent from the
+    // central (python) blob, so strip them before comparing.
+    // TODO(Itamar): Remove this stripping once the python blob includes the fields.
     #[cfg(feature = "os_input")]
     let rust_json = {
         let mut rust_json = rust_json;
         if let Some(object) = rust_json.as_object_mut() {
             object.remove("recent_state_commitment_infos");
+            object.remove("accessed_keys");
         }
         rust_json
     };
