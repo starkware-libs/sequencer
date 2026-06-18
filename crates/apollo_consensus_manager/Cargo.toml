@@ -7,6 +7,7 @@ repository.workspace = true
 description = "Manages consensus operations and coordinates between consensus and other node components."
 
 [features]
+os_input = ["apollo_consensus_orchestrator/os_input"]
 testing = []
 
 [lints]

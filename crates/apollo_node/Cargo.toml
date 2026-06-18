@@ -12,6 +12,7 @@ os_input = [
   "apollo_batcher/os_input",
   "apollo_committer/os_input",
   "apollo_committer_types/os_input",
+  "apollo_consensus_manager/os_input",
 ]
 testing = ["tokio-util"]
 
