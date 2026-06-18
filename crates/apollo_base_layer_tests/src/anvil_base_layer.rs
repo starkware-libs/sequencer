@@ -13,7 +13,6 @@ use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    CircularUrlIterator,
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
@@ -116,13 +115,11 @@ curl -L \
             );
         });
         let config = Self::config(Self::url_static(port));
-        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();
-        let contract = Starknet::new(config.starknet_contract_address, root_client);
 
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
-            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url_iterator },
+            ethereum_base_layer: EthereumBaseLayerContract::new_with_provider(config, root_client),
             port,
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
