@@ -250,18 +250,17 @@
             },
             "Deploy": {
                 "constant": {
-                    "n_steps": 1173,
+                    "n_steps": 1573,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
-                        "range_check_builtin": 21,
-                        "pedersen_builtin": 7
+                        "range_check_builtin": 32
                     }
                 },
                 "calldata_factor": {
-                    "n_steps": 8,
+                    "n_steps": 15,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
-                        "pedersen_builtin": 1
+                        "range_check_builtin": 1
                     }
                 }
             },

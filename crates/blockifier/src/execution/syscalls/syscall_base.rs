@@ -408,7 +408,9 @@ impl<'state> SyscallHandlerBase<'state> {
             class_hash,
             &constructor_calldata,
             deployer_address_for_calculation,
-            AddressDerivationHash::Pedersen,
+            AddressDerivationHash::for_version(
+                self.context.tx_context.block_context.block_info().starknet_version,
+            ),
         )?;
 
         let ctor_context = ConstructorContext {

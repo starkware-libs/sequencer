@@ -23,7 +23,13 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockInfo,
+    BlockNumber,
+    PreviousBlockNumber,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     BlockHeaderCommitments,
@@ -32,6 +38,7 @@ use starknet_api::block_hash::block_hash_calculator::{
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
+    AddressDerivationHash,
     ChainId,
     ClassHash,
     ContractAddress,
@@ -111,6 +118,14 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
 /// This address was initialized when creating the default initial state.
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
+
+/// The contract-address derivation hash active in the versioned constants the flow tests execute
+/// with (see [`block_context_for_flow_tests`]). Test setup that derives contract / deploy-account
+/// addresses must use this so the derived addresses match what execution produces — Pedersen
+/// before the 0.14.4 Blake2 migration, Blake2 after.
+pub(crate) fn active_address_derivation_hash() -> AddressDerivationHash {
+    AddressDerivationHash::for_version(StarknetVersion::LATEST)
+}
 
 #[derive(Default)]
 pub(crate) struct TestBuilderConfig {

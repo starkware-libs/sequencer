@@ -124,7 +124,7 @@ from starkware.starknet.core.os.constants import (
     STORED_BLOCK_HASH_BUFFER,
     SYSCALL_BASE_GAS_COST,
 )
-from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
+from starkware.starknet.core.os.contract_address.contract_address import get_contract_address_blake
 from starkware.starknet.core.os.execution.account_backward_compatibility import (
     check_tip_for_v1_bound_accounts,
     exclude_data_gas_of_resource_bounds,
@@ -487,31 +487,12 @@ func execute_deploy{
     // Set deployer_address to 0 if request.deploy_from_zero is TRUE.
     let deployer_address = (1 - deploy_from_zero) * caller_address;
 
-    let selectable_builtins = &builtin_ptrs.selectable;
-    let hash_ptr = selectable_builtins.pedersen;
-    with hash_ptr {
-        let (contract_address) = get_contract_address(
-            salt=request.contract_address_salt,
-            class_hash=request.class_hash,
-            constructor_calldata_size=constructor_calldata_size,
-            constructor_calldata=constructor_calldata_start,
-            deployer_address=deployer_address,
-        );
-    }
-    tempvar builtin_ptrs = new BuiltinPointers(
-        selectable=SelectableBuiltins(
-            pedersen=hash_ptr,
-            range_check=selectable_builtins.range_check,
-            ecdsa=selectable_builtins.ecdsa,
-            bitwise=selectable_builtins.bitwise,
-            ec_op=selectable_builtins.ec_op,
-            poseidon=selectable_builtins.poseidon,
-            segment_arena=selectable_builtins.segment_arena,
-            range_check96=selectable_builtins.range_check96,
-            add_mod=selectable_builtins.add_mod,
-            mul_mod=selectable_builtins.mul_mod,
-        ),
-        non_selectable=builtin_ptrs.non_selectable,
+    let (contract_address) = get_contract_address_blake(
+        salt=request.contract_address_salt,
+        class_hash=request.class_hash,
+        constructor_calldata_size=constructor_calldata_size,
+        constructor_calldata=constructor_calldata_start,
+        deployer_address=deployer_address,
     );
 
     tempvar constructor_execution_context = new ExecutionContext(

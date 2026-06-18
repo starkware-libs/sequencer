@@ -12,7 +12,6 @@ use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
     calculate_contract_address,
-    AddressDerivationHash,
     ClassHash,
     CompiledClassHash,
     ContractAddress,
@@ -44,6 +43,7 @@ use starknet_transaction_prover::running::committer_utils::{
 use starknet_types_core::felt::Felt;
 
 use crate::test_manager::{
+    active_address_derivation_hash,
     block_context_for_flow_tests,
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
@@ -302,7 +302,12 @@ pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {
         resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     };
     let deploy_tx = deploy_account_tx(deploy_account_tx_args, Nonce::default());
-    DeployAccountTransaction::create(deploy_tx, &CHAIN_ID_FOR_TESTS).unwrap()
+    DeployAccountTransaction::create(
+        deploy_tx,
+        &CHAIN_ID_FOR_TESTS,
+        active_address_derivation_hash(),
+    )
+    .unwrap()
 }
 
 /// Creates a deploy-contract tx (from the funded account) and returns the tx and the expected
@@ -383,7 +388,7 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt_and_deployer(
         class_hash,
         &ctor_calldata,
         if deploy_from_zero { ContractAddress::default() } else { *FUNDED_ACCOUNT_ADDRESS },
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap();
     (deploy_contract_tx, contract_address)
@@ -416,7 +421,7 @@ pub(crate) fn calculate_strk_fee_token_address() -> ContractAddress {
         strk_fee_token_class_hash(),
         &strk_fee_token_constructor_calldata(),
         *FUNDED_ACCOUNT_ADDRESS,
-        AddressDerivationHash::Pedersen,
+        active_address_derivation_hash(),
     )
     .unwrap()
 }

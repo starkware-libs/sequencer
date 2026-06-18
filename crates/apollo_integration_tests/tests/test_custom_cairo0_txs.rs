@@ -13,6 +13,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use starknet_api::block::StarknetVersion;
 use starknet_api::core::{calculate_contract_address, AddressDerivationHash};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -130,7 +131,9 @@ fn generate_invoke_txs_tests_for_deploy_contract(
         test_contract.get_class_hash(),
         &calldata!(constructor_calldata_arg1, constructor_calldata_arg2),
         account_tx_generator.sender_address(),
-        AddressDerivationHash::Pedersen,
+        // Derive with the active versioned-constants scheme (Blake2 from 0.14.4) so the expected
+        // address matches what the deploy syscall produces during execution.
+        AddressDerivationHash::for_version(StarknetVersion::LATEST),
     )
     .expect("Failed to calculate contract address");
 

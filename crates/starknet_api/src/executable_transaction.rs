@@ -327,14 +327,23 @@ impl DeployAccountTransaction {
         &self.tx
     }
 
+    /// Creates an executable deploy-account transaction, deriving the deployed contract address
+    /// (and the address embedded in the transaction hash) with `address_derivation_hash`. Callers
+    /// must pass the address-derivation hash active for the block this transaction targets
+    /// (Pedersen pre-0.14.4, Blake2 from 0.14.4); see [`crate::core::AddressDerivationHash`].
     pub fn create(
         deploy_account_tx: crate::transaction::DeployAccountTransaction,
         chain_id: &ChainId,
+        address_derivation_hash: AddressDerivationHash,
     ) -> Result<Self, StarknetApiError> {
         let contract_address =
-            deploy_account_tx.calculate_contract_address(AddressDerivationHash::Pedersen)?;
-        let tx_hash =
-            deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
+            deploy_account_tx.calculate_contract_address(address_derivation_hash)?;
+        let tx_hash = crate::transaction_hash::get_transaction_hash_with_address_derivation(
+            &crate::transaction::Transaction::DeployAccount(deploy_account_tx.clone()),
+            chain_id,
+            &crate::transaction::TransactionOptions::default(),
+            address_derivation_hash,
+        )?;
         Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
     }
 }

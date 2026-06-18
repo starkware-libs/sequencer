@@ -618,7 +618,9 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
             request.class_hash,
             &request.constructor_calldata,
             deployer_address_for_calculation,
-            AddressDerivationHash::Pedersen,
+            AddressDerivationHash::for_version(
+                syscall_handler.context.tx_context.block_context.block_info().starknet_version,
+            ),
         )?;
 
         // Increment the Deploy syscall's linear cost counter by the number of elements in the

@@ -29,6 +29,8 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::block::StarknetVersion;
+use starknet_api::core::AddressDerivationHash;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -418,13 +420,21 @@ impl<
         (InternalRpcTransaction, AccountTransaction, Option<(ProofFacts, Proof)>),
         StarknetError,
     > {
-        let (internal_tx, verification_handle) =
-            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
-                |e| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                    transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
-                },
-            )?;
+        // Derive deploy-account addresses with the latest versioned constants' hash. The gateway
+        // must predict the derivation scheme of the (not-yet-assigned) landing block; this matches
+        // execution once the latest version is active fleet-wide. A tx submitted across a
+        // derivation-scheme activation boundary (Pedersen->Blake2 at 0.14.4) may be predicted with
+        // the wrong scheme and rejected -- the accepted decision-A boundary hazard (no separate
+        // opt-in tx version).
+        let address_derivation_hash = AddressDerivationHash::for_version(StarknetVersion::LATEST);
+        let (internal_tx, verification_handle) = self
+            .transaction_converter
+            .convert_rpc_tx_to_internal_rpc_tx(tx, address_derivation_hash)
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+            })?;
 
         // Await the verification task immediately.
         let proof_data = self

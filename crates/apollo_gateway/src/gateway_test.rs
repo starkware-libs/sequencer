@@ -52,7 +52,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use clap::Command;
 use mempool_test_utils::starknet_api_test_utils::{contract_class, declare_tx};
 use metrics_exporter_prometheus::PrometheusBuilder;
-use mockall::predicate::eq;
+use mockall::predicate::{always, eq};
 use rstest::{fixture, rstest};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
@@ -299,8 +299,8 @@ fn setup_transaction_converter_mock(
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
-        .with(eq(rpc_tx))
-        .return_once(move |_| Ok((internal_tx, verification_handle)));
+        .with(eq(rpc_tx), always())
+        .return_once(move |_, _| Ok((internal_tx, verification_handle)));
 
     let internal_tx = tx_args.get_internal_tx();
     let executable_tx = tx_args.get_executable_tx();
@@ -341,8 +341,8 @@ fn setup_transaction_converter_mock_with_failed_verification(
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
-        .with(eq(rpc_tx))
-        .return_once(move |_| Ok((internal_tx, verification_handle)));
+        .with(eq(rpc_tx), always())
+        .return_once(move |_, _| Ok((internal_tx, verification_handle)));
 
     // Note: Unlike in the successful case, we don't set up
     // expect_convert_internal_rpc_tx_to_executable_tx because the verification failure will
@@ -677,7 +677,7 @@ async fn test_transaction_converter_error(
     mock_dependencies
         .mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
-        .return_once(|_| expect_internal_rpc_tx_result);
+        .return_once(|_, _| expect_internal_rpc_tx_result);
     mock_dependencies
         .mock_transaction_converter
         .expect_convert_internal_rpc_tx_to_executable_tx()

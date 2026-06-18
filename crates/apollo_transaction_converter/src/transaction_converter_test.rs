@@ -7,6 +7,7 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{
     declare_tx,
+    deploy_account_tx,
     invoke_tx,
     invoke_tx_client_side_proving,
 };
@@ -14,8 +15,14 @@ use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
+use starknet_api::core::AddressDerivationHash;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
-use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
+    RpcTransaction,
+};
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 
@@ -104,8 +111,10 @@ async fn test_compiled_class_hash_mismatch() {
         ChainInfo::create_for_testing().chain_id,
     );
 
-    let err =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(declare_tx).await.unwrap_err();
+    let err = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(declare_tx, AddressDerivationHash::Pedersen)
+        .await
+        .unwrap_err();
     let expected_code = TransactionConverterError::ValidateCompiledClassHashError(
         ValidateCompiledClassHashError::CompiledClassHashMismatch {
             computed_class_hash: other_compiled_class_hash,
@@ -136,8 +145,10 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    let (_internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
+    let (_internal_tx, verification_handle) = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(invoke_tx, AddressDerivationHash::Pedersen)
+        .await
+        .unwrap();
 
     await_verification_handle(verification_handle).await;
 }
@@ -151,8 +162,10 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
     let mock_proof_manager_client = MockProofManagerClient::new();
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    let (_internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
+    let (_internal_tx, verification_handle) = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(invoke_tx, AddressDerivationHash::Pedersen)
+        .await
+        .unwrap();
 
     assert!(verification_handle.is_none());
 }
@@ -189,7 +202,10 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     let (_internal_tx, verify_and_store_proof_task) = transaction_converter
-        .convert_consensus_tx_to_internal_consensus_tx(consensus_tx)
+        .convert_consensus_tx_to_internal_consensus_tx(
+            consensus_tx,
+            AddressDerivationHash::Pedersen,
+        )
         .await
         .unwrap();
 
@@ -221,8 +237,10 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    let (internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone()).await.unwrap();
+    let (internal_tx, verification_handle) = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone(), AddressDerivationHash::Pedersen)
+        .await
+        .unwrap();
 
     await_verification_handle(verification_handle).await;
 
@@ -230,4 +248,31 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
 
     assert_eq!(rpc_tx, rpc_tx_from_internal);
+}
+
+/// The deploy-account contract address (and the tx hash that embeds it) must be derived with the
+/// AddressDerivationHash passed to the conversion, not a fixed scheme.
+#[rstest]
+#[tokio::test]
+async fn test_deploy_account_conversion_uses_address_derivation_hash() {
+    let rpc_tx = deploy_account_tx();
+    let transaction_converter = create_transaction_converter(MockProofManagerClient::new());
+
+    let (pedersen_internal, _) = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone(), AddressDerivationHash::Pedersen)
+        .await
+        .unwrap();
+    let (blake_internal, _) = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(rpc_tx, AddressDerivationHash::Blake2)
+        .await
+        .unwrap();
+
+    let deploy_account_address = |internal: &InternalRpcTransaction| match &internal.tx {
+        InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
+        _ => panic!("Expected a deploy-account transaction."),
+    };
+
+    // The requested hash flows through to the derived address and to the tx hash that embeds it.
+    assert_ne!(deploy_account_address(&pedersen_internal), deploy_account_address(&blake_internal),);
+    assert_ne!(pedersen_internal.tx_hash, blake_internal.tx_hash);
 }

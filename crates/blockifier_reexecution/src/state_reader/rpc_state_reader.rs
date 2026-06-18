@@ -28,10 +28,18 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    AddressDerivationHash,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use starknet_api::state::{SierraContractClass, StorageKey};
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{Transaction, TransactionHash, TransactionOptions};
+use starknet_api::transaction_hash::get_transaction_hash_with_address_derivation;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
@@ -593,6 +601,15 @@ impl RpcBlockReexecutor {
         Ok(self.reexecuted_block_with_txs_cache.get_or_init(|| block_with_txs))
     }
 
+    /// The address-derivation hash of the re-executed block's Starknet version (Pedersen
+    /// pre-0.14.4, Blake2 from 0.14.4), used to derive deploy-account addresses consistently
+    /// with the block.
+    fn address_derivation_hash(&self) -> ReexecutionResult<AddressDerivationHash> {
+        Ok(AddressDerivationHash::for_version(
+            self.reexecuted_block_with_txs()?.block_info.starknet_version,
+        ))
+    }
+
     pub fn get_block_header(&self) -> ReexecutionResult<BlockHeader> {
         Ok(self.reexecuted_block_with_txs()?.block_header.clone())
     }
@@ -603,8 +620,10 @@ impl RpcBlockReexecutor {
         let block_with_txs = self.reexecuted_block_with_txs()?;
         // Trigger api → blockifier conversion so the contract_class_mapping_dumper picks up every
         // declared class referenced by these transactions.
-        self.reexecuted_block_artifacts_reader
-            .api_txs_to_blockifier_txs(block_with_txs.transactions.clone())?;
+        self.reexecuted_block_artifacts_reader.api_txs_to_blockifier_txs(
+            block_with_txs.transactions.clone(),
+            self.address_derivation_hash()?,
+        )?;
         let declared_classes =
             self.reexecuted_block_artifacts_reader.get_contract_class_mapping_dumper().ok_or(
                 StateError::StateReadError("Contract class mapping dumper is None.".to_string()),
@@ -633,11 +652,18 @@ impl RpcBlockReexecutor {
         tx: Transaction,
     ) -> ReexecutionResult<(TransactionExecutionOutput, StateMaps, BlockContext)> {
         let chain_id = &self.reexecuted_block_artifacts_reader.chain_info.chain_id;
-        let transaction_hash = tx.calculate_transaction_hash(chain_id)?;
-
+        let address_derivation_hash = self.address_derivation_hash()?;
+        // Recompute the tx hash with the block's address-derivation hash so a deploy-account hash
+        // embeds the same (version-gated) address the block deploys at.
+        let transaction_hash = get_transaction_hash_with_address_derivation(
+            &tx,
+            chain_id,
+            &TransactionOptions::default(),
+            address_derivation_hash,
+        )?;
         let blockifier_txs = self
             .reexecuted_block_artifacts_reader
-            .api_txs_to_blockifier_txs(vec![(tx, transaction_hash)])?;
+            .api_txs_to_blockifier_txs(vec![(tx, transaction_hash)], address_derivation_hash)?;
         let blockifier_tx = blockifier_txs
             .first()
             .expect("API to Blockifier transaction conversion returned empty list");
@@ -654,29 +680,21 @@ impl RpcBlockReexecutor {
     /// Executes a single transaction from a JSON file or given a transaction hash, using RPC to
     /// fetch block context. Does not assert correctness, only prints the execution result.
     pub fn execute_single_transaction(self, tx_input: TransactionInput) -> ReexecutionResult<()> {
-        // Get transaction and hash based on input method.
-        let (transaction, _) = match tx_input {
+        // Get the transaction based on input method. The hash is recomputed (version-gated) inside
+        // execute_single_api_tx, so we don't compute it here.
+        let transaction = match tx_input {
             TransactionInput::FromHash { tx_hash } => {
                 // Fetch transaction from the reexecuted block (the block containing the
                 // transaction to execute).
-                let transaction =
-                    self.reexecuted_block_artifacts_reader.get_tx_by_hash(&tx_hash)?;
-                let transaction_hash = TransactionHash(Felt::from_hex_unchecked(&tx_hash));
-
-                (transaction, transaction_hash)
+                self.reexecuted_block_artifacts_reader.get_tx_by_hash(&tx_hash)?
             }
             TransactionInput::FromFile { tx_path } => {
                 // Load the transaction from a local JSON file.
                 let json_content = read_to_string(&tx_path).unwrap_or_else(|_| {
                     panic!("Failed to read transaction JSON file: {}.", tx_path)
                 });
-                let chain_id = &self.reexecuted_block_artifacts_reader.chain_info.chain_id;
-
                 let json_value: Value = serde_json::from_str(&json_content)?;
-                let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
-                let transaction_hash = transaction.calculate_transaction_hash(chain_id)?;
-
-                (transaction, transaction_hash)
+                deserialize_transaction_json_to_starknet_api_tx(json_value)?
             }
         };
 
@@ -783,8 +801,11 @@ impl BlockReexecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
     }
 
     fn get_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
-        self.reexecuted_block_artifacts_reader
-            .api_txs_to_blockifier_txs(self.reexecuted_block_with_txs()?.transactions.clone())
+        let address_derivation_hash = self.address_derivation_hash()?;
+        self.reexecuted_block_artifacts_reader.api_txs_to_blockifier_txs(
+            self.reexecuted_block_with_txs()?.transactions.clone(),
+            address_derivation_hash,
+        )
     }
 
     fn get_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {

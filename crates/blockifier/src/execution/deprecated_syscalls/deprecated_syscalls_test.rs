@@ -7,6 +7,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{calculate_contract_address, AddressDerivationHash};
 use starknet_api::state::StorageKey;
@@ -489,7 +490,7 @@ fn test_deploy(
         class_hash,
         &Calldata(constructor_calldata.into()),
         test_contract.get_instance_address(0),
-        AddressDerivationHash::Pedersen,
+        AddressDerivationHash::for_version(StarknetVersion::LATEST),
     )
     .unwrap();
     assert_eq!(
