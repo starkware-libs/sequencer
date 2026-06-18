@@ -246,6 +246,8 @@ impl From<BlockData> for BlobParameters {
             recent_block_hashes,
             #[cfg(feature = "os_input")]
             recent_state_commitment_infos: vec![],
+            #[cfg(feature = "os_input")]
+            initial_reads: Default::default(),
         }
     }
 }
