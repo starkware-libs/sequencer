@@ -62,6 +62,10 @@ use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
 
+#[cfg(test)]
+#[path = "syscall_handler_test.rs"]
+mod syscall_handler_test;
+
 pub struct NativeSyscallHandler<'state> {
     pub base: Box<SyscallHandlerBase<'state>>,
 
@@ -993,24 +997,4 @@ fn u256_to_big4int(u256: U256) -> BigInt<4> {
     let (hi_lo, hi_hi) = to_u64s(u256.hi.to_le_bytes());
     let (lo_lo, lo_hi) = to_u64s(u256.lo.to_le_bytes());
     BigInt::new([lo_lo, lo_hi, hi_lo, hi_hi])
-}
-
-#[cfg(test)]
-mod test {
-    use cairo_native::starknet::U256;
-
-    use crate::execution::native::syscall_handler::Secp256Point;
-
-    #[test]
-    fn infinity_test() {
-        let p1 =
-            Secp256Point::<ark_secp256k1::Config>::get_point_from_x(U256 { lo: 1, hi: 0 }, false)
-                .unwrap()
-                .unwrap();
-
-        let p2 = Secp256Point::mul(p1, U256 { lo: 0, hi: 0 });
-        assert!(p2.0.infinity);
-
-        assert_eq!(p1, Secp256Point::add(p1, p2));
-    }
 }
