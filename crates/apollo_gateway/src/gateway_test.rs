@@ -140,6 +140,7 @@ fn mock_dependencies() -> MockDependencies {
             chain_info: ChainInfo::create_for_testing(),
             block_declare: false,
             authorized_declarer_accounts: None,
+            max_concurrent_declare_compilations: 5,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         },
         ..Default::default()
@@ -707,6 +708,55 @@ async fn test_block_declare_config(mut mock_dependencies: MockDependencies) {
     assert_eq!(result.unwrap_err().code, expected_code);
 }
 
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_declare_compilation_concurrency_limit(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.config.static_config.max_concurrent_declare_compilations = 1;
+
+    // Both declares run stateless validation, so replace the fixture's single-call mock with one
+    // that accepts repeated calls.
+    let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
+    mock_stateless_transaction_validator.expect_validate().returning(|_| Ok(()));
+    mock_dependencies.mock_stateless_transaction_validator = mock_stateless_transaction_validator;
+
+    // The first declare's conversion performs the Sierra-to-CASM compilation while holding the
+    // single permit. Make that conversion block so the second declare arrives while the permit is
+    // still held: `compilation_started_sender` signals that the permit is held, and the conversion
+    // then parks on `release_compilation_receiver` until the test lets it finish.
+    let (compilation_started_sender, compilation_started_receiver) =
+        tokio::sync::oneshot::channel();
+    let (release_compilation_sender, release_compilation_receiver) = std::sync::mpsc::channel();
+    mock_dependencies
+        .mock_transaction_converter
+        .expect_convert_rpc_tx_to_internal_rpc_tx()
+        .return_once(move |_| {
+            compilation_started_sender.send(()).unwrap();
+            release_compilation_receiver.recv().unwrap();
+            // Short-circuit the first declare; only the second declare's rejection is under test.
+            Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
+        });
+
+    let gateway = Arc::new(mock_dependencies.gateway());
+
+    // Spawn the first declare and wait until it holds the permit inside compilation.
+    let first_declare_task = {
+        let gateway = gateway.clone();
+        tokio::spawn(async move { gateway.add_tx(declare_tx(), None).await })
+    };
+    compilation_started_receiver.await.unwrap();
+
+    // The second declare cannot acquire a permit and must be rejected immediately.
+    let second_declare_error = gateway.add_tx(declare_tx(), None).await.unwrap_err();
+    assert_eq!(
+        second_declare_error.code,
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::TransactionLimitExceeded)
+    );
+
+    // Release the first declare so its task and the blocked worker thread can wind down.
+    release_compilation_sender.send(()).unwrap();
+    let _ = first_declare_task.await;
+}
+
 #[test]
 fn test_register_metrics() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -851,6 +901,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        declare_compilation_semaphore: Arc::new(tokio::sync::Semaphore::new(5)),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -908,6 +959,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        declare_compilation_semaphore: Arc::new(tokio::sync::Semaphore::new(5)),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
