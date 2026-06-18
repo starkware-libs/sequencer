@@ -31,17 +31,20 @@ use crate::metrics::{
 pub mod l1_gas_price_provider_test;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct RingBuffer<T>(VecDeque<T>);
+struct RingBuffer<T> {
+    queue: VecDeque<T>,
+    limit: usize,
+}
 impl<T: Clone> RingBuffer<T> {
-    fn new(size: usize) -> Self {
-        Self(VecDeque::with_capacity(size))
+    fn new(limit: usize) -> Self {
+        Self { queue: VecDeque::with_capacity(limit), limit }
     }
 
     fn push(&mut self, item: T) {
-        if self.0.len() == self.0.capacity() {
-            self.0.pop_front();
+        if self.queue.len() >= self.limit {
+            self.queue.pop_front();
         }
-        self.0.push_back(item);
+        self.queue.push_back(item);
     }
 }
 // Deref lets us use .iter() and .back(), etc.
@@ -51,7 +54,7 @@ impl<T: Clone> std::ops::Deref for RingBuffer<T> {
     type Target = VecDeque<T>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.queue
     }
 }
 
