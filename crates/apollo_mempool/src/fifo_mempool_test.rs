@@ -3,10 +3,13 @@ use std::time::Duration;
 
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
+use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
+use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
-use starknet_api::{contract_address, declare_tx_args, tx_hash};
+use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
 
 use crate::add_tx_input;
 use crate::mempool::Mempool;
@@ -571,4 +574,63 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
     // Next timestamp batch should include only the other address tx.
     assert_eq!(mempool.resolve_batch_timestamp(), 1001);
     get_txs_and_assert_expected(&mut mempool, 10, &[other_address_tx.tx]);
+}
+
+#[rstest]
+fn test_eviction_keeps_pool_and_queue_consistent() {
+    // In Echonet/FIFO mode, a gap account's transactions are enqueued (unlike fee mode, where gap
+    // accounts hold nothing in the queue). When `try_make_space` evicts such an account to free
+    // capacity, the evicted txs must be removed from BOTH the pool and the FIFO queue. Otherwise
+    // the queue keeps an orphaned reference to a tx no longer in the pool, and the next `get_txs`
+    // panics when it pops that reference (`get_submission_id(...).expect(...)`).
+
+    // A gap account ("0x1") with a single, deliberately large transaction (large signature) so
+    // evicting it frees more than enough room for the smaller trigger tx.
+    let large_gap_tx = AddTransactionArgs {
+        tx: internal_invoke_tx(invoke_tx_args!(
+            tx_hash: tx_hash!(1),
+            sender_address: contract_address!("0x1"),
+            nonce: nonce!(1),
+            signature: TransactionSignature(vec![felt!("0x0"); 64].into()),
+        )),
+        account_state: AccountState { address: contract_address!("0x1"), nonce: nonce!(0) },
+    };
+    // A new account whose tx nonce equals its account nonce, so adding it does NOT create a gap and
+    // therefore takes the `try_make_space` eviction path in `handle_capacity_overflow`.
+    let trigger_tx = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    // Capacity holds exactly the large gap tx; adding the trigger tx overflows and forces eviction.
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                behavior_mode: BehaviorMode::Echonet,
+                capacity_in_bytes: large_gap_tx.tx.total_bytes(),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    );
+
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
+
+    // The gap account's tx is enqueued in FIFO mode (added regardless of nonce) and the account
+    // enters `accounts_with_gap` (lowest nonce 1 > account nonce 0).
+    add_tx(&mut mempool, &large_gap_tx);
+
+    // Adding the trigger tx overflows capacity and evicts the gap account via `try_make_space`.
+    add_tx(&mut mempool, &trigger_tx);
+
+    // Before the fix this `get_txs` pops the orphaned gap-tx reference and panics. After the fix
+    // the orphan is gone from the queue, so only the trigger tx is returned.
+    get_txs_and_assert_expected(&mut mempool, 10, std::slice::from_ref(&trigger_tx.tx));
+
+    // The evicted gap tx must be absent from both the pool and the queue.
+    let snapshot = mempool.mempool_snapshot().unwrap();
+    assert!(!snapshot.transactions.contains(&tx_hash!(1)), "evicted tx still present in pool");
+    assert!(
+        !snapshot.transaction_queue.priority_queue.contains(&tx_hash!(1)),
+        "evicted tx still present in queue"
+    );
 }

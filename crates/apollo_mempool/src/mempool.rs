@@ -992,10 +992,11 @@ impl Mempool {
     // Returns true if enough space was freed, false otherwise.
     pub fn try_make_space(&mut self, required_space: u64) -> bool {
         let mut total_space_freed = 0;
+        let mut evicted_txs = Vec::new();
 
         while total_space_freed < required_space {
             let Some(address) = self.get_evictable_account() else {
-                return false;
+                break;
             };
 
             let txs: Vec<_> = self.tx_pool.account_txs_sorted_by_nonce(address).copied().collect();
@@ -1005,6 +1006,7 @@ impl Mempool {
                     .remove(tx_ref.tx_hash)
                     .expect("Transaction must exist in the pool.");
                 total_space_freed += tx.total_bytes();
+                evicted_txs.push(*tx_ref);
                 metric_count_evicted_txs(1);
                 self.decrement_stuck_txs_if_gap_account(address, 1);
                 if total_space_freed >= required_space {
@@ -1018,7 +1020,13 @@ impl Mempool {
             }
         }
 
-        true
+        // Keep the queue consistent with the pool: the evicted txs were removed from the pool, so
+        // drop their (now-orphaned) queue references too. In fee mode gap accounts are never
+        // queued, so this is a no-op there; in Echonet/FIFO mode they are, and skipping this leaves
+        // a dangling reference that panics the next `get_txs`.
+        self.tx_queue.remove_txs(&evicted_txs);
+
+        total_space_freed >= required_space
     }
 
     fn handle_capacity_overflow(
