@@ -40,6 +40,7 @@ use starknet_api::rpc_transaction::{
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
+use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
 use tracing::{debug, info, warn};
@@ -132,6 +133,9 @@ pub struct GenericGateway<
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+    // Bounds the number of concurrent Sierra-to-CASM compilations triggered by declare
+    // transactions. Shared across all clones of the gateway so the limit is process-global.
+    declare_compilation_semaphore: Arc<Semaphore>,
 }
 
 impl<
@@ -153,6 +157,8 @@ impl<
         stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
     ) -> Self {
+        let declare_compilation_semaphore =
+            Arc::new(Semaphore::new(config.static_config.max_concurrent_declare_compilations));
         Self {
             config: Arc::new(config.clone()),
             stateless_tx_validator,
@@ -167,6 +173,7 @@ impl<
             mempool_client,
             transaction_converter,
             proof_archive_writer,
+            declare_compilation_semaphore,
         }
     }
 }
@@ -229,8 +236,23 @@ impl<
         self.stateless_tx_validator.validate(&tx)?;
 
         let tx_signature = tx.signature().clone();
+
+        // Declare conversions overload the compiler component's CPU and memory. Reject declares if
+        // there are too many declares compiling in parallel. The permit is held only across
+        // compilation and released before stateful validation.
+        let compilation_permit = if matches!(tx, RpcTransaction::Declare(_)) {
+            Some(self.declare_compilation_semaphore.try_acquire().map_err(|_| {
+                let error = StarknetError::too_many_concurrent_declare_compilations();
+                metric_counters.record_add_tx_failure(&error);
+                error
+            })?)
+        } else {
+            None
+        };
+
         let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
+        drop(compilation_permit);
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
