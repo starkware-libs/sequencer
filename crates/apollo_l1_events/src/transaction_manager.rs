@@ -157,8 +157,10 @@ impl TransactionManager {
         }
         for &tx_hash in rejected_txs {
             self.with_record(tx_hash, |r| r.mark_rejected()).expect(
-                "Storage inconsistency: a transaction sent to the batcher was removed \
-                 unexpectedly.",
+                "Rejected L1 handler tx has no record. Unreachable: all L1 handler txs in a \
+                 committed block were validated as known (validation rejects unknown hashes), \
+                 sync commits with empty rejected_txs, and records are only removed via L1 \
+                 cancellation/consumption, which can't race a block.",
             );
         }
     }
