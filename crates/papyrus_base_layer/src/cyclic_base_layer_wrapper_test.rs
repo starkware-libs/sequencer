@@ -344,3 +344,56 @@ async fn pass_through_cycle_provider_url() {
     let result = wrapper.cycle_provider_url().await;
     assert!(result.is_ok());
 }
+
+// Verifies that when an operation begins on a non-primary endpoint and every attempt fails, the
+// wrapper cycles through the entire URL list exactly once and returns the last error. The operation
+// starts on the tertiary endpoint, and cycling advances tertiary -> primary -> secondary ->
+// tertiary, at which point the wrapper detects it wrapped back to the start URL and returns the
+// error.
+#[tokio::test]
+async fn test_exhaust_from_non_primary_index_returns_last_error() {
+    // Setup: model a 3-URL list where the operation starts on the tertiary (non-primary) endpoint.
+    let primary_url = Sensitive::new(Url::parse("http://primary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+    let secondary_url = Sensitive::new(Url::parse("http://secondary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+    let tertiary_url = Sensitive::new(Url::parse("http://tertiary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+
+    // The wrapper calls get_url once for start_url, then per failed attempt calls get_url (current)
+    // + cycle_provider_url + get_url (new). With a tertiary start and all three attempts failing,
+    // the get_url return sequence is: start=tertiary; then current/new pairs as the index advances
+    // tertiary -> primary -> secondary -> tertiary.
+    let url_sequence = [
+        tertiary_url.clone(),
+        tertiary_url.clone(),
+        primary_url.clone(),
+        primary_url,
+        secondary_url.clone(),
+        secondary_url,
+        tertiary_url,
+    ];
+    const NUM_ATTEMPTS: usize = 3;
+    let num_get_url_calls = url_sequence.len();
+    // Each mocked call pops the next queued return, so the return order is explicit per call.
+    let mut get_url_returns = url_sequence.into_iter();
+    let mut error_returns = (0..NUM_ATTEMPTS).map(MockError::Numbered);
+
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer
+        .expect_get_url()
+        .times(num_get_url_calls)
+        .returning(move || Ok(get_url_returns.next().unwrap()));
+    // Every attempt fails with a distinct numbered error so we can prove the last one is returned.
+    base_layer
+        .expect_get_proved_block_at()
+        .times(NUM_ATTEMPTS)
+        .returning(move |_| Err(error_returns.next().unwrap()));
+    // Cycling succeeds once per failed attempt.
+    base_layer.expect_cycle_provider_url().times(NUM_ATTEMPTS).returning(|| Ok(()));
+    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer);
+
+    // Test: all attempts fail; the wrapper must return the last attempt's error.
+    let result = wrapper.get_proved_block_at(1).await;
+    assert_eq!(result, Err(MockError::Numbered(NUM_ATTEMPTS - 1)));
+}

@@ -100,23 +100,26 @@ pub struct EthereumBaseLayerContract {
     pub url_iterator: CircularUrlIterator,
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
+    // The URL that `contract`'s live provider is bound to. Kept in sync with `contract` on every
+    // rebuild so that `get_url` reflects the endpoint actually being queried, not just the
+    // iterator's position.
+    node_url: Sensitive<Url>,
 }
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Self {
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
-        let contract = build_contract_instance(
-            config.starknet_contract_address,
-            url_iterator.get_current_url(),
-        );
-        Self { url_iterator, contract, config }
+        let node_url = url_iterator.get_current_url();
+        let contract = build_contract_instance(config.starknet_contract_address, node_url.clone());
+        Self { url_iterator, contract, config, node_url }
     }
     #[cfg(any(test, feature = "testing"))]
     pub fn new_with_provider(config: EthereumBaseLayerConfig, provider: RootProvider) -> Self {
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+        let node_url = url_iterator.get_current_url();
         let starknet_contract_address = config.starknet_contract_address;
         let contract = Starknet::new(starknet_contract_address, provider);
-        Self { url_iterator, contract, config }
+        Self { url_iterator, contract, config, node_url }
     }
 }
 
@@ -286,20 +289,24 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
-        Ok(self.url_iterator.get_current_url())
+        Ok(self.node_url.clone())
     }
 
     /// Rebuilds the provider on the new url.
     async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
         self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        self.node_url = url;
         Ok(())
     }
 
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
-        self.url_iterator
+        let next_url = self
+            .url_iterator
             .next()
             .expect("URL list was validated to be non-empty when config was loaded");
-        Ok(())
+        // Rebuild the live provider on the new URL; advancing the iterator alone would leave
+        // `contract` querying the previous (failed) endpoint.
+        self.set_provider_url(next_url).await
     }
 }
 
