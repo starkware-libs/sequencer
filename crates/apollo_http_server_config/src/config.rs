@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::validators::validate_positive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
@@ -14,6 +15,11 @@ pub const DEFAULT_MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
 // protocol.
 const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB
 const DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS: u64 = 1_000; // 1 second.
+// Bounds the number of in-flight add_tx requests, each of which holds its (potentially multi-MB)
+// payload and detached gateway task for the request's full lifetime. Aligned with the gateway
+// component server's own concurrency bound so the HTTP front never admits more work than the
+// gateway can execute concurrently. Excess requests are rejected with 503 rather than queued.
+const DEFAULT_MAX_CONCURRENT_ADD_TX_REQUESTS: usize = 128;
 
 /// The http server connection related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
@@ -55,6 +61,8 @@ pub struct HttpServerStaticConfig {
     pub max_request_body_size: usize,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub dynamic_config_poll_interval: Duration,
+    #[validate(custom(function = "validate_positive"))]
+    pub max_concurrent_add_tx_requests: usize,
 }
 
 impl SerializeConfig for HttpServerStaticConfig {
@@ -74,6 +82,13 @@ impl SerializeConfig for HttpServerStaticConfig {
                 "Polling interval (in milliseconds) for dynamic config.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_concurrent_add_tx_requests",
+                &self.max_concurrent_add_tx_requests,
+                "Maximum number of in-flight add_tx requests; excess requests are rejected with \
+                 HTTP 503.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -87,6 +102,7 @@ impl Default for HttpServerStaticConfig {
             dynamic_config_poll_interval: Duration::from_millis(
                 DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS,
             ),
+            max_concurrent_add_tx_requests: DEFAULT_MAX_CONCURRENT_ADD_TX_REQUESTS,
         }
     }
 }

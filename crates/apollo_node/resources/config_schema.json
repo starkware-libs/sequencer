@@ -3229,6 +3229,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "http_server_config.static_config.max_concurrent_add_tx_requests": {
+    "description": "Maximum number of in-flight add_tx requests; excess requests are rejected with HTTP 503.",
+    "privacy": "Public",
+    "value": 128
+  },
   "http_server_config.static_config.max_request_body_size": {
     "description": "Max request body size in bytes.",
     "privacy": "Public",
