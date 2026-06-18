@@ -1,7 +1,13 @@
 use std::io::Write;
 use std::sync::Arc;
+use std::time::Duration;
 
-use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
+use apollo_gateway_types::communication::{
+    GatewayClient,
+    GatewayClientError,
+    GatewayClientResult,
+    MockGatewayClient,
+};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -11,13 +17,17 @@ use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
+    GatewayInput,
     GatewayOutput,
     InvokeGatewayOutput,
 };
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
+use assert_matches::assert_matches;
+use async_trait::async_trait;
 use axum::body::Bytes;
+use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use http::StatusCode;
@@ -28,11 +38,11 @@ use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
-use tokio::sync::watch;
+use tokio::sync::{oneshot, watch, Notify, Semaphore};
 use tracing_test::traced_test;
 
 use crate::errors::HttpServerError;
-use crate::http_server::{is_ready, AppState, CLIENT_REGION_HEADER};
+use crate::http_server::{add_rpc_tx, add_tx_inner, is_ready, AppState, CLIENT_REGION_HEADER};
 use crate::test_utils::{
     deprecated_gateway_declare_tx,
     deprecated_gateway_deploy_account_tx,
@@ -118,8 +128,11 @@ async fn allow_new_txs() {
 async fn is_ready_reflects_accept_new_txs() {
     let (tx, dynamic_config_rx) =
         watch::channel(HttpServerDynamicConfig { accept_new_txs: true, ..Default::default() });
-    let app_state =
-        AppState { gateway_client: Arc::new(MockGatewayClient::new()), dynamic_config_rx };
+    let app_state = AppState {
+        gateway_client: Arc::new(MockGatewayClient::new()),
+        dynamic_config_rx,
+        add_tx_semaphore: Arc::new(Semaphore::new(1)),
+    };
 
     // Clone AppState to mirror how axum's Extension extractor hands a clone to each request:
     // updates to the watch channel must still be observed through the cloned receiver.
@@ -451,6 +464,122 @@ async fn zstd_compressed_request_too_large() {
     let response = http_client.add_rpc_tx_with_zstd(compressed_body).await;
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+/// A gateway client whose `add_tx` blocks until `release` is signalled, used to hold a permit
+/// in-flight deterministically. It signals `started` once entered and `completed` once it returns.
+struct BlockingGatewayClient {
+    started: Arc<Notify>,
+    release: Arc<Notify>,
+    completed: tokio::sync::Mutex<Option<oneshot::Sender<()>>>,
+}
+
+#[async_trait]
+impl GatewayClient for BlockingGatewayClient {
+    async fn add_tx(&self, _gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput> {
+        self.started.notify_one();
+        self.release.notified().await;
+        if let Some(completed) = self.completed.lock().await.take() {
+            let _ = completed.send(());
+        }
+        Ok(default_gateway_output())
+    }
+}
+
+fn app_state_with_semaphore(
+    gateway_client: Arc<dyn GatewayClient>,
+    add_tx_semaphore: Arc<Semaphore>,
+) -> (watch::Sender<HttpServerDynamicConfig>, AppState) {
+    let (tx, dynamic_config_rx) =
+        watch::channel(HttpServerDynamicConfig { accept_new_txs: true, ..Default::default() });
+    (tx, AppState { gateway_client, dynamic_config_rx, add_tx_semaphore })
+}
+
+/// When all permits are taken, a new add_tx request is rejected with `AtCapacityError` rather than
+/// spawning more in-flight work.
+#[tokio::test]
+async fn add_tx_inner_rejects_when_at_capacity() {
+    let semaphore = Arc::new(Semaphore::new(1));
+    let (_tx, app_state) =
+        app_state_with_semaphore(Arc::new(MockGatewayClient::new()), semaphore.clone());
+
+    // Exhaust the single permit, simulating one in-flight request.
+    let _held_permit = semaphore.clone().acquire_owned().await.unwrap();
+
+    let result = add_tx_inner(app_state, HeaderMap::new(), rpc_invoke_tx()).await;
+    assert_matches!(result, Err(HttpServerError::AtCapacityError()));
+}
+
+/// The `AtCapacityError` maps to HTTP 503, distinct from the `accept_new_txs == false` rejection.
+#[tokio::test]
+async fn at_capacity_error_maps_to_503() {
+    let response = HttpServerError::AtCapacityError().into_response();
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+}
+
+/// A successful request releases its permit when the spawned task completes, so capacity is
+/// restored for subsequent requests.
+#[tokio::test]
+async fn permit_released_after_successful_add_tx() {
+    let mut mock_gateway_client = MockGatewayClient::new();
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
+    let semaphore = Arc::new(Semaphore::new(1));
+    let (_tx, app_state) =
+        app_state_with_semaphore(Arc::new(mock_gateway_client), semaphore.clone());
+
+    assert_eq!(semaphore.available_permits(), 1);
+    let result = add_tx_inner(app_state, HeaderMap::new(), rpc_invoke_tx()).await;
+    assert!(result.is_ok(), "{result:?}");
+    assert_eq!(semaphore.available_permits(), 1, "permit should be released after completion");
+}
+
+/// The `accept_new_txs == false` gate rejects before a permit is acquired: even with zero permits
+/// available, the request is rejected as `DisabledError`, never reaching the spawn / `try_acquire`.
+#[tokio::test]
+async fn disabled_gate_runs_before_acquiring_permit() {
+    // Zero permits: if the gate did not short-circuit, we would observe `AtCapacityError`.
+    let semaphore = Arc::new(Semaphore::new(0));
+    let (tx, app_state) = app_state_with_semaphore(Arc::new(MockGatewayClient::new()), semaphore);
+    tx.send(HttpServerDynamicConfig { accept_new_txs: false, ..Default::default() }).unwrap();
+
+    let result = add_rpc_tx(Extension(app_state), HeaderMap::new(), Json(rpc_invoke_tx())).await;
+    assert_matches!(result, Err(HttpServerError::DisabledError()));
+}
+
+/// Cancel-safety: if the request future is dropped mid-flight (client disconnect), the detached
+/// gateway task still runs to completion and continues to hold its permit until it finishes.
+#[tokio::test]
+async fn add_tx_inner_preserves_cancel_safety_on_disconnect() {
+    let started = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let (completed_tx, completed_rx) = oneshot::channel();
+    let gateway_client = Arc::new(BlockingGatewayClient {
+        started: started.clone(),
+        release: release.clone(),
+        completed: tokio::sync::Mutex::new(Some(completed_tx)),
+    });
+    let semaphore = Arc::new(Semaphore::new(1));
+    let (_tx, app_state) = app_state_with_semaphore(gateway_client, semaphore.clone());
+
+    let request_future = tokio::spawn(add_tx_inner(app_state, HeaderMap::new(), rpc_invoke_tx()));
+
+    // Wait until the detached gateway task is running; its permit is now held.
+    started.notified().await;
+    assert_eq!(semaphore.available_permits(), 0, "permit should be held while in-flight");
+
+    // Simulate a client disconnect: drop the request future.
+    request_future.abort();
+
+    // The detached task must still run to completion despite the disconnect.
+    release.notify_one();
+    completed_rx.await.expect("gateway task must complete after the request future was dropped");
+
+    // The permit is held for the inner task's full lifetime, then released.
+    tokio::time::timeout(Duration::from_secs(5), semaphore.acquire())
+        .await
+        .expect("permit should be released after the detached task completes")
+        .expect("semaphore should not be closed")
+        .forget();
 }
 
 #[tokio::test]

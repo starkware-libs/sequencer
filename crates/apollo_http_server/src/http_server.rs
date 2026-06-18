@@ -1,6 +1,7 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -36,6 +37,7 @@ use starknet_api::serde_utils::{
 use starknet_api::transaction::fields::ValidResourceBounds;
 use tokio::net::TcpListener;
 use tokio::sync::watch::{channel, Receiver, Sender};
+use tokio::sync::Semaphore;
 use tokio::time;
 use tower_http::decompression::RequestDecompressionLayer;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -62,6 +64,11 @@ pub type HttpServerResult<T> = Result<T, HttpServerError>;
 
 const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 
+// Bounds the number of in-flight add_tx requests, each of which holds its payload and detached
+// gateway task for the request's full lifetime. Aligned with the gateway component server's own
+// concurrency bound. Excess requests are rejected with 503 rather than queued.
+const DEFAULT_MAX_CONCURRENT_ADD_TX_REQUESTS: usize = 128;
+
 pub struct HttpServer {
     config: HttpServerConfig,
     app_state: AppState,
@@ -73,6 +80,10 @@ pub struct HttpServer {
 pub struct AppState {
     gateway_client: SharedGatewayClient,
     dynamic_config_rx: Receiver<HttpServerDynamicConfig>,
+    // Bounds the number of in-flight add_tx requests. A permit is acquired before the detached
+    // gateway task is spawned and held for that task's full lifetime, so the count reflects real
+    // in-flight work even when a client disconnects and the request future is dropped.
+    add_tx_semaphore: Arc<Semaphore>,
 }
 
 impl AppState {
@@ -94,7 +105,8 @@ impl HttpServer {
     ) -> Self {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
-        let app_state = AppState { gateway_client, dynamic_config_rx };
+        let add_tx_semaphore = Arc::new(Semaphore::new(DEFAULT_MAX_CONCURRENT_ADD_TX_REQUESTS));
+        let app_state = AppState { gateway_client, dynamic_config_rx, add_tx_semaphore };
         HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
     }
 
@@ -299,9 +311,17 @@ async fn add_tx_inner(
     tx: RpcTransaction,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
+    // Bound concurrent in-flight requests: acquire the permit before spawning so excess requests
+    // are rejected with 503 rather than piling up as detached tasks under flood.
+    let permit = app_state
+        .add_tx_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| HttpServerError::AtCapacityError())?;
     // Wrap the gateway client interaction with a tokio::spawn as it is NOT cancel-safe.
     // Even if the current task is cancelled, e.g., when a request is dropped while still being
-    // processed, the inner task will continue to run.
+    // processed, the inner task will continue to run. The permit is moved into the spawned task so
+    // it is held for the task's full lifetime, decoupled from the (cancellable) request future.
     let region = headers
         .get(CLIENT_REGION_HEADER)
         .and_then(|region| region.to_str().ok())
@@ -309,6 +329,7 @@ async fn add_tx_inner(
         .to_string();
     let add_tx_result = tokio::spawn(
         async move {
+            let _permit = permit;
             let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
                 debug!("Error while adding transaction: {}", e);
                 HttpServerError::from(Box::new(e))
