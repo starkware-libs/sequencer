@@ -64,11 +64,6 @@ pub type HttpServerResult<T> = Result<T, HttpServerError>;
 
 const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 
-// Bounds the number of in-flight add_tx requests, each of which holds its payload and detached
-// gateway task for the request's full lifetime. Aligned with the gateway component server's own
-// concurrency bound. Excess requests are rejected with 503 rather than queued.
-const DEFAULT_MAX_CONCURRENT_ADD_TX_REQUESTS: usize = 128;
-
 pub struct HttpServer {
     config: HttpServerConfig,
     app_state: AppState,
@@ -105,7 +100,8 @@ impl HttpServer {
     ) -> Self {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
-        let add_tx_semaphore = Arc::new(Semaphore::new(DEFAULT_MAX_CONCURRENT_ADD_TX_REQUESTS));
+        let add_tx_semaphore =
+            Arc::new(Semaphore::new(config.static_config.max_concurrent_add_tx_requests));
         let app_state = AppState { gateway_client, dynamic_config_rx, add_tx_semaphore };
         HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
     }
