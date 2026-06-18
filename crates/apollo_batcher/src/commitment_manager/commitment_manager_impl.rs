@@ -183,11 +183,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         loop {
             match self.results_receiver.try_recv() {
                 Ok(result) => {
+                    let task_label = result.task_label();
                     let commitment_task_output = result.expect_commitment();
-                    self.update_task_duration_metric(
-                        CommitterRequestLabelValue::CommitBlock,
-                        commitment_task_output.height,
-                    );
+                    self.update_task_duration_metric(task_label, commitment_task_output.height);
                     results.push(commitment_task_output)
                 }
                 Err(TryRecvError::Empty) => break,
@@ -213,22 +211,18 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let mut commitment_results = Vec::new();
         loop {
             // Sleep until a message is sent or the channel is closed.
-            match self.results_receiver.recv().await {
-                Some(CommitterTaskOutput::Commit(commitment_task_result)) => {
-                    self.update_task_duration_metric(
-                        CommitterRequestLabelValue::CommitBlock,
-                        commitment_task_result.height,
-                    );
+            let result =
+                self.results_receiver.recv().await.unwrap_or_else(|| {
+                    panic!("Channel closed while waiting for commitment results.")
+                });
+            self.update_task_duration_metric(result.task_label(), result.height());
+            match result {
+                CommitterTaskOutput::Commit(commitment_task_result) => {
                     commitment_results.push(commitment_task_result)
                 }
-                Some(CommitterTaskOutput::Revert(revert_task_result)) => {
-                    self.update_task_duration_metric(
-                        CommitterRequestLabelValue::RevertBlock,
-                        revert_task_result.height,
-                    );
+                CommitterTaskOutput::Revert(revert_task_result) => {
                     return (commitment_results, revert_task_result);
                 }
-                None => panic!("Channel closed while waiting for revert results."),
             }
         }
     }
@@ -532,17 +526,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         task_type: CommitterRequestLabelValue,
         height: BlockNumber,
     ) {
-        let task_duration = self.task_timer.stop_timer(task_type, height);
-        if let Some(task_duration) = task_duration {
-            let task_duration = u64::try_from(task_duration)
-                .expect("Duration (in microseconds) is not more than 500,000 years.");
+        if let Some(task_duration) = self.task_timer.stop_timer(task_type, height) {
             match task_type {
+                // Both commit endpoints (`CommitBlock` and, under `os_input`,
+                // `ReadPathsAndCommitBlock`) share the commit metric.
                 CommitterRequestLabelValue::CommitBlock => {
-                    debug!(
-                        "Commit block latency for block {height}: {task_duration} milliseconds."
-                    );
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
+                    record_commit_block_metric(task_duration, height, task_type)
                 }
                 CommitterRequestLabelValue::RevertBlock => {
                     debug!(
@@ -553,15 +542,21 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
                 #[cfg(feature = "os_input")]
                 CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
-                    debug!(
-                        "Read paths and commit block latency for block {height}: {task_duration} \
-                         milliseconds."
-                    );
                     // TODO(Ariel): Add dedicated metrics once we use os_input in prod.
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
+                    record_commit_block_metric(task_duration, height, task_type)
                 }
             }
         }
     }
+}
+
+/// Records the latency and count metrics for a commit task. Shared by both commit endpoints.
+fn record_commit_block_metric(
+    task_duration: u64,
+    height: BlockNumber,
+    task_type: CommitterRequestLabelValue,
+) {
+    debug!("{task_type:?} latency for block {height}: {task_duration} milliseconds.");
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
+    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
 }
