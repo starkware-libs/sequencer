@@ -20,9 +20,6 @@ use crate::jsonnet_generation::{
 use crate::service::{GetComponentConfigs, NodeService, NodeType, KEYS_TO_BE_REPLACED};
 use crate::utils::is_path_prefix;
 
-// The maximum safe integer in jsonnet is 2^53 - 1.
-const MAX_SAFE_JSONNET_INT: u64 = (1 << 53) - 1;
-
 /// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
 fn eval_layout_infra(layout: &str) -> Value {
     let state = jsonnet_state();
@@ -186,8 +183,9 @@ pub fn test_generator_config_is_node_loadable() {
 
 /// Asserts the applicative config emitted by jsonnet reproduces the committed `app_configs/*.json`
 /// — the deployment's non-overridable value layer (loaded on top of `config_schema.json` at deploy)
-/// — for every key those files define. Excludes keys that are overridable, secret, under
-/// `components.*`, not jsonnet-representable (> 2^53).
+/// — for every key those files define. Excludes keys that are overridable, secret, or under
+/// `components.*`. Comparison is exact: the applicative value must be byte-for-byte the app_config
+/// value (including integer-vs-float representation).
 pub fn test_applicative_matches_app_configs() {
     // Applicative side: the single consolidated `node` service carries every component's business
     // config; round-trip through the config struct and render it in the app_configs preset format.
@@ -205,14 +203,17 @@ pub fn test_applicative_matches_app_configs() {
 
     let app_config_map = merged_app_configs();
 
+    // The only app_config value exceeding jsonnet's max exact integer (2^53 - 1) is
+    // `revert_config.revert_up_to_and_including` (u64::MAX), a config-pointer target — so it is
+    // already excluded by `non_default_paths`, and no separate large-int carve-out is needed here.
     let mut mismatches = Vec::new();
     for (key, app_config_value) in &app_config_map {
-        if is_excluded(key) || exceeds_jsonnet_max_int(app_config_value) {
+        if is_excluded(key) {
             continue;
         }
         match build_map.get(key) {
             Some(build_value) => {
-                if !values_equal(build_value, app_config_value) {
+                if build_value != app_config_value {
                     mismatches.push(format!(
                         "{key}: applicative={build_value} app_config={app_config_value}"
                     ));
@@ -251,18 +252,6 @@ fn merged_app_configs() -> BTreeMap<String, Value> {
     app_config_map
 }
 
-// TODO(Nimrod): Remove this by making the deserialization go through u64 rather than f64.
-/// Numeric-tolerant JSON equality: two numbers compare by value (so `12` equals `12.0`), everything
-/// else compares structurally.
-fn values_equal(left: &Value, right: &Value) -> bool {
-    match (left, right) {
-        (Value::Number(left_number), Value::Number(right_number)) => {
-            left_number.as_f64() == right_number.as_f64()
-        }
-        _ => left == right,
-    }
-}
-
 /// The config paths that are overridable or secrets or passed as pointers.
 fn non_default_paths() -> BTreeSet<String> {
     // An optional config is marked overridable/secret as `<path>.#is_none`; the override replaces
@@ -287,17 +276,6 @@ fn non_default_paths() -> BTreeSet<String> {
         insert_with_option_root(&mut paths, &key);
     }
     paths
-}
-
-/// True if `value` is an integer the Rust default sets above 2^53 — jsonnet's largest exactly
-/// representable integer — so jsonnet cannot reproduce it.
-fn exceeds_jsonnet_max_int(value: &Value) -> bool {
-    match value {
-        Value::Number(number) => {
-            number.as_u128().is_some_and(|unsigned| unsigned > u128::from(MAX_SAFE_JSONNET_INT))
-        }
-        _ => false,
-    }
 }
 
 /// Clones a `components` map with `url` and `port` removed from each component object — the two
