@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
@@ -136,8 +137,15 @@ pub fn test_generator_flat_input_matches_direct_build() {
 /// set iff that component runs locally, which is what the per-service-tailored `build` satisfies.
 /// Uses `testing/overrides`.
 pub fn test_generator_config_is_node_loadable() {
-    let built = eval_test_build("hybrid");
-    let services = built.as_object().unwrap();
+    assert_built_services_node_loadable(&eval_test_build("hybrid"));
+}
+
+/// For every service in a `build(...)` result, feeds `service_config_to_preset` (the binary's
+/// output) through the node's real loader (`SequencerNodeConfig::load_and_process`, which resolves
+/// `CONFIG_POINTERS` + `#is_none`), and asserts it reconstructs exactly the built
+/// `SequencerNodeConfig` and passes `validate_node_config`.
+fn assert_built_services_node_loadable(built: &Value) {
+    let services = built.as_object().expect("build result is a service-keyed object");
     for (service, config) in services {
         let direct: SequencerNodeConfig = serde_json::from_value(config.clone()).unwrap();
         let preset_file = NamedTempFile::new().unwrap();
@@ -179,6 +187,128 @@ pub fn test_generator_config_is_node_loadable() {
             panic!("service {service} round-trip diffs:\n  {}", diffs.join("\n  "));
         }
     }
+}
+
+/// A real environment's overlay overrides (1) cover every override path the generator reads — so
+/// the generator can build a full config for the environment from the overlay alone — and (2) apply
+/// through the generator into node-loadable, validated configs for every hybrid service, with the
+/// environment's real values surviving into the built config.
+pub fn test_real_overlay_overrides_are_node_loadable() {
+    let flat_overrides = real_overlay_sequencer_config();
+    let overrides = overrides_from_sequencer_config(&flat_overrides);
+
+    assert_overrides_cover_schema(&overrides);
+
+    let built = eval_build_with_overrides("hybrid", &overrides);
+    assert_built_services_node_loadable(&built);
+
+    // The environment's real values reached the built core service (which runs consensus): the P2P
+    // multiaddrs are dummy `None` (dummy_for_testing marks them `#is_none: true`), so both fold to
+    // `null`; validator id and chain id are the environment's own values. These are asserted
+    // against literals (not re-read from the overlay) so a build that drops or corrupts a value
+    // is caught.
+    let core = built.get("core").expect("hybrid has a core service");
+    let mut core_config = BTreeMap::new();
+    flatten(core, "", &mut core_config);
+    let unique_core_value = |suffix: &str| -> &Value {
+        let matches: Vec<&Value> =
+            core_config.iter().filter(|(key, _)| key.ends_with(suffix)).map(|(_, v)| v).collect();
+        assert_eq!(matches.len(), 1, "expected exactly one core config key ending in `{suffix}`");
+        matches[0]
+    };
+    assert_eq!(
+        unique_core_value("consensus_manager_config.network_config.advertised_multiaddr"),
+        &Value::Null
+    );
+    assert_eq!(
+        unique_core_value("consensus_manager_config.network_config.bootstrap_peer_multiaddr"),
+        &Value::Null
+    );
+    assert_eq!(unique_core_value(".validator_id"), &json!("0x64"));
+    // chain_id is stamped into many places (db configs, chain_info); every one is the env's value.
+    for (key, value) in &core_config {
+        if key.ends_with("chain_id") {
+            assert_eq!(value, &json!("SN_INTEGRATION_SEPOLIA"), "chain_id at `{key}`");
+        }
+    }
+}
+
+/// A real environment's merged overlay `sequencerConfig`, read from the committed YAML overlays
+/// (the single source of truth). It assembles the sepolia-integration hybrid config the way the
+/// deploy does: the shared `common` overlay (the base), the `sepolia-integration` overlay (which
+/// overrides common), and `dummy_for_testing` (layered last — it supplies the per-pod instance
+/// values, the P2P multiaddrs as dummy `None` and `validator_id`). Each layer contributes its
+/// `common.yaml` and `services/*.yaml` `config.sequencerConfig` entries; later layers win.
+/// (`components.*` infra keys are derived from the layout by the generator, not read from
+/// overrides.)
+fn real_overlay_sequencer_config() -> BTreeMap<String, Value> {
+    const OVERLAY_DIR: &str = "deployments/sequencer/configs/overlays/hybrid";
+    // Low-to-high precedence, matching the deploy's overlay order: `common` is the base,
+    // `sepolia-integration` overrides it, and the per-pod `dummy_for_testing` is layered last.
+    let layers = [
+        format!("{OVERLAY_DIR}/common"),
+        format!("{OVERLAY_DIR}/sepolia-integration"),
+        format!("{OVERLAY_DIR}/common/dummy_for_testing"),
+    ];
+
+    let mut merged = BTreeMap::new();
+    for layer in layers {
+        let mut files = vec![PathBuf::from(format!("{layer}/common.yaml"))];
+        if let Ok(entries) = std::fs::read_dir(format!("{layer}/services")) {
+            let mut service_files: Vec<PathBuf> = entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path())
+                .filter(|path| path.extension().is_some_and(|extension| extension == "yaml"))
+                .collect();
+            service_files.sort();
+            files.extend(service_files);
+        }
+        for file in files {
+            let Ok(contents) = std::fs::read_to_string(&file) else {
+                continue;
+            };
+            let document: Value = serde_yml::from_str(&contents)
+                .unwrap_or_else(|error| panic!("overlay {file:?} is not valid YAML: {error}"));
+            let sequencer_config = document
+                .get("config")
+                .and_then(|config| config.get("sequencerConfig"))
+                .and_then(Value::as_object);
+            if let Some(sequencer_config) = sequencer_config {
+                for (key, value) in sequencer_config {
+                    merged.insert(key.clone(), value.clone());
+                }
+            }
+        }
+    }
+    merged
+}
+
+/// Asserts `overrides` supplies every override path the generator reads
+/// (`expected_override_paths`), so `build` never hits a missing field — i.e. the environment's
+/// overlay is complete for the generator. (Extra keys the overlay carries but the generator
+/// ignores, e.g. layout-derived infra ports, are irrelevant and not checked.)
+fn assert_overrides_cover_schema(overrides: &Value) {
+    let missing_paths: Vec<String> = expected_override_paths()
+        .into_iter()
+        .filter(|path| !nested_path_exists(overrides, path))
+        .collect();
+    assert!(
+        missing_paths.is_empty(),
+        "the overlay does not supply every override path the generator reads (build would hit a \
+         missing field): {missing_paths:#?}"
+    );
+}
+
+/// True if the dot-separated `path` resolves to a value within `value`.
+fn nested_path_exists(value: &Value, path: &str) -> bool {
+    let mut current = value;
+    for part in path.split(FIELD_SEPARATOR) {
+        match current.get(part) {
+            Some(child) => current = child,
+            None => return false,
+        }
+    }
+    true
 }
 
 /// Asserts the applicative config emitted by jsonnet reproduces the committed `app_configs/*.json`

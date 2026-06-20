@@ -27,6 +27,7 @@ url.workspace = true
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_node_config = { workspace = true, features = ["testing"] }
+serde_yml.workspace = true
 tempfile.workspace = true
 url = { workspace = true, features = ["serde"] }
 
