@@ -20,6 +20,7 @@ use crate::jsonnet_test::{
     test_generator_config_is_node_loadable,
     test_generator_flat_input_matches_direct_build,
     test_keys_to_be_replaced_are_covered_by_override_schema,
+    test_real_overlay_overrides_are_node_loadable,
 };
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
@@ -110,6 +111,16 @@ fn generator_config_is_node_loadable() {
         .expect("Couldn't set working dir.");
 
     test_generator_config_is_node_loadable();
+}
+
+/// Verifies a real environment's overlay overrides are recognized and build into node-loadable
+/// configs.
+#[test]
+fn real_overlay_overrides_are_node_loadable() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_real_overlay_overrides_are_node_loadable();
 }
 
 /// Test that the deployment file is up to date.
