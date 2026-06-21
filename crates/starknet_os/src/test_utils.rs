@@ -47,3 +47,30 @@ pub static SHA256_BATCH_RESOURCES_CONSTANT: LazyLock<ExecutionResources> =
             3 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::range_check).unwrap(),
         )]),
     });
+
+// Resources consumed by the SHA-512 batch phase, separated into linear and constant factors.
+pub const SHA512_BATCH_SIZE: usize = 3;
+pub static SHA512_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> =
+    LazyLock::new(|| ExecutionResources {
+        n_steps: 13710,
+        n_memory_holes: 0,
+        builtin_instance_counter: BTreeMap::from([
+            (
+                BuiltinName::bitwise,
+                9960 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::bitwise).unwrap(),
+            ),
+            (
+                BuiltinName::range_check,
+                192 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::range_check).unwrap(),
+            ),
+        ]),
+    });
+pub static SHA512_BATCH_RESOURCES_CONSTANT: LazyLock<ExecutionResources> =
+    LazyLock::new(|| ExecutionResources {
+        n_steps: 49,
+        n_memory_holes: 0,
+        builtin_instance_counter: BTreeMap::from([(
+            BuiltinName::range_check,
+            3 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::range_check).unwrap(),
+        )]),
+    });
