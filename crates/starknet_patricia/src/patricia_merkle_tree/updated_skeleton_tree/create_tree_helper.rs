@@ -244,11 +244,11 @@ impl UpdatedSkeletonTreeImpl {
             TempSkeletonNode::Original(OriginalSkeletonNode::Edge(path_to_bottom)) => {
                 UpdatedSkeletonNode::Edge(*path_to_bottom)
             }
-            TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(_)) => return,
-            TempSkeletonNode::Leaf => {
+            TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(_))
+            | TempSkeletonNode::Leaf => {
                 assert!(
                     self.skeleton_tree.contains_key(&index),
-                    "Leaf index {index:?} doesn't appear in the skeleton."
+                    "Index {index:?} doesn't appear in the skeleton."
                 );
                 return;
             }
