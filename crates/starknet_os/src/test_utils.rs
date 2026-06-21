@@ -18,6 +18,16 @@ pub mod validations;
 #[path = "resource_utils_test.rs"]
 mod resource_utils_test;
 
+fn scale_builtin_cells(resources: &ExecutionResources) -> ExecutionResources {
+    let mut scaled_resources = resources.clone();
+    scaled_resources.builtin_instance_counter = scaled_resources
+        .builtin_instance_counter
+        .iter()
+        .map(|(builtin, count)| (*builtin, count / BUILTIN_INSTANCE_SIZES.get(builtin).unwrap()))
+        .collect();
+    scaled_resources
+}
+
 // Resources consumed by the SHA-256 batch phase, separated into linear and constant factors.
 pub const SHA256_BATCH_SIZE: usize = 7;
 pub static SHA256_BATCH_RESOURCES_LINEAR_UNSCALED: LazyLock<ExecutionResources> =
@@ -29,15 +39,8 @@ pub static SHA256_BATCH_RESOURCES_LINEAR_UNSCALED: LazyLock<ExecutionResources> 
             (BuiltinName::range_check, 448),
         ]),
     });
-pub static SHA256_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> = LazyLock::new(|| {
-    let mut resources = SHA256_BATCH_RESOURCES_LINEAR_UNSCALED.clone();
-    resources.builtin_instance_counter = resources
-        .builtin_instance_counter
-        .iter()
-        .map(|(builtin, count)| (*builtin, count / BUILTIN_INSTANCE_SIZES.get(builtin).unwrap()))
-        .collect();
-    resources
-});
+pub static SHA256_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> =
+    LazyLock::new(|| scale_builtin_cells(&SHA256_BATCH_RESOURCES_LINEAR_UNSCALED));
 pub static SHA256_BATCH_RESOURCES_CONSTANT: LazyLock<ExecutionResources> =
     LazyLock::new(|| ExecutionResources {
         n_steps: 49,
@@ -50,21 +53,17 @@ pub static SHA256_BATCH_RESOURCES_CONSTANT: LazyLock<ExecutionResources> =
 
 // Resources consumed by the SHA-512 batch phase, separated into linear and constant factors.
 pub const SHA512_BATCH_SIZE: usize = 3;
-pub static SHA512_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> =
+pub static SHA512_BATCH_RESOURCES_LINEAR_UNSCALED: LazyLock<ExecutionResources> =
     LazyLock::new(|| ExecutionResources {
         n_steps: 13710,
         n_memory_holes: 0,
         builtin_instance_counter: BTreeMap::from([
-            (
-                BuiltinName::bitwise,
-                9960 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::bitwise).unwrap(),
-            ),
-            (
-                BuiltinName::range_check,
-                192 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::range_check).unwrap(),
-            ),
+            (BuiltinName::bitwise, 9960),
+            (BuiltinName::range_check, 192),
         ]),
     });
+pub static SHA512_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> =
+    LazyLock::new(|| scale_builtin_cells(&SHA512_BATCH_RESOURCES_LINEAR_UNSCALED));
 pub static SHA512_BATCH_RESOURCES_CONSTANT: LazyLock<ExecutionResources> =
     LazyLock::new(|| ExecutionResources {
         n_steps: 49,
