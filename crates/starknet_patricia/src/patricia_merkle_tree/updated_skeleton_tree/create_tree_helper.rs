@@ -220,36 +220,8 @@ impl UpdatedSkeletonTreeImpl {
         if !left.is_empty() && !right.is_empty() {
             // Both children are non-empty - a binary node.
             // Finalize children, as a binary node cannot change form.
-            for (index, node) in [(left_index, left), (right_index, right)] {
-                let TempSkeletonNode::Original(original_node) = node else {
-                    match node {
-                        TempSkeletonNode::Leaf => {
-                            // Leaf is finalized in the initial phase of updated skeleton creation.
-                            assert!(
-                                self.skeleton_tree.contains_key(&index),
-                                "Leaf index {index:?} doesn't appear in the skeleton."
-                            );
-                            continue;
-                        }
-                        TempSkeletonNode::Empty => unreachable!("Unexpected empty node."),
-                        TempSkeletonNode::Original(_) => {
-                            unreachable!("node is not an Original variant.")
-                        }
-                    }
-                };
-                let updated_node = match original_node {
-                    OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
-                    OriginalSkeletonNode::Edge(path_to_bottom) => {
-                        UpdatedSkeletonNode::Edge(*path_to_bottom)
-                    }
-                    OriginalSkeletonNode::UnmodifiedSubTree(_) => {
-                        // Unmodified nodes are finalized in the initial phase of updated skeleton
-                        // creation.
-                        continue;
-                    }
-                };
-                self.skeleton_tree.insert(index, updated_node);
-            }
+            self.finalize_binary_child(left_index, left);
+            self.finalize_binary_child(right_index, right);
 
             return TempSkeletonNode::Original(OriginalSkeletonNode::Binary);
         }
@@ -261,6 +233,28 @@ impl UpdatedSkeletonTreeImpl {
             (right, right_index, PathToBottom::RIGHT_CHILD)
         };
         self.node_from_edge_data(&child_direction, &child_index, child_node)
+    }
+
+    /// Finalizes a child of a binary node into the skeleton, inserting its updated node. Leaves and
+    /// unmodified subtrees are already finalized in the initial phase of updated skeleton creation,
+    /// so they are only sanity-checked, not inserted.
+    fn finalize_binary_child(&mut self, index: NodeIndex, child: &TempSkeletonNode) {
+        let updated_node = match child {
+            TempSkeletonNode::Original(OriginalSkeletonNode::Binary) => UpdatedSkeletonNode::Binary,
+            TempSkeletonNode::Original(OriginalSkeletonNode::Edge(path_to_bottom)) => {
+                UpdatedSkeletonNode::Edge(*path_to_bottom)
+            }
+            TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(_)) => return,
+            TempSkeletonNode::Leaf => {
+                assert!(
+                    self.skeleton_tree.contains_key(&index),
+                    "Leaf index {index:?} doesn't appear in the skeleton."
+                );
+                return;
+            }
+            TempSkeletonNode::Empty => unreachable!("Unexpected empty node."),
+        };
+        self.skeleton_tree.insert(index, updated_node);
     }
 
     /// Builds a (probably edge) node from its given updated descendant. Returns the
