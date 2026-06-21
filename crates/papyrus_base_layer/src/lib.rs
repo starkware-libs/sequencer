@@ -46,8 +46,10 @@ impl std::fmt::Display for L1BlockHash {
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum MockError {
-    #[error("Mock error")]
+    #[error("mock error")]
     MockError,
+    #[error("mock error {0}")]
+    Numbered(usize),
 }
 
 /// Interface for getting data from the Starknet base contract.
