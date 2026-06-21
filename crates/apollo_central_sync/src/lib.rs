@@ -706,9 +706,6 @@ impl<
                      block_contains_non_backwards_compatible_classes is false",
                     classes.keys().collect::<Vec<_>>()
                 );
-                // Still need to advance the class marker even when not storing classes,
-                // otherwise future blocks that DO have classes will fail with marker mismatch.
-                txn = txn.append_classes(block_number, &[], &[])?;
             }
             txn.commit()?;
             Ok(())
