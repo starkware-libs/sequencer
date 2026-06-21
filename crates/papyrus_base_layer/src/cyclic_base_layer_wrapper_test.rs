@@ -632,3 +632,27 @@ async fn test_retry_primary_fires_only_after_interval_elapses() {
     let result = wrapper.get_proved_block_at(1).await;
     assert!(result.is_ok());
 }
+
+// A failed primary retry must not advance the clock, so the next L1 access retries the primary
+// again instead of waiting another full interval.
+#[tokio::test(start_paused = true)]
+async fn test_retry_clock_not_advanced_when_reset_fails() {
+    const INTERVAL: Duration = Duration::from_secs(60);
+
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer.expect_is_at_primary().returning(|| Ok(false));
+    // Reset fails each time; the clock advances only on success, so each access stays due.
+    base_layer
+        .expect_reset_provider_url_to_primary()
+        .times(2)
+        .returning(|| Err(MockError::MockError));
+    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL);
+
+    // Make the retry due.
+    tokio::time::advance(INTERVAL).await;
+
+    // First access: retry is due, reset fails, so the operation errors.
+    assert!(wrapper.get_proved_block_at(1).await.is_err());
+    // Still due (the failed reset did not advance the clock): the next access retries again.
+    assert!(wrapper.get_proved_block_at(1).await.is_err());
+}
