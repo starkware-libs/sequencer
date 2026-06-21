@@ -160,35 +160,22 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         leaf_index_to_leaf_input.into_iter().map(|(k, v)| (k, Mutex::new(Some(v)))).collect()
     }
 
-    // For `ExistingLeaves`, retrieves the leaf from the leaf modifications and returns `None` in
-    // place of the leaf output. For `ComputeLeaves`, computes the leaf from its corresponding leaf
-    // input and returns the resulting leaf output.
-    async fn get_or_compute_leaf(
-        leaf_source: &LeafSource<L>,
+    // Computes the leaf at `index` from its corresponding leaf input, returning the leaf together
+    // with its output.
+    async fn compute_leaf(
+        leaf_index_to_leaf_input: &HashMap<NodeIndex, Mutex<Option<L::Input>>>,
         index: NodeIndex,
-    ) -> FilledTreeResult<(L, Option<L::Output>)> {
-        match leaf_source {
-            LeafSource::ExistingLeaves(leaf_modifications) => {
-                let leaf_data =
-                    L::from_modifications(&index, leaf_modifications).map_err(|leaf_err| {
-                        FilledTreeError::Leaf { leaf_error: leaf_err, leaf_index: index }
-                    })?;
-                Ok((leaf_data, None))
-            }
-            LeafSource::ComputeLeaves { leaf_index_to_leaf_input, .. } => {
-                let leaf_input = leaf_index_to_leaf_input
-                    .get(&index)
-                    .ok_or(FilledTreeError::MissingLeafInput(index))?
-                    .lock()
-                    .await
-                    .take()
-                    .unwrap_or_else(|| panic!("Leaf input is None for index {index:?}."));
-                let (leaf_data, leaf_output) = L::create(leaf_input).await.map_err(|leaf_err| {
-                    FilledTreeError::Leaf { leaf_error: leaf_err, leaf_index: index }
-                })?;
-                Ok((leaf_data, Some(leaf_output)))
-            }
-        }
+    ) -> FilledTreeResult<(L, L::Output)> {
+        let leaf_input = leaf_index_to_leaf_input
+            .get(&index)
+            .ok_or(FilledTreeError::MissingLeafInput(index))?
+            .lock()
+            .await
+            .take()
+            .unwrap_or_else(|| panic!("Leaf input is None for index {index:?}."));
+        L::create(leaf_input)
+            .await
+            .map_err(|leaf_error| FilledTreeError::Leaf { leaf_error, leaf_index: index })
     }
 
     // Recursively computes the filled tree. For `ComputeLeaves`, computes the leaves from the leaf
@@ -263,8 +250,23 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
             UpdatedSkeletonNode::Leaf => {
-                let (leaf_data, leaf_output) =
-                    Self::get_or_compute_leaf(&leaf_source, index).await?;
+                let leaf_data = match leaf_source.as_ref() {
+                    LeafSource::ExistingLeaves(leaf_modifications) => {
+                        L::from_modifications(&index, leaf_modifications).map_err(|leaf_error| {
+                            FilledTreeError::Leaf { leaf_error, leaf_index: index }
+                        })?
+                    }
+                    LeafSource::ComputeLeaves {
+                        leaf_index_to_leaf_input,
+                        leaf_index_to_leaf_output,
+                    } => {
+                        let (leaf_data, leaf_output) =
+                            Self::compute_leaf(leaf_index_to_leaf_input, index).await?;
+                        Self::write_to_output_map(leaf_index_to_leaf_output, index, leaf_output)
+                            .await?;
+                        leaf_data
+                    }
+                };
                 if leaf_data.is_empty() {
                     return Err(FilledTreeError::DeletedLeafInSkeleton(index));
                 }
@@ -276,11 +278,6 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     HashFilledNode { hash, data },
                 )
                 .await?;
-                if let (Some(output), LeafSource::ComputeLeaves { leaf_index_to_leaf_output, .. }) =
-                    (leaf_output, leaf_source.as_ref())
-                {
-                    Self::write_to_output_map(leaf_index_to_leaf_output, index, output).await?
-                };
                 Ok(hash)
             }
         }
