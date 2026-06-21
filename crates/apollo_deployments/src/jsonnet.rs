@@ -153,6 +153,106 @@ pub fn test_applicative_matches_app_configs() {
     );
 }
 
+/// Sentinel string injected at an override path; the suffix carries the dotted path so a value
+/// surviving into the applicative output identifies which override the applicative read.
+const OVERRIDE_SENTINEL_PREFIX: &str = "__override_sentinel__:";
+
+/// Enforces that the applicative config's override schema agrees with `KEYS_TO_BE_REPLACED`, by
+/// *evaluating* the applicative `function(overrides)` with a sentinel placed at every expected
+/// override path.
+pub fn test_keys_to_be_replaced_are_covered_by_override_schema() {
+    let expected_paths = expected_override_paths();
+    let applicative = eval_applicative_config(&sentinel_overrides(&expected_paths));
+
+    let mut consumed_paths = BTreeSet::new();
+    collect_sentinel_paths(&applicative, &mut consumed_paths);
+
+    let unread_paths: Vec<&String> = expected_paths.difference(&consumed_paths).collect();
+    assert!(
+        unread_paths.is_empty(),
+        "KEYS_TO_BE_REPLACED declares override paths the applicative config never reads (remove \
+         the replacer key, or read `overrides.<path>` in applicative_config.libsonnet): \
+         {unread_paths:#?}"
+    );
+}
+
+/// The override read-paths the applicative config is expected to read, derived from
+/// `KEYS_TO_BE_REPLACED`: an optional config marked `<path>.#is_none` is read whole at `<path>` (so
+/// its sub-field replacer keys collapse into that single read), and every other replacer key is
+/// read at its full path.
+fn expected_override_paths() -> BTreeSet<String> {
+    let is_none_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+    let option_roots: BTreeSet<&str> =
+        KEYS_TO_BE_REPLACED.iter().filter_map(|key| key.strip_suffix(&is_none_suffix)).collect();
+
+    let mut paths: BTreeSet<String> = option_roots.iter().map(|root| (*root).to_owned()).collect();
+    for key in KEYS_TO_BE_REPLACED.iter().copied() {
+        let is_marker = key.ends_with(&is_none_suffix);
+        let under_option_root = option_roots.iter().any(|root| is_path_prefix(root, key));
+        if !is_marker && !under_option_root {
+            paths.insert(key.to_owned());
+        }
+    }
+    paths
+}
+
+/// Builds a nested `overrides` object placing a path-encoding sentinel string at each dotted path.
+fn sentinel_overrides(paths: &BTreeSet<String>) -> Value {
+    let mut root = serde_json::Map::new();
+    for path in paths {
+        let parts: Vec<&str> = path.split(FIELD_SEPARATOR).collect();
+        let (leaf, ancestors) = parts.split_last().expect("a path has at least one segment");
+        let mut current = &mut root;
+        for ancestor in ancestors {
+            current = current
+                .entry((*ancestor).to_owned())
+                .or_insert_with(|| Value::Object(serde_json::Map::new()))
+                .as_object_mut()
+                .expect("override path prefix-conflicts with another override path");
+        }
+        current
+            .insert((*leaf).to_owned(), Value::String(format!("{OVERRIDE_SENTINEL_PREFIX}{path}")));
+    }
+    Value::Object(root)
+}
+
+/// Evaluates the applicative `function(overrides)` (`lib/applicative_config.libsonnet`) applied to
+/// `overrides`.
+fn eval_applicative_config(overrides: &Value) -> Value {
+    let overrides_literal = serde_json::to_string(overrides).expect("overrides is serializable");
+    let state = jsonnet_state();
+    let _guard = state.enter();
+    let snippet = format!("(import 'lib/applicative_config.libsonnet')({overrides_literal})");
+    let val = state
+        .evaluate_snippet("applicative_entry.jsonnet", snippet)
+        .expect("applicative_config.libsonnet failed to evaluate");
+    // jrsonnet evaluates lazily, so a bad field access surfaces here (when the thunks are forced),
+    // not at `evaluate_snippet`. A "no such field" error means the applicative reads an
+    // `overrides.<path>` with no KEYS_TO_BE_REPLACED entry, or indexes a sub-field of an optional
+    // config marked `.#is_none` (whose sentinel is a scalar).
+    serde_json::to_value(&val).unwrap_or_else(|error| {
+        panic!(
+            "applicative_config.libsonnet read an override path not declared in \
+             KEYS_TO_BE_REPLACED (add the key), or indexed a sub-field of a `.#is_none` optional \
+             config: {error}"
+        )
+    })
+}
+
+/// Collects the dotted paths encoded in every override sentinel string found anywhere in `value`.
+fn collect_sentinel_paths(value: &Value, out: &mut BTreeSet<String>) {
+    match value {
+        Value::String(string) => {
+            if let Some(path) = string.strip_prefix(OVERRIDE_SENTINEL_PREFIX) {
+                out.insert(path.to_owned());
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|item| collect_sentinel_paths(item, out)),
+        Value::Object(map) => map.values().for_each(|child| collect_sentinel_paths(child, out)),
+        _ => {}
+    }
+}
+
 /// Merges every base `app_configs/<component>.json` (skipping the derived `replacer_*` files) into
 /// a single flat dotted-key map.
 fn merged_app_configs() -> BTreeMap<String, Value> {
