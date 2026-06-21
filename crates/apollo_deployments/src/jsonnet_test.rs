@@ -128,15 +128,17 @@ pub fn test_generator_flat_input_matches_direct_build() {
     );
 }
 
-/// The generator's flat output is node-loadable, valid, and faithful: for every hybrid service,
-/// feeding `service_config_to_preset` (the binary's output) through the node's real loader
+/// The generator's flat output is node-loadable, valid, and faithful: for every service of every
+/// layout, feeding `service_config_to_preset` (the binary's output) through the node's real loader
 /// (`SequencerNodeConfig::load_and_process`, which resolves `CONFIG_POINTERS` + `#is_none`)
 /// reconstructs exactly the `SequencerNodeConfig` that `build` produced and passes
 /// `validate_node_config` — in particular the cross-member rule that each `<component>_config` is
 /// set iff that component runs locally, which is what the per-service-tailored `build` satisfies.
 /// Uses `testing/overrides`.
 pub fn test_generator_config_is_node_loadable() {
-    assert_built_services_node_loadable(&eval_test_build("hybrid"));
+    for node_type in NodeType::iter() {
+        assert_built_services_node_loadable(&eval_test_build(&node_type.to_string()));
+    }
 }
 
 /// For every service in a `build(...)` result, feeds `service_config_to_preset` (the binary's
