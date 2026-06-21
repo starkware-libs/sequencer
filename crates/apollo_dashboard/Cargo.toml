@@ -41,6 +41,7 @@ apollo_storage.workspace = true
 apollo_transaction_converter.workspace = true
 blockifier.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+papyrus_base_layer.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_with.workspace = true
@@ -68,4 +69,5 @@ apollo_staking = { workspace = true, features = ["testing"] }
 apollo_state_sync_metrics = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_transaction_converter = { workspace = true, features = ["testing"] }
+papyrus_base_layer = { workspace = true, features = ["testing"] }
 rstest.workspace = true
