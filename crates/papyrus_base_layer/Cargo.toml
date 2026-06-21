@@ -33,7 +33,10 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils.workspace = true
+apollo_metrics = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true

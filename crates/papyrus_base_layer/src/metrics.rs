@@ -1,10 +1,12 @@
+use std::sync::Once;
+
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumIter, IntoStaticStr, VariantNames};
 
 pub const LABEL_NAME_SCRAPER: &str = "scraper";
 
 /// Identifies which scraper component a metric pertains to.
-#[derive(EnumIter, IntoStaticStr, VariantNames)]
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum ScraperLabel {
     L1Events,
@@ -29,5 +31,8 @@ define_metrics!(
 );
 
 pub fn register_metrics() {
-    L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS.register();
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS.register();
+    });
 }
