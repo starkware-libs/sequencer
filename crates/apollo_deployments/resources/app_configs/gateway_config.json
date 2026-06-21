@@ -12,6 +12,7 @@
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": false,
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_memory_usage": 16106127360,
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.optimization_level": 2,
+  "gateway_config.static_config.max_concurrent_declare_compilations": 40,
   "gateway_config.static_config.proof_archive_writer_config.bucket_name": "",
   "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap": 200,
   "gateway_config.static_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
