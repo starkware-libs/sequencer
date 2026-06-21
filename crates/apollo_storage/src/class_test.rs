@@ -60,22 +60,39 @@ fn append_classes_writes_correct_data() {
 }
 
 #[test]
-fn append_classes_marker_mismatch() {
-    let ((_reader, mut writer), _temp_dir) = get_test_storage();
+fn append_classes_block_above_marker_fast_forwards() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), ThinStateDiff::default())
+        .unwrap()
+        .append_classes(BlockNumber(1), &[], &[])
+        .unwrap()
+        .commit()
+        .unwrap();
+    assert_eq!(reader.begin_ro_txn().unwrap().get_class_marker().unwrap(), BlockNumber(2));
+}
 
+#[test]
+fn append_classes_block_below_marker_errors() {
+    let ((_reader, mut writer), _temp_dir) = get_test_storage();
     let Err(err) = writer
         .begin_rw_txn()
         .unwrap()
         .append_state_diff(BlockNumber(0), ThinStateDiff::default())
         .unwrap()
-        .append_classes(BlockNumber(1), &Vec::new(), &Vec::new())
+        .append_classes(BlockNumber(0), &[], &[])
+        .unwrap()
+        .append_state_diff(BlockNumber(1), ThinStateDiff::default())
+        .unwrap()
+        .append_classes(BlockNumber(0), &[], &[])
     else {
         panic!("Unexpected Ok.");
     };
-
     assert_matches!(
         err,
-        StorageError::MarkerMismatch { marker_kind: MarkerKind::Class, expected, found } if expected.0 == 0 && found.0 == 1
+        StorageError::MarkerMismatch { marker_kind: MarkerKind::Class, expected, found } if expected.0 == 1 && found.0 == 0
     );
 }
 

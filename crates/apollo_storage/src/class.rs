@@ -268,7 +268,8 @@ impl<T: StorageTransaction<Mode = RW>> ClassStorageWriter for T {
 
         let marker_block_number =
             markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default();
-        if block_number != marker_block_number {
+        // Forward skips auto-fast-forward via the upsert below; only backwards is corruption.
+        if block_number < marker_block_number {
             return Err(StorageError::MarkerMismatch {
                 marker_kind: MarkerKind::Class,
                 expected: marker_block_number,
