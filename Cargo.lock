@@ -9984,6 +9984,8 @@ dependencies = [
  "async-trait",
  "futures",
  "hex",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
  "rstest",

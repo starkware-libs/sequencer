@@ -1,12 +1,18 @@
 use std::ops::RangeInclusive;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use apollo_config::secrets::Sensitive;
+use apollo_metrics::metrics::LossyIntoF64;
 use async_trait::async_trait;
 use starknet_api::block::BlockHashAndNumber;
 use tracing::info;
 use url::Url;
 
+use crate::metrics::{
+    ScraperLabel,
+    L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS,
+    LABEL_NAME_SCRAPER,
+};
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
 #[cfg(test)]
@@ -18,11 +24,22 @@ pub struct CyclicBaseLayerWrapper<B: BaseLayerContract + Send + Sync> {
     base_layer: B,
     retry_primary_interval: Duration,
     last_primary_retry: tokio::time::Instant,
+    scraper: ScraperLabel,
+    // Unix timestamp (seconds) at which the primary endpoint first became non-functional in the
+    // current outage; None when the primary is healthy.
+    primary_down_since: Option<u64>,
 }
 
 impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
-    pub fn new(base_layer: B, retry_primary_interval: Duration) -> Self {
-        Self { base_layer, retry_primary_interval, last_primary_retry: tokio::time::Instant::now() }
+    pub fn new(base_layer: B, retry_primary_interval: Duration, scraper: ScraperLabel) -> Self {
+        crate::metrics::register_metrics();
+        Self {
+            base_layer,
+            retry_primary_interval,
+            last_primary_retry: tokio::time::Instant::now(),
+            scraper,
+            primary_down_since: None,
+        }
     }
 
     // Retries the primary endpoint once the interval has elapsed since we left it. Does nothing
@@ -49,6 +66,15 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
     ) -> Option<Result<ReturnType, B::Error>> {
         // In case we succeed, just return the (successful) result.
         if result.is_ok() {
+            // If we succeeded while on the primary, the primary is healthy — clear the down-since
+            // state and reset the gauge to 0. An optimistic reset to a still-down primary (via
+            // retry_primary_if_due) is NOT treated as healthy here; only an actual successful call
+            // while is_at_primary() confirms health.
+            if self.base_layer.is_at_primary().await.unwrap_or(false) {
+                self.primary_down_since = None;
+                L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS
+                    .set(0f64, &[(LABEL_NAME_SCRAPER, self.scraper.into())]);
+            }
             return Some(result);
         }
         // Get the current URL (return error in case it fails to get it).
@@ -70,6 +96,16 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
         // is measured from when we left it; cycling between backups must not push the retry out.
         if was_at_primary {
             self.last_primary_retry = tokio::time::Instant::now();
+            // Record the unix timestamp at which the primary first went down. Do not overwrite an
+            // existing value: the gauge must reflect when the outage started, not the most recent
+            // cycle that happened to pass through the primary.
+            if self.primary_down_since.is_none() {
+                let down_since =
+                    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+                self.primary_down_since = Some(down_since);
+                L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS
+                    .set(down_since.into_f64(), &[(LABEL_NAME_SCRAPER, self.scraper.into())]);
+            }
         }
         // Get the new URL (return error in case it fails to get it).
         let new_url_result = self.base_layer.get_url().await;

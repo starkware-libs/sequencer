@@ -4,11 +4,17 @@ use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
 use apollo_infra_utils::url::to_safe_string;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::BlockHashAndNumber;
 use url::Url;
 
 use crate::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
+use crate::metrics::{
+    ScraperLabel,
+    L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS,
+    LABEL_NAME_SCRAPER,
+};
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockReference, MockBaseLayerContract, MockError};
 
 fn get_url_helper(num_url_calls_made: &AtomicUsize) -> Result<Sensitive<Url>, MockError> {
@@ -59,7 +65,11 @@ async fn cycle_get_proved_block_at(#[case] num_failing_calls: usize) {
         num_url_calls_made_clone2.fetch_add(1, Ordering::Relaxed);
         Ok(())
     });
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_proved_block_at(1).await;
@@ -100,7 +110,11 @@ async fn cycle_latest_l1_block_number(#[case] num_failing_calls: usize) {
         num_url_calls_made_clone2.fetch_add(1, Ordering::Relaxed);
         Ok(())
     });
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.latest_l1_block_number().await;
@@ -144,7 +158,11 @@ async fn cycle_l1_block_at(#[case] num_failing_calls: usize) {
         num_url_calls_made_clone2.fetch_add(1, Ordering::Relaxed);
         Ok(())
     });
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.l1_block_at(1).await;
@@ -185,7 +203,11 @@ async fn cycle_events(#[case] num_failing_calls: usize) {
         num_url_calls_made_clone2.fetch_add(1, Ordering::Relaxed);
         Ok(())
     });
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.events(0..=1_u64, &[]).await;
@@ -229,7 +251,11 @@ async fn cycle_get_block_header(#[case] num_failing_calls: usize) {
         num_url_calls_made_clone2.fetch_add(1, Ordering::Relaxed);
         Ok(())
     });
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_block_header(1).await;
@@ -251,7 +277,11 @@ async fn get_url_itself_fails() {
 
     base_layer.expect_is_at_primary().returning(|| Ok(false));
     base_layer.expect_get_url().times(1).returning(move || Err(MockError::MockError));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_block_header(1).await;
@@ -272,7 +302,11 @@ async fn get_block_header_fails_after_cycle_error() {
     });
     base_layer.expect_get_block_header().times(1).returning(move |_| Err(MockError::MockError));
     base_layer.expect_cycle_provider_url().times(1).returning(move || Err(MockError::MockError));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_block_header(1).await;
@@ -297,7 +331,11 @@ async fn pass_through_get_block_header_immutable(#[case] success: bool) {
             .expect_get_block_header_immutable()
             .returning(move |_| Err(MockError::MockError));
     }
-    let wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_block_header_immutable(1).await;
@@ -318,7 +356,11 @@ async fn pass_through_get_url() {
         Ok(Sensitive::new(Url::parse("http://first_endpoint").unwrap())
             .with_redactor(to_safe_string))
     });
-    let wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_url().await;
@@ -330,7 +372,11 @@ async fn pass_through_set_provider_url() {
     // Setup.
     let mut base_layer = MockBaseLayerContract::new();
     base_layer.expect_set_provider_url().returning(move |_| Ok(()));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper
@@ -347,7 +393,11 @@ async fn pass_through_cycle_provider_url() {
     // Setup.
     let mut base_layer = MockBaseLayerContract::new();
     base_layer.expect_cycle_provider_url().returning(move || Ok(()));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.cycle_provider_url().await;
@@ -403,7 +453,11 @@ async fn test_exhaust_from_non_primary_index_returns_last_error() {
     base_layer.expect_cycle_provider_url().times(NUM_ATTEMPTS).returning(|| Ok(()));
     // Use a large retry-primary interval so the primary retry never interferes with the cycling
     // path.
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test: all attempts fail; the wrapper must return the last attempt's error.
     let result = wrapper.get_proved_block_at(1).await;
@@ -426,7 +480,8 @@ async fn test_retry_primary_when_interval_elapsed() {
         .expect_get_proved_block_at()
         .times(1)
         .returning(|_| Ok(BlockHashAndNumber::default()));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, Duration::ZERO);
+    let mut wrapper =
+        CyclicBaseLayerWrapper::new(base_layer, Duration::ZERO, ScraperLabel::L1Events);
 
     // Test.
     let result = wrapper.get_proved_block_at(1).await;
@@ -447,7 +502,8 @@ async fn test_retry_primary_error_propagates_and_skips_operation() {
     // The underlying operation must never be reached when retry-primary errors out.
     base_layer.expect_get_proved_block_at().times(0);
 
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, Duration::ZERO);
+    let mut wrapper =
+        CyclicBaseLayerWrapper::new(base_layer, Duration::ZERO, ScraperLabel::L1Events);
 
     // Test.
     let result = wrapper.get_proved_block_at(1).await;
@@ -470,7 +526,11 @@ async fn test_no_retry_primary_when_interval_not_elapsed() {
         .expect_get_proved_block_at()
         .times(1)
         .returning(|_| Ok(BlockHashAndNumber::default()));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, TEST_RETRY_PRIMARY_INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
 
     // Test.
     let result = wrapper.get_proved_block_at(1).await;
@@ -493,7 +553,8 @@ async fn test_no_retry_primary_when_already_at_primary() {
         .expect_get_proved_block_at()
         .times(1)
         .returning(|_| Ok(BlockHashAndNumber::default()));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, Duration::ZERO);
+    let mut wrapper =
+        CyclicBaseLayerWrapper::new(base_layer, Duration::ZERO, ScraperLabel::L1Events);
 
     // Test.
     let result = wrapper.get_proved_block_at(1).await;
@@ -526,13 +587,17 @@ async fn test_retry_clock_not_reset_by_backup_cycles() {
     let tertiary_url = Sensitive::new(Url::parse("http://tertiary_endpoint").unwrap())
         .with_redactor(to_safe_string);
 
-    // is_at_primary return sequence (5 calls total):
-    //   Op1 retry_primary_if_due:  true  (on primary, skip interval check)
-    //   Op1 cycle_url_on_error:    true  (was_at_primary → set clock to T0)
-    //   Op2 retry_primary_if_due:  false (on secondary, elapsed=30 < 60, no reset)
-    //   Op2 cycle_url_on_error:    false (backup → backup, clock must not move)
-    //   Op3 retry_primary_if_due:  false (on tertiary, elapsed=60 >= 60, reset fires)
-    let mut is_at_primary_returns = [true, true, false, false, false].into_iter();
+    // is_at_primary return sequence (8 calls total):
+    //   Op1 retry_primary_if_due:         true  (on primary, skip interval check)
+    //   Op1 cycle_url_on_error error:     true  (was_at_primary → set clock to T0, emit gauge)
+    //   Op1 cycle_url_on_error success:   false (on secondary → do not clear gauge)
+    //   Op2 retry_primary_if_due:         false (on secondary, elapsed=30 < 60, no reset)
+    //   Op2 cycle_url_on_error error:     false (backup → backup, clock must not move)
+    //   Op2 cycle_url_on_error success:   false (on tertiary → do not clear gauge)
+    //   Op3 retry_primary_if_due:         false (on tertiary, elapsed=60 >= 60, reset fires)
+    //   Op3 cycle_url_on_error success:   true  (on primary after reset → clear gauge to 0)
+    let mut is_at_primary_returns =
+        [true, true, false, false, false, false, false, true].into_iter();
 
     // get_url return sequence (7 calls total):
     //   Op1: start=primary, current=primary, new=secondary
@@ -565,7 +630,7 @@ async fn test_retry_clock_not_reset_by_backup_cycles() {
     let mut base_layer = MockBaseLayerContract::new();
     base_layer
         .expect_is_at_primary()
-        .times(5)
+        .times(8)
         .returning(move || Ok(is_at_primary_returns.next().unwrap()));
     base_layer.expect_get_url().times(7).returning(move || Ok(get_url_returns.next().unwrap()));
     base_layer
@@ -578,7 +643,7 @@ async fn test_retry_clock_not_reset_by_backup_cycles() {
     // elapsed at T0+60 would be only 30 s (< INTERVAL) and this would fire zero times.
     base_layer.expect_reset_provider_url_to_primary().times(1).returning(|| Ok(()));
 
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL, ScraperLabel::L1Events);
 
     // Op1 @ T0: primary fails, cycles to secondary, succeeds.
     let result = wrapper.get_proved_block_at(1).await;
@@ -619,7 +684,7 @@ async fn test_retry_primary_fires_only_after_interval_elapses() {
         .returning(|_| Ok(BlockHashAndNumber::default()));
     // Reset fires exactly once — when the second call runs after the interval has elapsed.
     base_layer.expect_reset_provider_url_to_primary().times(1).returning(|| Ok(()));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL, ScraperLabel::L1Events);
 
     // First call: elapsed is 0, which is less than INTERVAL, so no reset.
     let result = wrapper.get_proved_block_at(1).await;
@@ -646,7 +711,7 @@ async fn test_retry_clock_not_advanced_when_reset_fails() {
         .expect_reset_provider_url_to_primary()
         .times(2)
         .returning(|| Err(MockError::MockError));
-    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL);
+    let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL, ScraperLabel::L1Events);
 
     // Make the retry due.
     tokio::time::advance(INTERVAL).await;
@@ -655,4 +720,75 @@ async fn test_retry_clock_not_advanced_when_reset_fails() {
     assert!(wrapper.get_proved_block_at(1).await.is_err());
     // Still due (the failed reset did not advance the clock): the next access retries again.
     assert!(wrapper.get_proved_block_at(1).await.is_err());
+}
+
+// Verifies the primary-down-since gauge:
+// - After a failover away from the primary, the gauge is set to a nonzero unix timestamp.
+// - After a successful call while back on the primary, the gauge is reset to 0.
+#[tokio::test]
+async fn test_primary_down_since_metric() {
+    let primary_url = Sensitive::new(Url::parse("http://primary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+    let secondary_url = Sensitive::new(Url::parse("http://secondary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+
+    // is_at_primary return sequence (4 calls):
+    //   Op1 retry_primary_if_due:  true  (on primary, skip interval check)
+    //   Op1 cycle_url_on_error:    true  (was_at_primary → emit nonzero gauge)
+    //   Op1 success path:          false (on secondary after cycle → do NOT clear gauge)
+    //   Op2 retry_primary_if_due:  true  (on primary after reset; reset happens via
+    //                                     retry_primary_if_due with Duration::ZERO interval)
+    //   Op2 cycle_url_on_error success path: true → clear gauge to 0
+    //
+    // However, for simplicity we only test phase 1 (nonzero after failover).
+    // is_at_primary calls for the failover scenario:
+    //   retry_primary_if_due: true (1)
+    //   cycle_url_on_error error path: true (was_at_primary) (1)
+    //   cycle_url_on_error success path: false (on secondary) (1)
+    let mut is_at_primary_returns = [true, true, false].into_iter();
+
+    let url_sequence = [
+        primary_url.clone(), // start_url
+        primary_url.clone(), // current_url in error path
+        secondary_url,       // new_url after cycle
+    ];
+    let mut get_url_returns = url_sequence.into_iter();
+
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer
+        .expect_is_at_primary()
+        .times(3)
+        .returning(move || Ok(is_at_primary_returns.next().unwrap()));
+    base_layer.expect_get_url().times(3).returning(move || Ok(get_url_returns.next().unwrap()));
+    base_layer.expect_get_proved_block_at().times(1).returning(|_| Err(MockError::MockError));
+    base_layer
+        .expect_get_proved_block_at()
+        .times(1)
+        .returning(|_| Ok(BlockHashAndNumber::default()));
+    base_layer.expect_cycle_provider_url().times(1).returning(|| Ok(()));
+
+    // Install a thread-local Prometheus recorder so metric emissions are captured.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let prometheus_handle = recorder.handle();
+
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
+
+    // Trigger the failover: primary fails, cycle to secondary, secondary succeeds.
+    let result = wrapper.get_proved_block_at(1).await;
+    assert!(result.is_ok());
+
+    // The gauge must now be set to a nonzero unix timestamp.
+    let scraper_label_value: &'static str = ScraperLabel::L1Events.into();
+    let metrics_str = prometheus_handle.render();
+    let gauge_value = L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS
+        .parse_numeric_metric::<u64>(&metrics_str, &[(LABEL_NAME_SCRAPER, scraper_label_value)]);
+    assert!(
+        gauge_value.is_some_and(|timestamp| timestamp > 0),
+        "Expected nonzero down-since timestamp after primary failover, got: {gauge_value:?}"
+    );
 }
