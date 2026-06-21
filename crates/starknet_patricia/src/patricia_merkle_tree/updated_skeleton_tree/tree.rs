@@ -64,7 +64,7 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
             TempSkeletonNode::OriginalUnmodified { .. } => {
                 unreachable!("Root node cannot be unmodified when there are some modifications.")
             }
-            TempSkeletonNode::OriginalBinary | TempSkeletonNode::OriginalEdge { .. } => {
+            TempSkeletonNode::OriginalBinary { .. } | TempSkeletonNode::OriginalEdge { .. } => {
                 updated_skeleton_tree
                     .skeleton_tree
                     .insert(NodeIndex::ROOT, (&temp_root_node).into())
