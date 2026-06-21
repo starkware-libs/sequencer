@@ -57,8 +57,12 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
         let temp_root_node = updated_skeleton_tree.finalize_middle_layers(original_skeleton);
         // Finalize root.
         let root_node = match temp_root_node {
-            TempSkeletonNode::OriginalBinary => UpdatedSkeletonNode::Binary,
-            TempSkeletonNode::OriginalEdge { path } => UpdatedSkeletonNode::Edge(path),
+            TempSkeletonNode::OriginalBinary { n_new_hashes } => {
+                UpdatedSkeletonNode::Binary { n_new_hashes }
+            }
+            TempSkeletonNode::OriginalEdge { path, n_new_hashes } => {
+                UpdatedSkeletonNode::Edge { path_to_bottom: path, n_new_hashes }
+            }
             TempSkeletonNode::Empty => {
                 assert!(updated_skeleton_tree.skeleton_tree.is_empty());
                 return Ok(updated_skeleton_tree);
