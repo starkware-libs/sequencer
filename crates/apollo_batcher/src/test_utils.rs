@@ -8,12 +8,16 @@ use apollo_batcher_config::config::{
     FirstBlockWithPartialBlockHash,
 };
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::ReadPathsAndCommitBlockResponse;
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::AccessedKeys;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -39,6 +43,8 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
@@ -294,6 +300,15 @@ impl Default for MockClients {
         committer_client_inner.expect_revert_block().returning(|_| {
             Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
         });
+        #[cfg(feature = "os_input")]
+        committer_client_inner.expect_read_paths_and_commit_block().returning(|_| {
+            Box::pin(async {
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root: GlobalRoot::default(),
+                    state_commitment_infos: StateCommitmentInfos::default(),
+                })
+            })
+        });
         let committer_client =
             MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));
 
@@ -329,6 +344,8 @@ impl Default for MockDependencies {
             .returning(|_| {
                 Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
             });
+        #[cfg(feature = "os_input")]
+        storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
 
         let batcher_config = BatcherConfig {
             static_config: BatcherStaticConfig {
