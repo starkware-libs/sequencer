@@ -29,7 +29,7 @@ fn prepare_precomputes() -> Arc<RecursiveProverPrecomputes> {
 ///
 /// Run with:
 /// ```shell
-/// rustup run nightly-2025-07-14 cargo test -p starknet_transaction_prover --release --features \
+/// rustup run nightly-2026-01-15 cargo test -p starknet_transaction_prover --release --features \
 ///     stwo_proving test_prove_cairo_pie_10_transfers
 /// ```
 #[tokio::test]

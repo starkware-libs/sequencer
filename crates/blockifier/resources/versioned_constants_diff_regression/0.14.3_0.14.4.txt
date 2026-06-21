@@ -1,4 +1,4 @@
-+ /os_constants/allowed_virtual_os_program_hashes/1: "0x2cc4a0b7248d6e9f94032ee9f9b503e49142fc2ecfcee9876296c7493db7ad2"
++ /os_constants/allowed_virtual_os_program_hashes/1: "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
 ~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
@@ -10,6 +10,16 @@
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1307
 ~ /os_resources/execute_syscalls/ReplaceClass/n_steps: 92
+~ /os_resources/execute_syscalls/Secp256k1Add/n_steps: 400
+~ /os_resources/execute_syscalls/Secp256k1GetPointFromX/n_steps: 384
+~ /os_resources/execute_syscalls/Secp256k1GetXy/n_steps: 197
+~ /os_resources/execute_syscalls/Secp256k1Mul/n_steps: 76495
+~ /os_resources/execute_syscalls/Secp256k1New/n_steps: 445
+~ /os_resources/execute_syscalls/Secp256r1Add/n_steps: 585
+~ /os_resources/execute_syscalls/Secp256r1GetPointFromX/n_steps: 503
+~ /os_resources/execute_syscalls/Secp256r1GetXy/n_steps: 199
+~ /os_resources/execute_syscalls/Secp256r1Mul/n_steps: 125336
+~ /os_resources/execute_syscalls/Secp256r1New/n_steps: 564
 + /os_resources/execute_syscalls/SendMessageToL1/calldata_factor: {"builtin_instance_counter":{},"n_memory_holes":0,"n_steps":6}
 + /os_resources/execute_syscalls/SendMessageToL1/constant: {"builtin_instance_counter":{"range_check_builtin":1},"n_memory_holes":0,"n_steps":127}
 - /os_resources/execute_syscalls/SendMessageToL1/builtin_instance_counter

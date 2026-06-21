@@ -12,7 +12,7 @@ fn proof_flow_fixtures_verify() {
     if let Err(err) = verify_proof(proof_facts, proof) {
         panic!(
             "Proof verification of the proof fixtures failed. The fixtures are corrupted or \
-             stale. Rerun `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features \
+             stale. Rerun `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features \
              starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- \
              --ignored`. Underlying error: {err}"
         );
@@ -36,7 +36,7 @@ fn proof_flow_fixtures_match_genesis_block_hash() {
          genesis block hash the integration test seeds into storage ({:#x}). This usually means \
          the STRK fee token address or the genesis global root changed (e.g. the expect constants \
          were refreshed with `UPDATE_EXPECT=1`) without regenerating the proof fixtures. \
-         Regenerate them: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features \
+         Regenerate them: `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features \
          starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.",
         snos_proof_facts.block_hash.0, genesis_block_hash.0,
     );
@@ -55,7 +55,7 @@ fn proof_flow_program_hash_is_allowed() {
     assert!(
         allowed.contains(&snos_proof_facts.program_hash),
         "Virtual OS program hash {:#x} baked into the proof_flow fixtures is no longer in the \
-         allowed list ({:?}). Regenerate the fixtures: `cargo +nightly-2025-07-14 test -p \
+         allowed list ({:?}). Regenerate the fixtures: `cargo +nightly-2026-01-15 test -p \
          starknet_os_flow_tests --features starknet_transaction_prover/stwo_proving --release \
          generate_proof_fixtures -- --ignored`.",
         snos_proof_facts.program_hash,
