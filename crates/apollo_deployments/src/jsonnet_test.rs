@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
@@ -11,8 +11,10 @@ use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
 use crate::jsonnet_generation::{
+    deep_merge_values,
     eval_build_with_expr,
     eval_build_with_overrides,
+    eval_overlay_at_path,
     eval_overrides_file,
     jsonnet_state,
     overrides_from_sequencer_config,
@@ -127,6 +129,59 @@ pub fn test_generator_flat_input_matches_direct_build() {
         eval_build_with_overrides("hybrid", &overrides_from_sequencer_config(&flat)),
         eval_test_build("hybrid"),
     );
+}
+
+const OVERLAY_BASE_PATH: &str =
+    "crates/apollo_deployments/jsonnet/testing/overlay_partial_base.libsonnet";
+const OVERLAY_SERVICES_PATH: &str =
+    "crates/apollo_deployments/jsonnet/testing/overlay_partial_services.libsonnet";
+
+/// The generator's multi-overlay path: two PARTIAL overlay layers (each supplying a disjoint half
+/// of the override set), each evaluated rooted at its OWN directory, deep-merged in Rust into a
+/// single nested `overrides`, build to exactly the same per-service config as building from the
+/// complete `testing/overrides.libsonnet` directly. The fixtures partition all 20 top-level keys
+/// with no gaps or overlaps; because they are disjoint, the merge is order-independent here (the
+/// merge's later-wins semantics is exercised by the `deep_merge_values` unit tests).
+pub fn test_multi_overlay_merge_semantics() {
+    let base = eval_overlay_at_path(Path::new(OVERLAY_BASE_PATH)).expect("base overlay evaluates");
+    let services =
+        eval_overlay_at_path(Path::new(OVERLAY_SERVICES_PATH)).expect("services overlay evaluates");
+    assert!(base.is_object(), "base overlay is an object");
+    assert!(services.is_object(), "services overlay is an object");
+
+    let mut merged = base;
+    deep_merge_values(&mut merged, &services);
+
+    // The merged overlays reconstruct the complete override set, key for key.
+    let complete = eval_overrides_file("testing/overrides.libsonnet");
+    assert_eq!(
+        merged.as_object().unwrap().keys().collect::<BTreeSet<_>>(),
+        complete.as_object().unwrap().keys().collect::<BTreeSet<_>>(),
+        "the two partial overlays must partition all top-level keys of testing/overrides",
+    );
+
+    // ...so building from the merged overlays equals building from the complete fixture directly.
+    assert_eq!(eval_build_with_overrides("hybrid", &merged), eval_test_build("hybrid"));
+
+    // Disjoint fixtures merge order-independently: reversing the layer order yields the same
+    // result.
+    let mut reverse_merged =
+        eval_overlay_at_path(Path::new(OVERLAY_SERVICES_PATH)).expect("services overlay evaluates");
+    deep_merge_values(
+        &mut reverse_merged,
+        &eval_overlay_at_path(Path::new(OVERLAY_BASE_PATH)).expect("base overlay evaluates"),
+    );
+    assert_eq!(merged, reverse_merged, "disjoint overlays merge identically in either order");
+}
+
+/// A non-existent overlay path surfaces as an `Err` naming the offending path, rather than
+/// panicking.
+pub fn test_eval_overlay_at_path_missing_file_errors() {
+    let error = eval_overlay_at_path(Path::new(
+        "crates/apollo_deployments/jsonnet/testing/does_not_exist.libsonnet",
+    ))
+    .expect_err("a missing overlay file must error");
+    assert!(error.contains("does_not_exist"), "error should name the offending path: {error}");
 }
 
 /// The generator's flat output is node-loadable, valid, and faithful: for every service of every
@@ -537,6 +592,50 @@ fn without_url_port(components: &serde_json::Map<String, Value>) -> serde_json::
 
 fn flat(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
     pairs.iter().map(|(key, value)| (key.to_string(), value.clone())).collect()
+}
+
+#[test]
+fn deep_merge_combines_disjoint_keys() {
+    let mut left = json!({ "a": 1 });
+    deep_merge_values(&mut left, &json!({ "b": 2 }));
+    assert_eq!(left, json!({ "a": 1, "b": 2 }));
+}
+
+#[test]
+fn deep_merge_right_overwrites_scalar() {
+    let mut left = json!({ "a": 1 });
+    deep_merge_values(&mut left, &json!({ "a": 2 }));
+    assert_eq!(left, json!({ "a": 2 }));
+}
+
+#[test]
+fn deep_merge_recurses_into_nested_objects() {
+    let mut left = json!({ "x": { "a": 1 } });
+    deep_merge_values(&mut left, &json!({ "x": { "b": 2 } }));
+    assert_eq!(left, json!({ "x": { "a": 1, "b": 2 } }));
+}
+
+#[test]
+fn deep_merge_null_from_right_wins() {
+    // `null` is a legitimate override value: it replaces whatever the left held.
+    let mut left = json!({ "a": 1 });
+    deep_merge_values(&mut left, &json!({ "a": null }));
+    assert_eq!(left, json!({ "a": null }));
+}
+
+#[test]
+fn deep_merge_replaces_arrays_wholesale() {
+    // Arrays are leaves: the right array replaces the left one, it is not element-merged.
+    let mut left = json!({ "a": [1, 2] });
+    deep_merge_values(&mut left, &json!({ "a": [3] }));
+    assert_eq!(left, json!({ "a": [3] }));
+}
+
+#[test]
+fn deep_merge_fills_empty_object() {
+    let mut left = json!({ "x": {} });
+    deep_merge_values(&mut left, &json!({ "x": { "a": 1 } }));
+    assert_eq!(left, json!({ "x": { "a": 1 } }));
 }
 
 #[test]

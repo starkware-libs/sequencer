@@ -2,7 +2,7 @@
 //! `build(layout, overrides)`. Shared by the deployment-config generator and the crate tests.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
@@ -23,6 +23,61 @@ pub(crate) fn jsonnet_state() -> State {
     builder.context_initializer(jrsonnet_stdlib::ContextInitializer::new(PathResolver::Absolute));
     builder.import_resolver(FileImportResolver::new(vec![PathBuf::from(JSONNET_DIR)]));
     builder.build()
+}
+
+/// Evaluates a standalone overlay jsonnet file to a nested JSON `overrides` object, rooted at the
+/// overlay's OWN directory: the import resolver points at `overlay_path`'s parent, so the overlay
+/// tree's relative imports (e.g. `import '_common.jsonnet'`) resolve locally and NEVER against the
+/// apollo_deployments `JSONNET_DIR`. Each overlay layer is its own self-contained jsonnet tree; the
+/// layers are merged later, in Rust (see `deep_merge_values`), so the two jsonnet import paths
+/// never mix.
+///
+/// `overlay_path` is read as given (callers pass an absolute path, since the generator evaluates
+/// overlays before switching to the project root). Returns the parse/eval error as a `String` with
+/// the offending path for context.
+pub fn eval_overlay_at_path(overlay_path: &Path) -> Result<Value, String> {
+    let parent_dir = overlay_path
+        .parent()
+        .ok_or_else(|| format!("overlay path {overlay_path:?} has no parent directory"))?;
+    let file_name = overlay_path
+        .file_name()
+        .ok_or_else(|| format!("overlay path {overlay_path:?} has no file name"))?
+        .to_str()
+        .ok_or_else(|| format!("overlay path {overlay_path:?} is not valid UTF-8"))?;
+
+    let mut builder = State::builder();
+    builder.context_initializer(jrsonnet_stdlib::ContextInitializer::new(PathResolver::Absolute));
+    builder.import_resolver(FileImportResolver::new(vec![parent_dir.to_path_buf()]));
+    let state = builder.build();
+
+    let _guard = state.enter();
+    let val = state
+        .evaluate_snippet("overlay_entry.jsonnet", format!("import '{file_name}'"))
+        .map_err(|error| format!("failed to evaluate overlay at {overlay_path:?}: {error}"))?;
+    serde_json::to_value(&val)
+        .map_err(|error| format!("overlay at {overlay_path:?} is not serializable: {error}"))
+}
+
+/// Recursively deep-merges `right` into `left`, with `right` winning on every leaf. When both sides
+/// hold a JSON object at a key, their keys are merged recursively; for every other shape (scalars,
+/// arrays, `null`, or an object overwriting a non-object and vice versa) `right`'s value completely
+/// replaces `left`'s. In particular, `null` from `right` is a legitimate override value: it fully
+/// replaces whatever `left` held at that key (null-wins semantics). Used to combine ordered overlay
+/// layers into a single `overrides` object, later layers winning.
+pub fn deep_merge_values(left: &mut Value, right: &Value) {
+    match (left, right) {
+        (Value::Object(left_map), Value::Object(right_map)) => {
+            for (key, right_value) in right_map {
+                match left_map.get_mut(key) {
+                    Some(left_value) => deep_merge_values(left_value, right_value),
+                    None => {
+                        left_map.insert(key.clone(), right_value.clone());
+                    }
+                }
+            }
+        }
+        (left_slot, right_value) => *left_slot = right_value.clone(),
+    }
 }
 
 /// Evaluates `build(layout, overrides)`.

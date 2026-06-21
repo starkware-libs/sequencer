@@ -17,9 +17,11 @@ use crate::jsonnet_test::{
     assert_build_deserializes,
     assert_infra_matches_rust,
     test_applicative_matches_app_configs,
+    test_eval_overlay_at_path_missing_file_errors,
     test_generator_config_is_node_loadable,
     test_generator_flat_input_matches_direct_build,
     test_keys_to_be_replaced_are_covered_by_override_schema,
+    test_multi_overlay_merge_semantics,
     test_real_overlay_overrides_are_node_loadable,
 };
 use crate::service::NodeType;
@@ -113,6 +115,25 @@ fn generator_flat_input_matches_direct_build() {
         .expect("Couldn't set working dir.");
 
     test_generator_flat_input_matches_direct_build();
+}
+
+/// Verifies the generator's multi-overlay path: deep-merging two partial overlay layers builds the
+/// same config as building from the complete fixture directly.
+#[test]
+fn multi_overlay_merge_semantics() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_multi_overlay_merge_semantics();
+}
+
+/// Verifies evaluating a non-existent overlay path returns an error naming the path.
+#[test]
+fn eval_overlay_at_path_missing_file_errors() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_eval_overlay_at_path_missing_file_errors();
 }
 
 /// Verifies the generator's flat output is node-loadable and round-trips through the node loader.
