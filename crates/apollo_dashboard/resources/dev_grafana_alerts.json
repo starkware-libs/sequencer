@@ -1913,6 +1913,58 @@
       "severity": "$$$preconfirmed_block_not_written-severity$$$"
     },
     {
+      "name": "primary_l1_endpoint_down_too_long_l1_events",
+      "title": "Primary L1 endpoint down too long (l1_events)",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"}) and (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"} > 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              600.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$primary_l1_endpoint_down_too_long_l1_events-severity$$$"
+    },
+    {
+      "name": "primary_l1_endpoint_down_too_long_l1_gas_price",
+      "title": "Primary L1 endpoint down too long (l1_gas_price)",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"}) and (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"} > 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              600.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$primary_l1_endpoint_down_too_long_l1_gas_price-severity$$$"
+    },
+    {
       "name": "sierra_compiler_remote_server_number_of_connections",
       "title": "sierra_compiler - Remote server number of connections exceeds 80",
       "ruleGroup": "evaluation_rate_default",
