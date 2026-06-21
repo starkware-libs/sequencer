@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781704600587,
+  "lastUpdate": 1782045443273,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -543,6 +543,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1330.32723358,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "539f435bd99577c884cc1441c326e7f2054a8bf8",
+          "message": "papyrus_base_layer: add primary L1 endpoint down-since metric (#14576)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-21T12:25:08Z",
+          "tree_id": "530e57e1e9f9f9b16275b04d77cfff59f1dfa054",
+          "url": "https://github.com/starkware-libs/sequencer/commit/539f435bd99577c884cc1441c326e7f2054a8bf8"
+        },
+        "date": 1782045442849,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 762.9691032100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1255.00402375,
             "unit": "ms"
           }
         ]
