@@ -288,7 +288,12 @@ impl<
         // new StateDiffAvailable events. Fix: enumerate blocks from
         // initial_compiled_class_marker to initial_state_marker, read their state diffs,
         // and send CompiledClassRequests for declared classes.
-        if initial_compiled_class_marker < initial_state_marker {
+        // Only blocks below store_sierras_and_casms_block_threshold persist compiled classes;
+        // at or above the threshold the marker is advanced without storing casms, so a marker
+        // lag there is expected and not a backlog to recover.
+        if initial_compiled_class_marker < initial_state_marker
+            && initial_compiled_class_marker.0 < self.config.store_sierras_and_casms_block_threshold
+        {
             panic!(
                 "Compiled class marker ({}) is behind state marker ({}). Compiled class backlog \
                  recovery is not yet implemented.",
