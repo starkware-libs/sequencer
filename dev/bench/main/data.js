@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781713157263,
+  "lastUpdate": 1782030336502,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6085,6 +6085,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1823.1975044100002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c5359ecfac71168d57cd7806125fc8991164fea9",
+          "message": "apollo_batcher: route commitment through read_paths_and_commit_block under os_input (#14392)\n\ndecision_reached passes the block's persisted accessed keys to the commitment\nmanager, which then issues ReadPathsAndCommitBlock instead of CommitBlock.\nBlocks without accessed keys (synced blocks, catch-up of heights with no\npersisted keys) fall back to CommitBlock. The committer output is not persisted\nas commitment infos yet.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-21T08:07:33Z",
+          "tree_id": "babd04ecf1a2252758f025dd69dc7ab8276e6490",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c5359ecfac71168d57cd7806125fc8991164fea9"
+        },
+        "date": 1782030335770,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1318.13107025,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 2017.01696224,
             "unit": "ms"
           }
         ]
