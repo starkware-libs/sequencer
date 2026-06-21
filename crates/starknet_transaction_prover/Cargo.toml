@@ -8,6 +8,7 @@ description = "Standalone service that proves individual Starknet transactions u
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+os_input = ["starknet_committer/os_input"]
 # Enables in-memory stwo proving.  Requires a nightly Rust toolchain because the
 # stwo prover crate uses unstable features (array_chunks, portable_simd, …).
 stwo_proving = ["dep:privacy-prove"]
