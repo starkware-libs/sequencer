@@ -620,6 +620,8 @@ impl SequencerConsensusContext {
                 recent_state_commitment_infos: self
                     .collect_recent_state_commitment_infos(height)
                     .await,
+                #[cfg(feature = "os_input")]
+                accessed_keys: central_objects.accessed_keys,
             })
             .await
         {
