@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782045443273,
+  "lastUpdate": 1782048226189,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -577,6 +577,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1255.00402375,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "56b50774e42efdbef070f731eab00a3385c4ddeb",
+          "message": "papyrus_base_layer: emit primary L1 endpoint down-since metric per scraper (#14577)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-21T13:11:32Z",
+          "tree_id": "abf972efd4d61d9ddae15f5eb6f6d7bd5d4285cc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/56b50774e42efdbef070f731eab00a3385c4ddeb"
+        },
+        "date": 1782048225792,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 813.90217702,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1423.22751423,
             "unit": "ms"
           }
         ]
