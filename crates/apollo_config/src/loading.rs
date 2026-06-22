@@ -14,17 +14,19 @@ use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use crate::validators::validate_path_exists;
 use crate::{
     command,
     ConfigError,
+    ConfigFormat,
     ParamPath,
     SerializationType,
     SerializedContent,
     SerializedParam,
     CONFIG_FILE_ARG_NAME,
+    CONFIG_FORMAT_ARG_NAME,
     FIELD_SEPARATOR,
     IS_NONE_MARK,
 };
@@ -47,6 +49,68 @@ pub fn load<T: for<'a> Deserialize<'a>>(
     Ok(serde_json::from_value(nested_map)?)
 }
 
+/// Deserializes the config directly from nested JSON files (the `ConfigFormat::Native` path).
+///
+/// Requires exactly two paths. The first is the base config: a nested JSON object matching the
+/// target struct's field hierarchy. The second is a flat dotted-key secret file whose entries are
+/// written into the nested base before deserialization. Unlike the preset path, no pointers,
+/// env/CLI overrides, or `#is_none` marks are applied — the base file is expected to be a complete,
+/// resolved config.
+fn load_native<T: for<'a> Deserialize<'a>>(
+    custom_config_paths: Vec<PathBuf>,
+) -> Result<T, ConfigError> {
+    let [base_config_path, secret_config_path] =
+        custom_config_paths.as_array().ok_or(ConfigError::NativeModeRequiresTwoConfigFiles)?;
+
+    validate_path_exists(base_config_path)?;
+    info!("Loading native config file: {:?}", base_config_path);
+    let mut nested_map: Value = serde_json::from_reader(File::open(base_config_path)?)?;
+    validate_path_exists(secret_config_path)?;
+    info!("Loading native secret config file: {:?}", secret_config_path);
+
+    let secret_config: Map<String, Value> =
+        serde_json::from_reader(File::open(secret_config_path)?)?;
+    for (param_path, value) in secret_config {
+        set_nested_value(&mut nested_map, &param_path, value);
+    }
+
+    Ok(serde_json::from_value(nested_map)?)
+}
+
+/// Writes `value` into `nested_map` at the leaf named by the dotted `param_path`, descending
+/// through (and preserving the siblings of) the intermediate objects. The leaf key itself is
+/// created if absent.
+///
+/// Traversal stops without writing anything if an intermediate on the path is `null` (a `None`
+/// optional, e.g. a disabled component) or is missing/not an object. The base config is the source
+/// of truth for which subtrees exist; a secret aimed at a subtree the base omits is irrelevant, and
+/// vivifying it would produce a partial object that fails deserialization. This also avoids any
+/// panic on a type-mismatched intermediate.
+fn set_nested_value(nested_map: &mut Value, param_path: &str, value: Value) {
+    let mut segments = param_path.split(FIELD_SEPARATOR).peekable();
+    let mut entry = nested_map;
+    while let Some(segment) = segments.next() {
+        let Value::Object(map) = entry else {
+            return;
+        };
+        if segments.peek().is_none() {
+            map.insert(segment.to_owned(), value);
+            return;
+        }
+        // Descend into the intermediate; stop if it is absent or an explicit `null` (`None`).
+        match map.get_mut(segment) {
+            Some(child) if !child.is_null() => entry = child,
+            _ => {
+                debug!(
+                    "Skipping secret override {param_path:?}: intermediate {segment:?} is absent \
+                     or None in the base config."
+                );
+                return;
+            }
+        }
+    }
+}
+
 /// Deserializes a json config file, updates the values by the given arguments for the command, and
 /// set values for the pointers.
 pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
@@ -62,6 +126,16 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     let (config_map, pointers_map) = split_pointers_map(deserialized_config_schema.clone());
     // Take param paths with corresponding descriptions, and get the matching arguments.
     let mut arg_matches = get_command_matches(&config_map, command, args)?;
+
+    let config_format =
+        arg_matches.remove_one::<ConfigFormat>(CONFIG_FORMAT_ARG_NAME).unwrap_or_default();
+    if config_format == ConfigFormat::Native {
+        let custom_config_paths: Vec<PathBuf> = arg_matches
+            .remove_many::<PathBuf>(CONFIG_FILE_ARG_NAME)
+            .map(|paths| paths.collect())
+            .unwrap_or_default();
+        return load_native(custom_config_paths);
+    }
     // Retaining values from the default config map for backward compatibility.
     let (mut values_map, types_map) = split_values_and_types(config_map);
     if ignore_default_values {
