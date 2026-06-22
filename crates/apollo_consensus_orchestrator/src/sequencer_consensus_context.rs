@@ -622,6 +622,8 @@ impl SequencerConsensusContext {
                     .await,
                 #[cfg(feature = "os_input")]
                 accessed_keys: central_objects.accessed_keys,
+                #[cfg(feature = "os_input")]
+                initial_reads: central_objects.initial_reads,
             })
             .await
         {
