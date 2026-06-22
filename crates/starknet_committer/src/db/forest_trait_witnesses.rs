@@ -61,6 +61,8 @@ pub trait ForestReaderWithWitnesses:
 
 /// Writes forest + metadata + deleted nodes, and applies [`CommitmentInfosUpdate`] in the same
 /// batch.
+// TODO(Yoav): Simplify write_with_metadata_and_commitment_infos: the revert flow no longer deletes
+// commitment infos, so the only caller passes CommitmentInfosUpdate::Write.
 #[async_trait]
 pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send {
     async fn write_with_metadata_and_commitment_infos(
