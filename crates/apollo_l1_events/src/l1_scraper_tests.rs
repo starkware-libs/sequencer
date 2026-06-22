@@ -1,11 +1,12 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use apollo_l1_events_config::config::L1EventsScraperConfig;
 use apollo_l1_events_types::errors::L1EventsProviderError;
 use apollo_l1_events_types::MockL1EventsProviderClient;
 use assert_matches::assert_matches;
-use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};
+use futures::FutureExt;
+use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract, MockError};
 
 use crate::event_identifiers_to_track;
 use crate::l1_scraper::{L1EventsScraper, L1EventsScraperError};
@@ -198,6 +199,64 @@ async fn base_layer_returns_block_number_below_finality_causes_error() {
         scraper.send_events_to_l1_events_provider().await,
         Err(L1EventsScraperError::LatestBlockNumberTooLow { .. })
     );
+}
+
+// A permanent error must break out of the retry loop, calling the closure exactly once.
+#[tokio::test]
+async fn retry_loop_returns_immediately_on_permanent_error() {
+    let mut scraper = scraper_with_dummy().await;
+    let num_closure_calls = Arc::new(AtomicUsize::new(0));
+    let num_closure_calls_clone = num_closure_calls.clone();
+
+    let result = scraper
+        .retry_until_base_layer_success(
+            move |_this| {
+                let num_closure_calls = num_closure_calls_clone.clone();
+                async move {
+                    num_closure_calls.fetch_add(1, Ordering::Relaxed);
+                    Err::<(), _>(L1EventsScraperError::BaseLayerError(MockError::Permanent))
+                }
+                .boxed()
+            },
+            "test permanent error",
+        )
+        .await;
+
+    assert_eq!(result, Err(L1EventsScraperError::BaseLayerError(MockError::Permanent)));
+    assert_eq!(num_closure_calls.load(Ordering::Relaxed), 1, "permanent error must not be retried");
+}
+
+// A transient error keeps the sleep-and-retry behavior; the loop retries until success.
+// The zero polling interval keeps the retries from blocking the test.
+#[tokio::test]
+async fn retry_loop_retries_transient_until_success() {
+    const NUM_TRANSIENT_FAILURES: usize = 3;
+    let mut scraper = scraper_with_dummy().await;
+    scraper.config.polling_interval_seconds = std::time::Duration::ZERO;
+    let num_closure_calls = Arc::new(AtomicUsize::new(0));
+    let num_closure_calls_clone = num_closure_calls.clone();
+
+    let result = scraper
+        .retry_until_base_layer_success(
+            move |_this| {
+                let num_closure_calls = num_closure_calls_clone.clone();
+                async move {
+                    let call_index = num_closure_calls.fetch_add(1, Ordering::Relaxed);
+                    if call_index < NUM_TRANSIENT_FAILURES {
+                        // `MockError::MockError` classifies as Transient.
+                        Err(L1EventsScraperError::BaseLayerError(MockError::MockError))
+                    } else {
+                        Ok(call_index)
+                    }
+                }
+                .boxed()
+            },
+            "test transient error",
+        )
+        .await;
+
+    assert_eq!(result, Ok(NUM_TRANSIENT_FAILURES));
+    assert_eq!(num_closure_calls.load(Ordering::Relaxed), NUM_TRANSIENT_FAILURES + 1);
 }
 
 #[test]

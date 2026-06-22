@@ -14,13 +14,20 @@ use async_trait::async_trait;
 use futures::future::{BoxFuture, FutureExt};
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
-use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
+use papyrus_base_layer::{
+    BaseLayerContract,
+    BaseLayerError,
+    BaseLayerErrorKind,
+    L1BlockNumber,
+    L1BlockReference,
+    L1Event,
+};
 use starknet_api::block::BlockNumber;
 use starknet_api::StarknetApiError;
 use static_assertions::const_assert;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::metrics::{
     register_scraper_metrics,
@@ -105,6 +112,12 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
             match self.send_events_to_l1_events_provider().await {
                 Err(L1EventsScraperError::BaseLayerError(e)) => {
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                    // A permanent error recurs on every poll; surface it so the supervisor
+                    // restarts the scraper instead of silently wedging.
+                    if e.error_kind() == BaseLayerErrorKind::Permanent {
+                        error!("Permanent BaseLayerError during scraping: {e:?}");
+                        return Err(L1EventsScraperError::BaseLayerError(e));
+                    }
                     warn!("BaseLayerError during scraping: {e:?}");
                 }
                 Ok(_) => {
@@ -385,6 +398,15 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
     {
         loop {
             match func(self).await {
+                // Retrying a permanent error would loop forever; surface it so the supervisor
+                // restarts the scraper. Transient errors keep the sleep-and-retry behavior.
+                Err(L1EventsScraperError::BaseLayerError(e))
+                    if e.error_kind() == BaseLayerErrorKind::Permanent =>
+                {
+                    error!("Permanent base-layer error while {description}: {e}");
+                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                    return Err(L1EventsScraperError::BaseLayerError(e));
+                }
                 Err(L1EventsScraperError::BaseLayerError(e)) => {
                     warn!("Error while {description}: {e}");
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);

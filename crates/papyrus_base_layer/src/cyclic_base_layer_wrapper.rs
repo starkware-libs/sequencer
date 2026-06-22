@@ -5,15 +5,24 @@ use apollo_config::secrets::Sensitive;
 use apollo_metrics::metrics::LossyIntoF64;
 use async_trait::async_trait;
 use starknet_api::block::BlockHashAndNumber;
-use tracing::info;
+use tracing::{error, info};
 use url::Url;
 
 use crate::metrics::{
     ScraperLabel,
+    L1_PERMANENT_BASELAYER_ERROR_COUNT,
     L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS,
     LABEL_NAME_SCRAPER,
 };
-use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
+use crate::{
+    BaseLayerContract,
+    BaseLayerError,
+    BaseLayerErrorKind,
+    L1BlockHeader,
+    L1BlockNumber,
+    L1BlockReference,
+    L1Event,
+};
 
 #[cfg(test)]
 #[path = "cyclic_base_layer_wrapper_test.rs"]
@@ -76,6 +85,17 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
                     .set(0f64, &[(LABEL_NAME_SCRAPER, self.scraper.into())]);
             }
             return Some(result);
+        }
+        // A permanent error is identical on every endpoint, so don't cycle. Leave the down-since
+        // gauge untouched: a structural bug is not an endpoint outage, and mislabeling it would
+        // page on-call to swap a healthy endpoint.
+        if let Err(ref error) = result {
+            if error.error_kind() == BaseLayerErrorKind::Permanent {
+                error!("Permanent base-layer error, not cycling URLs: {error:?}");
+                L1_PERMANENT_BASELAYER_ERROR_COUNT
+                    .increment(1, &[(LABEL_NAME_SCRAPER, self.scraper.into())]);
+                return Some(result);
+            }
         }
         // Get the current URL (return error in case it fails to get it).
         let current_url_result = self.base_layer.get_url().await;

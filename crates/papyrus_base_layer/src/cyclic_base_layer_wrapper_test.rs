@@ -12,6 +12,7 @@ use url::Url;
 use crate::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use crate::metrics::{
     ScraperLabel,
+    L1_PERMANENT_BASELAYER_ERROR_COUNT,
     L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS,
     LABEL_NAME_SCRAPER,
 };
@@ -791,4 +792,68 @@ async fn test_primary_down_since_metric() {
         gauge_value.is_some_and(|timestamp| timestamp > 0),
         "Expected nonzero down-since timestamp after primary failover, got: {gauge_value:?}"
     );
+}
+
+// A permanent error must surface immediately without cycling the URL, calling the op once.
+// Starting on the primary, the only base-layer calls are is_at_primary, get_url, and the op.
+#[tokio::test]
+async fn permanent_error_surfaces_immediately_without_cycling() {
+    let primary_url = Sensitive::new(Url::parse("http://primary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+
+    let mut base_layer = MockBaseLayerContract::new();
+    // On the primary, so retry_primary_if_due short-circuits after one is_at_primary call.
+    base_layer.expect_is_at_primary().times(1).returning(|| Ok(true));
+    // Only the start_url lookup; the permanent-error branch returns before any current/new lookup.
+    base_layer.expect_get_url().times(1).returning(move || Ok(primary_url.clone()));
+    base_layer.expect_get_proved_block_at().times(1).returning(|_| Err(MockError::Permanent));
+    // The critical assertion: cycling must never happen for a permanent error.
+    base_layer.expect_cycle_provider_url().never();
+
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
+
+    let result = wrapper.get_proved_block_at(1).await;
+    assert_eq!(result, Err(MockError::Permanent));
+}
+
+// A permanent error must not set the down-since gauge (a structural bug is not an endpoint
+// outage) and must increment the dedicated permanent-error counter instead.
+#[tokio::test]
+async fn permanent_error_does_not_set_primary_down_since_and_counts() {
+    let primary_url = Sensitive::new(Url::parse("http://primary_endpoint").unwrap())
+        .with_redactor(to_safe_string);
+
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer.expect_is_at_primary().times(1).returning(|| Ok(true));
+    base_layer.expect_get_url().times(1).returning(move || Ok(primary_url.clone()));
+    base_layer.expect_get_proved_block_at().times(1).returning(|_| Err(MockError::Permanent));
+    base_layer.expect_cycle_provider_url().never();
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let prometheus_handle = recorder.handle();
+
+    let mut wrapper = CyclicBaseLayerWrapper::new(
+        base_layer,
+        TEST_RETRY_PRIMARY_INTERVAL,
+        ScraperLabel::L1Events,
+    );
+
+    assert_eq!(wrapper.get_proved_block_at(1).await, Err(MockError::Permanent));
+
+    let scraper_label_value: &'static str = ScraperLabel::L1Events.into();
+    let metrics_str = prometheus_handle.render();
+    let gauge_value = L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS
+        .parse_numeric_metric::<u64>(&metrics_str, &[(LABEL_NAME_SCRAPER, scraper_label_value)]);
+    assert!(
+        gauge_value.is_none_or(|timestamp| timestamp == 0),
+        "Permanent error must not set the down-since gauge, got: {gauge_value:?}"
+    );
+    let permanent_error_count = L1_PERMANENT_BASELAYER_ERROR_COUNT
+        .parse_numeric_metric::<u64>(&metrics_str, &[(LABEL_NAME_SCRAPER, scraper_label_value)]);
+    assert_eq!(permanent_error_count, Some(1));
 }

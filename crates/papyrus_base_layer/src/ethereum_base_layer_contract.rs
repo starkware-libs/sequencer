@@ -35,6 +35,8 @@ use validator::{Validate, ValidationError};
 use crate::eth_events::parse_event;
 use crate::{
     BaseLayerContract,
+    BaseLayerError,
+    BaseLayerErrorKind,
     L1BlockHash,
     L1BlockHeader,
     L1BlockNumber,
@@ -402,6 +404,26 @@ impl PartialEq for EthereumBaseLayerError {
                 let BlockHeaderMissingError(that) = other else { return false };
                 this == that
             }
+        }
+    }
+}
+
+impl BaseLayerError for EthereumBaseLayerError {
+    fn error_kind(&self) -> BaseLayerErrorKind {
+        use EthereumBaseLayerError::*;
+        match self {
+            // Structural errors return the same data from every endpoint, so cycling cannot help.
+            FeeOutOfRange(_)
+            | StarknetApiParsingError(_)
+            | CalldataValueOutOfRange(_)
+            | TypeError(_)
+            | UnhandledL1Event(_)
+            | BlockNumberMissingError(_)
+            | BlockHeaderMissingError(_) => BaseLayerErrorKind::Permanent,
+            // Transport/temporary faults: retrying against another endpoint may succeed.
+            // `RpcError` and `Contract` are ambiguous (they can wrap permanent rejections too),
+            // but default to Transient to preserve resilience for the common transport-fault case.
+            ProviderTimeout(_) | RpcError(_) | Contract(_) => BaseLayerErrorKind::Transient,
         }
     }
 }

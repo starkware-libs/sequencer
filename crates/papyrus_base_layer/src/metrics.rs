@@ -27,6 +27,15 @@ define_metrics!(
              non-functional for the labeled scraper; 0 when the primary is healthy.",
             labels = SCRAPER_LABELS
         },
+        LabeledMetricCounter {
+            L1_PERMANENT_BASELAYER_ERROR_COUNT,
+            "l1_permanent_baselayer_error_count",
+            "Count of permanent (structural) base-layer errors that were surfaced without cycling \
+             endpoints, for the labeled scraper. A nonzero value indicates a config/ABI/version \
+             bug that no endpoint can fix, not an endpoint outage.",
+            init = 0,
+            labels = SCRAPER_LABELS
+        },
     },
 );
 
@@ -34,5 +43,6 @@ pub fn register_metrics() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         L1_PRIMARY_ENDPOINT_DOWN_SINCE_TIMESTAMP_SECONDS.register();
+        L1_PERMANENT_BASELAYER_ERROR_COUNT.register();
     });
 }

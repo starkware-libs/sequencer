@@ -51,13 +51,46 @@ pub enum MockError {
     MockError,
     #[error("mock error {0}")]
     Numbered(usize),
+    #[error("permanent mock error")]
+    Permanent,
+}
+
+// `MockError` and `Numbered` stay Transient so existing tests keep exercising the cycle-on-error
+// path; the dedicated `Permanent` variant exercises the short-circuit.
+#[cfg(any(feature = "testing", test))]
+impl BaseLayerError for MockError {
+    fn error_kind(&self) -> BaseLayerErrorKind {
+        match self {
+            MockError::Permanent => BaseLayerErrorKind::Permanent,
+            MockError::MockError | MockError::Numbered(_) => BaseLayerErrorKind::Transient,
+        }
+    }
+}
+
+/// Classifies a base-layer error as retryable (cycling endpoints might help) or permanent
+/// (no endpoint can fix it, so retrying is wasted work).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BaseLayerErrorKind {
+    /// Transport/temporary faults (timeouts, resets, rate-limits); another endpoint may succeed.
+    Transient,
+    /// Structural faults (decode/ABI mismatches, out-of-range conversions); identical on every
+    /// endpoint, so cycling cannot resolve them.
+    Permanent,
+}
+
+/// Lets `CyclicBaseLayerWrapper` classify an opaque [`BaseLayerContract::Error`] without matching
+/// on concrete variants. The default treats every error as [`BaseLayerErrorKind::Transient`].
+pub trait BaseLayerError {
+    fn error_kind(&self) -> BaseLayerErrorKind {
+        BaseLayerErrorKind::Transient
+    }
 }
 
 /// Interface for getting data from the Starknet base contract.
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + PartialEq + Display + Debug + Send + Sync;
+    type Error: BaseLayerError + Error + PartialEq + Display + Debug + Send + Sync;
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
