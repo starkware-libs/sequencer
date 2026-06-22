@@ -74,18 +74,19 @@ where
     }
 }
 
-/// Evaluates `build(layout, { chain_params, node_params })` and returns its JSON: a map from service
-/// name to that service's fully-assembled config. The testing params supply only the mandatory
-/// chain_params + node_params buckets; `replacers` is omitted, so every replacer falls back to its
-/// applicative-config default.
+/// Evaluates `build(layout, { chain_params, node_params })` and returns its JSON: a map from
+/// service name to that service's fully-assembled config. The testing params supply only the
+/// mandatory chain_params + node_params buckets; `replacers` is omitted, so every replacer falls
+/// back to its applicative-config default.
 fn eval_build(layout: &str) -> Value {
-    // `layout` is the snake_case layout name (`hybrid`/`consolidated`/`distributed`) — it must match
-    // the `lib/layouts/<name>.libsonnet` filename, which `build` takes as its topology object.
+    // `layout` is the snake_case layout name (`hybrid`/`consolidated`/`distributed`) — it must
+    // match the `lib/layouts/<name>.libsonnet` filename, which `build` takes as its topology
+    // object.
     eval_jsonnet(
         "build",
         format!(
-            "(import 'lib/build.libsonnet').build(import 'lib/layouts/{layout}.libsonnet', \
-             {{ chain_params: import '{TESTING_CHAIN_PARAMS_PATH}', node_params: import \
+            "(import 'lib/build.libsonnet').build(import 'lib/layouts/{layout}.libsonnet', {{ \
+             chain_params: import '{TESTING_CHAIN_PARAMS_PATH}', node_params: import \
              '{TESTING_NODE_PARAMS_PATH}' }})"
         ),
     )
