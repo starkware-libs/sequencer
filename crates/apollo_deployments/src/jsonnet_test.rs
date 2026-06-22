@@ -251,7 +251,7 @@ pub(crate) fn assert_built_services_node_loadable(built: &Value) {
 /// through the generator into node-loadable, validated configs for every hybrid service, with the
 /// environment's real values surviving into the built config.
 pub fn test_real_overlay_overrides_are_node_loadable() {
-    let flat_overrides = real_overlay_sequencer_config();
+    let flat_overrides = real_overlay_sequencer_config("sepolia-integration");
     let overrides = overrides_from_sequencer_config(&flat_overrides);
 
     assert_overrides_cover_schema(&overrides);
@@ -291,20 +291,19 @@ pub fn test_real_overlay_overrides_are_node_loadable() {
 }
 
 /// A real environment's merged overlay `sequencerConfig`, read from the committed YAML overlays
-/// (the single source of truth). It assembles the sepolia-integration hybrid config the way the
-/// deploy does: the shared `common` overlay (the base), the `sepolia-integration` overlay (which
-/// overrides common), and `dummy_for_testing` (layered last — it supplies the per-pod instance
-/// values, the P2P multiaddrs as dummy `None` and `validator_id`). Each layer contributes its
-/// `common.yaml` and `services/*.yaml` `config.sequencerConfig` entries; later layers win.
-/// (`components.*` infra keys are derived from the layout by the generator, not read from
-/// overrides.)
-pub(crate) fn real_overlay_sequencer_config() -> BTreeMap<String, Value> {
+/// (the single source of truth). It assembles the hybrid config for `env_name` the way the deploy
+/// does: the shared `common` overlay (the base), the `env_name` overlay (which overrides common),
+/// and `dummy_for_testing` (layered last — it supplies the per-pod instance values, the P2P
+/// multiaddrs as dummy `None` and `validator_id`). Each layer contributes its `common.yaml` and
+/// `services/*.yaml` `config.sequencerConfig` entries; later layers win. (`components.*` infra keys
+/// are derived from the layout by the generator, not read from overrides.)
+pub(crate) fn real_overlay_sequencer_config(env_name: &str) -> BTreeMap<String, Value> {
     const OVERLAY_DIR: &str = "deployments/sequencer/configs/overlays/hybrid";
-    // Low-to-high precedence, matching the deploy's overlay order: `common` is the base,
-    // `sepolia-integration` overrides it, and the per-pod `dummy_for_testing` is layered last.
+    // Low-to-high precedence, matching the deploy's overlay order: `common` is the base, the
+    // `env_name` overlay overrides it, and the per-pod `dummy_for_testing` is layered last.
     let layers = [
         format!("{OVERLAY_DIR}/common"),
-        format!("{OVERLAY_DIR}/sepolia-integration"),
+        format!("{OVERLAY_DIR}/{env_name}"),
         format!("{OVERLAY_DIR}/common/dummy_for_testing"),
     ];
 
@@ -340,6 +339,23 @@ pub(crate) fn real_overlay_sequencer_config() -> BTreeMap<String, Value> {
     merged
 }
 
+/// Reads an environment's real `chain_id` from its committed overlay `common.yaml`
+/// (`config.sequencerConfig.chain_id`), so equivalence assertions check against the source of truth
+/// rather than a hard-coded literal.
+pub(crate) fn overlay_chain_id(env_name: &str) -> Value {
+    let path = format!("deployments/sequencer/configs/overlays/hybrid/{env_name}/common.yaml");
+    let contents = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("failed to read overlay {path}: {error}"));
+    let document: Value = serde_yml::from_str(&contents)
+        .unwrap_or_else(|error| panic!("overlay {path} is not valid YAML: {error}"));
+    document
+        .get("config")
+        .and_then(|config| config.get("sequencerConfig"))
+        .and_then(|sequencer_config| sequencer_config.get("chain_id"))
+        .cloned()
+        .unwrap_or_else(|| panic!("overlay {path} has no config.sequencerConfig.chain_id"))
+}
+
 /// Recursively clones `value`, dropping every `components` key at any nesting level (the
 /// layout-derived component infra the YAML overlay carries but the generator computes itself, not
 /// reads as an override). Non-object values pass through unchanged.
@@ -357,37 +373,43 @@ fn filter_components_nested(value: &Value) -> Value {
 
 const IN_PLACE_OVERLAY_DIR: &str = "deployments/sequencer/configs/overlays/hybrid";
 
-/// The IN-PLACE nested-overrides jsonnet overlays reproduce the flat YAML overlays exactly and
-/// build into node-loadable configs. Evaluates the three per-layer `sequencer_config.jsonnet` files
-/// (each rooted at its own directory, so it must be self-contained), deep-merges them in deploy
-/// order (`common` -> `sepolia-integration` -> `dummy_for_testing`, later wins), and asserts the
-/// result equals the nested form of the committed-YAML baseline once `components.*` (the only
-/// divergence — layout-derived infra the generator does not read as overrides) is stripped from
-/// both sides. On match, the merged overlays build into node-loadable, validated configs for every
-/// hybrid service, with the environment's real values surviving into the built core service.
-pub fn test_in_place_jsonnet_overlay_equivalence() {
+/// The IN-PLACE nested-overrides jsonnet overlays for `env_name` reproduce the flat YAML overlays
+/// exactly and build into node-loadable configs. Evaluates the three per-layer
+/// `sequencer_config.jsonnet` files (each rooted at its own directory, so it must be
+/// self-contained), deep-merges them in deploy order (`common` -> `env_name` ->
+/// `dummy_for_testing`, later wins), and asserts the result equals the nested form of the
+/// committed-YAML baseline once `components.*` (the only divergence — layout-derived infra the
+/// generator does not read as overrides) is stripped from both sides. On match, the merged overlays
+/// build into node-loadable, validated configs for every hybrid service, with the environment's
+/// real values (`expected_chain_id` read from the env's own YAML by the caller) surviving into the
+/// built core service.
+pub(crate) fn assert_in_place_jsonnet_overlay_equivalence(
+    env_name: &str,
+    expected_chain_id: &Value,
+) {
     let common = eval_overlay_at_path(Path::new(&format!(
         "{IN_PLACE_OVERLAY_DIR}/common/sequencer_config.jsonnet"
     )))
     .unwrap_or_else(|error| panic!("failed to evaluate common jsonnet: {error}"));
-    let sepolia_integration = eval_overlay_at_path(Path::new(&format!(
-        "{IN_PLACE_OVERLAY_DIR}/sepolia-integration/sequencer_config.jsonnet"
+    let env_overlay = eval_overlay_at_path(Path::new(&format!(
+        "{IN_PLACE_OVERLAY_DIR}/{env_name}/sequencer_config.jsonnet"
     )))
-    .unwrap_or_else(|error| panic!("failed to evaluate sepolia-integration jsonnet: {error}"));
+    .unwrap_or_else(|error| panic!("failed to evaluate {env_name} jsonnet: {error}"));
     let dummy_for_testing = eval_overlay_at_path(Path::new(&format!(
         "{IN_PLACE_OVERLAY_DIR}/common/dummy_for_testing/sequencer_config.jsonnet"
     )))
     .unwrap_or_else(|error| panic!("failed to evaluate dummy_for_testing jsonnet: {error}"));
 
-    // Deep-merge in deploy order: common is the base, sepolia-integration overrides it, and the
+    // Deep-merge in deploy order: common is the base, the env overlay overrides it, and the
     // per-pod dummy_for_testing is layered last.
     let mut jsonnet_merged = common;
-    deep_merge_values(&mut jsonnet_merged, &sepolia_integration);
+    deep_merge_values(&mut jsonnet_merged, &env_overlay);
     deep_merge_values(&mut jsonnet_merged, &dummy_for_testing);
 
     // YAML baseline: the committed overlays, merged in deploy order and nested (folding
     // `#is_none`).
-    let yaml_baseline_nested = overrides_from_sequencer_config(&real_overlay_sequencer_config());
+    let yaml_baseline_nested =
+        overrides_from_sequencer_config(&real_overlay_sequencer_config(env_name));
 
     // `components.*` is the only expected divergence (the YAML sequencerConfig carries
     // layout-derived component infra the generator does not read as overrides); strip it from both.
@@ -451,9 +473,8 @@ pub fn test_in_place_jsonnet_overlay_equivalence() {
     for (key, value) in &core_config {
         if key.ends_with("chain_id") {
             assert_eq!(
-                value,
-                &json!("SN_INTEGRATION_SEPOLIA"),
-                "all chain_id values in core must be SN_INTEGRATION_SEPOLIA, but `{key}` differs"
+                value, expected_chain_id,
+                "all chain_id values in core must be {expected_chain_id}, but `{key}` differs"
             );
         }
     }

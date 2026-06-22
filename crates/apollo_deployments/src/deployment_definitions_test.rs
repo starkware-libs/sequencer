@@ -15,12 +15,13 @@ use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::jsonnet_test::{
     assert_build_deserializes,
+    assert_in_place_jsonnet_overlay_equivalence,
     assert_infra_matches_rust,
+    overlay_chain_id,
     test_applicative_matches_app_configs,
     test_eval_overlay_at_path_missing_file_errors,
     test_generator_config_is_node_loadable,
     test_generator_flat_input_matches_direct_build,
-    test_in_place_jsonnet_overlay_equivalence,
     test_keys_to_be_replaced_are_covered_by_override_schema,
     test_multi_overlay_merge_semantics,
     test_real_overlay_overrides_are_node_loadable,
@@ -156,14 +157,31 @@ fn real_overlay_overrides_are_node_loadable() {
     test_real_overlay_overrides_are_node_loadable();
 }
 
-/// Verifies the IN-PLACE per-layer jsonnet overlays reproduce the flat YAML overlays exactly
-/// (components.* excluded) and build into node-loadable configs with the env's real values intact.
+/// Verifies the IN-PLACE per-layer jsonnet overlays for `sepolia-integration` reproduce the flat
+/// YAML overlays exactly (components.* excluded) and build into node-loadable configs with the
+/// env's real values intact. The chain_id is asserted against the literal `SN_INTEGRATION_SEPOLIA`.
 #[test]
-fn in_place_jsonnet_overlay_equivalence() {
+fn in_place_jsonnet_overlay_equivalence_sepolia_integration() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
 
-    test_in_place_jsonnet_overlay_equivalence();
+    assert_in_place_jsonnet_overlay_equivalence(
+        "sepolia-integration",
+        &Value::String("SN_INTEGRATION_SEPOLIA".to_string()),
+    );
+}
+
+/// Verifies the IN-PLACE per-layer jsonnet overlays for `mainnet` reproduce the flat YAML overlays
+/// exactly (components.* excluded) and build into node-loadable configs with the env's real values
+/// intact. The chain_id is read from the committed `mainnet/common.yaml` at runtime (not
+/// hard-coded), and asserted to survive into the built core service.
+#[test]
+fn in_place_jsonnet_overlay_equivalence_mainnet() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let expected_chain_id = overlay_chain_id("mainnet");
+    assert_in_place_jsonnet_overlay_equivalence("mainnet", &expected_chain_id);
 }
 
 /// Test that the deployment file is up to date.
