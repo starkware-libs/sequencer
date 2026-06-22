@@ -31,6 +31,7 @@ use starknet_api::block::{
     WEI_PER_ETH,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
@@ -282,6 +283,19 @@ pub(crate) fn apply_fee_transformations(
         (gas_price_params.l1_data_gas_price_multiplier * price_info.blob_fee.0).to_integer(),
     )
     .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
+}
+
+/// Single source of truth for the `version_constant_commitment` carried in `ProposalInit`.
+///
+/// Both the proposer (`build_proposal`) and the validator (`is_proposal_init_valid`) call this, so
+/// the value put on the wire and the value enforced on receipt cannot drift: there is exactly one
+/// place to change. The versioned-constants commitment is not yet designed, so this returns the
+/// sentinel (`StarkHash::default()`) and the validator rejects any other value. When a real
+/// commitment is computed here (from the effective versioned constants for the block's
+/// `starknet_version`), the proposer begins emitting it and the validator begins enforcing it in
+/// the same change, so the "populated but unvalidated" half-state cannot occur.
+pub(crate) fn expected_version_constant_commitment() -> StarkHash {
+    StarkHash::default()
 }
 
 pub(crate) fn convert_to_sn_api_block_info(

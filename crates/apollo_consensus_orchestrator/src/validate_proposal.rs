@@ -45,6 +45,7 @@ use crate::metrics::{
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
+    expected_version_constant_commitment,
     get_l1_prices_in_fri_and_wei,
     retrospective_block_hash,
     truncate_to_executed_txs,
@@ -289,6 +290,22 @@ async fn is_proposal_init_valid(
             format!(
                 "starknet_version mismatch: expected={:?}, proposed={:?}",
                 proposal_init_validation.starknet_version, init_proposed.starknet_version
+            ),
+        ));
+    }
+    // `version_constant_commitment` is proposer-supplied (network-derived). It is not yet a real
+    // commitment (see `expected_version_constant_commitment`): the only valid value is the
+    // sentinel, so reject anything else. Enforcing the same value the proposer emits keeps the two
+    // sides in lockstep, so a real value cannot ship on one side without the other.
+    let expected_commitment = expected_version_constant_commitment();
+    if init_proposed.version_constant_commitment != expected_commitment {
+        return Err(ValidateProposalError::InvalidProposalInit(
+            init_proposed.clone(),
+            proposal_init_validation.clone(),
+            format!(
+                "version_constant_commitment mismatch: expected={expected_commitment:?}, \
+                 proposed={:?}",
+                init_proposed.version_constant_commitment
             ),
         ));
     }

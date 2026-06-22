@@ -48,7 +48,7 @@ use crate::test_utils::{
     TIMEOUT,
     TX_BATCH,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams};
+use crate::utils::{expected_version_constant_commitment, make_gas_price_params, GasPriceParams};
 
 /// The default-test proposal commitment that the validator computes when:
 /// - the batcher returns `partial_block_hash == StarkHash::ZERO` (test default), and
@@ -403,6 +403,49 @@ async fn fee_proposal_within_margin_of_fee_actual(
             res,
             Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
                 if msg.contains("Fee proposal out of bounds")
+        );
+    }
+}
+
+// The proposer (`build_proposal`) and the validator both read the commitment from
+// `expected_version_constant_commitment()`, so by construction they cannot drift: the accept case
+// feeds the validator exactly the value the proposer emits, and the reject case proves the
+// validator enforces the match rather than ignoring the field (the regression that would recreate
+// the "populated but unvalidated" half-state).
+#[rstest]
+#[case::accepts_value_the_proposer_emits(expected_version_constant_commitment(), true)]
+#[case::rejects_any_other_value(expected_version_constant_commitment() + Felt::ONE, false)]
+#[tokio::test]
+async fn validates_version_constant_commitment(
+    #[case] version_constant_commitment: Felt,
+    #[case] should_accept: bool,
+) {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    init.version_constant_commitment = version_constant_commitment;
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    if should_accept {
+        assert!(res.is_ok(), "expected accept, got {res:?}");
+    } else {
+        assert_matches!(
+            res,
+            Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
+                if msg.contains("version_constant_commitment mismatch")
         );
     }
 }
