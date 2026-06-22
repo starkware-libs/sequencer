@@ -1,10 +1,5 @@
 use std::ops::RangeInclusive;
-<<<<<<< HEAD
-use std::time::Duration;
-||||||| 4dc0bbed74
-=======
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
->>>>>>> origin/main-v0.14.3
 
 use apollo_config::secrets::Sensitive;
 use apollo_metrics::metrics::LossyIntoF64;
@@ -27,41 +22,15 @@ pub mod cyclic_base_layer_wrapper_test;
 #[derive(Debug)]
 pub struct CyclicBaseLayerWrapper<B: BaseLayerContract + Send + Sync> {
     base_layer: B,
-<<<<<<< HEAD
-    retry_primary_interval: Duration,
-    last_primary_retry: tokio::time::Instant,
-||||||| 4dc0bbed74
-=======
     retry_primary_interval: Duration,
     last_primary_retry: tokio::time::Instant,
     scraper: ScraperLabel,
     // Unix timestamp (seconds) at which the primary endpoint first became non-functional in the
     // current outage; None when the primary is healthy.
     primary_down_since: Option<u64>,
->>>>>>> origin/main-v0.14.3
 }
 
 impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
-<<<<<<< HEAD
-    pub fn new(base_layer: B, retry_primary_interval: Duration) -> Self {
-        Self { base_layer, retry_primary_interval, last_primary_retry: tokio::time::Instant::now() }
-    }
-
-    // Retries the primary endpoint once the interval has elapsed since we left it. Does nothing
-    // while already on the primary, so the timer is untouched until a failover moves us off it.
-    async fn retry_primary_if_due(&mut self) -> Result<(), B::Error> {
-        if self.base_layer.is_at_primary().await? {
-            return Ok(());
-        }
-        if self.last_primary_retry.elapsed() >= self.retry_primary_interval {
-            self.last_primary_retry = tokio::time::Instant::now();
-            self.base_layer.reset_provider_url_to_primary().await?;
-        }
-        Ok(())
-||||||| 4dc0bbed74
-    pub fn new(base_layer: B) -> Self {
-        Self { base_layer }
-=======
     pub fn new(base_layer: B, retry_primary_interval: Duration, scraper: ScraperLabel) -> Self {
         crate::metrics::register_metrics();
         Self {
@@ -86,7 +55,6 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
             self.last_primary_retry = tokio::time::Instant::now();
         }
         Ok(())
->>>>>>> origin/main-v0.14.3
     }
 
     // Check the result of a function call to the base layer. If it fails, cycle the URL and signal
@@ -124,14 +92,6 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
         let Ok(()) = cycle_url_result else {
             return Some(Err(cycle_url_result.expect_err("result is checked at let-else")));
         };
-<<<<<<< HEAD
-        // Restart the retry-primary clock only when this failover leaves the primary, so the wait
-        // is measured from when we left it; cycling between backups must not push the retry out.
-        if was_at_primary {
-            self.last_primary_retry = tokio::time::Instant::now();
-        }
-||||||| 4dc0bbed74
-=======
         // Restart the retry-primary clock only when this failover leaves the primary, so the wait
         // is measured from when we left it; cycling between backups must not push the retry out.
         if was_at_primary {
@@ -147,7 +107,6 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
                     .set(down_since.into_f64(), &[(LABEL_NAME_SCRAPER, self.scraper.into())]);
             }
         }
->>>>>>> origin/main-v0.14.3
         // Get the new URL (return error in case it fails to get it).
         let new_url_result = self.base_layer.get_url().await;
         let Ok(new_url) = new_url_result else {

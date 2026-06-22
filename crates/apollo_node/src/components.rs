@@ -315,20 +315,11 @@ pub async fn create_node_components(
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-<<<<<<< HEAD
-            let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(
-                base_layer,
-                base_layer_config.retry_primary_interval_seconds,
-            );
-||||||| 4dc0bbed74
-            let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
-=======
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(
                 base_layer,
                 base_layer_config.retry_primary_interval_seconds,
                 ScraperLabel::L1GasPrice,
             );
->>>>>>> origin/main-v0.14.3
 
             Some(L1GasPriceScraper::new(
                 l1_gas_price_scraper_config.clone(),
@@ -404,20 +395,11 @@ pub async fn create_node_components(
                 .expect("L1 Events Scraper config should be set");
             let l1_events_provider_client = clients.get_l1_events_provider_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-<<<<<<< HEAD
-            let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(
-                base_layer,
-                base_layer_config.retry_primary_interval_seconds,
-            );
-||||||| 4dc0bbed74
-            let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
-=======
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(
                 base_layer,
                 base_layer_config.retry_primary_interval_seconds,
                 ScraperLabel::L1Events,
             );
->>>>>>> origin/main-v0.14.3
 
             Some(
                 L1EventsScraper::new(
