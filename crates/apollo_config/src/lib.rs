@@ -64,6 +64,21 @@ pub const CONFIG_FILE_SHORT_ARG_NAME: char = 'f';
 /// The config file arg name prepended with a double dash.
 pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
 
+/// Arg name for selecting how the config files are interpreted.
+pub const CONFIG_FORMAT_ARG_NAME: &str = "config_format";
+
+/// Selects how the `--config_file` arguments are interpreted when loading a config.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum ConfigFormat {
+    /// Flat dotted-key files, layered through the full pipeline (pointers, env/CLI overrides,
+    /// `#is_none` marks). This is the historical behavior that will be deprecated.
+    #[default]
+    Preset,
+    /// The first file is a nested JSON object deserialized directly with serde; any subsequent
+    /// files are flat dotted-key secret overrides applied onto it.
+    Native,
+}
+
 /// A config indicator for optional parameters.
 pub const IS_NONE_MARK: &str = "#is_none";
 /// A config indicator for a sub config.
@@ -208,6 +223,11 @@ pub enum ConfigError {
     IOError(#[from] std::io::Error),
     #[error(transparent)]
     MissingParam(#[from] serde_json::Error),
+    #[error(
+        "Native config format requires exactly two config files: the base config and the secret \
+         config."
+    )]
+    NativeModeRequiresTwoConfigFiles,
     #[error("{pointing_param} is not found.")]
     PointerSourceNotFound { pointing_param: String },
     #[error("{target_param} is not found.")]

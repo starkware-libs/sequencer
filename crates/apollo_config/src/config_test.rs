@@ -647,6 +647,215 @@ fn test_load_many_custom_config_files() {
     assert_eq!(param_path, "custom value");
 }
 
+#[derive(Deserialize, Debug, PartialEq)]
+struct NativeInnerConfig {
+    a: usize,
+    b: String,
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+struct NativeConfig {
+    top: String,
+    inner: NativeInnerConfig,
+}
+
+// Mirrors the real secrets layout: dotted keys reach deep, real, nested leaves (e.g.
+// `consensus_manager_config.network_config.secret_key`), never single-token pointer targets.
+#[derive(Deserialize, Debug, PartialEq)]
+struct NativeNetworkConfig {
+    secret_key: String,
+    other_network_field: bool,
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+struct NativeComponentConfig {
+    network_config: NativeNetworkConfig,
+    other_component_field: u32,
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+struct NativeDeepConfig {
+    component_config: NativeComponentConfig,
+    other_top_field: String,
+}
+
+// A `None` optional sub-config, mirroring a disabled component (e.g. `central_sync_client_config`).
+#[derive(Deserialize, Debug, PartialEq)]
+struct NativeOptionalConfig {
+    optional_component: Option<NativeComponentConfig>,
+    top_field: String,
+}
+
+// Loads a config in `--config_format native` mode. The schema file is unused by the native path but
+// still parsed, so an empty object is supplied as a valid (empty) schema.
+fn load_native_config<T: for<'a> Deserialize<'a>>(
+    config_file_args: Vec<&str>,
+) -> Result<T, ConfigError> {
+    let schema_file = NamedTempFile::new().unwrap();
+    std::fs::write(schema_file.path(), json!({}).to_string()).unwrap();
+
+    let args = chain!(["Testing", "--config_format", "native"], config_file_args)
+        .map(|arg| arg.to_owned())
+        .collect();
+
+    load_and_process_config::<T>(
+        File::open(schema_file.path()).unwrap(),
+        Command::new("Program"),
+        args,
+        false,
+    )
+}
+
+#[test]
+fn test_native_config_with_secret_overrides() {
+    let base_file = NamedTempFile::new().unwrap();
+    let base_config = json!({"top": "base_top", "inner": {"a": 1, "b": "base_b"}});
+    std::fs::write(base_file.path(), base_config.to_string()).unwrap();
+    // Secrets stay flat dotted-key and are applied onto the nested base.
+    let secret_file = NamedTempFile::new().unwrap();
+    std::fs::write(secret_file.path(), json!({"inner.b": "secret_b"}).to_string()).unwrap();
+
+    let loaded: NativeConfig = load_native_config(vec![
+        CONFIG_FILE_ARG,
+        base_file.path().to_str().unwrap(),
+        CONFIG_FILE_ARG,
+        secret_file.path().to_str().unwrap(),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        loaded,
+        NativeConfig {
+            top: "base_top".to_owned(),
+            inner: NativeInnerConfig { a: 1, b: "secret_b".to_owned() },
+        }
+    );
+}
+
+#[test]
+fn test_native_config_single_file() {
+    let base_file = NamedTempFile::new().unwrap();
+    let base_config = json!({"top": "base_top", "inner": {"a": 1, "b": "base_b"}});
+    std::fs::write(base_file.path(), base_config.to_string()).unwrap();
+
+    let loaded: NativeConfig =
+        load_native_config(vec![CONFIG_FILE_ARG, base_file.path().to_str().unwrap()]).unwrap();
+
+    assert_eq!(
+        loaded,
+        NativeConfig {
+            top: "base_top".to_owned(),
+            inner: NativeInnerConfig { a: 1, b: "base_b".to_owned() },
+        }
+    );
+}
+
+#[test]
+fn test_native_config_without_config_file() {
+    let result = load_native_config::<NativeConfig>(vec![]);
+    assert_matches!(result, Err(ConfigError::NativeModeRequiresConfigFile));
+}
+
+// Mirrors the production secrets file (crates/apollo_deployments/resources/testing_secrets.json):
+// each secret is a flat dotted key naming a deep, real nested leaf. Asserts the override lands at
+// exactly that leaf and every sibling at every level is preserved.
+#[test]
+fn test_native_config_deep_secret_override_preserves_siblings() {
+    let base_file = NamedTempFile::new().unwrap();
+    let base_config = json!({
+        "other_top_field": "base_top",
+        "component_config": {
+            "other_component_field": 7,
+            "network_config": {
+                "secret_key": "base_secret",
+                "other_network_field": true
+            }
+        }
+    });
+    std::fs::write(base_file.path(), base_config.to_string()).unwrap();
+
+    let secret_file = NamedTempFile::new().unwrap();
+    let secret_config = json!({"component_config.network_config.secret_key": "0xabc"});
+    std::fs::write(secret_file.path(), secret_config.to_string()).unwrap();
+
+    let loaded: NativeDeepConfig = load_native_config(vec![
+        CONFIG_FILE_ARG,
+        base_file.path().to_str().unwrap(),
+        CONFIG_FILE_ARG,
+        secret_file.path().to_str().unwrap(),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        loaded,
+        NativeDeepConfig {
+            other_top_field: "base_top".to_owned(),
+            component_config: NativeComponentConfig {
+                other_component_field: 7,
+                network_config: NativeNetworkConfig {
+                    secret_key: "0xabc".to_owned(),
+                    other_network_field: true,
+                },
+            },
+        }
+    );
+}
+
+// A secret aimed at a child of a `None` (null) intermediate must be skipped, not vivified into a
+// partial object — otherwise deserialization of the (incomplete) sub-config would fail. The
+// disabled component stays `None`.
+#[test]
+fn test_native_config_skips_secret_under_none_intermediate() {
+    let base_file = NamedTempFile::new().unwrap();
+    let base_config = json!({"optional_component": null, "top_field": "base"});
+    std::fs::write(base_file.path(), base_config.to_string()).unwrap();
+
+    let secret_file = NamedTempFile::new().unwrap();
+    let secret_config = json!({"optional_component.network_config.secret_key": "0xabc"});
+    std::fs::write(secret_file.path(), secret_config.to_string()).unwrap();
+
+    let loaded: NativeOptionalConfig = load_native_config(vec![
+        CONFIG_FILE_ARG,
+        base_file.path().to_str().unwrap(),
+        CONFIG_FILE_ARG,
+        secret_file.path().to_str().unwrap(),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        loaded,
+        NativeOptionalConfig { optional_component: None, top_field: "base".to_owned() }
+    );
+}
+
+// A secret naming a leaf that is absent from an existing parent object is created (the parent
+// exists, so the component is enabled and the override is relevant).
+#[test]
+fn test_native_config_creates_absent_leaf_in_existing_parent() {
+    let base_file = NamedTempFile::new().unwrap();
+    let base_config = json!({"top": "base_top", "inner": {"a": 1}});
+    std::fs::write(base_file.path(), base_config.to_string()).unwrap();
+
+    let secret_file = NamedTempFile::new().unwrap();
+    std::fs::write(secret_file.path(), json!({"inner.b": "created_b"}).to_string()).unwrap();
+
+    let loaded: NativeConfig = load_native_config(vec![
+        CONFIG_FILE_ARG,
+        base_file.path().to_str().unwrap(),
+        CONFIG_FILE_ARG,
+        secret_file.path().to_str().unwrap(),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        loaded,
+        NativeConfig {
+            top: "base_top".to_owned(),
+            inner: NativeInnerConfig { a: 1, b: "created_b".to_owned() },
+        }
+    );
+}
+
 // Make sure that if we have a field `foo_bar` and an optional field called `foo` with a value of
 // None, we don't remove the foo_bar field from the config.
 // This test was added following bug #37984 (see bug for more details).
