@@ -20,6 +20,13 @@ pub enum L1EventsProviderError {
     UnexpectedProviderState { expected: ProviderState, found: ProviderState },
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: String, to: String },
+    // The backlog is a gapless, strictly-sequential run, so entries can't be dropped to make
+    // room; surface the cap to the caller rather than growing memory unbounded.
+    #[error(
+        "Catch-up commit-block backlog overflow at height {height}: reached cap of {max} entries. \
+         L2 sync is likely stalled or lagging."
+    )]
+    CatchUpBacklogOverflow { height: BlockNumber, max: usize },
 }
 
 impl L1EventsProviderError {

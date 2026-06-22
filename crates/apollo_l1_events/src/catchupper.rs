@@ -2,12 +2,15 @@ use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_events_types::SharedL1EventsProviderClient;
+use apollo_l1_events_types::errors::L1EventsProviderError;
+use apollo_l1_events_types::{L1EventsProviderResult, SharedL1EventsProviderClient};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, warn};
+
+use crate::metrics::L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN;
 
 // When the Provider gets a commit_block that is too high, it starts catching up.
 // The commit is rejected by the provider, so it must use sync to catch up to the height of the
@@ -30,6 +33,9 @@ pub struct Catchupper {
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
     pub n_sync_health_check_failures: Arc<AtomicU8>,
+    /// Cap on `commit_block_backlog` length. Exceeding it is a hard error, not a drop, to preserve
+    /// the gapless-sequential invariant of the backlog.
+    pub max_commit_block_backlog_len: usize,
 }
 
 impl Catchupper {
@@ -41,6 +47,7 @@ impl Catchupper {
         l1_events_provider_client: SharedL1EventsProviderClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
+        max_commit_block_backlog_len: usize,
     ) -> Self {
         Self {
             sync_retry_interval,
@@ -49,6 +56,7 @@ impl Catchupper {
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
+            max_commit_block_backlog_len,
             // This is overriden when starting the sync task (e.g., when provider starts
             // catching up).
             target_height: Default::default(),
@@ -68,7 +76,7 @@ impl Catchupper {
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) {
+    ) -> L1EventsProviderResult<()> {
         assert!(
             self.commit_block_backlog
                 .last()
@@ -76,9 +84,26 @@ impl Catchupper {
             "Heights should be sequential."
         );
 
+        // Bound growth on a stalled/lagging L2 sync. We must NOT drop entries: the backlog is a
+        // gapless, strictly-sequential run and a hole would corrupt the drain-time sequentiality
+        // assert and silently skip an L1-handler commit. Fail loudly instead.
+        if self.commit_block_backlog.len() >= self.max_commit_block_backlog_len {
+            warn!(
+                "Catch-up commit-block backlog reached its cap of {} entries at height {height}; \
+                 rejecting commit-block. L2 sync is likely stalled or lagging.",
+                self.max_commit_block_backlog_len
+            );
+            return Err(L1EventsProviderError::CatchUpBacklogOverflow {
+                height,
+                max: self.max_commit_block_backlog_len,
+            });
+        }
+
         debug!("Adding future commit-block to backlog at height: {height}");
         self.commit_block_backlog
             .push(CommitBlockBacklog { height, committed_txs: committed_txs.clone() });
+        L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.set_lossy(self.commit_block_backlog.len());
+        Ok(())
     }
 
     /// Spawns async task that produces and sends commit block messages to the provider, according

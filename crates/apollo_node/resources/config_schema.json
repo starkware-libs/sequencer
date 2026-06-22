@@ -3274,6 +3274,11 @@
     "privacy": "Public",
     "value": 70
   },
+  "l1_events_provider_config.max_commit_block_backlog_len": {
+    "description": "Maximum number of commit-blocks buffered in the catch-up backlog during startup sync before commit_block fails; guards against unbounded memory growth on a stalled or lagging L2 sync.",
+    "privacy": "Public",
+    "value": 1000000
+  },
   "l1_events_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
     "privacy": "Public",
