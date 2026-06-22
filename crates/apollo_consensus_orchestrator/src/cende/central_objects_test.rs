@@ -51,6 +51,7 @@ use blockifier::state::cached_state::{
     CommitmentStateDiff,
     StateChangesCount,
     StateChangesCountForFee,
+    StateMaps,
 };
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
@@ -785,6 +786,8 @@ fn central_blob() -> AerospikeBlob {
         recent_state_commitment_infos: recent_state_commitment_infos(),
         #[cfg(feature = "os_input")]
         accessed_keys: AccessedKeys::default(),
+        #[cfg(feature = "os_input")]
+        initial_reads: StateMaps::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -818,6 +821,8 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         recent_state_commitment_infos: vec![],
         #[cfg(feature = "os_input")]
         accessed_keys: AccessedKeys::default(),
+        #[cfg(feature = "os_input")]
+        initial_reads: StateMaps::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -1173,8 +1178,8 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
     let python_json: serde_json::Value = read_json_file(python_json_path);
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
-    // `recent_state_commitment_infos` and `accessed_keys` are os_input-only and absent from the
-    // central (python) blob, so strip them before comparing.
+    // `recent_state_commitment_infos`, `accessed_keys` and `initial_reads` are os_input-only and
+    // absent from the central (python) blob, so strip them before comparing.
     // TODO(Itamar): Remove this stripping once the python blob includes the fields.
     #[cfg(feature = "os_input")]
     let rust_json = {
@@ -1182,6 +1187,7 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
         if let Some(object) = rust_json.as_object_mut() {
             object.remove("recent_state_commitment_infos");
             object.remove("accessed_keys");
+            object.remove("initial_reads");
         }
         rust_json
     };
