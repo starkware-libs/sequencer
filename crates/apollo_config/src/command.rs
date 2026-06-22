@@ -7,11 +7,13 @@ use serde_json::{json, Value};
 use crate::loading::update_config_map;
 use crate::{
     ConfigError,
+    ConfigFormat,
     ParamPath,
     SerializationType,
     SerializedParam,
     CONFIG_FILE_ARG_NAME,
     CONFIG_FILE_SHORT_ARG_NAME,
+    CONFIG_FORMAT_ARG_NAME,
 };
 
 pub(crate) fn get_command_matches(
@@ -51,6 +53,16 @@ fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<A
             .value_parser(value_parser!(PathBuf))
             .num_args(1..) // Allow multiple values
             .action(clap::ArgAction::Append), // Collect multiple occurrences
+        // How the --config_file arguments are interpreted. Absent => ConfigFormat::Preset.
+        Arg::new(CONFIG_FORMAT_ARG_NAME)
+            .long(CONFIG_FORMAT_ARG_NAME)
+            .num_args(1)
+            .value_parser(value_parser!(ConfigFormat))
+            .help(
+                "How the --config_file arguments are interpreted: 'preset' (flat dotted-key, \
+                 layered) or 'native' (the first file is nested serde, later files are flat \
+                 secret overrides)",
+            ),
     ];
 
     for (param_path, serialized_param) in config_map.iter() {
