@@ -147,6 +147,8 @@ services:
       - "${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}"
       - "${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}"
     command:
+      - "--config_format"
+      - "preset"
       - "--config_file"
       - "/config/node_0/config.json"
 
@@ -154,6 +156,8 @@ services:
     <<: *sequencer_node
     profiles: ["node1"]
     command:
+      - "--config_format"
+      - "preset"
       - "--config_file"
       - "/config/node_1/config.json"
 
@@ -161,6 +165,8 @@ services:
     <<: *sequencer_node
     profiles: ["node2"]
     command:
+      - "--config_format"
+      - "preset"
       - "--config_file"
       - "/config/node_2/config.json"
 
@@ -168,6 +174,8 @@ services:
     <<: *sequencer_node
     profiles: ["node3"]
     command:
+      - "--config_format"
+      - "preset"
       - "--config_file"
       - "/config/node_3/config.json"
 
@@ -175,6 +183,8 @@ services:
     <<: *sequencer_node
     profiles: ["node4"]
     command:
+      - "--config_format"
+      - "preset"
       - "--config_file"
       - "/config/node_4/config.json"
 
