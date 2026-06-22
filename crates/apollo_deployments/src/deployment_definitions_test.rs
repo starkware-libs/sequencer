@@ -20,6 +20,7 @@ use crate::jsonnet_test::{
     test_eval_overlay_at_path_missing_file_errors,
     test_generator_config_is_node_loadable,
     test_generator_flat_input_matches_direct_build,
+    test_in_place_jsonnet_overlay_equivalence,
     test_keys_to_be_replaced_are_covered_by_override_schema,
     test_multi_overlay_merge_semantics,
     test_real_overlay_overrides_are_node_loadable,
@@ -153,6 +154,16 @@ fn real_overlay_overrides_are_node_loadable() {
         .expect("Couldn't set working dir.");
 
     test_real_overlay_overrides_are_node_loadable();
+}
+
+/// Verifies the IN-PLACE per-layer jsonnet overlays reproduce the flat YAML overlays exactly
+/// (components.* excluded) and build into node-loadable configs with the env's real values intact.
+#[test]
+fn in_place_jsonnet_overlay_equivalence() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_in_place_jsonnet_overlay_equivalence();
 }
 
 /// Test that the deployment file is up to date.

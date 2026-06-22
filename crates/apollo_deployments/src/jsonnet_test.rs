@@ -201,7 +201,7 @@ pub fn test_generator_config_is_node_loadable() {
 /// output) through the node's real loader (`SequencerNodeConfig::load_and_process`, which resolves
 /// `CONFIG_POINTERS` + `#is_none`), and asserts it reconstructs exactly the built
 /// `SequencerNodeConfig` and passes `validate_node_config`.
-fn assert_built_services_node_loadable(built: &Value) {
+pub(crate) fn assert_built_services_node_loadable(built: &Value) {
     let services = built.as_object().expect("build result is a service-keyed object");
     for (service, config) in services {
         let direct: SequencerNodeConfig = serde_json::from_value(config.clone()).unwrap();
@@ -298,7 +298,7 @@ pub fn test_real_overlay_overrides_are_node_loadable() {
 /// `common.yaml` and `services/*.yaml` `config.sequencerConfig` entries; later layers win.
 /// (`components.*` infra keys are derived from the layout by the generator, not read from
 /// overrides.)
-fn real_overlay_sequencer_config() -> BTreeMap<String, Value> {
+pub(crate) fn real_overlay_sequencer_config() -> BTreeMap<String, Value> {
     const OVERLAY_DIR: &str = "deployments/sequencer/configs/overlays/hybrid";
     // Low-to-high precedence, matching the deploy's overlay order: `common` is the base,
     // `sepolia-integration` overrides it, and the per-pod `dummy_for_testing` is layered last.
@@ -338,6 +338,125 @@ fn real_overlay_sequencer_config() -> BTreeMap<String, Value> {
         }
     }
     merged
+}
+
+/// Recursively clones `value`, dropping every `components` key at any nesting level (the
+/// layout-derived component infra the YAML overlay carries but the generator computes itself, not
+/// reads as an override). Non-object values pass through unchanged.
+fn filter_components_nested(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .filter(|(key, _)| key.as_str() != "components")
+                .map(|(key, child)| (key.clone(), filter_components_nested(child)))
+                .collect(),
+        ),
+        leaf => leaf.clone(),
+    }
+}
+
+const IN_PLACE_OVERLAY_DIR: &str = "deployments/sequencer/configs/overlays/hybrid";
+
+/// The IN-PLACE nested-overrides jsonnet overlays reproduce the flat YAML overlays exactly and
+/// build into node-loadable configs. Evaluates the three per-layer `sequencer_config.jsonnet` files
+/// (each rooted at its own directory, so it must be self-contained), deep-merges them in deploy
+/// order (`common` -> `sepolia-integration` -> `dummy_for_testing`, later wins), and asserts the
+/// result equals the nested form of the committed-YAML baseline once `components.*` (the only
+/// divergence — layout-derived infra the generator does not read as overrides) is stripped from
+/// both sides. On match, the merged overlays build into node-loadable, validated configs for every
+/// hybrid service, with the environment's real values surviving into the built core service.
+pub fn test_in_place_jsonnet_overlay_equivalence() {
+    let common = eval_overlay_at_path(Path::new(&format!(
+        "{IN_PLACE_OVERLAY_DIR}/common/sequencer_config.jsonnet"
+    )))
+    .unwrap_or_else(|error| panic!("failed to evaluate common jsonnet: {error}"));
+    let sepolia_integration = eval_overlay_at_path(Path::new(&format!(
+        "{IN_PLACE_OVERLAY_DIR}/sepolia-integration/sequencer_config.jsonnet"
+    )))
+    .unwrap_or_else(|error| panic!("failed to evaluate sepolia-integration jsonnet: {error}"));
+    let dummy_for_testing = eval_overlay_at_path(Path::new(&format!(
+        "{IN_PLACE_OVERLAY_DIR}/common/dummy_for_testing/sequencer_config.jsonnet"
+    )))
+    .unwrap_or_else(|error| panic!("failed to evaluate dummy_for_testing jsonnet: {error}"));
+
+    // Deep-merge in deploy order: common is the base, sepolia-integration overrides it, and the
+    // per-pod dummy_for_testing is layered last.
+    let mut jsonnet_merged = common;
+    deep_merge_values(&mut jsonnet_merged, &sepolia_integration);
+    deep_merge_values(&mut jsonnet_merged, &dummy_for_testing);
+
+    // YAML baseline: the committed overlays, merged in deploy order and nested (folding
+    // `#is_none`).
+    let yaml_baseline_nested = overrides_from_sequencer_config(&real_overlay_sequencer_config());
+
+    // `components.*` is the only expected divergence (the YAML sequencerConfig carries
+    // layout-derived component infra the generator does not read as overrides); strip it from both.
+    let jsonnet_filtered = filter_components_nested(&jsonnet_merged);
+    let yaml_filtered = filter_components_nested(&yaml_baseline_nested);
+
+    if jsonnet_filtered != yaml_filtered {
+        let mut jsonnet_flat = BTreeMap::new();
+        flatten(&jsonnet_filtered, "", &mut jsonnet_flat);
+        let mut yaml_flat = BTreeMap::new();
+        flatten(&yaml_filtered, "", &mut yaml_flat);
+        let diffs: Vec<String> = jsonnet_flat
+            .keys()
+            .chain(yaml_flat.keys())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|key| jsonnet_flat.get(*key) != yaml_flat.get(*key))
+            .map(|key| {
+                format!("{key}: jsonnet={:?} yaml={:?}", jsonnet_flat.get(key), yaml_flat.get(key))
+            })
+            .collect();
+        panic!(
+            "in-place jsonnet overlays diverge from the YAML baseline (components.* excluded):\n  \
+             {}",
+            diffs.join("\n  ")
+        );
+    }
+
+    // The merged overlays build into node-loadable, validated configs for every hybrid service.
+    let built = eval_build_with_overrides("hybrid", &jsonnet_merged);
+    assert_built_services_node_loadable(&built);
+
+    // The environment's real values reached the built core service (which runs consensus): the P2P
+    // multiaddrs are dummy `None` (dummy_for_testing marks them `#is_none: true`) so they fold to
+    // `null`; validator id and chain id are the environment's own values. Asserted against literals
+    // (not re-read) so a build that drops a value, or merges the layers in the wrong order, fails.
+    let core = built.get("core").expect("hybrid has a core service");
+    let mut core_config = BTreeMap::new();
+    flatten(core, "", &mut core_config);
+    let unique_core_value = |suffix: &str| -> &Value {
+        let matches: Vec<&Value> =
+            core_config.iter().filter(|(key, _)| key.ends_with(suffix)).map(|(_, v)| v).collect();
+        assert_eq!(matches.len(), 1, "expected exactly one core config key ending in `{suffix}`");
+        matches[0]
+    };
+    assert_eq!(
+        unique_core_value("consensus_manager_config.network_config.advertised_multiaddr"),
+        &Value::Null,
+        "multiaddrs in core must be null (dummy_for_testing sets #is_none: true)"
+    );
+    assert_eq!(
+        unique_core_value("consensus_manager_config.network_config.bootstrap_peer_multiaddr"),
+        &Value::Null,
+        "multiaddrs in core must be null (dummy_for_testing sets #is_none: true)"
+    );
+    assert_eq!(
+        unique_core_value(".validator_id"),
+        &json!("0x64"),
+        "validator_id in core must be 0x64"
+    );
+    for (key, value) in &core_config {
+        if key.ends_with("chain_id") {
+            assert_eq!(
+                value,
+                &json!("SN_INTEGRATION_SEPOLIA"),
+                "all chain_id values in core must be SN_INTEGRATION_SEPOLIA, but `{key}` differs"
+            );
+        }
+    }
 }
 
 /// Asserts `overrides` supplies every override path the generator reads
