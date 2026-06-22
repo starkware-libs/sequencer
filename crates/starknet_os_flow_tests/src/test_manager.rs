@@ -901,7 +901,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &event_expectations_per_tx,
                 &execution_outputs,
             );
-            let initial_reads = final_state.get_os_initial_reads().unwrap();
+            let mut initial_reads = final_state.get_os_initial_reads().unwrap();
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
             // Update the wrapped state.
             state = final_state.state;
@@ -930,6 +930,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             );
             // Commit the state diff, building the OS-input commitment infos from the Patricia
             // witness paths gathered during the commit.
+            initial_reads.trim_to_accessed_keys(&accessed_keys);
             let committer_state_diff =
                 commitment_state_diff_to_committer_state_diff(commitment_state_diff);
             let (new_state_roots, commitment_infos) = commit_state_diff_with_witnesses(
