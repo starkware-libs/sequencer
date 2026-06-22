@@ -21,6 +21,11 @@ pub struct L1EventsProviderConfig {
     pub l1_handler_proposal_cooldown_seconds: Duration,
     /// When true, the L1 provider operates in dummy mode.
     pub dummy_mode: bool,
+    /// Maximum number of commit-blocks buffered in the catch-up backlog while the provider syncs
+    /// to the target height. Bounds memory growth when L2 sync stalls or lags during startup
+    /// catch-up. Hitting it is a hard error rather than a silent drop, because the backlog
+    /// must remain a gapless, strictly-sequential run of heights.
+    pub max_commit_block_backlog_len: usize,
 }
 
 impl Default for L1EventsProviderConfig {
@@ -31,6 +36,9 @@ impl Default for L1EventsProviderConfig {
             l1_handler_consumption_timelock_seconds: Duration::from_secs(5 * 60),
             l1_handler_proposal_cooldown_seconds: Duration::from_secs(70),
             dummy_mode: false,
+            // ~1M entries is only ~tens of MB, comfortably covering any legitimate startup sync gap
+            // while still bounding worst-case memory.
+            max_commit_block_backlog_len: 1_000_000,
         }
     }
 }
@@ -70,6 +78,14 @@ impl SerializeConfig for L1EventsProviderConfig {
                 &self.dummy_mode,
                 "When true, the L1 provider operates in dummy mode, always responding with \
                  trivial truthy responses without connecting to actual L1.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_commit_block_backlog_len",
+                &self.max_commit_block_backlog_len,
+                "Maximum number of commit-blocks buffered in the catch-up backlog during startup \
+                 sync before commit_block fails; guards against unbounded memory growth on a \
+                 stalled or lagging L2 sync.",
                 ParamPrivacyInput::Public,
             ),
         ])

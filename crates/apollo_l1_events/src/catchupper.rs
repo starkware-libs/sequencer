@@ -2,12 +2,14 @@ use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_events_types::SharedL1EventsProviderClient;
+use apollo_l1_events_types::{L1EventsProviderResult, SharedL1EventsProviderClient};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, warn};
+
+use crate::metrics::L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN;
 
 // When the Provider gets a commit_block that is too high, it starts catching up.
 // The commit is rejected by the provider, so it must use sync to catch up to the height of the
@@ -30,6 +32,14 @@ pub struct Catchupper {
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
     pub n_sync_health_check_failures: Arc<AtomicU8>,
+    /// Cap on `commit_block_backlog` length. Exceeding it abandons the in-memory backlog (rather
+    /// than dropping a single entry, which would tear a gap) and defers to L2 sync; see
+    /// `add_commit_block_to_backlog`.
+    pub max_commit_block_backlog_len: usize,
+    /// Set once the backlog is abandoned during a catch-up (cap hit, or a non-sequential height
+    /// that would tear the gapless run). While set, tip commits are no longer buffered: L2 sync
+    /// owns the whole range and only its target is extended. Cleared when catch-up completes.
+    pub backlog_overflowed: bool,
 }
 
 impl Catchupper {
@@ -41,6 +51,7 @@ impl Catchupper {
         l1_events_provider_client: SharedL1EventsProviderClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
+        max_commit_block_backlog_len: usize,
     ) -> Self {
         Self {
             sync_retry_interval,
@@ -49,6 +60,8 @@ impl Catchupper {
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
+            max_commit_block_backlog_len,
+            backlog_overflowed: false,
             // This is overriden when starting the sync task (e.g., when provider starts
             // catching up).
             target_height: Default::default(),
@@ -68,17 +81,47 @@ impl Catchupper {
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) {
-        assert!(
-            self.commit_block_backlog
-                .last()
-                .is_none_or(|commit_block| commit_block.height.unchecked_next() == height),
-            "Heights should be sequential."
-        );
+    ) -> L1EventsProviderResult<()> {
+        // Already abandoned this catch-up's backlog: L2 sync owns the whole range now. Don't
+        // rebuild the buffer; just keep extending the sync target so the task drives the provider
+        // up to the latest tip height.
+        if self.backlog_overflowed {
+            self.update_target_height(height);
+            return Ok(());
+        }
+
+        let is_sequential = self
+            .commit_block_backlog
+            .last()
+            .is_none_or(|commit_block| commit_block.height.unchecked_next() == height);
+        let is_full = self.commit_block_backlog.len() >= self.max_commit_block_backlog_len;
+
+        // Two runtime-reachable conditions force us off the in-memory fast path: the backlog hit
+        // its cap (a stalled/lagging L2 sync let the tip race ahead), or a non-sequential height
+        // would tear a hole in the gapless run. Dropping any single entry would leave a permanent
+        // gap that corrupts the drain-time sequential invariant (and previously panicked the
+        // provider, since the batcher swallows the error and keeps advancing). Instead, abandon the
+        // backlog entirely and let the authoritative L2 sync re-drive every height up to the tip --
+        // bounded memory, no gap, no panic. The buffered commits are redundant: sync re-delivers
+        // the same heights, just with more latency while it is stalled.
+        if is_full || !is_sequential {
+            warn!(
+                "Catch-up commit-block backlog abandoned at height {height} (cap {}, sequential: \
+                 {is_sequential}); deferring to L2 sync to re-drive the range. L2 sync is likely \
+                 stalled or lagging.",
+                self.max_commit_block_backlog_len
+            );
+            self.backlog_overflowed = true;
+            self.commit_block_backlog.clear();
+            L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.set_lossy(0_usize);
+            self.update_target_height(height);
+            return Ok(());
+        }
 
         debug!("Adding future commit-block to backlog at height: {height}");
-        self.commit_block_backlog
-            .push(CommitBlockBacklog { height, committed_txs: committed_txs.clone() });
+        self.commit_block_backlog.push(CommitBlockBacklog { height, committed_txs });
+        L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.set_lossy(self.commit_block_backlog.len());
+        Ok(())
     }
 
     /// Spawns async task that produces and sends commit block messages to the provider, according

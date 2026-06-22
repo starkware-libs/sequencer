@@ -1827,6 +1827,8 @@ dependencies = [
  "futures",
  "indexmap 2.14.0",
  "itertools 0.12.1",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockall",
  "papyrus_base_layer",
  "pretty_assertions",
