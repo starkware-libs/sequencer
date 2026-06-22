@@ -44,7 +44,7 @@ macro_rules! make_catchupper {
                     committed_txs: [$(tx_hash!($tx)),*].into()
                 }),*
             ].into_iter().collect(),
-            target_height: BlockNumber(0),
+            target_height: Default::default(),
             l1_events_provider_client: Arc::new(FakeL1EventsProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),

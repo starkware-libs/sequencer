@@ -9,7 +9,11 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, warn};
 
-use crate::metrics::{L1_MESSAGE_PROVIDER_NUM_PENDING_TXS, L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT};
+use crate::metrics::{
+    L1_MESSAGE_PROVIDER_NUM_PENDING_TXS,
+    L1_MESSAGE_PROVIDER_OLDEST_PENDING_TX_L1_TIMESTAMP_SECONDS,
+    L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT,
+};
 use crate::transaction_record::{
     Records,
     TransactionPayload,
@@ -17,6 +21,10 @@ use crate::transaction_record::{
     TransactionRecordPolicy,
     TransactionState,
 };
+
+#[cfg(test)]
+#[path = "transaction_manager_tests.rs"]
+mod transaction_manager_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TransactionManager {
@@ -149,8 +157,10 @@ impl TransactionManager {
         }
         for &tx_hash in rejected_txs {
             self.with_record(tx_hash, |r| r.mark_rejected()).expect(
-                "Storage inconsistency: a transaction sent to the batcher was removed \
-                 unexpectedly.",
+                "Rejected L1 handler tx has no record. Unreachable: all L1 handler txs in a \
+                 committed block were validated as known (validation rejects unknown hashes), \
+                 sync commits with empty rejected_txs, and records are only removed via L1 \
+                 cancellation/consumption, which can't race a block.",
             );
         }
     }
@@ -352,6 +362,17 @@ impl TransactionManager {
         self.current_staging_epoch = self.current_staging_epoch.increment();
     }
 
+    /// The L1 block timestamp of the oldest pending (proposable, uncommitted) L1 handler tx, or
+    /// `None` when none are pending. Scans the proposable index (expected to hold few transactions)
+    /// for the minimal L1 emission timestamp, rather than relying on scrape order.
+    fn oldest_pending_l1_block_timestamp(&self) -> Option<BlockTimestamp> {
+        self.proposable_index
+            .values()
+            .flatten()
+            .filter_map(|tx_hash| self.records.get(tx_hash)?.tx.created_at_block_timestamp())
+            .min()
+    }
+
     // Update `proposable_index` and `consumed_queue` indices with this transaction.
     fn maintain_indices(&mut self, hash: TransactionHash) {
         if let Some(record) = self.records.get(&hash) {
@@ -388,6 +409,18 @@ impl TransactionManager {
 
             let num_pending_txs = self.proposable_index.len();
             L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.set_lossy(num_pending_txs);
+
+            // Export the oldest pending tx's L1 block timestamp so an alert can fire when a single
+            // L1 handler waits on L1 for too long without being committed to L2. We export the
+            // timestamp (not the age) so the alert can compute `time() - timestamp` and have the
+            // age grow correctly even while the provider is idle. 0 means nothing is
+            // pending.
+            let oldest_pending_tx_timestamp = self
+                .oldest_pending_l1_block_timestamp()
+                .map(|timestamp| timestamp.0)
+                .unwrap_or_default();
+            L1_MESSAGE_PROVIDER_OLDEST_PENDING_TX_L1_TIMESTAMP_SECONDS
+                .set_lossy(oldest_pending_tx_timestamp);
 
             // If this tx was consumed, add it to the consumed queue.
             if let Some(consumed_at) = record.get_consumed_at_timestamp() {

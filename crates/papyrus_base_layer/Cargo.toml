@@ -16,6 +16,7 @@ testing = ["alloy/node-bindings"]
 alloy = { workspace = true, features = ["contract", "json-rpc", "node-bindings", "rpc-types"] }
 apollo_config.workspace = true
 apollo_infra_utils.workspace = true
+apollo_metrics.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 hex.workspace = true
@@ -23,6 +24,7 @@ mockall.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
@@ -31,7 +33,10 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils.workspace = true
+apollo_metrics = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true

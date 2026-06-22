@@ -510,9 +510,14 @@ fn handle_client_error<BaseLayerType: BaseLayerContract + Send + Sync + Debug>(
         L1EventsProviderClientError::ClientError(client_error) => {
             Err(L1EventsScraperError::NetworkError(client_error))
         }
-        L1EventsProviderClientError::L1EventsProviderError(
-            L1EventsProviderError::Uninitialized,
-        ) => Err(L1EventsScraperError::NeedsRestart),
-        error => panic!("Unexpected error: {error}"),
+        L1EventsProviderClientError::L1EventsProviderError(provider_error) => {
+            if provider_error != L1EventsProviderError::Uninitialized {
+                warn!(
+                    "L1 Events Provider returned unexpected error: {provider_error}. Triggering \
+                     restart."
+                );
+            }
+            Err(L1EventsScraperError::NeedsRestart)
+        }
     }
 }

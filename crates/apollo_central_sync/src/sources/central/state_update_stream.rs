@@ -287,18 +287,17 @@ fn client_to_central_state_update(
                 )),
                 declared_classes: declared_classes
                     .into_iter()
-                    .map(|(class_hash, class)| {
-                        (class_hash, class.into_cairo1().expect("Expected Cairo1 class."))
-                    })
                     .zip(
                         declared_class_hashes
                             .into_iter()
                             .map(|hash_entry| hash_entry.compiled_class_hash),
                     )
                     .map(|((class_hash, class), compiled_class_hash)| {
-                        (class_hash, (compiled_class_hash, class))
+                        let cairo1_class =
+                            class.into_cairo1().ok_or(CentralError::BadContractClassType)?;
+                        Ok((class_hash, (compiled_class_hash, cairo1_class)))
                     })
-                    .collect(),
+                    .collect::<CentralResult<_>>()?,
                 migrated_compiled_classes: migrated_compiled_classes
                     .into_iter()
                     .map(|entry| (entry.class_hash, entry.compiled_class_hash))
@@ -306,9 +305,12 @@ fn client_to_central_state_update(
                 deprecated_declared_classes: deprecated_classes
                     .into_iter()
                     .map(|(class_hash, generic_class)| {
-                        (class_hash, generic_class.into_cairo0().expect("Expected Cairo0 class."))
+                        let cairo0_class = generic_class
+                            .into_cairo0()
+                            .ok_or(CentralError::BadContractClassType)?;
+                        Ok((class_hash, cairo0_class))
                     })
-                    .collect(),
+                    .collect::<CentralResult<_>>()?,
                 nonces,
             };
             // Filter out deployed contracts of new classes because since 0.11 new classes can not

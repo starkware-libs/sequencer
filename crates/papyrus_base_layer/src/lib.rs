@@ -18,6 +18,7 @@ use url::Url;
 pub mod constants;
 pub mod cyclic_base_layer_wrapper;
 pub mod ethereum_base_layer_contract;
+pub mod metrics;
 
 pub(crate) mod eth_events;
 
