@@ -989,6 +989,15 @@ impl Batcher {
             &tx_execution_infos,
         )?;
 
+        // The OS only needs the read values for the keys it accesses; drop the extra reads (e.g.
+        // reverted-tx reads).
+        #[cfg(feature = "os_input")]
+        let initial_reads = {
+            let mut initial_reads = block_execution_artifacts.initial_reads;
+            initial_reads.trim_to_accessed_keys(&accessed_keys);
+            initial_reads
+        };
+
         self.write_commitment_results_and_add_new_task(
             height,
             state_diff.clone(), // TODO(Nimrod): Remove the clone here.
@@ -1026,7 +1035,7 @@ impl Batcher {
                 #[cfg(feature = "os_input")]
                 accessed_keys,
                 #[cfg(feature = "os_input")]
-                initial_reads: block_execution_artifacts.initial_reads,
+                initial_reads,
             },
         })
     }

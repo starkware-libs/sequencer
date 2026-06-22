@@ -9,6 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
 use crate::execution::contract_class::RunnableCompiledClass;
+use crate::state::accessed_keys::AccessedKeys;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -400,6 +401,15 @@ impl StateMaps {
         self.storage.extend(&other.storage);
         self.compiled_class_hashes.extend(&other.compiled_class_hashes);
         self.declared_contracts.extend(&other.declared_contracts)
+    }
+
+    /// Removes every entry whose key is not in `accessed_keys`.
+    pub fn trim_to_accessed_keys(&mut self, accessed_keys: &AccessedKeys) {
+        self.storage.retain(|key, _| accessed_keys.storage_keys.contains(key));
+        self.nonces.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
+        self.class_hashes.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
+        self.compiled_class_hashes
+            .retain(|class_hash, _| accessed_keys.accessed_class_hashes.contains(class_hash));
     }
 
     /// Subtracts other's mappings from self.
