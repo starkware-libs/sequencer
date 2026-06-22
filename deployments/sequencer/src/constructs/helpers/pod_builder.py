@@ -82,7 +82,9 @@ class PodBuilder:
 
     def _build_container_args(self) -> list[str]:
         """Build container arguments, always including --config_file with fixed file paths."""
-        args = []
+        # Interpret the --config_file arguments with the legacy flat-preset loader for now. The
+        # node also supports "native" (nested serde) loading; this is the explicit switch point.
+        args = ["--config_format", "preset"]
 
         # Add --config_file /config/sequencer/presets/config (ConfigMap)
         # Note: node version uses directory mount, so path is just the directory + "config"
