@@ -184,6 +184,19 @@ fn in_place_jsonnet_overlay_equivalence_mainnet() {
     assert_in_place_jsonnet_overlay_equivalence("mainnet", &expected_chain_id);
 }
 
+/// Verifies the IN-PLACE per-layer jsonnet overlays for `sepolia-alpha` reproduce the flat YAML
+/// overlays exactly (components.* excluded) and build into node-loadable configs with the env's
+/// real values intact. The chain_id is read from the committed `sepolia-alpha/common.yaml` at
+/// runtime (not hard-coded), and asserted to survive into the built core service.
+#[test]
+fn in_place_jsonnet_overlay_equivalence_sepolia_alpha() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let expected_chain_id = overlay_chain_id("sepolia-alpha");
+    assert_in_place_jsonnet_overlay_equivalence("sepolia-alpha", &expected_chain_id);
+}
+
 /// Test that the deployment file is up to date.
 #[test]
 fn deployment_files_are_up_to_date() {
