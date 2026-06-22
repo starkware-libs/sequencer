@@ -45,6 +45,9 @@ use starknet_api::transaction::fields::{
     VIRTUAL_SNOS,
 };
 use starknet_api::transaction::TransactionHash;
+#[cfg(feature = "os_input")]
+use starknet_api::{contract_address, felt, nonce, proof_facts, storage_key, tx_hash};
+#[cfg(not(feature = "os_input"))]
 use starknet_api::{proof_facts, tx_hash};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -100,6 +103,8 @@ async fn block_execution_artifacts(
     let block_summary = BlockExecutionSummary {
         state_diff: Default::default(),
         compressed_state_diff: Default::default(),
+        #[cfg(feature = "os_input")]
+        initial_reads: StateMaps::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
@@ -133,6 +138,14 @@ fn execution_info() -> TransactionExecutionInfo {
         },
         ..Default::default()
     }
+}
+
+#[cfg(feature = "os_input")]
+fn test_initial_reads() -> StateMaps {
+    let mut initial_reads = StateMaps::default();
+    initial_reads.nonces.insert(contract_address!("0x1"), nonce!(7_u64));
+    initial_reads.storage.insert((contract_address!("0x1"), storage_key!("0x2")), felt!(8_u8));
+    initial_reads
 }
 
 async fn one_chunk_test_expectations() -> TestExpectations {
@@ -445,6 +458,8 @@ async fn transaction_failed_test_expectations() -> TestExpectations {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
             casm_hash_computation_data_sierra_gas: expected_block_artifacts_copy
                 .casm_hash_computation_data_sierra_gas,
@@ -543,6 +558,8 @@ async fn set_close_block_expectations(
         Ok(BlockExecutionSummary {
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: output_block_artifacts.bouncer_weights,
             casm_hash_computation_data_sierra_gas: output_block_artifacts
                 .casm_hash_computation_data_sierra_gas,
@@ -1080,6 +1097,8 @@ async fn failed_l1_handler_transaction_consumed() {
         Ok(BlockExecutionSummary {
             state_diff: Default::default(),
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: StateMaps::default(),
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
@@ -1141,6 +1160,8 @@ async fn partial_chunk_execution_proposer() {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: expected_block_artifacts.bouncer_weights,
             casm_hash_computation_data_sierra_gas: expected_block_artifacts
                 .casm_hash_computation_data_sierra_gas,
