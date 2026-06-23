@@ -187,7 +187,7 @@ function(chain_params, node_params, replacers)
         },
         storage_reader_server_static_config: {
           ip: '0.0.0.0',
-          port: 8091,
+          port: 55011,
         },
         validation_only: std.get(replacers, 'validation_only', constants.DEFAULT_VALIDATION_ONLY),
       },
@@ -227,7 +227,7 @@ function(chain_params, node_params, replacers)
           persistent_root: '/data/class_manager/classes',
           storage_reader_server_static_config: {
             ip: '0.0.0.0',
-            port: 8091,
+            port: 55210,
           },
         },
       },
@@ -632,7 +632,7 @@ function(chain_params, node_params, replacers)
         },
         storage_reader_server_static_config: {
           ip: '0.0.0.0',
-          port: 8091,
+          port: 55014,
         },
       },
     },
