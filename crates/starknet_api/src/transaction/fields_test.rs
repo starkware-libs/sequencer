@@ -33,6 +33,15 @@ fn proof_facts_variant_rejects_unknown_version() {
 }
 
 #[test]
+fn proof_facts_debug_redacts_values() {
+    let facts = ProofFacts::snos_proof_facts_for_testing();
+    let debug_output = format!("{facts:?}");
+
+    assert_eq!(debug_output, "ProofFacts(<8 elements>)");
+    assert!(!debug_output.contains("0x50524f4f4631"));
+}
+
+#[test]
 fn proof_version_str_encodes_to_felt() {
     for version in ProofVersion::iter() {
         let from_short_string =
