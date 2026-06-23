@@ -696,10 +696,20 @@ pub const VIRTUAL_OS_OUTPUT_VERSION: Felt =
 
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
-#[derive(
-    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
-)]
+#[derive(Clone, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
 pub struct ProofFacts(pub Arc<Vec<Felt>>);
+
+impl fmt::Debug for ProofFacts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.0.len();
+
+        if len == 0 {
+            write!(f, "ProofFacts([])")
+        } else {
+            write!(f, "ProofFacts(<{} elements>)", len)
+        }
+    }
+}
 
 impl ProofFacts {
     pub fn is_empty(&self) -> bool {
