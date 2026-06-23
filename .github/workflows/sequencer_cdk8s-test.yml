@@ -71,8 +71,8 @@ jobs:
           cdk8s import
           echo "Installing pip dependencies..."
           pipenv install
-          echo "Running port uniqueness tests..."
-          pipenv run pytest test/test_port_uniqueness.py -v
+          echo "Running pytest suite..."
+          pipenv run pytest test/ -v
           echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay }}..."
           cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist1
           echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay2 }}..."
