@@ -824,7 +824,7 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
         match ProofFactsVariant::try_from(&proof_facts)? {
             ProofFactsVariant::Snos(snos_proof_facts) => Ok(snos_proof_facts),
             ProofFactsVariant::Empty => Err(StarknetApiError::InvalidProofFacts(
-                "expected SNOS proof facts, got empty".to_string(),
+                "Expected SNOS proof facts, got empty".to_string(),
             )),
         }
     }

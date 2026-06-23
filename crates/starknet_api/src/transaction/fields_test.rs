@@ -80,14 +80,13 @@ fn snos_proof_facts_try_from_rejects_empty() {
 }
 
 #[test]
-fn snos_proof_facts_try_from_propagates_inner_error_without_reparsing() {
-    // A proof with an unrecognised version marker — the inner try_from error should be
-    // propagated directly without triggering a second parse via the Debug impl.
+fn snos_proof_facts_try_from_propagates_inner_error() {
+    // A proof with an unknown version marker — the specific inner parse error should be
+    // propagated directly rather than wrapped in a generic message.
     let facts = proof_facts_given_proof_version(Felt::from_hex_unchecked("0xDEAD"));
     let err = SnosProofFacts::try_from(facts).expect_err("bad version should be rejected");
     let StarknetApiError::InvalidProofFacts(msg) = err else {
         panic!("expected InvalidProofFacts, got {err:?}");
     };
-    // The inner error already contains the specific reason; it must not be a generic wrapper.
-    assert!(!msg.contains("Invalid SNOS proof facts:"), "should propagate inner error, got: {msg}");
+    assert!(msg.contains("Expected first field"), "should propagate inner error, got: {msg}");
 }
