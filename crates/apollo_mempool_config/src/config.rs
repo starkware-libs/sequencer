@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 /// Configuration for consensus containing both static and dynamic configs.
 #[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolConfig {
@@ -57,8 +61,8 @@ impl SerializeConfig for MempoolDynamicConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolStaticConfig {
     pub enable_fee_escalation: bool,
-    // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
+    #[validate(range(min = 1, max = 100))]
     pub fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
     // If true, only transactions with max L2 gas price per unit bound that are above the threshold
     // are inserted into the priority queue. If false, all transactions are inserted into the
