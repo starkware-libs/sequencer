@@ -48,6 +48,7 @@ use apollo_transaction_converter::metrics::{
     GATEWAY_ALL_METRICS as TRANSACTION_CONVERTER_GATEWAY_ALL_METRICS,
 };
 use blockifier::metrics::BLOCKIFIER_ALL_METRICS;
+use papyrus_base_layer::metrics::BASE_LAYER_ALL_METRICS;
 
 use crate::alert_scenarios::infra_alerts::POD_ALL_METRICS;
 
@@ -73,6 +74,7 @@ fn metric_names_no_duplications() {
         .chain(HTTP_SERVER_ALL_METRICS.iter())
         .chain(L1_GAS_PRICE_ALL_METRICS.iter())
         .chain(L1_GAS_PRICE_INFRA_METRICS.iter())
+        .chain(BASE_LAYER_ALL_METRICS.iter())
         .chain(L1_EVENTS_PROVIDER_ALL_METRICS.iter())
         .chain(L1_EVENTS_PROVIDER_INFRA_METRICS.iter())
         .chain(MEMPOOL_ALL_METRICS.iter())

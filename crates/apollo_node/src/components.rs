@@ -41,6 +41,7 @@ use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::metrics::ScraperLabel;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
@@ -317,6 +318,7 @@ pub async fn create_node_components(
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(
                 base_layer,
                 base_layer_config.retry_primary_interval_seconds,
+                ScraperLabel::L1GasPrice,
             );
 
             Some(L1GasPriceScraper::new(
@@ -396,6 +398,7 @@ pub async fn create_node_components(
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(
                 base_layer,
                 base_layer_config.retry_primary_interval_seconds,
+                ScraperLabel::L1Events,
             );
 
             Some(
