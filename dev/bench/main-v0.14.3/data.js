@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782050194594,
+  "lastUpdate": 1782218364004,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -645,6 +645,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1312.6394082699999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8107c2903ec28840ee0fc8df051b69a6741b1a3e",
+          "message": "starknet_api: redact Proof and decode ProofFacts in Debug output (#14598)",
+          "timestamp": "2026-06-23T12:22:29Z",
+          "tree_id": "95b0390042f080990f1154ecbc4b0315edf3e9ec",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8107c2903ec28840ee0fc8df051b69a6741b1a3e"
+        },
+        "date": 1782218363486,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1078.41617522,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1729.80263358,
             "unit": "ms"
           }
         ]
