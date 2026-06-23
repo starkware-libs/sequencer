@@ -481,18 +481,17 @@ impl StakingManager {
 // would make total_weight == 0 and panic proposer selection).
 fn validate_stakers(stakers: StakerSet) -> CommitteeProviderResult<StakerSet> {
     let mut seen_addresses = HashSet::with_capacity(stakers.len());
-    for staker in &stakers {
-        let new_address = seen_addresses.insert(staker.address);
-        if !new_address {
+    let mut valid_stakers = Vec::with_capacity(stakers.len());
+
+    for staker in stakers {
+        if !seen_addresses.insert(staker.address) {
             return Err(CommitteeProviderError::DuplicateStakerAddress { address: staker.address });
         }
-    }
-
-    let (valid_stakers, filtered): (StakerSet, StakerSet) =
-        stakers.into_iter().partition(|staker| staker.weight.0 > 0);
-
-    for staker in &filtered {
-        warn!("Filtered out zero-weight staker {:?} from the staking response.", staker.address);
+        if staker.weight.0 > 0 {
+            valid_stakers.push(staker);
+        } else {
+            warn!("Filtered out zero-weight staker {:?} from the staking response.", staker.address);
+        }
     }
 
     if valid_stakers.is_empty() {
