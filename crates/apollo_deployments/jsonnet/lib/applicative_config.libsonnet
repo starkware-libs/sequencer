@@ -192,7 +192,7 @@ function(overrides)
         },
         storage_reader_server_static_config: {
           ip: '0.0.0.0',
-          port: 8091,
+          port: 55011,
         },
         validation_only: std.get(overrides, 'validation_only', constants.DEFAULT_VALIDATION_ONLY),
       },
@@ -232,7 +232,7 @@ function(overrides)
           persistent_root: '/data/class_manager/classes',
           storage_reader_server_static_config: {
             ip: '0.0.0.0',
-            port: 8091,
+            port: 55210,
           },
         },
       },
@@ -634,7 +634,7 @@ function(overrides)
         },
         storage_reader_server_static_config: {
           ip: '0.0.0.0',
-          port: 8091,
+          port: 55014,
         },
       },
     },
