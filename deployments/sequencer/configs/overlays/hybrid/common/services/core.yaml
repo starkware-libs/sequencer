@@ -5,9 +5,7 @@ config:
     batcher_config.dynamic_config.proposer_idle_detection_delay_millis: 1500
     batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events: 5000
     batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas: 5800000000
-    batcher_config.static_config.storage_reader_server_static_config.port: 55011
     class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
-    class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port: 55210
     consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 9.1
@@ -46,7 +44,6 @@ config:
     components.state_sync.url: sequencer-core-service
     state_sync_config.static_config.p2p_sync_client_config.#is_none: true
     state_sync_config.static_config.rpc_config.port: 8090
-    state_sync_config.static_config.storage_reader_server_static_config.port: 55014
 service:
   ports:
   - name: batcher
