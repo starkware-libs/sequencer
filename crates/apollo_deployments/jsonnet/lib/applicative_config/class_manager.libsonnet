@@ -35,7 +35,7 @@ function(chain_params, replacers)
         persistent_root: '/data/class_manager/classes',
         storage_reader_server_static_config: {
           ip: '0.0.0.0',
-          port: 8091,
+          port: 55210,
         },
       },
     },

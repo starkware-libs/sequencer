@@ -111,7 +111,7 @@ function(chain_params, replacers)
       },
       storage_reader_server_static_config: {
         ip: '0.0.0.0',
-        port: 8091,
+        port: 55011,
       },
       validation_only: std.get(replacers, 'validation_only', constants.DEFAULT_VALIDATION_ONLY),
     },
