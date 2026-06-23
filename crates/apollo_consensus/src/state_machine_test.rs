@@ -70,6 +70,7 @@ fn assert_decision_reached(wrapper: &mut TestWrapper, expected_block: Option<Pro
     match wrapper.next_request().unwrap() {
         SMRequest::DecisionReached(dec) => {
             assert_eq!(dec.block, expected_block.unwrap());
+            assert_eq!(dec.round, ROUND, "Decision should carry the round it was reached at");
             assert!(!dec.precommits.is_empty(), "Decision should have precommits");
         }
         req => panic!("Expected DecisionReached, got {:?}", req),
@@ -672,6 +673,40 @@ fn observer_node_reaches_decision() {
     advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, PROPOSAL_ID, 3, false);
     // Once a quorum of precommits is observed, the node should generate a decision event.
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
+}
+
+#[test]
+fn decision_carries_the_round_it_was_reached_at() {
+    let decided_round = ROUND + 1;
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
+        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        IS_OBSERVER,
+    );
+
+    advance_validator_after_start(&mut wrapper);
+
+    // A precommit quorum at the next round skips the current round; once the proposal is validated
+    // there, the observer reaches a decision at that round.
+    for _ in 0..3 {
+        wrapper.send_precommit(PROPOSAL_ID, decided_round);
+    }
+    wrapper.send_finished_validation(PROPOSAL_ID, decided_round);
+
+    let mut decision = None;
+    while let Some(request) = wrapper.next_request() {
+        if let SMRequest::DecisionReached(dec) = request {
+            decision = Some(dec);
+            break;
+        }
+    }
+    let decision = decision.expect("Expected a DecisionReached request");
+    assert_eq!(decision.round, decided_round);
+    assert!(!decision.precommits.is_empty());
+    assert!(decision.precommits.iter().all(|vote| vote.round == decided_round));
 }
 
 #[test_case(QuorumType::Byzantine; "byzantine")]
