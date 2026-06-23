@@ -2,6 +2,7 @@ import json
 
 from imports import k8s
 from src.config.loaders import NodeConfigLoader
+from src.config.native import build_native_config
 from src.constructs.base import BaseConstruct
 
 
@@ -15,6 +16,7 @@ class ConfigMapConstruct(BaseConstruct):
         monitoring_endpoint_port,
         layout: str,
         overlays: list[str],
+        config_format: str,
     ):
         super().__init__(
             scope,
@@ -26,6 +28,7 @@ class ConfigMapConstruct(BaseConstruct):
 
         self.layout = layout
         self.overlays = overlays
+        self.config_format = config_format
         self.config_map = self._get_config_map()
 
     def _get_config_map(self) -> k8s.KubeConfigMap:
@@ -39,6 +42,26 @@ class ConfigMapConstruct(BaseConstruct):
                 f"config.configList is required for service '{self.service_config.name}' but was not provided"
             )
 
+        if self.config_format == "native":
+            node_config = self._build_native_node_config()
+        else:
+            assert self.config_format == "preset"
+            node_config = self._build_preset_node_config()
+
+        config_data = json.dumps(node_config, indent=2)
+
+        return k8s.KubeConfigMap(
+            self,
+            "configmap",
+            metadata=k8s.ObjectMeta(
+                name=f"sequencer-{self.service_config.name}-config",
+                labels=self.labels,
+            ),
+            data=dict(config=config_data),
+        )  # Key is "config" to match node/ format, mounted as /config/sequencer/presets/config
+
+    def _build_preset_node_config(self) -> dict:
+        """Produce the flat dotted-key preset config by filling `$$$_..._$$$` placeholders."""
         # Load JSON configs using NodeConfigLoader
         node_config_loader = NodeConfigLoader(
             config_list_json_path=self.service_config.config.configList,
@@ -72,14 +95,17 @@ class ConfigMapConstruct(BaseConstruct):
                 service_name=self.service_config.name,
             )
 
-        config_data = json.dumps(node_config, indent=2)
+        return node_config
 
-        return k8s.KubeConfigMap(
-            self,
-            "configmap",
-            metadata=k8s.ObjectMeta(
-                name=f"sequencer-{self.service_config.name}-config",
-                labels=self.labels,
-            ),
-            data=dict(config=config_data),
-        )  # Key is "config" to match node/ format, mounted as /config/sequencer/presets/config
+    def _build_native_node_config(self) -> dict:
+        """Produce the nested SequencerNodeConfig for this service via jsonnet `build()`.
+
+        The per-layer `sequencer_config.jsonnet` override files (base < env < devops-env < per-node)
+        carry all applicative config, so the flat-preset placeholder fill and the YAML
+        `sequencerConfig` deltas are NOT applied here.
+        """
+        return build_native_config(
+            service_name=self.service_config.name,
+            layout=self.layout,
+            overlays=self.overlays,
+        )
