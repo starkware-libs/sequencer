@@ -16,10 +16,12 @@ class PodBuilder:
         service_config: ServiceConfig,
         labels: dict[str, str],
         monitoring_endpoint_port: int,
+        config_format: str,
     ):
         self.service_config = service_config
         self.labels = labels
         self.monitoring_endpoint_port = monitoring_endpoint_port
+        self.config_format = config_format
 
     def build_pod_spec(self) -> k8s.PodSpec:
         """Build a complete PodSpec with all necessary configurations."""
@@ -82,9 +84,11 @@ class PodBuilder:
 
     def _build_container_args(self) -> list[str]:
         """Build container arguments, always including --config_file with fixed file paths."""
-        # Interpret the --config_file arguments with the legacy flat-preset loader for now. The
-        # node also supports "native" (nested serde) loading; this is the explicit switch point.
-        args = ["--config_format", "preset"]
+        # The node interprets the --config_file arguments according to --config_format:
+        # "preset" (legacy flat dotted-key fill) or "native" (nested serde). The format is selected
+        # by the deployment-level --config-format CLI flag and must match the ConfigMap content
+        # produced by ConfigMapConstruct.
+        args = ["--config_format", self.config_format]
 
         # Add --config_file /config/sequencer/presets/config (ConfigMap)
         # Note: node version uses directory mount, so path is just the directory + "config"
