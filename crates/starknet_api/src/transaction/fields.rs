@@ -696,10 +696,17 @@ pub const VIRTUAL_OS_OUTPUT_VERSION: Felt =
 
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
-#[derive(
-    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
-)]
+#[derive(Clone, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
 pub struct ProofFacts(pub Arc<Vec<Felt>>);
+
+impl fmt::Debug for ProofFacts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match ProofFactsVariant::try_from(self) {
+            Ok(variant) => write!(f, "ProofFacts({variant:?})"),
+            Err(_) => write!(f, "ProofFacts([<{} elements>])", self.0.len()),
+        }
+    }
+}
 
 impl ProofFacts {
     pub fn is_empty(&self) -> bool {
@@ -716,6 +723,7 @@ impl ProofFacts {
 /// Currently, only SNOS proof facts are supported.
 /// The `Empty` variant indicates that the transaction does not utilize the client-side proving
 /// feature.
+#[derive(Debug)]
 pub enum ProofFactsVariant {
     Empty,
     Snos(SnosProofFacts),
@@ -795,6 +803,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
 /// Contains the required fields for valid SNOS proof facts.
 ///
 /// A valid SNOS proof facts structure must include these fields as its first five entries.
+#[derive(Debug)]
 pub struct SnosProofFacts {
     pub proof_version: ProofVersion,
     pub program_hash: StarkHash,
