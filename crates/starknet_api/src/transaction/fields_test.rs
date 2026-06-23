@@ -61,3 +61,33 @@ fn proof_facts_debug_falls_back_for_unparseable() {
     let facts = ProofFacts(Arc::new(vec![Felt::from_hex_unchecked("0xDEAD")]));
     assert_eq!(format!("{:?}", facts), "ProofFacts([<1 elements>])");
 }
+
+#[test]
+fn snos_proof_facts_try_from_succeeds_for_valid_snos() {
+    let snos =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).expect("valid SNOS");
+    assert_eq!(snos.proof_version, ProofVersion::V1);
+}
+
+#[test]
+fn snos_proof_facts_try_from_rejects_empty() {
+    let err =
+        SnosProofFacts::try_from(ProofFacts::default()).expect_err("empty should be rejected");
+    let StarknetApiError::InvalidProofFacts(msg) = err else {
+        panic!("expected InvalidProofFacts, got {err:?}");
+    };
+    assert!(msg.contains("empty"), "expected 'empty' in error, got: {msg}");
+}
+
+#[test]
+fn snos_proof_facts_try_from_propagates_inner_error_without_reparsing() {
+    // A proof with an unrecognised version marker — the inner try_from error should be
+    // propagated directly without triggering a second parse via the Debug impl.
+    let facts = proof_facts_given_proof_version(Felt::from_hex_unchecked("0xDEAD"));
+    let err = SnosProofFacts::try_from(facts).expect_err("bad version should be rejected");
+    let StarknetApiError::InvalidProofFacts(msg) = err else {
+        panic!("expected InvalidProofFacts, got {err:?}");
+    };
+    // The inner error already contains the specific reason; it must not be a generic wrapper.
+    assert!(!msg.contains("Invalid SNOS proof facts:"), "should propagate inner error, got: {msg}");
+}
