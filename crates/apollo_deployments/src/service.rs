@@ -100,6 +100,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "state_sync_config.static_config.central_sync_client_config.#is_none",
     "state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold",
     "state_sync_config.static_config.network_config.#is_none",
+    "state_sync_config.static_config.network_config.port",
     "state_sync_config.static_config.p2p_sync_client_config.#is_none",
     "state_sync_config.static_config.rpc_config.port",
     "strk_fee_token_address",
@@ -361,12 +362,17 @@ fn replace_pred(key: &str, value: &Value) -> bool {
         return true;
     }
 
+    // Consider only ports and urls of `components.*` as candidates.
+    if !key.starts_with("components.") {
+        return false;
+    }
+
     let invalid_port: u64 = DEFAULT_INVALID_PORT.into();
 
-    // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
+    // Component port: ".port" suffix with a non-invalid integer value.
     let port_cond = key.ends_with(".port") && value.as_u64().is_some_and(|n| n != invalid_port);
 
-    // Condition 2: service urls: ".url" suffix and a non-localhost string value
+    // Component service URL: ".url" suffix with a non-localhost string value.
     let url_cond = key.ends_with(".url") && value.as_str().is_some_and(|s| s != DEFAULT_URL);
 
     port_cond || url_cond
