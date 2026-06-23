@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782207126450,
+  "lastUpdate": 1782210280285,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6153,6 +6153,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1271.30739539,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "474f3bd24b53889d47a4cbcb90bdbb71222df079",
+          "message": "Merge pull request #14582 from starkware-libs/patricia_leaf_source_enum\n\nstarknet_patricia: introduce LeafSource enum for filled-tree leaf handling",
+          "timestamp": "2026-06-23T10:10:55Z",
+          "tree_id": "6fa8ef315e7397be6541a26bc941031700e7dd49",
+          "url": "https://github.com/starkware-libs/sequencer/commit/474f3bd24b53889d47a4cbcb90bdbb71222df079"
+        },
+        "date": 1782210279876,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 856.3305286599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1340.57882224,
             "unit": "ms"
           }
         ]
