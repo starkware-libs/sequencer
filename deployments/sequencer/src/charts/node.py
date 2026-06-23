@@ -57,6 +57,7 @@ class SequencerNodeChart(Chart):
             monitoring_endpoint_port,
             layout,
             overlays,
+            config_format=config_format,
         )
 
         # Create ServiceAccount if enabled
