@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782210280285,
+  "lastUpdate": 1782225521669,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6187,6 +6187,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1340.57882224,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "01f17ad2eab9edf1a749563ce3b21be2a2bbae47",
+          "message": "starknet_patricia: collapse leaf handling to a single match (#14583)\n\nMatch on LeafSource exactly once in compute_filled_tree_rec: the ExistingLeaves read is\ninlined and the helper (renamed compute_leaf) now only handles the ComputeLeaves case,\nreturning the leaf and its output directly instead of an Option.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-23T14:24:56Z",
+          "tree_id": "8de20aec37be57599b87b61c3c7931493717d3f5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/01f17ad2eab9edf1a749563ce3b21be2a2bbae47"
+        },
+        "date": 1782225521246,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 873.89750705,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1267.3300888699998,
             "unit": "ms"
           }
         ]
