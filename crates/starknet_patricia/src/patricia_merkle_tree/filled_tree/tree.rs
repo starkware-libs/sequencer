@@ -70,7 +70,7 @@ enum LeafSource<L: Leaf> {
     /// `leaf_index_to_leaf_output`.
     ComputeLeaves {
         leaf_index_to_leaf_input: HashMap<NodeIndex, Mutex<Option<L::Input>>>,
-        leaf_index_to_leaf_output: HashMap<NodeIndex, Mutex<Option<L::Output>>>,
+        leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::Output>>>>,
     },
 }
 
@@ -129,14 +129,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let output_map = Arc::into_inner(output_map)
             .unwrap_or_else(|| panic!("Cannot retrieve output map from Arc."));
-        Self::remove_mutex_and_option_from_output_map(output_map, panic_if_empty_placeholder).await
-    }
 
-    // Unwraps the `Mutex` and `Option` from the values.
-    async fn remove_mutex_and_option_from_output_map<V>(
-        output_map: HashMap<NodeIndex, Mutex<Option<V>>>,
-        panic_if_empty_placeholder: bool,
-    ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let mut hash_map_out = HashMap::new();
         for (key, value) in output_map {
             let mut value = value.lock().await;
@@ -315,13 +308,13 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         // Wrap values in `Mutex<Option<T>>` for interior mutability.
         let filled_tree_output_map =
             Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(&updated_skeleton));
+        let leaf_index_to_leaf_output =
+            Arc::new(Self::initialize_leaf_output_map_with_placeholders(&leaf_index_to_leaf_input));
         let leaf_source = Arc::new(LeafSource::ComputeLeaves {
-            leaf_index_to_leaf_output: Self::initialize_leaf_output_map_with_placeholders(
-                &leaf_index_to_leaf_input,
-            ),
             leaf_index_to_leaf_input: Self::wrap_leaf_inputs_for_interior_mutability(
                 leaf_index_to_leaf_input,
             ),
+            leaf_index_to_leaf_output: Arc::clone(&leaf_index_to_leaf_output),
         });
 
         // Compute the filled tree.
@@ -333,14 +326,9 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         )
         .await?;
 
-        // All spawned tree-node tasks have completed and dropped their `Arc` clones, so the leaf
-        // source can be reclaimed to extract the populated leaf output map.
-        let LeafSource::ComputeLeaves { leaf_index_to_leaf_output, .. } =
-            Arc::into_inner(leaf_source)
-                .expect("Cannot retrieve leaf source from Arc; outstanding references remain.")
-        else {
-            unreachable!("`create` always builds a `ComputeLeaves` source.")
-        };
+        // Drop the shared leaf source so `leaf_index_to_leaf_output` is uniquely held here and can
+        // be reclaimed.
+        drop(leaf_source);
 
         Ok((
             FilledTreeImpl {
@@ -351,7 +339,8 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
                 .await?,
                 root_hash,
             },
-            Self::remove_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false).await?,
+            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)
+                .await?,
         ))
     }
 
