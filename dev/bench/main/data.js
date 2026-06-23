@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782225521669,
+  "lastUpdate": 1782240601166,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6221,6 +6221,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1267.3300888699998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "23081d53c0cc7acb141603657cb22ac0307c38b8",
+          "message": "starknet_patricia: thread the leaf output map separately from LeafSource (#14600)\n\nMove leaf_index_to_leaf_output out of the LeafSource::ComputeLeaves variant and\npass it to compute_filled_tree_rec as its own Arc, mirroring filled_tree_output_map.\nThis lets create reclaim the leaf output map via the existing\nremove_arc_mutex_and_option_from_output_map helper instead of unwrapping the shared\nLeafSource Arc and matching a single variant with an unreachable! arm.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-23T18:36:24Z",
+          "tree_id": "22ec4c0a0aa944847005145ea62dbf81c463dc58",
+          "url": "https://github.com/starkware-libs/sequencer/commit/23081d53c0cc7acb141603657cb22ac0307c38b8"
+        },
+        "date": 1782240600688,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 835.4227306,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1380.15558622,
             "unit": "ms"
           }
         ]
