@@ -49,6 +49,7 @@ def main():
             monitoring_configs["enabled"],
             args.layout,
             args.overlay or [],
+            args.config_format,
         )
         _create_monitoring_chart(app, namespace, args.cluster, monitoring_configs)
 
@@ -199,6 +200,7 @@ def _create_service_charts(
     monitoring_enabled: bool,
     layout: str,
     overlays: list[str],
+    config_format: str,
 ):
     """Create SequencerNodeChart for each service."""
     for service_cfg in deployment_config.services:
@@ -210,6 +212,7 @@ def _create_service_charts(
             service_config=service_cfg,
             layout=layout,
             overlays=overlays,
+            config_format=config_format,
         )
 
 
