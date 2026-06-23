@@ -8,7 +8,7 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::DbHashMap;
-use tokio::sync::Mutex;
+use std::sync::Mutex;
 
 use crate::db_layout::NodeLayoutFor;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
@@ -99,14 +99,14 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
     /// Writes the hash and data to the output map. The writing is done in a thread-safe manner with
     /// interior mutability to avoid thread contention.
-    async fn write_to_output_map<T: Debug>(
+    fn write_to_output_map<T: Debug>(
         output_map: &HashMap<NodeIndex, Mutex<Option<T>>>,
         index: NodeIndex,
         output: T,
     ) -> FilledTreeResult<()> {
         match output_map.get(&index) {
             Some(node) => {
-                let mut node = node.lock().await;
+                let mut node = node.lock().unwrap();
                 match node.take() {
                     Some(existing_node) => Err(FilledTreeError::DoubleUpdate {
                         index,
@@ -123,23 +123,23 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     }
 
     // Removes the `Arc` from the map and unwraps the `Mutex` and `Option` from the values.
-    async fn remove_arc_mutex_and_option_from_output_map<V>(
+    fn remove_arc_mutex_and_option_from_output_map<V>(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
         panic_if_empty_placeholder: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let output_map = Arc::into_inner(output_map)
             .unwrap_or_else(|| panic!("Cannot retrieve output map from Arc."));
-        Self::remove_mutex_and_option_from_output_map(output_map, panic_if_empty_placeholder).await
+        Self::remove_mutex_and_option_from_output_map(output_map, panic_if_empty_placeholder)
     }
 
     // Unwraps the `Mutex` and `Option` from the values.
-    async fn remove_mutex_and_option_from_output_map<V>(
+    fn remove_mutex_and_option_from_output_map<V>(
         output_map: HashMap<NodeIndex, Mutex<Option<V>>>,
         panic_if_empty_placeholder: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let mut hash_map_out = HashMap::new();
         for (key, value) in output_map {
-            let mut value = value.lock().await;
+            let mut value = value.lock().unwrap();
             match value.take() {
                 Some(unwrapped_value) => {
                     hash_map_out.insert(key, unwrapped_value);
@@ -180,7 +180,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     .get(&index)
                     .ok_or(FilledTreeError::MissingLeafInput(index))?
                     .lock()
-                    .await
+                    .unwrap()
                     .take()
                     .unwrap_or_else(|| panic!("Leaf input is None for index {index:?}."));
                 let (leaf_data, leaf_output) = L::create(leaf_input).await.map_err(|leaf_err| {
@@ -235,8 +235,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     &filled_tree_output_map,
                     index,
                     HashFilledNode { hash, data },
-                )
-                .await?;
+                )?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::Edge(path_to_bottom) => {
@@ -257,8 +256,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     &filled_tree_output_map,
                     index,
                     HashFilledNode { hash, data },
-                )
-                .await?;
+                )?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
@@ -274,12 +272,11 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     &filled_tree_output_map,
                     index,
                     HashFilledNode { hash, data },
-                )
-                .await?;
+                )?;
                 if let (Some(output), LeafSource::ComputeLeaves { leaf_index_to_leaf_output, .. }) =
                     (leaf_output, leaf_source.as_ref())
                 {
-                    Self::write_to_output_map(leaf_index_to_leaf_output, index, output).await?
+                    Self::write_to_output_map(leaf_index_to_leaf_output, index, output)?
                 };
                 Ok(hash)
             }
@@ -350,11 +347,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
                 tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                     filled_tree_output_map,
                     true,
-                )
-                .await?,
+                )?,
                 root_hash,
             },
-            Self::remove_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false).await?,
+            Self::remove_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)?,
         ))
     }
 
@@ -387,8 +383,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                 filled_tree_output_map,
                 true,
-            )
-            .await?,
+            )?,
             root_hash,
         })
     }
