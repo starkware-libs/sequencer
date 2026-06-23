@@ -76,6 +76,16 @@ def argument_parser():
         help="Override image for all services. Format: 'repository:tag' or 'repository' (defaults to 'latest' tag).",
     )
     parser.add_argument(
+        "--config-format",
+        type=str,
+        action=UniqueStoreAction,
+        choices=["preset", "native"],
+        default="preset",
+        help="Node config format to emit and pass to the node container via --config_format. "
+        "'preset' (default): flat dotted-key placeholder fill (legacy). "
+        "'native': nested SequencerNodeConfig assembled via jsonnet build().",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
