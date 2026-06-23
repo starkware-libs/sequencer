@@ -11,6 +11,7 @@ class StatefulSetConstruct(BaseConstruct):
         service_config,
         labels,
         monitoring_endpoint_port,
+        config_format,
     ):
         super().__init__(
             scope,
@@ -20,6 +21,7 @@ class StatefulSetConstruct(BaseConstruct):
             monitoring_endpoint_port,
         )
 
+        self.config_format = config_format
         self.statefulset = self._create_statefulset()
 
     def _build_update_strategy(self) -> k8s.StatefulSetUpdateStrategy:
@@ -67,6 +69,7 @@ class StatefulSetConstruct(BaseConstruct):
             self.service_config,
             statefulset_labels,
             self.monitoring_endpoint_port,
+            config_format=self.config_format,
         )
 
         selector_labels = {"service": statefulset_labels["service"]}
