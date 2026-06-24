@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use async_recursion::async_recursion;
 use starknet_api::hash::HashOutput;
@@ -69,18 +69,18 @@ enum LeafSource<L: Leaf> {
     /// `leaf_index_to_leaf_output`.
     ComputeLeaves {
         leaf_index_to_leaf_input: HashMap<NodeIndex, Mutex<Option<L::Input>>>,
-        leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::Output>>>>,
+        leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, OnceLock<L::Output>>>,
     },
 }
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
-    ) -> HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>> {
+    ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
         let mut filled_tree_output_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
-                filled_tree_output_map.insert(index, Mutex::new(None));
+                filled_tree_output_map.insert(index, OnceLock::new());
             }
         }
         filled_tree_output_map
@@ -88,55 +88,43 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
     fn initialize_leaf_output_map_with_placeholders(
         leaf_index_to_leaf_input: &HashMap<NodeIndex, L::Input>,
-    ) -> HashMap<NodeIndex, Mutex<Option<L::Output>>> {
-        leaf_index_to_leaf_input.keys().map(|index| (*index, Mutex::new(None))).collect()
+    ) -> HashMap<NodeIndex, OnceLock<L::Output>> {
+        leaf_index_to_leaf_input.keys().map(|index| (*index, OnceLock::new())).collect()
     }
 
     pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, HashFilledNode<L>> {
         &self.tree_map
     }
 
-    /// Writes the hash and data to the output map. The writing is done in a thread-safe manner with
-    /// interior mutability to avoid thread contention.
-    fn write_to_output_map<T: Debug>(
-        output_map: &HashMap<NodeIndex, Mutex<Option<T>>>,
+    /// Writes the hash and data to the output map. Each slot is written exactly once.
+    fn write_to_output_map<T: Debug + Send + Sync>(
+        output_map: &HashMap<NodeIndex, OnceLock<T>>,
         index: NodeIndex,
         output: T,
     ) -> FilledTreeResult<()> {
         match output_map.get(&index) {
-            Some(node) => {
-                let mut node = node
-                    .lock()
-                    .expect("Output map mutex does not expect to panic at locking the mutex");
-                match node.take() {
-                    Some(existing_node) => Err(FilledTreeError::DoubleUpdate {
-                        index,
-                        existing_value_as_string: format!("{existing_node:?}"),
-                    }),
-                    None => {
-                        *node = Some(output);
-                        Ok(())
-                    }
+            Some(slot) => slot.set(output).map_err(|_| {
+                let existing_node = slot.get().expect("OnceLock is occupied after a failed set.");
+                FilledTreeError::DoubleUpdate {
+                    index,
+                    existing_value_as_string: format!("{existing_node:?}"),
                 }
-            }
+            }),
             None => Err(FilledTreeError::MissingNodePlaceholder(index)),
         }
     }
 
-    // Removes the `Arc` from the map and unwraps the `Mutex` and `Option` from the values.
-    fn remove_arc_mutex_and_option_from_output_map<V>(
-        output_map: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
+    // Removes the `Arc` from the map and collects the value out of each `OnceLock` slot.
+    fn collect_output_map<V>(
+        output_map: Arc<HashMap<NodeIndex, OnceLock<V>>>,
         panic_if_empty_placeholder: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let output_map = Arc::into_inner(output_map)
             .unwrap_or_else(|| panic!("Cannot retrieve output map from Arc."));
 
-        let mut hash_map_out = HashMap::new();
+        let mut hash_map_out = HashMap::with_capacity(output_map.len());
         for (key, value) in output_map {
-            let mut value = value
-                .lock()
-                .expect("Output map mutex does not expect to panic at locking the mutex");
-            match value.take() {
+            match value.into_inner() {
                 Some(unwrapped_value) => {
                     hash_map_out.insert(key, unwrapped_value);
                 }
@@ -182,7 +170,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'async_recursion + 'static>,
         index: NodeIndex,
         leaf_source: Arc<LeafSource<L>>,
-        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>>>,
+        filled_tree_output_map: Arc<HashMap<NodeIndex, OnceLock<HashFilledNode<L>>>>,
     ) -> FilledTreeResult<HashOutput>
     where
         TH: TreeHashFunction<L> + 'static,
@@ -304,7 +292,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             return Ok((Self::create_empty(), HashMap::new()));
         }
 
-        // Wrap values in `Mutex<Option<T>>` for interior mutability.
+        // Wrap values in `OnceLock<T>` for write-once interior mutability.
         let filled_tree_output_map =
             Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(&updated_skeleton));
         let leaf_index_to_leaf_output =
@@ -331,13 +319,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
 
         Ok((
             FilledTreeImpl {
-                tree_map: Self::remove_arc_mutex_and_option_from_output_map(
-                    filled_tree_output_map,
-                    true,
-                )?,
+                tree_map: Self::collect_output_map(filled_tree_output_map, true)?,
                 root_hash,
             },
-            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)?,
+            Self::collect_output_map(leaf_index_to_leaf_output, false)?,
         ))
     }
 
@@ -353,7 +338,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             return Ok(Self::create_empty());
         }
 
-        // Wrap values in `Mutex<Option<T>>`` for interior mutability.
+        // Wrap values in `OnceLock<T>` for write-once interior mutability.
         let filled_tree_output_map =
             Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(&updated_skeleton));
 
@@ -367,10 +352,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         .await?;
 
         Ok(FilledTreeImpl {
-            tree_map: Self::remove_arc_mutex_and_option_from_output_map(
-                filled_tree_output_map,
-                true,
-            )?,
+            tree_map: Self::collect_output_map(filled_tree_output_map, true)?,
             root_hash,
         })
     }
