@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782299004894,
+  "lastUpdate": 1782312429457,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6357,6 +6357,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1447.8962143699998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ba09bb62e483ddd018f94e9f7c6ee01352df097",
+          "message": "starknet_patricia: assert unmodified-subtree binary child is present in the skeleton (#14614)\n\nMirror the leaf sanity-check in finalize_binary_child: an unmodified subtree child\nmust already be finalized in the skeleton (from finalize_bottom_layer).\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-24T14:25:52Z",
+          "tree_id": "5c1e2fc420689ae483a36a0f80c6c3d0da0c91a4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9ba09bb62e483ddd018f94e9f7c6ee01352df097"
+        },
+        "date": 1782312428981,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.90336781,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1421.59474121,
             "unit": "ms"
           }
         ]
