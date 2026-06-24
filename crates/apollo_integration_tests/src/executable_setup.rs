@@ -11,6 +11,7 @@ use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
+const NODE_SECRETS_FILE_PATH: &str = "node_integration_test_secrets.json";
 
 #[derive(Debug, Clone)]
 pub struct NodeExecutableId {
@@ -48,8 +49,10 @@ pub struct ExecutableSetup {
     pub node_executable_id: NodeExecutableId,
     // Client for checking liveness of the sequencer node.
     pub monitoring_client: MonitoringClient,
-    // Path to the node configuration file.
+    // Path to the nested native base config file (consumed first by the native loader).
     pub node_config_path: PathBuf,
+    // Path to the (empty) secrets file overlaid onto the base by the native loader.
+    pub node_secrets_path: PathBuf,
     // Config.
     pub base_app_config: DeploymentBaseAppConfig,
     // Handles for the config files, maintained so the files are not deleted. Since
@@ -84,7 +87,12 @@ impl ExecutableSetup {
         let monitoring_client = MonitoringClient::new(SocketAddr::new(*ip, *port));
 
         let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
-        base_app_config.dump_config_file(&config_path);
+        base_app_config.dump_native_config_file(&config_path);
+
+        // The native loader requires a secrets file overlaid onto the base. The harness carries no
+        // secrets, so emit an empty JSON object.
+        let secrets_path = node_config_dir.join(NODE_SECRETS_FILE_PATH);
+        std::fs::write(&secrets_path, "{}").expect("Should be able to write secrets file");
 
         Self {
             node_executable_id,
@@ -92,7 +100,14 @@ impl ExecutableSetup {
             base_app_config,
             node_config_dir_handle,
             node_config_path: config_path,
+            node_secrets_path: secrets_path,
         }
+    }
+
+    /// Config files passed to the native loader, base first then secrets, matching the
+    /// `[base, secret]` arity expected by `load_native`.
+    pub fn node_config_paths(&self) -> Vec<PathBuf> {
+        vec![self.node_config_path.clone(), self.node_secrets_path.clone()]
     }
 
     pub fn modify_config<F>(&mut self, modify_config_fn: F)
@@ -115,8 +130,8 @@ impl ExecutableSetup {
         self.base_app_config.get_config()
     }
 
-    /// Creates a config file for the sequencer node for an integration test.
+    /// Re-emits the native base config file for the sequencer node after a config change.
     pub fn dump_config_file_changes(&self) {
-        self.base_app_config.dump_config_file(&self.node_config_path);
+        self.base_app_config.dump_native_config_file(&self.node_config_path);
     }
 }

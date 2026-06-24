@@ -281,7 +281,7 @@ impl NodeSetup {
     pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
         let executable_setup = self.get_executable_by_service(service);
         spawn_run_node(
-            vec![executable_setup.node_config_path.clone()],
+            executable_setup.node_config_paths(),
             executable_setup.node_executable_id.clone().into(),
         )
     }
@@ -294,7 +294,7 @@ impl NodeSetup {
                 (
                     *service,
                     spawn_run_node(
-                        vec![executable.node_config_path.clone()],
+                        executable.node_config_paths(),
                         executable.node_executable_id.clone().into(),
                     ),
                 )
