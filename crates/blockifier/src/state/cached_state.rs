@@ -402,11 +402,18 @@ impl StateMaps {
 
     /// Removes every entry whose key is not in `accessed_keys`.
     pub fn trim_to_accessed_keys(&mut self, accessed_keys: &AccessedKeys) {
-        self.storage.retain(|key, _| accessed_keys.storage_keys.contains(key));
-        self.nonces.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
-        self.class_hashes.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
+        // Build HashSets for O(1) lookups; AccessedKeys fields are BTreeSets (O(log N) contains).
+        let storage_key_set: HashSet<StorageEntry> =
+            accessed_keys.storage_keys.iter().copied().collect();
+        let contract_set: HashSet<ContractAddress> =
+            accessed_keys.accessed_contracts.iter().copied().collect();
+        let class_hash_set: HashSet<ClassHash> =
+            accessed_keys.accessed_class_hashes.iter().copied().collect();
+        self.storage.retain(|key, _| storage_key_set.contains(key));
+        self.nonces.retain(|address, _| contract_set.contains(address));
+        self.class_hashes.retain(|address, _| contract_set.contains(address));
         self.compiled_class_hashes
-            .retain(|class_hash, _| accessed_keys.accessed_class_hashes.contains(class_hash));
+            .retain(|class_hash, _| class_hash_set.contains(class_hash));
     }
 
     /// Subtracts other's mappings from self.
