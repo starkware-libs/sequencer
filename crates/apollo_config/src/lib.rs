@@ -7,15 +7,13 @@
 //! # Example
 //!
 //! ```
-//! use std::collections::{BTreeMap, HashSet};
-//! use std::fs::File;
-//! use std::path::Path;
+//! use std::fs::write;
 //!
-//! use apollo_config::dumping::{ser_param, SerializeConfig};
 //! use apollo_config::loading::load_and_process_config;
-//! use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+//! use apollo_config::CONFIG_FILE_ARG;
 //! use clap::Command;
 //! use serde::{Deserialize, Serialize};
+//! use serde_json::json;
 //! use tempfile::TempDir;
 //!
 //! #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -23,25 +21,22 @@
 //!     key: usize,
 //! }
 //!
-//! impl SerializeConfig for ConfigExample {
-//!     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-//!         BTreeMap::from([ser_param(
-//!             "key",
-//!             &self.key,
-//!             "This is key description.",
-//!             ParamPrivacyInput::Public,
-//!         )])
-//!     }
-//! }
-//!
+//! // The native loader takes a nested base config and a flat dotted-key secret-overrides file.
 //! let dir = TempDir::new().unwrap();
-//! let file_path = dir.path().join("config.json");
-//! ConfigExample { key: 42 }.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap());
-//! let file = File::open(file_path).unwrap();
+//! let base_path = dir.path().join("config.json");
+//! write(&base_path, json!({ "key": 42 }).to_string()).unwrap();
+//! let secret_path = dir.path().join("secrets.json");
+//! write(&secret_path, json!({ "key": 770 }).to_string()).unwrap();
+//!
 //! let loaded_config = load_and_process_config::<ConfigExample>(
-//!     file,
 //!     Command::new("Program"),
-//!     vec!["Program".to_owned(), "--key".to_owned(), "770".to_owned()],
+//!     vec![
+//!         "Program".to_owned(),
+//!         CONFIG_FILE_ARG.to_owned(),
+//!         base_path.to_str().unwrap().to_owned(),
+//!         CONFIG_FILE_ARG.to_owned(),
+//!         secret_path.to_str().unwrap().to_owned(),
+//!     ],
 //!     false,
 //! )
 //! .unwrap();
@@ -63,21 +58,6 @@ pub const CONFIG_FILE_ARG_NAME: &str = "config_file";
 pub const CONFIG_FILE_SHORT_ARG_NAME: char = 'f';
 /// The config file arg name prepended with a double dash.
 pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
-
-/// Arg name for selecting how the config files are interpreted.
-pub const CONFIG_FORMAT_ARG_NAME: &str = "config_format";
-
-/// Selects how the `--config_file` arguments are interpreted when loading a config.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
-pub enum ConfigFormat {
-    /// Flat dotted-key files, layered through the full pipeline (pointers, env/CLI overrides,
-    /// `#is_none` marks). This is the historical behavior that will be deprecated.
-    #[default]
-    Preset,
-    /// The first file is a nested JSON object deserialized directly with serde; any subsequent
-    /// files are flat dotted-key secret overrides applied onto it.
-    Native,
-}
 
 /// A config indicator for optional parameters.
 pub const IS_NONE_MARK: &str = "#is_none";
