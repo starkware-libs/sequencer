@@ -3,8 +3,13 @@ use std::path::PathBuf;
 use std::result;
 
 use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
-use apollo_config::dumping::{prepend_sub_config_name, ser_optional_sub_config, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_optional_sub_config,
+    SerializeConfig,
+};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
@@ -45,7 +50,14 @@ impl SerializeConfig for StateSyncStaticConfig {
         let mut config = BTreeMap::new();
         config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         config.extend(ser_optional_sub_config(&self.network_config, "network_config"));
-        config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(ser_optional_param(
+            &self.revert_config.0,
+            0,
+            "revert_config",
+            "The component will revert blocks up to and including this block number. Use \
+             carefully to prevent significant revert operations and data loss.",
+            ParamPrivacyInput::Public,
+        ));
         config.extend(prepend_sub_config_name(self.rpc_config.dump(), "rpc_config"));
         config.extend(prepend_sub_config_name(
             self.storage_reader_server_static_config.dump(),

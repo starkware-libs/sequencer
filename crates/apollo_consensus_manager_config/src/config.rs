@@ -1,6 +1,11 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus_config::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
@@ -69,7 +74,14 @@ impl SerializeConfig for ConsensusManagerConfig {
         ));
         config.extend(prepend_sub_config_name(self.cende_config.dump(), "cende_config"));
         config.extend(prepend_sub_config_name(self.network_config.dump(), "network_config"));
-        config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(ser_optional_param(
+            &self.revert_config.0,
+            0,
+            "revert_config",
+            "The component will revert blocks up to and including this block number. Use \
+             carefully to prevent significant revert operations and data loss.",
+            ParamPrivacyInput::Public,
+        ));
         config.extend(prepend_sub_config_name(
             self.staking_manager_config.dump(),
             "staking_manager_config",

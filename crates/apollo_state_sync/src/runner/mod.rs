@@ -66,7 +66,7 @@ use futures::future::{self, pending, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use starknet_api::block::{BlockHash, BlockHashAndNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use tokio::sync::RwLock;
 use tokio::task::AbortHandle;
 use tracing::instrument::Instrument;
@@ -235,9 +235,9 @@ impl StateSyncRunner {
             Some(class_manager_client.clone()),
         );
 
-        if revert_config.should_revert {
+        if let Some(revert_up_to_and_including) = revert_config.0 {
             debug!("State sync runner should revert; creating revert futures.");
-            let revert_up_to_and_including = revert_config.revert_up_to_and_including;
+            let revert_up_to_and_including = BlockNumber(revert_up_to_and_including);
             // We assume that sync always writes the headers before any other block data.
             let current_header_marker = storage_reader
                 .begin_ro_txn()

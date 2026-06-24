@@ -54,10 +54,7 @@ async fn revert_batcher_blocks() {
     }
 
     let manager_config = ConsensusManagerConfig {
-        revert_config: RevertConfig {
-            revert_up_to_and_including: REVERT_UP_TO_AND_INCLUDING_HEIGHT,
-            should_revert: true,
-        },
+        revert_config: RevertConfig(Some(REVERT_UP_TO_AND_INCLUDING_HEIGHT.0)),
         ..Default::default()
     };
 
@@ -100,10 +97,7 @@ async fn revert_voted_height_when_batcher_already_at_target() {
         .returning(|_| Ok(()));
 
     let manager_config = ConsensusManagerConfig {
-        revert_config: RevertConfig {
-            revert_up_to_and_including: TARGET_HEIGHT,
-            should_revert: true,
-        },
+        revert_config: RevertConfig(Some(TARGET_HEIGHT.0)),
         ..Default::default()
     };
 
