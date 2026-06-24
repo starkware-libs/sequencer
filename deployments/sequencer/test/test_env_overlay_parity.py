@@ -117,8 +117,6 @@ def _fold_is_none_drop_components(flat: dict) -> dict:
     return folded
 
 
-
-
 def _layer_bucketed_override_flat(layer_dir: Path) -> dict:
     """The layer's `chain_params` override as flat config-override dotted keys, expanded to the full
     config paths (via `_FLAT_TO_CONFIG_PATH`) that the YAML `config.sequencerConfig` uses.
@@ -170,3 +168,7 @@ def test_sepolia_integration_native_matches_yaml():
 
 def test_sepolia_alpha_native_matches_yaml():
     assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "sepolia-alpha")
+
+
+def test_mainnet_native_matches_yaml():
+    assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "mainnet")
