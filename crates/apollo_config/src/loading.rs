@@ -1,35 +1,19 @@
-//! Loads a configuration object, and set values for the fields in the following order of priority:
-//! * Command line arguments.
-//! * Environment variables (capital letters).
-//! * Custom config files, separated by ',' (comma), from last to first.
+//! Loads a configuration object from native config files: a nested base config followed by flat
+//! dotted-key secret overrides.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::ops::IndexMut;
 use std::path::PathBuf;
 
-use clap::parser::Values;
 use clap::Command;
-use command::{get_command_matches, update_config_map_by_command_args};
-use itertools::any;
+use command::get_command_matches;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::validators::validate_path_exists;
-use crate::{
-    command,
-    ConfigError,
-    ConfigFormat,
-    ParamPath,
-    SerializationType,
-    SerializedContent,
-    SerializedParam,
-    CONFIG_FILE_ARG_NAME,
-    CONFIG_FORMAT_ARG_NAME,
-    FIELD_SEPARATOR,
-    IS_NONE_MARK,
-};
+use crate::{command, ConfigError, ParamPath, CONFIG_FILE_ARG_NAME, FIELD_SEPARATOR};
 
 /// Deserializes config from flatten JSON.
 /// For an explanation of `for<'a> Deserialize<'a>` see
@@ -49,7 +33,7 @@ pub fn load<T: for<'a> Deserialize<'a>>(
     Ok(serde_json::from_value(nested_map)?)
 }
 
-/// Deserializes the config directly from nested JSON files (the `ConfigFormat::Native` path).
+/// Deserializes the config directly from nested JSON files.
 ///
 /// Requires exactly two paths. The first is the base config: a nested JSON object matching the
 /// target struct's field hierarchy. The second is a flat dotted-key secret file whose entries are
@@ -111,286 +95,22 @@ fn set_nested_value(nested_map: &mut Value, param_path: &str, value: Value) {
     }
 }
 
-/// Deserializes a json config file, updates the values by the given arguments for the command, and
-/// set values for the pointers.
+/// Loads a config from native config files.
+///
+/// Reads the `--config_file` arguments and deserializes the config directly from them via
+/// [`load_native`], which requires exactly two: the first is the nested base config and the second
+/// is a flat dotted-key secret override. `ignore_default_values` is retained for call-site
+/// compatibility but has no effect on the native path (the base file is already a complete,
+/// resolved config).
 pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
-    config_schema_file: File,
     command: Command,
     args: Vec<String>,
-    ignore_default_values: bool,
+    _ignore_default_values: bool,
 ) -> Result<T, ConfigError> {
-    let deserialized_config_schema: Map<ParamPath, Value> =
-        serde_json::from_reader(&config_schema_file)?;
-    // Store the pointers separately from the default values. The pointers will receive a value
-    // only at the end of the process.
-    let (config_map, pointers_map) = split_pointers_map(deserialized_config_schema.clone());
-    // Take param paths with corresponding descriptions, and get the matching arguments.
-    let mut arg_matches = get_command_matches(&config_map, command, args)?;
-
-    let config_format =
-        arg_matches.remove_one::<ConfigFormat>(CONFIG_FORMAT_ARG_NAME).unwrap_or_default();
-    if config_format == ConfigFormat::Native {
-        let custom_config_paths: Vec<PathBuf> = arg_matches
-            .remove_many::<PathBuf>(CONFIG_FILE_ARG_NAME)
-            .map(|paths| paths.collect())
-            .unwrap_or_default();
-        return load_native(custom_config_paths);
-    }
-    // Retaining values from the default config map for backward compatibility.
-    let (mut values_map, types_map) = split_values_and_types(config_map);
-    if ignore_default_values {
-        info!("Ignoring default values by overriding with an empty map.");
-        values_map = BTreeMap::new();
-    }
-    // If the config_file arg is given, updates the values map according to this files.
-    if let Some(custom_config_paths) = arg_matches.remove_many::<PathBuf>(CONFIG_FILE_ARG_NAME) {
-        update_config_map_by_custom_configs(&mut values_map, &types_map, custom_config_paths)?;
-    };
-    // Updates the values map according to the args.
-    update_config_map_by_command_args(&mut values_map, &types_map, &arg_matches)?;
-    // Set values to the pointers.
-    update_config_map_by_pointers(&mut values_map, &pointers_map)?;
-    // Set values according to the is-none marks.
-    update_optional_values(&mut values_map);
-    // Build the Config object.
-    let load_result = load(&values_map);
-    // In case of an error, print the error and the missing keys.
-    if load_result.is_err() {
-        error!("Loading the config resulted with an error: {:?}", load_result.as_ref().err());
-        // Obtain the loaded and schema keys.
-        let loaded_config_keys = values_map.keys().cloned().collect::<HashSet<_>>();
-        let schema_keys = deserialized_config_schema.keys().cloned().collect::<HashSet<_>>();
-
-        // Obtain the loaded and schema keys that are not in the other.
-        let mut keys_only_in_loaded_config: HashSet<_> =
-            loaded_config_keys.difference(&schema_keys).collect();
-        let mut keys_only_in_schema: HashSet<_> =
-            schema_keys.difference(&loaded_config_keys).collect();
-
-        // Address optional None value discrepancies:
-        // 1. Find None (null) values in the config entries.
-        let null_config_entries = values_map
-            .iter()
-            .filter(|(_, value)| value.is_null())
-            .map(|(key, _)| key.clone())
-            .collect::<HashSet<_>>();
-
-        // 2. Filter out None-value keys in the loaded config entries.
-        keys_only_in_loaded_config.retain(|item| !null_config_entries.contains(item.as_str()));
-
-        // 3. Filter out None-value keys in the schema entries.
-        let optional_param_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
-        keys_only_in_schema.retain(|item| {
-            // Consider a schema key only if both:
-            // - it does NOT start with any prefix in `null_config_entries` (i.e., a None value)
-            // - it does NOT end with the optional param suffix (i.e., a None value indicator)
-            let has_prefix = null_config_entries.iter().any(|prefix| item.starts_with(prefix));
-            let has_suffix = item.ends_with(optional_param_suffix.as_str());
-            !has_prefix && !has_suffix
-        });
-
-        // Log the keys that are only in the loaded config.
-        if !keys_only_in_loaded_config.is_empty() {
-            error!(
-                "Detected loaded-schema config difference.
-                keys missing in schema: {:?}",
-                keys_only_in_loaded_config
-            );
-        }
-
-        // Log the keys that are only in the schema.
-        if !keys_only_in_schema.is_empty() {
-            error!(
-                "Detected loaded-schema config difference.
-                Keys missing in loaded config: {:?}",
-                keys_only_in_schema
-            );
-        }
-    }
-    // Return the loaded config result.
-    load_result
-}
-
-// Separates a json map into config map of the raw values and pointers map.
-pub(crate) fn split_pointers_map(
-    json_map: Map<String, Value>,
-) -> (BTreeMap<ParamPath, SerializedParam>, BTreeMap<ParamPath, ParamPath>) {
-    let mut config_map: BTreeMap<String, SerializedParam> = BTreeMap::new();
-    let mut pointers_map: BTreeMap<ParamPath, ParamPath> = BTreeMap::new();
-    for (param_path, stored_param) in json_map {
-        let Ok(ser_param) = serde_json::from_value::<SerializedParam>(stored_param.clone()) else {
-            unreachable!("Invalid type in the json config map")
-        };
-        match ser_param.content {
-            SerializedContent::PointerTarget(pointer_target) => {
-                pointers_map.insert(param_path, pointer_target);
-            }
-            _ => {
-                config_map.insert(param_path, ser_param);
-            }
-        };
-    }
-    (config_map, pointers_map)
-}
-
-// Removes the description from the config map, and splits the config map into default values and
-// types of the default and required values.
-// The types map includes required params, that do not have a value yet.
-pub(crate) fn split_values_and_types(
-    config_map: BTreeMap<ParamPath, SerializedParam>,
-) -> (BTreeMap<ParamPath, Value>, BTreeMap<ParamPath, SerializationType>) {
-    let mut values_map: BTreeMap<ParamPath, Value> = BTreeMap::new();
-    let mut types_map: BTreeMap<ParamPath, SerializationType> = BTreeMap::new();
-    for (param_path, serialized_param) in config_map {
-        let Some(serialization_type) = serialized_param.content.get_serialization_type() else {
-            continue;
-        };
-        types_map.insert(param_path.clone(), serialization_type);
-
-        if let SerializedContent::DefaultValue(value) = serialized_param.content {
-            values_map.insert(param_path, value);
-        };
-    }
-    (values_map, types_map)
-}
-
-// Updates the config map by param path to value custom json files.
-pub(crate) fn update_config_map_by_custom_configs(
-    config_map: &mut BTreeMap<ParamPath, Value>,
-    types_map: &BTreeMap<ParamPath, SerializationType>,
-    custom_config_paths: Values<PathBuf>,
-) -> Result<(), ConfigError> {
-    for config_path in custom_config_paths {
-        info!("Loading custom config file: {:?}", config_path);
-        validate_path_exists(&config_path)?;
-        let file = std::fs::File::open(config_path)?;
-        let custom_config: Map<String, Value> = serde_json::from_reader(file)?;
-        for (param_path, json_value) in custom_config {
-            update_config_map(config_map, types_map, param_path.as_str(), json_value)?;
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn update_config_map_by_pointers(
-    config_map: &mut BTreeMap<ParamPath, Value>,
-    pointers_map: &BTreeMap<ParamPath, ParamPath>,
-) -> Result<(), ConfigError> {
-    let optional_param_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
-
-    // Phase 1: Resolve only the optional flags and compute none entries (prefixes marked as None).
-    let mut none_entries = Vec::new();
-    for (param_path, target_param_path) in pointers_map {
-        if let Some(prefix) = param_path.strip_suffix(optional_param_suffix.as_str()) {
-            let target_value = match config_map.get(target_param_path) {
-                Some(v) => v.clone(),
-                None => {
-                    return Err(ConfigError::PointerTargetNotFound {
-                        target_param: target_param_path.to_owned(),
-                    });
-                }
-            };
-            // Record the value
-            config_map.insert(param_path.to_owned(), target_value.clone());
-            // Record none entries where the flag is true
-            if target_value == json!(true) {
-                none_entries.push(prefix.to_owned());
-            }
-        }
-    }
-
-    // Phase 2: Resolve pointers for non-optional-flag params, skipping any pointer under
-    // optional-flag entries.
-    for (param_path, target_param_path) in pointers_map {
-        if param_path.ends_with(optional_param_suffix.as_str()) {
-            continue;
-        }
-
-        // Check if param_path is under any none entry.
-        let is_under_none_entry = none_entries
-            .iter()
-            .any(|prefix| param_path.starts_with(format!("{prefix}{FIELD_SEPARATOR}").as_str()));
-        if is_under_none_entry {
-            continue;
-        }
-
-        let target_value = match config_map.get(target_param_path) {
-            Some(v) => v.clone(),
-            None => {
-                return Err(ConfigError::PointerTargetNotFound {
-                    target_param: target_param_path.to_owned(),
-                });
-            }
-        };
-        config_map.insert(param_path.to_owned(), target_value);
-    }
-
-    Ok(())
-}
-
-// Removes the none marks, and sets null for the params marked as None instead of the inner params.
-pub(crate) fn update_optional_values(config_map: &mut BTreeMap<ParamPath, Value>) {
-    let optional_params: Vec<_> = config_map
-        .keys()
-        .filter_map(|param_path| param_path.strip_suffix(&format!(".{IS_NONE_MARK}")))
-        .map(|param_path| param_path.to_owned())
-        .collect();
-    let mut none_params = vec![];
-    for optional_param in optional_params {
-        let value = config_map
-            .remove(&format!("{optional_param}.{IS_NONE_MARK}"))
-            .expect("Not found optional param");
-        if value == json!(true) {
-            none_params.push(optional_param);
-        }
-    }
-    // Remove param paths that start with any None param.
-    config_map.retain(|param_path, _| {
-        !any(&none_params, |none_param| {
-            param_path.starts_with(format!("{none_param}{FIELD_SEPARATOR}").as_str())
-                || param_path == none_param
-        })
-    });
-
-    // Set null for the None params.
-    for none_param in &none_params {
-        let mut is_nested_in_outer_none_config = false;
-        for other_none_param in &none_params {
-            if none_param.starts_with(other_none_param) && none_param != other_none_param {
-                is_nested_in_outer_none_config = true;
-            }
-        }
-        if is_nested_in_outer_none_config {
-            continue;
-        }
-        config_map.insert(none_param.clone(), Value::Null);
-    }
-}
-
-pub(crate) fn update_config_map(
-    config_map: &mut BTreeMap<ParamPath, Value>,
-    types_map: &BTreeMap<ParamPath, SerializationType>,
-    param_path: &str,
-    new_value: Value,
-) -> Result<(), ConfigError> {
-    let Some(serialization_type) = types_map.get(param_path) else {
-        return Err(ConfigError::UnexpectedParam { param_path: param_path.to_string() });
-    };
-    let is_type_matched = match serialization_type {
-        SerializationType::Boolean => new_value.is_boolean(),
-        SerializationType::Float => new_value.is_number(),
-        SerializationType::NegativeInteger => new_value.is_number(),
-        SerializationType::PositiveInteger => new_value.is_number(),
-        SerializationType::String => new_value.is_string(),
-    };
-    if !is_type_matched {
-        return Err(ConfigError::ChangeRequiredParamType {
-            param_path: param_path.to_string(),
-            required: serialization_type.to_owned(),
-            given: new_value,
-        });
-    }
-
-    config_map.insert(param_path.to_owned(), new_value);
-    Ok(())
+    let mut arg_matches = get_command_matches(command, args)?;
+    let custom_config_paths: Vec<PathBuf> = arg_matches
+        .remove_many::<PathBuf>(CONFIG_FILE_ARG_NAME)
+        .map(|paths| paths.collect())
+        .unwrap_or_default();
+    load_native(custom_config_paths)
 }
