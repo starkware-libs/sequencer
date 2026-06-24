@@ -93,6 +93,7 @@ use crate::initial_state::{
 };
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
+    build_os_initial_reads,
     divide_vec_into_n_parts,
     execute_transactions,
     maybe_dummy_block_hash_and_number,
@@ -392,7 +393,7 @@ impl<S: FlowTestState> TestRunner<S> {
     pub(crate) fn run(mut self) -> OsTestOutput<S> {
         // This cached state holds the diff of the entire execution.
         let entire_state_diff = self.entire_cached_state.to_state_diff().unwrap().state_maps;
-        let entire_initial_reads = self.entire_cached_state.get_os_initial_reads().unwrap();
+        let entire_initial_reads = build_os_initial_reads(&mut self.entire_cached_state);
         self.entire_cached_state.state.apply_writes(
             &entire_state_diff,
             &self.entire_cached_state.class_hash_to_class.borrow(),
@@ -901,7 +902,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &event_expectations_per_tx,
                 &execution_outputs,
             );
-            let initial_reads = final_state.get_os_initial_reads().unwrap();
+            let initial_reads = build_os_initial_reads(&mut final_state);
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
             // Update the wrapped state.
             state = final_state.state;

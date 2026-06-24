@@ -10,11 +10,12 @@ description = "Integration tests for Starknet OS execution and state commitment 
 exhaustive_fuzz_test = []
 fuzz_test_debug = []
 long_fuzz_test = []
+os_input = ["blockifier/os_input"]
 
 [dev-dependencies]
 apollo_integration_tests.workspace = true
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["os_input", "reexecution", "testing"] }
+blockifier = { workspace = true, features = ["reexecution", "testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
