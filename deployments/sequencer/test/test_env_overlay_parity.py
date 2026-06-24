@@ -131,3 +131,7 @@ def test_sepolia_integration_native_matches_yaml():
 
 def test_sepolia_alpha_native_matches_yaml():
     assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "sepolia-alpha")
+
+
+def test_mainnet_native_matches_yaml():
+    assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "mainnet")
