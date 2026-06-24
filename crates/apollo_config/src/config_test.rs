@@ -733,7 +733,7 @@ fn test_native_config_with_secret_overrides() {
 }
 
 #[test]
-fn test_native_config_single_file() {
+fn test_native_config_with_empty_secrets() {
     let base_file = NamedTempFile::new().unwrap();
     let base_config = json!({"top": "base_top", "inner": {"a": 1, "b": "base_b"}});
     std::fs::write(base_file.path(), base_config.to_string()).unwrap();
