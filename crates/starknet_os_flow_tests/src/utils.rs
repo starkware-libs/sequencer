@@ -8,7 +8,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
 };
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
@@ -145,28 +145,6 @@ pub(crate) fn create_declare_tx(
     )
     .unwrap();
     AccountTransaction::Declare(tx)
-}
-
-/// Gets the extended initial reads for the OS run.
-/// The extended initial reads are the initial reads with the class hash and nonce of each accessed
-/// contract.
-pub(crate) fn get_extended_initial_reads<S: StateReader>(state: &CachedState<S>) -> StateMaps {
-    let raw_initial_reads = state.get_initial_reads().unwrap();
-    // Populate the state initial reads with the class hash and nonce of each accessed contract.
-    for contract_address in raw_initial_reads.get_contract_addresses() {
-        state.get_class_hash_at(contract_address).unwrap();
-        state.get_nonce_at(contract_address).unwrap();
-    }
-
-    for class_hash in raw_initial_reads.declared_contracts.keys() {
-        state.get_compiled_class_hash(*class_hash).unwrap();
-    }
-
-    // Take the initial reads again to get the updated initial reads.
-    let mut extended_initial_reads = state.get_initial_reads().unwrap();
-    // This field is not used by the OS, so we clear it.
-    extended_initial_reads.declared_contracts.clear();
-    extended_initial_reads
 }
 
 pub(crate) fn maybe_dummy_block_hash_and_number(
