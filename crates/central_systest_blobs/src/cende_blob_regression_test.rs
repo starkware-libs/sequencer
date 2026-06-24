@@ -248,6 +248,8 @@ impl From<BlockData> for BlobParameters {
             recent_state_commitment_infos: vec![],
             #[cfg(feature = "os_input")]
             accessed_keys: Default::default(),
+            #[cfg(feature = "os_input")]
+            initial_reads: Default::default(),
         }
     }
 }
