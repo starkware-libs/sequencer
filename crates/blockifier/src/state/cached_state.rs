@@ -293,10 +293,7 @@ impl<S: StateReader> CachedState<S> {
     pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
         Ok(self.cache.borrow().initial_reads.clone())
     }
-}
 
-#[cfg(feature = "os_input")]
-impl<S: StateReader> CachedState<S> {
     /// Returns the pre-block values the OS needs to replay the block: the values read during
     /// execution, extended with the class hash and nonce of every accessed contract and the
     /// compiled class hash of every accessed class (the OS reads these trie leaves even when
