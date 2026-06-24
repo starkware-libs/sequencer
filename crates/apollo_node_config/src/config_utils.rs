@@ -196,9 +196,25 @@ impl DeploymentBaseAppConfig {
         preset
     }
 
+    /// Returns the nested config as JSON, matching the `SequencerNodeConfig` field hierarchy.
+    /// This is the artifact consumed by the `ConfigFormat::Native` loader (as the base config),
+    /// in contrast to the flat preset produced by `as_value`.
+    pub fn as_native_value(&self) -> Value {
+        serde_json::to_value(&self.config).expect("Should be able to serialize config to value")
+    }
+
     // TODO(Tsabary): unify path types throughout.
     pub fn dump_config_file(&self, config_path: &Path) {
         let value = self.as_value();
+        serialize_to_file(
+            &value,
+            config_path.to_str().expect("Should be able to convert path to string"),
+        );
+    }
+
+    /// Dumps the nested native base config (see `as_native_value`) to `config_path`.
+    pub fn dump_native_config_file(&self, config_path: &Path) {
+        let value = self.as_native_value();
         serialize_to_file(
             &value,
             config_path.to_str().expect("Should be able to convert path to string"),
