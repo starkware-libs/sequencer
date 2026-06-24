@@ -35,6 +35,8 @@ use std::time::Duration;
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
+    serialize_duration_as_milliseconds,
+    serialize_duration_as_seconds,
 };
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -129,7 +131,10 @@ pub struct DiscoveryConfig {
     pub bootstrap_dial_retry_config: RetryConfig,
 
     /// Interval between periodic discovery operations.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub heartbeat_interval: Duration,
 }
 
@@ -199,7 +204,10 @@ pub struct RetryConfig {
     pub base_delay_millis: u64,
 
     /// Maximum delay of the exponential backoff.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub max_delay_seconds: Duration,
 
     /// Multiplication factor for the exponential backoff.
@@ -207,7 +215,10 @@ pub struct RetryConfig {
 
     /// Milliseconds to wait on a new connection before treating it as stable. Redials within
     /// this window (e.g. from an immediately refused connection) use accumulated backoff.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub new_connection_stabilization_millis: Duration,
 }
 
