@@ -305,15 +305,24 @@ impl<S: StateReader> CachedState<S> {
         // Back-fill write-only storage cells so their pre-block values are part of the initial
         // reads.
         self.update_initial_values_of_write_only_access()?;
-        let raw_initial_reads = self.get_initial_reads()?;
+        // Collect only the key sets needed for force-reads. Borrowing the cache directly avoids
+        // cloning all storage values (potentially thousands of entries per block) just to iterate.
+        let (contract_addresses, declared_class_hashes) = {
+            let cache = self.cache.borrow();
+            let initial_reads = &cache.initial_reads;
+            (
+                initial_reads.get_contract_addresses(),
+                initial_reads.declared_contracts.keys().copied().collect::<Vec<_>>(),
+            )
+        };
         // Force-read the contract-trie and class-trie leaves so their pre-block values are cached
         // in the initial reads.
-        for contract_address in raw_initial_reads.get_contract_addresses() {
+        for contract_address in contract_addresses {
             self.get_class_hash_at(contract_address)?;
             self.get_nonce_at(contract_address)?;
         }
-        for class_hash in raw_initial_reads.declared_contracts.keys() {
-            self.get_compiled_class_hash(*class_hash)?;
+        for class_hash in declared_class_hashes {
+            self.get_compiled_class_hash(class_hash)?;
         }
         let mut os_initial_reads = self.get_initial_reads()?;
         os_initial_reads.declared_contracts.clear();
