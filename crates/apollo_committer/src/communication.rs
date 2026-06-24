@@ -15,6 +15,7 @@ pub type LocalCommitterServer =
     LocalComponentServer<ApolloCommitter, CommitterRequest, CommitterResponse>;
 pub type RemoteCommitterServer = RemoteComponentServer<CommitterRequest, CommitterResponse>;
 
+// `CommitterRequest` without variant `ReadPathsAndCommitBlock` for `os_input` feature.
 #[cfg(not(feature = "os_input"))]
 #[async_trait]
 impl<S: StorageConstructor, ForestDB: ForestStorageWithEmptyReadContext<Storage = S>>
