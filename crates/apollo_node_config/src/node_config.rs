@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashSet};
-use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
@@ -28,7 +27,6 @@ use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
-use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
 use apollo_l1_gas_price_config::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
@@ -475,11 +473,9 @@ fn validate_node_dynamic_config(config: &NodeDynamicConfig) -> Result<(), Valida
 }
 
 impl SequencerNodeConfig {
-    /// Creates a config object, using the config schema and provided resources.
+    /// Creates a config object from the native config files named by `args`.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
-        let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH)?;
-        let default_config_file = File::open(config_file_name)?;
-        load_and_process_config(default_config_file, node_command(), args, true)
+        load_and_process_config(node_command(), args, true)
     }
 
     pub fn validate_node_config(&self) -> Result<(), ConfigError> {
