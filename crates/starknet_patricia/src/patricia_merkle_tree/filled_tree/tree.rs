@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::DbHashMap;
-use tokio::sync::Mutex;
 
 use crate::db_layout::NodeLayoutFor;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
@@ -99,14 +98,16 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
     /// Writes the hash and data to the output map. The writing is done in a thread-safe manner with
     /// interior mutability to avoid thread contention.
-    async fn write_to_output_map<T: Debug>(
+    fn write_to_output_map<T: Debug>(
         output_map: &HashMap<NodeIndex, Mutex<Option<T>>>,
         index: NodeIndex,
         output: T,
     ) -> FilledTreeResult<()> {
         match output_map.get(&index) {
             Some(node) => {
-                let mut node = node.lock().await;
+                let mut node = node
+                    .lock()
+                    .expect("Output map mutex does not expect to panic at locking the mutex");
                 match node.take() {
                     Some(existing_node) => Err(FilledTreeError::DoubleUpdate {
                         index,
@@ -123,7 +124,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     }
 
     // Removes the `Arc` from the map and unwraps the `Mutex` and `Option` from the values.
-    async fn remove_arc_mutex_and_option_from_output_map<V>(
+    fn remove_arc_mutex_and_option_from_output_map<V>(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
         panic_if_empty_placeholder: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
@@ -132,7 +133,9 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
         let mut hash_map_out = HashMap::new();
         for (key, value) in output_map {
-            let mut value = value.lock().await;
+            let mut value = value
+                .lock()
+                .expect("Output map mutex does not expect to panic at locking the mutex");
             match value.take() {
                 Some(unwrapped_value) => {
                     hash_map_out.insert(key, unwrapped_value);
@@ -163,7 +166,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
             .get(&index)
             .ok_or(FilledTreeError::MissingLeafInput(index))?
             .lock()
-            .await
+            .expect("Leaf input mutex does not expect to panic at locking the mutex")
             .take()
             .unwrap_or_else(|| panic!("Leaf input is None for index {index:?}."));
         L::create(leaf_input)
@@ -215,8 +218,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     &filled_tree_output_map,
                     index,
                     HashFilledNode { hash, data },
-                )
-                .await?;
+                )?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::Edge(path_to_bottom) => {
@@ -237,8 +239,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     &filled_tree_output_map,
                     index,
                     HashFilledNode { hash, data },
-                )
-                .await?;
+                )?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
@@ -255,8 +256,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     } => {
                         let (leaf_data, leaf_output) =
                             Self::compute_leaf(leaf_index_to_leaf_input, index).await?;
-                        Self::write_to_output_map(leaf_index_to_leaf_output, index, leaf_output)
-                            .await?;
+                        Self::write_to_output_map(leaf_index_to_leaf_output, index, leaf_output)?;
                         leaf_data
                     }
                 };
@@ -269,8 +269,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     &filled_tree_output_map,
                     index,
                     HashFilledNode { hash, data },
-                )
-                .await?;
+                )?;
                 Ok(hash)
             }
         }
@@ -335,12 +334,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
                 tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                     filled_tree_output_map,
                     true,
-                )
-                .await?,
+                )?,
                 root_hash,
             },
-            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)
-                .await?,
+            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)?,
         ))
     }
 
@@ -373,8 +370,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                 filled_tree_output_map,
                 true,
-            )
-            .await?,
+            )?,
             root_hash,
         })
     }
