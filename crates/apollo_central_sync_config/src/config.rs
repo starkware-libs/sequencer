@@ -5,6 +5,8 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_optional_sensitive_map,
     deserialize_seconds_to_duration,
+    serialize_duration_as_milliseconds,
+    serialize_duration_as_seconds,
     serialize_optional_map,
 };
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -104,11 +106,20 @@ impl SerializeConfig for CentralSourceConfig {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub latest_block_poll_interval_millis: Duration,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub base_layer_propagation_sleep_duration: Duration,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub recoverable_error_sleep_duration: Duration,
     pub blocks_max_stream_size: u32,
     pub state_updates_max_stream_size: u32,
