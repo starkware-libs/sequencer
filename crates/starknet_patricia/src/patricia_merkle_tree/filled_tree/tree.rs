@@ -123,17 +123,18 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     }
 
     // Removes the `Arc` from the map and unwraps the `Mutex` and `Option` from the values.
-    async fn remove_arc_mutex_and_option_from_output_map<V>(
+    // After `Arc::into_inner` succeeds, the caller holds exclusive ownership of the map, so
+    // `Mutex::into_inner` extracts each value without async locking overhead.
+    fn remove_arc_mutex_and_option_from_output_map<V>(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
         panic_if_empty_placeholder: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let output_map = Arc::into_inner(output_map)
             .unwrap_or_else(|| panic!("Cannot retrieve output map from Arc."));
 
-        let mut hash_map_out = HashMap::new();
+        let mut hash_map_out = HashMap::with_capacity(output_map.len());
         for (key, value) in output_map {
-            let mut value = value.lock().await;
-            match value.take() {
+            match value.into_inner() {
                 Some(unwrapped_value) => {
                     hash_map_out.insert(key, unwrapped_value);
                 }
@@ -335,12 +336,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
                 tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                     filled_tree_output_map,
                     true,
-                )
-                .await?,
+                )?,
                 root_hash,
             },
-            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)
-                .await?,
+            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)?,
         ))
     }
 
@@ -373,8 +372,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                 filled_tree_output_map,
                 true,
-            )
-            .await?,
+            )?,
             root_hash,
         })
     }
