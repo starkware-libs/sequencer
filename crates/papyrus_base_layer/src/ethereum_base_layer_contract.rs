@@ -17,6 +17,8 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
     deserialize_vec,
+    serialize_duration_as_milliseconds,
+    serialize_duration_as_seconds,
     serialize_slice,
 };
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -419,11 +421,17 @@ pub struct EthereumBaseLayerConfig {
     pub bpo1_start_block_number: L1BlockNumber,
     // The block number at which BPO2 update was deployed.
     pub bpo2_start_block_number: L1BlockNumber,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub timeout_millis: Duration,
     /// The interval (seconds) after which the next base-layer access retries the primary (first)
     /// endpoint.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub retry_primary_interval_seconds: Duration,
 }
 
