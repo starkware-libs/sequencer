@@ -1025,6 +1025,8 @@ impl Batcher {
                 parent_proposal_commitment,
                 #[cfg(feature = "os_input")]
                 accessed_keys,
+                #[cfg(feature = "os_input")]
+                initial_reads: block_execution_artifacts.initial_reads,
             },
         })
     }

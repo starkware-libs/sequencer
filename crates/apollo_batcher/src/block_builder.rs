@@ -30,6 +30,8 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
+#[cfg(feature = "os_input")]
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -129,6 +131,8 @@ pub struct BlockExecutionArtifacts {
     pub execution_data: BlockTransactionExecutionData,
     pub commitment_state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
+    #[cfg(feature = "os_input")]
+    pub initial_reads: StateMaps,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
@@ -142,7 +146,13 @@ pub struct BlockExecutionArtifacts {
 
 impl BlockExecutionArtifacts {
     pub async fn new(
-        BlockExecutionSummary {
+        block_summary: BlockExecutionSummary,
+        execution_data: BlockTransactionExecutionData,
+        final_n_executed_txs: usize,
+    ) -> Self {
+        #[cfg(feature = "os_input")]
+        let initial_reads = block_summary.initial_reads;
+        let BlockExecutionSummary {
             state_diff: commitment_state_diff,
             compressed_state_diff,
             bouncer_weights,
@@ -150,10 +160,9 @@ impl BlockExecutionArtifacts {
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
             block_info,
-        }: BlockExecutionSummary,
-        execution_data: BlockTransactionExecutionData,
-        final_n_executed_txs: usize,
-    ) -> Self {
+            // TODO(Yoav): Remove the ".." when the os_input feature is removed.
+            ..
+        } = block_summary;
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
@@ -173,6 +182,8 @@ impl BlockExecutionArtifacts {
             execution_data,
             commitment_state_diff,
             compressed_state_diff,
+            #[cfg(feature = "os_input")]
+            initial_reads,
             bouncer_weights,
             l2_gas_used,
             casm_hash_computation_data_sierra_gas,

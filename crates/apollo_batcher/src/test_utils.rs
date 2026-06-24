@@ -23,6 +23,8 @@ use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
+#[cfg(feature = "os_input")]
+use blockifier::state::cached_state::StateMaps;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
@@ -213,6 +215,8 @@ impl BlockExecutionArtifacts {
                 address_to_nonce: IndexMap::from_iter([(contract_address!("0x7"), nonce!(1_u64))]),
             },
             compressed_state_diff: Default::default(),
+            #[cfg(feature = "os_input")]
+            initial_reads: StateMaps::default(),
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
