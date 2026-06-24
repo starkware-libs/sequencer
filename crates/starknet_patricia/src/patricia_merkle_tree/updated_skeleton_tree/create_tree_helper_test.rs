@@ -234,6 +234,7 @@ fn test_node_from_binary_data(
     &PathToBottom::LEFT_CHILD,
     (&NodeIndex::ROOT, &TempSkeletonNode::Empty),
     &[],
+    &[],
     TempSkeletonNode::Empty,
     &[],
 )]
@@ -243,6 +244,7 @@ fn test_node_from_binary_data(
         &NodeIndex::from(4),
         &TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("11"))),
     ),
+    &[],
     &[],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::from("0011"))
@@ -258,12 +260,15 @@ fn test_node_from_binary_data(
         )),
     ),
    &[],
+    // The unmodified subtree is finalized in the initial phase, so it appears in the skeleton.
+    &[(NodeIndex::from(5), OriginalSkeletonNode::UnmodifiedSubTree(HashOutput::ROOT_OF_EMPTY_TREE))],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("101"))),
     &[],
 )]
 #[case::to_binary(
     &PathToBottom::RIGHT_CHILD,
     (&NodeIndex::from(7), &TempSkeletonNode::Original(OriginalSkeletonNode::Binary)),
+    &[],
     &[],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
@@ -274,6 +279,7 @@ fn test_node_from_binary_data(
     &PathToBottom::RIGHT_CHILD,
     (&NodeIndex::from(7), &TempSkeletonNode::Leaf),
     &[(NodeIndex::from(7), 1)],
+    &[],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
     ),
@@ -283,9 +289,11 @@ fn test_node_from_edge_data(
     #[case] path: &PathToBottom,
     #[case] bottom_data: (&NodeIndex, &TempSkeletonNode),
     #[case] _leaf_modifications: &[(NodeIndex, u8)],
+    #[case] _original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(&[], _leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(_original_skeleton, _leaf_modifications)]
+    mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let (bottom_index, bottom) = bottom_data;
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
