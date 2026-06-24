@@ -108,7 +108,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 index,
                 existing_value_as_string: format!(
                     "{:?}",
-                    slot.get().expect("slot is occupied after a failed set")
+                    slot.get().expect("OnceLock::set only returns Err when the cell is already occupied")
                 ),
             }),
             None => Err(FilledTreeError::MissingNodePlaceholder(index)),
