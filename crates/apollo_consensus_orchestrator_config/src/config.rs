@@ -7,6 +7,7 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
     serialize_duration_as_milliseconds,
+    serialize_duration_as_seconds,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
@@ -27,11 +28,20 @@ pub struct CendeConfig {
     pub recorder_url: Url,
 
     // Retry policy.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub max_retry_duration_secs: Duration,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub min_retry_interval_ms: Duration,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub max_retry_interval_ms: Duration,
 }
 
@@ -167,14 +177,20 @@ pub struct ContextStaticConfig {
     // though has a timeout as a defensive measure to make sure the proposal doesn't live
     // forever if the Context crashes or has a bug.
     /// Safety margin in milliseconds to allow the batcher to successfully validate a proposal.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub validate_proposal_margin_millis: Duration,
     /// The fraction (0.0 - 1.0) of the total build time allocated to waiting
     /// for the retrospective block hash to be available. The remaining time is used to build the
     /// proposal.
     pub build_proposal_time_ratio_for_retrospective_block_hash: f32,
     /// The interval between retrospective block hash retries.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub behavior_mode: BehaviorMode,
 }

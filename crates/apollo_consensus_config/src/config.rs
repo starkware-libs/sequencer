@@ -8,6 +8,8 @@ use std::time::Duration;
 use apollo_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_seconds_to_duration,
+    serialize_duration_as_float_seconds,
+    serialize_duration_as_seconds,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
@@ -33,7 +35,10 @@ pub struct ConsensusDynamicConfig {
     /// Timeouts configuration for consensus.
     pub timeouts: TimeoutsConfig,
     /// The duration (seconds) between sync attempts.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub sync_retry_interval: Duration,
     /// Future message limits configuration.
     pub future_msg_limit: FutureMsgLimitsConfig,
@@ -47,7 +52,10 @@ pub struct ConsensusDynamicConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub startup_delay: Duration,
     /// Config for the storage used to write/read consensus state.
     #[validate(nested)]
@@ -182,13 +190,22 @@ impl Default for ConsensusConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Timeout {
     /// The base timeout (seconds).
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     base: Duration,
     /// The per-round delta added to the timeout (seconds).
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     delta: Duration,
     /// The maximum timeout duration (seconds).
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     max: Duration,
 }
 
