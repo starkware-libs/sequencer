@@ -35,6 +35,10 @@ use url::Url;
 
 use crate::secrets::Sensitive;
 
+#[cfg(test)]
+#[path = "converters_test.rs"]
+mod converters_test;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -61,6 +65,15 @@ where
     Ok(Duration::from_secs(secs))
 }
 
+/// Serializes a duration object to whole seconds. Counterpart of `deserialize_seconds_to_duration`,
+/// emitting the same integer-seconds wire format the deserializer reads.
+pub fn serialize_duration_as_seconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_u64(duration.as_secs())
+}
+
 /// Deserializes float seconds to duration object.
 pub fn deserialize_float_seconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -68,6 +81,16 @@ where
 {
     let secs: f64 = Deserialize::deserialize(de)?;
     Ok(Duration::from_secs_f64(secs))
+}
+
+/// Serializes a duration object to fractional seconds. Counterpart of
+/// `deserialize_float_seconds_to_duration`, emitting the same float-seconds wire format the
+/// deserializer reads.
+pub fn serialize_duration_as_float_seconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_f64(duration.as_secs_f64())
 }
 
 /// Serializes a map to "k1:v1 k2:v2" string structure.
@@ -315,6 +338,20 @@ where
         None => None,
         Some(list) => Some(list.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(",")),
     }
+}
+
+/// Serializes an optional list into a comma-separated string, for use as
+/// `#[serde(serialize_with)]`. Counterpart of `deserialize_comma_separated_str`: `None` and
+/// `Some(empty)` both serialize to the empty string, which that deserializer reads back as `None`.
+pub fn serialize_optional_comma_separated_str<S, T>(
+    list: &Option<Vec<T>>,
+    se: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: ToString,
+{
+    se.serialize_str(&serialize_optional_comma_separated(list).unwrap_or_default())
 }
 
 /// Deserializes an optional comma-separated list of values implementing `FromStr` into
