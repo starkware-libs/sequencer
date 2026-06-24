@@ -10,6 +10,7 @@ description = "Integration tests for Starknet OS execution and state commitment 
 exhaustive_fuzz_test = []
 fuzz_test_debug = []
 long_fuzz_test = []
+os_input = ["apollo_integration_tests/os_input", "blockifier/os_input"]
 
 [dev-dependencies]
 apollo_integration_tests.workspace = true

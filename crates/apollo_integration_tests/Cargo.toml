@@ -8,6 +8,12 @@ description = "End-to-end integration tests for the Starknet sequencer."
 
 [features]
 cairo_native = ["apollo_node/cairo_native"]
+os_input = [
+  "apollo_batcher/os_input",
+  "apollo_committer/os_input",
+  "blockifier/os_input",
+  "starknet_committer/os_input",
+]
 
 [lints]
 workspace = true
