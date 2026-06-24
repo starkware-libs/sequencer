@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782295497461,
+  "lastUpdate": 1782296797382,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6289,6 +6289,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1372.25296819,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea03ddc5da9c5c5c43cf52e1a0f497f245d1444c",
+          "message": "starknet_patricia: extract finalize_binary_child helper from node_from_binary_data (#14613)\n\nReplace the two-iteration for loop with two calls to a new finalize_binary_child\nhelper, and collapse the let-else + re-match into a single direct match on the child.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-24T10:12:29Z",
+          "tree_id": "8ca27e39be00c80a49e6a0cbcc7d91b7777e920d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ea03ddc5da9c5c5c43cf52e1a0f497f245d1444c"
+        },
+        "date": 1782296796982,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1211.9182378,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1547.48869748,
             "unit": "ms"
           }
         ]
