@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782296797382,
+  "lastUpdate": 1782299004894,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6323,6 +6323,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1547.48869748,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65f71cea771073cc6e90f30b1e87ea103a1d2592",
+          "message": "starknet_os: os resources test - invoke tx constant factor (#14146)",
+          "timestamp": "2026-06-24T10:41:45Z",
+          "tree_id": "08a87f6c99d89f51b5b3aefad203e4f26776797c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/65f71cea771073cc6e90f30b1e87ea103a1d2592"
+        },
+        "date": 1782299004422,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 933.65635843,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1447.8962143699998,
             "unit": "ms"
           }
         ]
