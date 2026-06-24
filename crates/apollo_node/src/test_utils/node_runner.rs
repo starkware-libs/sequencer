@@ -91,9 +91,9 @@ async fn spawn_node_child_process(
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
-    // Interpret the config files with the legacy flat-preset loader (the node's default), kept
-    // explicit so this stays a clear switch point if/when tests move to "native" loading.
-    let config_file_args: Vec<String> = ["--config_format".to_string(), "preset".to_string()]
+    // Interpret the config files with the native loader: the paths are a nested base config
+    // followed by a flat secrets file, matching `load_native`'s `[base, secret]` arity.
+    let config_file_args: Vec<String> = ["--config_format".to_string(), "native".to_string()]
         .into_iter()
         .chain(node_config_paths.into_iter().flat_map(|path| {
             let path_str = path.to_str().expect("Invalid path").to_string();
