@@ -2245,6 +2245,7 @@ dependencies = [
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
+ "serde_json",
  "tokio",
  "tokio-util",
  "tracing",
