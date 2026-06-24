@@ -13,7 +13,6 @@ os_input = ["apollo_storage/os_input"]
 workspace = true
 
 [dependencies]
-apollo_config.workspace = true
 apollo_metrics.workspace = true
 apollo_storage.workspace = true
 futures.workspace = true

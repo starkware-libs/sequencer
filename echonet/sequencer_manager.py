@@ -130,14 +130,16 @@ class SequencerManager:
         return updated
 
     def configure_revert(self, should_revert: bool):
+        # Toggle reverting via the optional param's "#is_none" flag, keeping the existing target
+        # block value (set by a prior `configure_stop_sync`).
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = should_revert
+            config["revert_config.#is_none"] = not should_revert
 
         return self.patch_node_config(_mutate)
 
     def configure_start_sync(self):
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = False
+            config["revert_config.#is_none"] = True
             config["starknet_url"] = CONFIG.feeder.base_url
             config["validator_id"] = "0x1"
 
@@ -145,8 +147,8 @@ class SequencerManager:
 
     def configure_stop_sync(self, block_number: int):
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = True
-            config["revert_config.revert_up_to_and_including"] = block_number
+            config["revert_config.#is_none"] = False
+            config["revert_config"] = block_number
             config["starknet_url"] = "http://echonet:80"
             config["validator_id"] = "0x64"
 
@@ -318,7 +320,7 @@ class SequencerManager:
             self._spec.configmap_name, self._namespace
         )
         config: JsonObject = json.loads(configmap.data["config"])
-        return int(config["revert_config.revert_up_to_and_including"])
+        return int(config["revert_config"])
 
     def initial_revert_then_restore(self, block_number: int) -> None:
         """

@@ -1768,6 +1768,7 @@ dependencies = [
  "apollo_proof_manager",
  "apollo_proof_manager_config",
  "apollo_protobuf",
+ "apollo_reverts",
  "apollo_rpc",
  "apollo_sierra_compilation_config",
  "apollo_staking_config",
@@ -2442,7 +2443,6 @@ dependencies = [
 name = "apollo_reverts"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "apollo_metrics",
  "apollo_storage",
  "futures",

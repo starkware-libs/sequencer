@@ -9,8 +9,8 @@ use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::{
     generate_optional_struct_pointer,
-    generate_struct_pointer,
     prepend_sub_config_name,
+    ser_is_param_none,
     ser_optional_sub_config,
     ser_param,
     ser_pointer_target_param,
@@ -35,7 +35,7 @@ use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_proof_manager_config::config::ProofManagerConfig;
-use apollo_reverts::RevertConfig;
+use apollo_reverts::{REVERT_CONFIG_DESCRIPTION, REVERT_CONFIG_NAME};
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
@@ -193,15 +193,25 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     );
     pointers.append(&mut common_execution_config);
 
-    let mut common_execution_config = generate_struct_pointer(
-        "revert_config".to_owned(),
-        &RevertConfig::default(),
-        set_pointing_param_paths(&[
-            "state_sync_config.static_config.revert_config",
-            "consensus_manager_config.revert_config",
-        ]),
-    );
-    pointers.append(&mut common_execution_config);
+    // `revert_config` is a single optional param (the revert height plus a `#is_none` flag), shared
+    // by the consensus manager and state sync.
+    let mut revert_config_pointers: ConfigPointers = vec![
+        (
+            ser_pointer_target_param(REVERT_CONFIG_NAME, &0_u64, REVERT_CONFIG_DESCRIPTION),
+            set_pointing_param_paths(&[
+                "state_sync_config.static_config.revert_config",
+                "consensus_manager_config.revert_config",
+            ]),
+        ),
+        (
+            ser_is_param_none(REVERT_CONFIG_NAME, true),
+            set_pointing_param_paths(&[
+                "state_sync_config.static_config.revert_config.#is_none",
+                "consensus_manager_config.revert_config.#is_none",
+            ]),
+        ),
+    ];
+    pointers.append(&mut revert_config_pointers);
 
     pointers.push((
         ser_pointer_target_param(
