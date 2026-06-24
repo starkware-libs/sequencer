@@ -91,14 +91,14 @@ async fn spawn_node_child_process(
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
-    // Interpret the config files with the native loader: the paths are a nested base config
-    // followed by a flat secrets file, matching `load_native`'s `[base, secret]` arity.
-    let config_file_args: Vec<String> = ["--config_format".to_string(), "native".to_string()]
+    // The node loads its config natively: the paths are a nested base config followed by a flat
+    // secrets file, matching `load_native`'s `[base, secret]` arity.
+    let config_file_args: Vec<String> = node_config_paths
         .into_iter()
-        .chain(node_config_paths.into_iter().flat_map(|path| {
+        .flat_map(|path| {
             let path_str = path.to_str().expect("Invalid path").to_string();
-            vec![CONFIG_FILE_ARG.to_string(), path_str.clone()]
-        }))
+            vec![CONFIG_FILE_ARG.to_string(), path_str]
+        })
         .collect();
 
     info!("Running the node from: {}", node_executable);
