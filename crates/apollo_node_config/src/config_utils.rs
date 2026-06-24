@@ -197,8 +197,8 @@ impl DeploymentBaseAppConfig {
     }
 
     /// Returns the nested config as JSON, matching the `SequencerNodeConfig` field hierarchy.
-    /// This is the artifact consumed by the `ConfigFormat::Native` loader (as the base config),
-    /// in contrast to the flat preset produced by `as_value`.
+    /// This is the artifact consumed by the native config loader (as the base config), in contrast
+    /// to the flat preset produced by `as_value`.
     pub fn as_native_value(&self) -> Value {
         serde_json::to_value(&self.config).expect("Should be able to serialize config to value")
     }
