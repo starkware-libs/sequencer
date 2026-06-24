@@ -1,9 +1,7 @@
-use std::collections::HashSet;
-use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
-use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
+use apollo_config::CONFIG_FILE_ARG;
 use apollo_gateway_config::config::{
     GatewayConfig,
     GatewayStaticConfig,
@@ -836,20 +834,34 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     #[case] authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 ) {
     let original_config = GatewayConfig {
-        static_config: GatewayStaticConfig { authorized_declarer_accounts, ..Default::default() },
+        static_config: GatewayStaticConfig {
+            authorized_declarer_accounts,
+            ..Default::default()
+        },
         ..Default::default()
     };
 
-    // Create a temporary file to dump the config.
-    let file_path = TempDir::new().unwrap().path().join("config.json");
-    original_config.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap()).unwrap();
+    // The native loader takes a nested base config and a flat secret-overrides file. Serialize the
+    // config to the nested base file; serde is symmetric for `authorized_declarer_accounts` (its
+    // `serialize_with` emits the same comma-separated string its `deserialize_with` reads back).
+    let base_value = serde_json::to_value(&original_config).unwrap();
 
-    // Load the config from the dumped config file.
+    let dir = TempDir::new().unwrap();
+    let base_path = dir.path().join("config.json");
+    let secret_path = dir.path().join("secrets.json");
+    std::fs::write(&base_path, base_value.to_string()).unwrap();
+    std::fs::write(&secret_path, "{}").unwrap();
+
     let loaded_config = load_and_process_config::<GatewayConfig>(
-        File::open(file_path).unwrap(), // Config file to load.
-        Command::new(""),               // Unused CLI context.
-        vec![],                         // No override CLI args.
-        false,                          // Use schema defaults.
+        Command::new(""), // Unused CLI context.
+        vec![
+            String::new(), // Program name placeholder.
+            CONFIG_FILE_ARG.to_owned(),
+            base_path.to_str().unwrap().to_owned(),
+            CONFIG_FILE_ARG.to_owned(),
+            secret_path.to_str().unwrap().to_owned(),
+        ],
+        false, // Unused by the native loader.
     )
     .unwrap();
 
