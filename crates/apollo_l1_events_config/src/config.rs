@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use apollo_config::converters::deserialize_float_seconds_to_duration;
+use apollo_config::converters::{
+    deserialize_float_seconds_to_duration,
+    serialize_duration_as_float_seconds,
+};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -11,13 +14,25 @@ use validator::Validate;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EventsProviderConfig {
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub startup_sync_sleep_retry_interval_seconds: Duration,
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub l1_handler_cancellation_timelock_seconds: Duration,
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub l1_handler_consumption_timelock_seconds: Duration,
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub l1_handler_proposal_cooldown_seconds: Duration,
     /// When true, the L1 provider operates in dummy mode.
     pub dummy_mode: bool,
@@ -105,15 +120,24 @@ impl From<L1EventsProviderConfig> for TransactionManagerConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1EventsScraperConfig {
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub startup_rewind_time_seconds: Duration,
     #[validate(custom(function = "validate_ascii"))]
     pub chain_id: ChainId,
     pub finality: u64,
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub polling_interval_seconds: Duration,
     pub set_provider_historic_height_to_l2_genesis: bool,
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub l1_block_time_seconds: Duration,
 }
 
