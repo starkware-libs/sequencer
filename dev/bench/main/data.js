@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782240601166,
+  "lastUpdate": 1782295497461,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6255,6 +6255,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1380.15558622,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39151790+gkaempfer@users.noreply.github.com",
+            "name": "gkaempfer",
+            "username": "gkaempfer"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c5b7e32bee3d423e81c275a2fd3ad4840e9567c9",
+          "message": "starknet_patricia: use std::sync::Mutex instead of tokio::sync::Mutex in filled tree (#14603)\n\nNone of the critical sections in write_to_output_map, remove_*_from_output_map,\nor the leaf-input take in get_or_compute_leaf hold the lock across an await point —\nthe lock is acquired, a synchronous operation runs, and the guard is dropped before\nany async call. tokio::sync::Mutex has higher overhead than std::sync::Mutex even\nfor uncontended acquisitions because it goes through the async-runtime machinery\n(futures, wakers, potential task yields). Switching to std::sync::Mutex eliminates\nthat overhead on every node visit in the filled-tree traversal, which is called on\nevery state update during block production.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-06-24T09:42:40Z",
+          "tree_id": "e9c02584eae3d93d662ef8c7a59d5e59d66f065c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c5b7e32bee3d423e81c275a2fd3ad4840e9567c9"
+        },
+        "date": 1782295497041,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 954.2898132,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1372.25296819,
             "unit": "ms"
           }
         ]
