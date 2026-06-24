@@ -201,3 +201,7 @@ def assert_env_overlay_matches_yaml(layer_dir: Path) -> None:
 
 def test_sepolia_integration_native_matches_yaml():
     assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "sepolia-integration")
+
+
+def test_sepolia_alpha_native_matches_yaml():
+    assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "sepolia-alpha")
