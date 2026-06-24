@@ -20,7 +20,7 @@ use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
+use starknet_api::core::{ContractAddress, EthAddress};
 use starknet_api::executable_transaction::InvokeTransaction;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ContractAddressSalt;
@@ -122,8 +122,6 @@ const SYSCALLS_CALLED_TWICE: [Selector; 2] = [Selector::Secp256k1New, Selector::
 
 struct OsResourcesTestSetup {
     os_resources_contract_address: ContractAddress,
-    stable_contract_address: ContractAddress,
-    stable_contract_class_hash: ClassHash,
     test_builder: TestBuilder<DictStateReader>,
 }
 
@@ -144,12 +142,11 @@ fn update_resources_for_virtual_builtin_syscall(
     }
 }
 
-/// Setup an test builder with
+/// Setup a test builder with
 /// 1. the OS-resources contract deployed,
-/// 2. funded (it is an account contract as well),
+/// 2. funded (it is an account contract as well), and
 /// 3. the initial block context (and therefore subsequent block contexts) with the minimal sierra
-///    version for gas tracking set to "infinity", in order to force step tracking mode, and
-/// 4. the stable contract declared and deployed.
+///    version for gas tracking set to "infinity", in order to force step tracking mode.
 ///
 /// Pass the raw VC used in tests, to make sure the test initial state is set up consistently.
 async fn setup_test_builder(raw_vc: Option<&RawVersionedConstants>) -> OsResourcesTestSetup {
@@ -158,11 +155,8 @@ async fn setup_test_builder(raw_vc: Option<&RawVersionedConstants>) -> OsResourc
     // tracking, in order to force step tracking mode.
     let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
     let (mut initial_state_data, [os_resources_contract_address]) =
-        create_default_initial_state_data::<DictStateReader, 1>([(
-            os_resources_contract,
-            calldata![],
-        )])
-        .await;
+        create_default_initial_state_data::<DictStateReader, 1>([(os_resources_contract, calldata![])])
+            .await;
     initial_state_data.initial_state.block_context = {
         let block_context = &initial_state_data.initial_state.block_context;
         let mut vc = block_context.versioned_constants().clone();
@@ -185,49 +179,17 @@ async fn setup_test_builder(raw_vc: Option<&RawVersionedConstants>) -> OsResourc
     );
     test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
 
-    // Declare and deploy an instance of the stable contract.
-    let stable_contract_sierra = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA;
-    let stable_contract_casm = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM;
-    let stable_contract_class_hash = stable_contract_sierra.calculate_class_hash();
-    let extra_declare_args = declare_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_builder.add_explicit_cairo1_declare_tx(
-        stable_contract_sierra,
-        (**stable_contract_casm).clone(),
-        extra_declare_args,
-        &test_builder.chain_id(),
-    );
-    let deploy_from_zero = true;
-    let (deploy_tx, stable_contract_address) =
-        get_deploy_contract_tx_and_address_with_salt_and_deployer(
-            stable_contract_class_hash,
-            calldata![Felt::ZERO], // Ctor calldata length.
-            test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-            *NON_TRIVIAL_RESOURCE_BOUNDS,
-            ContractAddressSalt::default(),
-            deploy_from_zero,
-        );
-    test_builder.add_invoke_tx(deploy_tx, None, None);
-
-    // Move on to the next block, so the measurement txs are in their own block.
-    test_builder.move_to_next_block();
-
-    OsResourcesTestSetup {
-        os_resources_contract_address,
-        stable_contract_address,
-        stable_contract_class_hash,
-        test_builder,
-    }
+    OsResourcesTestSetup { os_resources_contract_address, test_builder }
 }
 
 /// Regression test for the list of syscalls called during the fee transfer phase of a transaction.
 #[tokio::test]
 async fn test_fee_transfer_syscalls() {
-    let OsResourcesTestSetup { os_resources_contract_address, test_builder: mut builder, .. } =
+    let OsResourcesTestSetup { os_resources_contract_address, test_builder: mut builder } =
         setup_test_builder(None).await;
+
+    // Move on to the next block, so the syscall-measurement tx is in its own block.
+    builder.move_to_next_block();
 
     // Invoke from the OS resources contract, with zeros as calldata, to make the __execute__ do
     // nothing. All resulting events should be from the fee transfer call.
@@ -290,12 +252,38 @@ async fn test_os_resources_regression() {
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
 
-    let OsResourcesTestSetup {
-        os_resources_contract_address,
-        stable_contract_address,
-        stable_contract_class_hash,
-        mut test_builder,
-    } = setup_test_builder(Some(&raw_vc)).await;
+    let OsResourcesTestSetup { os_resources_contract_address, mut test_builder } =
+        setup_test_builder(Some(&raw_vc)).await;
+
+    // Declare and deploy an instance of the stable contract.
+    let stable_contract_sierra = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA;
+    let stable_contract_casm = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM;
+    let stable_contract_class_hash = stable_contract_sierra.calculate_class_hash();
+    let extra_declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_builder.add_explicit_cairo1_declare_tx(
+        stable_contract_sierra,
+        (**stable_contract_casm).clone(),
+        extra_declare_args,
+        &test_builder.chain_id(),
+    );
+    let deploy_from_zero = true;
+    let (deploy_tx, stable_contract_address) =
+        get_deploy_contract_tx_and_address_with_salt_and_deployer(
+            stable_contract_class_hash,
+            calldata![Felt::ZERO], // Ctor calldata length.
+            test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+            *NON_TRIVIAL_RESOURCE_BOUNDS,
+            ContractAddressSalt::default(),
+            deploy_from_zero,
+        );
+    test_builder.add_invoke_tx(deploy_tx, None, None);
+
+    // Move on to the next block, so the syscall-measurement tx is in its own block.
+    test_builder.move_to_next_block();
 
     // Add the syscall-measurement tx.
     let tx = InvokeTransaction::create(
