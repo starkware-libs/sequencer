@@ -226,7 +226,9 @@ use apollo_config::converters::{
     deserialize_comma_separated_str,
     deserialize_optional_sensitive_vec_u8,
     deserialize_seconds_to_duration,
+    serialize_duration_as_seconds,
     serialize_optional_comma_separated,
+    serialize_optional_comma_separated_str,
     serialize_optional_vec_u8,
 };
 use apollo_config::dumping::{
@@ -313,16 +315,25 @@ pub struct NetworkConfig {
 
     /// Maximum session duration before timeout. Applies to inbound and outbound SQMR sessions.
     /// Default: 120 seconds
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub session_timeout: Duration,
 
     /// Maximum idle time before closing a connection. Default: 120 seconds
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub idle_connection_timeout: Duration,
 
     /// Bootstrap peer multiaddresses for initial connectivity. Each must include a valid peer ID.
     /// Format: `/ip4/1.2.3.4/tcp/10000/p2p/<peer-id>`. Default: None
-    #[serde(deserialize_with = "deserialize_comma_separated_str")]
+    #[serde(
+        deserialize_with = "deserialize_comma_separated_str",
+        serialize_with = "serialize_optional_comma_separated_str"
+    )]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
 
@@ -351,9 +362,15 @@ pub struct NetworkConfig {
 
     /// Buffer size for reported peer IDs (peers flagged for malicious behavior). Default: 100000
     pub reported_peer_ids_buffer_size: usize,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub prune_dead_connections_ping_interval: Duration,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub prune_dead_connections_ping_timeout: Duration,
 }
 
