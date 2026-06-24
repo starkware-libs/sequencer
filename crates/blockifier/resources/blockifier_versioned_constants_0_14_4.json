@@ -513,12 +513,12 @@
             },
             "DeployAccount": {
                 "constant": {
-                    "n_steps": 4583,
+                    "n_steps": 4989,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
-                        "range_check_builtin": 93,
-                        "pedersen_builtin": 11,
-                        "poseidon_builtin": 11
+                        "range_check_builtin": 113,
+                        "pedersen_builtin": 10,
+                        "poseidon_builtin": 10
                     }
                 },
                 "calldata_factor": {
