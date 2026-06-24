@@ -48,6 +48,7 @@ CORE_CONFIG_LIST = (
 HYBRID_OVERLAYS_DIR = DEPLOYMENTS_SEQUENCER / "configs" / "overlays" / LAYOUT
 COMMON_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common"
 INTEGRATION_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-integration"
+SEPOLIA_ALPHA_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-alpha"
 
 # The committed dump of Rust `private_parameters()` (the secrets): every non-pointer private param
 # plus every pointer target pointed by a private param. These are filled at deploy from the
@@ -612,6 +613,11 @@ def test_common_layer_jsonnet_mirrors_combined_yaml():
 def test_integration_layer_jsonnet_mirrors_combined_yaml():
     """REGRESSION: same invariant for the `sepolia-integration` env layer."""
     _assert_layer_jsonnet_mirrors_combined_yaml(INTEGRATION_LAYER_DIR)
+
+
+def test_sepolia_alpha_layer_jsonnet_mirrors_combined_yaml():
+    """REGRESSION: same invariant for the `sepolia-alpha` env layer."""
+    _assert_layer_jsonnet_mirrors_combined_yaml(SEPOLIA_ALPHA_LAYER_DIR)
 
 
 def _relative_layer_files(overlays_root: Path) -> set[str]:
