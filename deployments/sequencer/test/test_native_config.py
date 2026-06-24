@@ -23,6 +23,7 @@ LAYOUT = "hybrid"
 HYBRID_OVERLAYS_DIR = DEPLOYMENTS_SEQUENCER / "configs" / "overlays" / LAYOUT
 COMMON_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common"
 INTEGRATION_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-integration"
+SEPOLIA_ALPHA_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-alpha"
 
 
 def test_deep_merge_preserves_explicit_null():
@@ -172,3 +173,8 @@ def test_common_layer_jsonnet_mirrors_combined_yaml():
 def test_integration_layer_jsonnet_mirrors_combined_yaml():
     """REGRESSION: same invariant for the `sepolia-integration` env layer."""
     _assert_layer_jsonnet_mirrors_combined_yaml(INTEGRATION_LAYER_DIR)
+
+
+def test_sepolia_alpha_layer_jsonnet_mirrors_combined_yaml():
+    """REGRESSION: same invariant for the `sepolia-alpha` env layer."""
+    _assert_layer_jsonnet_mirrors_combined_yaml(SEPOLIA_ALPHA_LAYER_DIR)
