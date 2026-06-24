@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    serialize_duration_as_milliseconds,
+};
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::NetworkConfig;
@@ -16,7 +19,10 @@ pub struct MempoolP2pConfig {
     pub network_config: NetworkConfig,
     pub network_buffer_size: usize,
     pub max_transaction_batch_size: usize,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub transaction_batch_rate_millis: Duration,
     pub max_concurrent_gateway_requests: usize,
 }

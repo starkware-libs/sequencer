@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
-use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    serialize_duration_as_milliseconds,
+};
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -53,7 +56,10 @@ pub struct HttpServerStaticConfig {
     pub ip: IpAddr,
     pub port: u16,
     pub max_request_body_size: usize,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub dynamic_config_poll_interval: Duration,
 }
 
