@@ -4,6 +4,7 @@ use std::time::Duration;
 use apollo_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_optional_sensitive_list_with_url_and_headers,
+    serialize_duration_as_float_seconds,
     serialize_optional_list_with_url_and_headers,
     UrlAndHeaders,
 };
@@ -103,7 +104,10 @@ pub struct L1GasPriceProviderConfig {
     pub number_of_blocks_for_mean: u64,
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub lag_margin_seconds: Duration,
     pub storage_limit: usize,
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
@@ -183,7 +187,10 @@ pub struct L1GasPriceScraperConfig {
     #[validate(custom(function = "validate_ascii"))]
     pub chain_id: ChainId,
     pub finality: u64,
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_float_seconds_to_duration",
+        serialize_with = "serialize_duration_as_float_seconds"
+    )]
     pub polling_interval: Duration,
     pub number_of_blocks_for_mean: u64,
     // How many sets of config.num_blocks_for_mean blocks to go back

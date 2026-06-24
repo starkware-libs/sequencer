@@ -733,13 +733,21 @@ fn test_native_config_with_secret_overrides() {
 }
 
 #[test]
-fn test_native_config_single_file() {
+fn test_native_config_with_empty_secrets() {
     let base_file = NamedTempFile::new().unwrap();
     let base_config = json!({"top": "base_top", "inner": {"a": 1, "b": "base_b"}});
     std::fs::write(base_file.path(), base_config.to_string()).unwrap();
+    // Native mode requires exactly two files; an empty secrets file leaves the base config intact.
+    let secret_file = NamedTempFile::new().unwrap();
+    std::fs::write(secret_file.path(), json!({}).to_string()).unwrap();
 
-    let loaded: NativeConfig =
-        load_native_config(vec![CONFIG_FILE_ARG, base_file.path().to_str().unwrap()]).unwrap();
+    let loaded: NativeConfig = load_native_config(vec![
+        CONFIG_FILE_ARG,
+        base_file.path().to_str().unwrap(),
+        CONFIG_FILE_ARG,
+        secret_file.path().to_str().unwrap(),
+    ])
+    .unwrap();
 
     assert_eq!(
         loaded,
@@ -753,7 +761,7 @@ fn test_native_config_single_file() {
 #[test]
 fn test_native_config_without_config_file() {
     let result = load_native_config::<NativeConfig>(vec![]);
-    assert_matches!(result, Err(ConfigError::NativeModeRequiresConfigFile));
+    assert_matches!(result, Err(ConfigError::NativeModeRequiresTwoConfigFiles));
 }
 
 // Mirrors the production secrets file (crates/apollo_deployments/resources/testing_secrets.json):

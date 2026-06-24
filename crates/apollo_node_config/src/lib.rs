@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod config_serde_symmetry_test;
+#[cfg(test)]
 mod config_test;
 
 pub mod component_config;

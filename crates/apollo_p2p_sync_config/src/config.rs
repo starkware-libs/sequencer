@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    serialize_duration_as_milliseconds,
+};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -13,9 +16,15 @@ pub struct P2pSyncClientConfig {
     pub num_block_state_diffs_per_query: u64,
     pub num_block_transactions_per_query: u64,
     pub num_block_classes_per_query: u64,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub wait_period_for_new_data: Duration,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub wait_period_for_other_protocol: Duration,
     pub buffer_size: usize,
 }
