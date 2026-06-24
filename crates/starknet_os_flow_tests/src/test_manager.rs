@@ -167,8 +167,8 @@ impl OsTestExpectedValues {
         messages_to_l2: Vec<MessageToL2>,
         committed_state_diff: StateDiff,
     ) -> Self {
-        let first_block = os_hints.os_input.os_block_inputs.first().unwrap();
-        let last_block = os_hints.os_input.os_block_inputs.last().unwrap();
+        let first_block = os_hints.first_block_input();
+        let last_block = os_hints.last_block_input();
 
         // Compute global roots from commitment infos.
         let previous_global_root = StateRoots {

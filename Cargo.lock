@@ -13062,6 +13062,7 @@ dependencies = [
  "rand_chacha 0.10.0",
  "rstest",
  "serde_json",
+ "shared_execution_objects",
  "starknet-core",
  "starknet-crypto 0.8.1",
  "starknet-types-core",
