@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use apollo_config::converters::{
     deserialize_comma_separated_str,
     serialize_optional_comma_separated,
+    serialize_optional_comma_separated_str,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
@@ -47,7 +48,11 @@ pub struct GatewayStaticConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
-    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_comma_separated_str",
+        serialize_with = "serialize_optional_comma_separated_str"
+    )]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
     /// Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) allowed
     /// to run concurrently. Declares that arrive while this limit is reached are rejected
