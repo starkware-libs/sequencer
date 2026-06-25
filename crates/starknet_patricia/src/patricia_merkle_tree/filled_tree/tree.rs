@@ -77,8 +77,13 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
-        let mut filled_tree_output_map = HashMap::new();
-        for (index, node) in updated_skeleton.get_nodes() {
+        let nodes = updated_skeleton.get_nodes();
+        // Use the iterator's size hint as an upper bound for capacity so the map never rehashes
+        // during insertion. The actual entry count may be smaller because UnmodifiedSubTree nodes
+        // are filtered out, but over-allocating by a bounded factor is cheaper than rehashing.
+        let (lower, upper) = nodes.size_hint();
+        let mut filled_tree_output_map = HashMap::with_capacity(upper.unwrap_or(lower));
+        for (index, node) in nodes {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
                 filled_tree_output_map.insert(index, OnceLock::new());
             }
