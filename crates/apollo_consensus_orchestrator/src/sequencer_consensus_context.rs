@@ -75,7 +75,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 #[cfg(feature = "os_input")]
@@ -1080,6 +1080,16 @@ impl ConsensusContext for SequencerConsensusContext {
         }
 
         true
+    }
+
+    async fn network_tip(&self) -> Option<BlockNumber> {
+        // Fail-open: on error, report an unknown tip so consensus proceeds as usual. Logged at
+        // debug (not error) because this is queried every height and a transient miss is benign;
+        // a persistently unknown tip shows up as repeated lines worth investigating.
+        self.deps.state_sync_client.get_highest_block_number().await.unwrap_or_else(|err| {
+            debug!("Failed to fetch network tip from state sync: {err}");
+            None
+        })
     }
 
     async fn set_height_and_round(
