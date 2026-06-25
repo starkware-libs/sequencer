@@ -9,7 +9,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
-use apollo_node_config::config_utils::load_and_validate_config;
+use apollo_node_config::config_utils::{load_and_validate_config, private_parameters};
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -155,8 +155,9 @@ impl ConfigManagerRunner {
     }
 
     fn log_config_diff(&self, old_config: &NodeDynamicConfig, new_config: &NodeDynamicConfig) {
-        let old_config = get_config_presentation(old_config, false).unwrap();
-        let new_config = get_config_presentation(new_config, false).unwrap();
+        let private_paths = private_parameters();
+        let old_config = get_config_presentation(old_config, false, &private_paths).unwrap();
+        let new_config = get_config_presentation(new_config, false, &private_paths).unwrap();
         let all_keys: BTreeSet<_> = old_config
             .as_object()
             .unwrap()
