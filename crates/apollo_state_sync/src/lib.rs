@@ -22,7 +22,7 @@ use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockHeader, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
@@ -41,14 +41,20 @@ pub fn create_state_sync_and_runner(
     config_manager_client: SharedConfigManagerClient,
 ) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
-    let (state_sync_runner, storage_reader) = StateSyncRunner::new(
+    let (state_sync_runner, storage_reader, shared_highest_block) = StateSyncRunner::new(
         config.clone(),
         new_block_receiver,
         class_manager_client,
         config_manager_client.clone(),
     );
     (
-        StateSync::new(storage_reader, new_block_sender, config, config_manager_client),
+        StateSync::new(
+            storage_reader,
+            new_block_sender,
+            shared_highest_block,
+            config,
+            config_manager_client,
+        ),
         state_sync_runner,
     )
 }
@@ -57,6 +63,10 @@ pub fn create_state_sync_and_runner(
 pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
+    // The latest block known from the central source (feeder gateway) — the tip the sync is
+    // progressing toward. Updated by the central sync client; `None` when there is no central
+    // source (e.g. P2P-only) or no tip is known yet.
+    shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>>,
     config_manager_client: SharedConfigManagerClient,
     dynamic_config: Arc<RwLock<StateSyncDynamicConfig>>,
@@ -66,6 +76,7 @@ impl StateSync {
     pub fn new(
         storage_reader: StorageReader,
         new_block_sender: Sender<SyncBlock>,
+        shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
         config: StateSyncConfig,
         config_manager_client: SharedConfigManagerClient,
     ) -> Self {
@@ -87,6 +98,7 @@ impl StateSync {
         Self {
             storage_reader,
             new_block_sender,
+            shared_highest_block,
             starknet_client,
             config_manager_client,
             dynamic_config: Arc::new(RwLock::new(config.dynamic_config)),
@@ -142,6 +154,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             }
             StateSyncRequest::GetLatestBlockHeader() => {
                 StateSyncResponse::GetLatestBlockHeader(self.get_latest_block_header().await)
+            }
+            StateSyncRequest::GetHighestBlockNumber() => {
+                StateSyncResponse::GetHighestBlockNumber(self.get_highest_block_number().await)
             }
             StateSyncRequest::IsCairo1ClassDeclaredAt(block_number, class_hash) => {
                 StateSyncResponse::IsCairo1ClassDeclaredAt(
@@ -294,6 +309,10 @@ impl StateSync {
             Some(block_number) => Ok(txn.get_block_header(block_number)?),
             None => Ok(None),
         }
+    }
+
+    async fn get_highest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
+        Ok(self.shared_highest_block.read().await.as_ref().map(|block| block.number))
     }
 
     async fn is_cairo_1_class_declared_at(

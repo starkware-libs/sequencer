@@ -284,6 +284,9 @@ impl StateSyncClient for SharedStateSyncClientMetricWrapper {
     async fn get_latest_block_header(&self) -> StateSyncClientResult<Option<BlockHeader>> {
         self.run_command_with_metrics(self.state_sync_client.get_latest_block_header()).await
     }
+    async fn get_highest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
+        self.run_command_with_metrics(self.state_sync_client.get_highest_block_number()).await
+    }
     async fn is_cairo_1_class_declared_at(
         &self,
         block_number: BlockNumber,
