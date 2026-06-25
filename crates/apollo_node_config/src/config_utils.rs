@@ -156,7 +156,7 @@ pub fn load_and_validate_config(
         info!("Config map:");
         info!(
             "{:#?}",
-            get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
+            get_config_presentation(&loaded_config, false, &private_parameters())
                 .expect("Should be able to get representation.")
         );
         info!("Finished dumping configuration.");
