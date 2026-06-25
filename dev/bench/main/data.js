@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782383991884,
+  "lastUpdate": 1782390268966,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6425,6 +6425,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1372.46842373,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46dd68140b4b3abe5c295f916644874dea60f789",
+          "message": "starknet_patricia: collapse the let-else + re-match in node_from_edge_data into a single match (#14623)\n\n* starknet_patricia: use OnceLock for write-once filled-tree output maps\n\nThe filled-tree output maps are written exactly once per node and then\nreclaimed, yet they used `Mutex<Option<T>>` and locked on every write and on\nevery reclaim - even though after `Arc::into_inner` the map is uniquely owned\nand can never be contended.\n\nReplace the output maps with `OnceLock<T>`, the primitive that matches this\nwrite-once access pattern: `write_to_output_map` becomes a lock-free `set`\n(a failed `set` is the double-update error), and reclaiming via\n`OnceLock::into_inner` drops the locking entirely. Pre-allocate the collected\nmap with the known capacity. `Leaf::Output` gains a `Sync` bound, required for\n`OnceLock<L::Output>: Sync`. The leaf *input* map keeps `Mutex<Option<_>>`,\nsince its values are moved out (take-once), not written.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* starknet_patricia: group bottom index and node into a tuple in node_from_edge_data test\n\nReduces test_node_from_edge_data's argument count, keeping it under the\nclippy too_many_arguments threshold when later params are added.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* starknet_patricia: collapse the let-else + re-match in node_from_edge_data into a single match\n\nReplace the let-else followed by a re-match on the bottom node with a single\nflat match over all TempSkeletonNode variants. This drops the now-redundant\nunreachable arm for the non-Original case.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\nstarknet_patricia: assert unmodified-subtree edge bottom is present in the skeleton\n\nMirror the leaf sanity-check in node_from_edge_data: an unmodified subtree bottom\nmust already be finalized in the skeleton (from finalize_bottom_layer), so merge\nits arm with the leaf arm under the shared presence assertion.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-25T12:06:53Z",
+          "tree_id": "b2fc566693240d6bf9b35f9f9d8c81e8d254bdb1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/46dd68140b4b3abe5c295f916644874dea60f789"
+        },
+        "date": 1782390268617,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 935.88029085,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1223.76873832,
             "unit": "ms"
           }
         ]
