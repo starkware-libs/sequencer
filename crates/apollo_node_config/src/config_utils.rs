@@ -165,8 +165,8 @@ pub fn load_and_validate_config(
     Ok(loaded_config)
 }
 
-/// Overwrites every present target of each multi-target `CONFIG_POINTERS` group with a single,
-/// consistent value, mirroring what pointer resolution does at load time. This lets a config
+/// Overwrites every present target of each multi-target pointer group with a single,
+/// consistent value, mirroring what pointer resolution did at load time. This lets a config
 /// assembled directly from `SequencerNodeConfig::default()` satisfy the cross-component equality
 /// invariant enforced by `validate_node_config`.
 #[cfg(any(feature = "testing", test))]
