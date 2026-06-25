@@ -649,6 +649,74 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     context.decision_reached(HEIGHT_0, ROUND_1, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
+// M-27: a reproposal must be tracked in `active_proposal` like build/validate, so that advancing
+// the round cancels and tears down the (possibly in-flight) reproposal task instead of leaving it
+// detached and re-converting transactions for a superseded round.
+#[tokio::test]
+async fn repropose_is_tracked_and_cancelled_on_round_change() {
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(SetupDepsArgs {
+        n_executed_txs_count: TX_BATCH.len(),
+        ..Default::default()
+    });
+
+    const TIMESTAMP: u64 = 123456;
+    let mut clock = MockClock::new();
+    clock.expect_unix_now().return_const(TIMESTAMP);
+    clock.expect_now().return_const(Utc.timestamp_opt(TIMESTAMP.try_into().unwrap(), 0).unwrap());
+    deps.clock = Arc::new(clock);
+
+    // A buffer of 1 guarantees the reproposal task parks mid-stream (after Init, before Fin) since
+    // its output stream is never drained, letting us observe that cancellation tears it down while
+    // it is still in flight.
+    let mut context = deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig {
+            proposal_buffer_size: 1,
+            chain_id: CHAIN_ID,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    // Build a proposal at round 0 and drain it so the stored proposal exists and the build task
+    // completes.
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
+    let (_, mut build_receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    while build_receiver.next().await.is_some() {}
+    assert_eq!(fin_receiver.await.unwrap(), *TEST_PROPOSAL_COMMITMENT);
+
+    // Advance to round 1: interrupts the finished build and clears the active-proposal slot.
+    context.set_height_and_round(HEIGHT_0, ROUND_1).await.unwrap();
+    assert!(context.active_proposal.is_none(), "build task should be cleared after round change");
+
+    // Re-propose round 0's content at round 1, without draining the stream so the task stays in
+    // flight (parked once the single-slot buffer fills).
+    let build_param =
+        BuildParam { round: ROUND_1, valid_round: Some(ROUND_0), ..Default::default() };
+    context.repropose(*TEST_PROPOSAL_COMMITMENT, build_param).await;
+    let (_, mut reproposal_receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    assert!(
+        context.active_proposal.is_some(),
+        "reproposal task must be tracked in active_proposal"
+    );
+
+    // Advancing the round must cancel and await the in-flight reproposal task. If the task were not
+    // cancel-aware, interrupt_active_proposal would hang here on the parked stream send.
+    context.set_height_and_round(HEIGHT_0, ROUND_1 + 1).await.unwrap();
+    assert!(
+        context.active_proposal.is_none(),
+        "reproposal task should be cleared after round change"
+    );
+
+    // The cancelled task dropped its stream sender before reaching Fin, so the abandoned stream for
+    // the superseded round closes without ever delivering a Fin part.
+    let mut saw_fin = false;
+    while let Some(part) = reproposal_receiver.next().await {
+        saw_fin |= matches!(part, ProposalPart::Fin(_));
+    }
+    assert!(!saw_fin, "cancelled reproposal must not deliver a Fin for the superseded round");
+}
+
 #[tokio::test]
 async fn gas_price_fri_out_of_range() {
     let (mut deps, _network) = create_test_and_network_deps();

@@ -919,6 +919,12 @@ impl ConsensusContext for SequencerConsensusContext {
     ) {
         info!(?proposal_commitment, ?build_param, "Reproposing.");
         let height = build_param.height;
+        let round = build_param.round;
+        // Tear down any proposal still tracked from a previous round before starting this one,
+        // mirroring build/validate. set_height_and_round already interrupts on round change; we
+        // repeat it here so the active-proposal slot is guaranteed free without asserting.
+        self.interrupt_active_proposal().await;
+
         let (init, txs, finished_info) = self
             .valid_proposals
             .lock()
@@ -928,20 +934,32 @@ impl ConsensusContext for SequencerConsensusContext {
         let next_l2_gas_price =
             self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
         let transaction_converter = self.deps.transaction_converter.clone();
-        let mut stream_sender =
-            self.start_stream(HeightAndRound(height.0, build_param.round)).await;
+        let mut stream_sender = self.start_stream(HeightAndRound(height.0, round)).await;
+
+        // Track the reproposal task like build/validate so it is cancelled and awaited on
+        // round/height change. Otherwise a superseded reproposal keeps re-converting every
+        // transaction through the class manager and holding a full-block clone, with no
+        // backpressure on the number of in-flight tasks.
+        let cancel_token = CancellationToken::new();
+        let cancel_token_clone = cancel_token.clone();
         let handle = tokio::spawn(
             async move {
-                let res = send_reproposal(
-                    proposal_commitment,
-                    init,
-                    txs,
-                    finished_info,
-                    next_l2_gas_price,
-                    &mut stream_sender,
-                    transaction_converter,
-                )
-                .await;
+                let res = tokio::select! {
+                    biased;
+                    () = cancel_token.cancelled() => {
+                        info!(?height, round, "Reproposal cancelled for superseded round.");
+                        return;
+                    }
+                    res = send_reproposal(
+                        proposal_commitment,
+                        init,
+                        txs,
+                        finished_info,
+                        next_l2_gas_price,
+                        &mut stream_sender,
+                        transaction_converter,
+                    ) => res,
+                };
                 match res {
                     Ok(()) => {
                         info!(?proposal_commitment, ?build_param, "Reproposal succeeded.");
@@ -951,15 +969,11 @@ impl ConsensusContext for SequencerConsensusContext {
                     }
                 }
             }
-            .instrument(error_span!("consensus_repropose", round = build_param.round)),
+            .instrument(error_span!("consensus_repropose", round)),
         );
-        // Spawn a follow-up task to detect panics. Without this, if the reproposal
-        // task panics, the JoinError is silently swallowed when the handle is dropped.
-        tokio::spawn(async move {
-            if let Err(e) = handle.await {
-                error!("Reproposal task panicked: {e:?}");
-            }
-        });
+        // Panics in the task surface as a JoinError when interrupt_active_proposal awaits the
+        // handle on the next round/height change or on decision_reached, matching build/validate.
+        self.active_proposal = Some((cancel_token_clone, handle));
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
