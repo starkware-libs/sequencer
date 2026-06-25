@@ -44,6 +44,7 @@ use crate::fee_market::calculate_next_l2_gas_price_for_fin;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
+    expected_version_constant_commitment,
     get_l1_prices_in_fri_and_wei,
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
@@ -180,7 +181,9 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         // TODO(Asmaa): Put the real value once we have it.
-        version_constant_commitment: Default::default(),
+        // Sentinel until then; see `expected_version_constant_commitment` for why this is the
+        // single source of truth shared with the validator.
+        version_constant_commitment: expected_version_constant_commitment(),
         fee_proposal_fri: Some(args.fee_proposal),
     };
 
