@@ -1551,7 +1551,6 @@ dependencies = [
  "apollo_node_config",
  "jrsonnet-evaluator",
  "jrsonnet-stdlib",
- "phf",
  "serde",
  "serde_json",
  "static_assertions",
