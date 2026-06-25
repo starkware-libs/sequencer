@@ -50,6 +50,7 @@ COMMON_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common"
 INTEGRATION_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-integration"
 SEPOLIA_ALPHA_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-alpha"
 MAINNET_LAYER_DIR = HYBRID_OVERLAYS_DIR / "mainnet"
+DUMMY_FOR_TESTING_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common" / "dummy_for_testing"
 
 # The committed dump of Rust `private_parameters()` (the secrets): every non-pointer private param
 # plus every pointer target pointed by a private param. These are filled at deploy from the
@@ -455,7 +456,9 @@ def test_resolve_layer_files_single_leaf_visits_env_ancestor(combined_base_dir):
     base = Path(combined_base_dir)
     overlays_root = base / "configs" / "overlays" / LAYOUT
 
-    leaf_files = resolve_layer_files(LAYOUT, INTEGRATION_NODE0_LEAF_OVERLAY, base_dir=combined_base_dir)
+    leaf_files = resolve_layer_files(
+        LAYOUT, INTEGRATION_NODE0_LEAF_OVERLAY, base_dir=combined_base_dir
+    )
     both_files = resolve_layer_files(LAYOUT, INTEGRATION_NODE0_OVERLAYS, base_dir=combined_base_dir)
 
     # Single-leaf and explicit env+leaf chain must yield the SAME ordered, deduped file list.
@@ -465,7 +468,9 @@ def test_resolve_layer_files_single_leaf_visits_env_ancestor(combined_base_dir):
         sorted((overlays_root / "common").glob(LAYER_GLOB))
         + sorted((overlays_root / "sepolia-integration").glob(LAYER_GLOB))
         + sorted(
-            (overlays_root / "sepolia-integration" / "apollo-sepolia-integration-0").glob(LAYER_GLOB)
+            (overlays_root / "sepolia-integration" / "apollo-sepolia-integration-0").glob(
+                LAYER_GLOB
+            )
         )
     )
     assert leaf_files == expected
@@ -485,8 +490,12 @@ def test_single_leaf_merged_overrides_includes_env_cache_size(combined_base_dir)
     overrides lacked the key and `build()` hit `field does not exist: cache_size`. The single-leaf
     merged overrides must now contain it, and the single-leaf and env+leaf merges must be equal.
     """
-    leaf_overrides = merged_overrides(LAYOUT, INTEGRATION_NODE0_LEAF_OVERLAY, base_dir=combined_base_dir)
-    both_overrides = merged_overrides(LAYOUT, INTEGRATION_NODE0_OVERLAYS, base_dir=combined_base_dir)
+    leaf_overrides = merged_overrides(
+        LAYOUT, INTEGRATION_NODE0_LEAF_OVERLAY, base_dir=combined_base_dir
+    )
+    both_overrides = merged_overrides(
+        LAYOUT, INTEGRATION_NODE0_OVERLAYS, base_dir=combined_base_dir
+    )
 
     assert leaf_overrides == both_overrides
     assert "cache_size" in leaf_overrides["committer_config"]["storage_config"]
@@ -624,6 +633,16 @@ def test_sepolia_alpha_layer_jsonnet_mirrors_combined_yaml():
 def test_mainnet_layer_jsonnet_mirrors_combined_yaml():
     """REGRESSION: same invariant for the `mainnet` env layer."""
     _assert_layer_jsonnet_mirrors_combined_yaml(MAINNET_LAYER_DIR)
+
+
+def test_dummy_for_testing_layer_jsonnet_mirrors_combined_yaml():
+    """REGRESSION: same invariant for the `dummy_for_testing` overlay layer.
+
+    This layer supplies the dummy values the `prepare-production-overlays` CI job needs for env-only
+    synth (validator_id + the consensus/mempool multiaddrs), so its native override jsonnet must
+    mirror the combined YAMLs like the env layers do.
+    """
+    _assert_layer_jsonnet_mirrors_combined_yaml(DUMMY_FOR_TESTING_LAYER_DIR)
 
 
 def _relative_layer_files(overlays_root: Path) -> set[str]:
