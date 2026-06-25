@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 from imports import k8s
-from src.config.loaders import NodeConfigLoader
 from src.config.native import build_native_config
 from src.constructs.base import BaseConstruct
 
@@ -17,7 +16,6 @@ class ConfigMapConstruct(BaseConstruct):
         monitoring_endpoint_port,
         layout: str,
         overlays: list[str],
-        config_format: str,
     ):
         super().__init__(
             scope,
@@ -29,7 +27,6 @@ class ConfigMapConstruct(BaseConstruct):
 
         self.layout = layout
         self.overlays = overlays
-        self.config_format = config_format
         self.config_map = self._get_config_map()
 
     def _get_config_map(self) -> k8s.KubeConfigMap:
@@ -43,11 +40,7 @@ class ConfigMapConstruct(BaseConstruct):
                 f"config.configList is required for service '{self.service_config.name}' but was not provided"
             )
 
-        if self.config_format == "native":
-            node_config = self._build_native_node_config()
-        else:
-            assert self.config_format == "preset"
-            node_config = self._build_preset_node_config()
+        node_config = self._build_native_node_config()
 
         config_data = json.dumps(node_config, indent=2)
 
@@ -60,43 +53,6 @@ class ConfigMapConstruct(BaseConstruct):
             ),
             data=dict(config=config_data),
         )  # Key is "config" to match node/ format, mounted as /config/sequencer/presets/config
-
-    def _build_preset_node_config(self) -> dict:
-        """Produce the flat dotted-key preset config by filling `$$$_..._$$$` placeholders."""
-        # Load JSON configs using NodeConfigLoader
-        node_config_loader = NodeConfigLoader(
-            config_list_json_path=self.service_config.config.configList,
-        )
-        node_config = node_config_loader.load()
-
-        # sequencerConfig is now already merged from common into service_config
-        merged_sequencer_config = (
-            self.service_config.config.sequencerConfig
-            if self.service_config.config and self.service_config.config.sequencerConfig
-            else {}
-        )
-
-        # Apply merged overrides (includes validation for both unused keys and remaining placeholders)
-        if merged_sequencer_config:
-            node_config = NodeConfigLoader.apply_sequencer_overrides(
-                node_config,
-                merged_sequencer_config,
-                service_name=self.service_config.name,
-                config_list_path=self.service_config.config.configList,
-                layout=self.layout,
-                overlays=self.overlays,
-            )
-        else:
-            # If no sequencer config overrides, still validate for remaining placeholders
-            NodeConfigLoader.validate_no_remaining_placeholders(
-                node_config,
-                config_list_path=self.service_config.config.configList,
-                layout=self.layout,
-                overlays=self.overlays,
-                service_name=self.service_config.name,
-            )
-
-        return node_config
 
     def _build_native_node_config(self) -> dict:
         """Produce the nested SequencerNodeConfig for this service by evaluating the leaf overlay's
