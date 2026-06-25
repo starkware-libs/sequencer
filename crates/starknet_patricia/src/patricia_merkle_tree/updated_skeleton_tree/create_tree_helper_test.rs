@@ -232,18 +232,19 @@ fn test_node_from_binary_data(
 #[rstest]
 #[case::to_empty(
     &PathToBottom::LEFT_CHILD,
-    &NodeIndex::ROOT,
-    &TempSkeletonNode::Empty,
+    (&NodeIndex::ROOT, &TempSkeletonNode::Empty),
+    &[],
     &[],
     TempSkeletonNode::Empty,
     &[],
 )]
 #[case::to_edge(
     &PathToBottom::from("00"),
-    &NodeIndex::from(4),
-    &TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge(PathToBottom::from("11"))
+    (
+        &NodeIndex::from(4),
+        &TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("11"))),
     ),
+    &[],
     &[],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::from("0011"))
@@ -252,18 +253,22 @@ fn test_node_from_binary_data(
 )]
 #[case::to_unmodified_bottom(
     &PathToBottom::from("101"),
-    &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(
-        HashOutput::ROOT_OF_EMPTY_TREE
-    )),
+    (
+        &NodeIndex::from(5),
+        &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(
+            HashOutput::ROOT_OF_EMPTY_TREE
+        )),
+    ),
    &[],
+    // The unmodified subtree is finalized in the initial phase, so it appears in the skeleton.
+    &[(NodeIndex::from(5), OriginalSkeletonNode::UnmodifiedSubTree(HashOutput::ROOT_OF_EMPTY_TREE))],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("101"))),
     &[],
 )]
 #[case::to_binary(
     &PathToBottom::RIGHT_CHILD,
-    &NodeIndex::from(7),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    (&NodeIndex::from(7), &TempSkeletonNode::Original(OriginalSkeletonNode::Binary)),
+    &[],
     &[],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
@@ -272,9 +277,9 @@ fn test_node_from_binary_data(
 )]
 #[case::to_non_empty_leaf(
     &PathToBottom::RIGHT_CHILD,
-    &NodeIndex::from(7),
-    &TempSkeletonNode::Leaf,
+    (&NodeIndex::from(7), &TempSkeletonNode::Leaf),
     &[(NodeIndex::from(7), 1)],
+    &[],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
     ),
@@ -282,13 +287,15 @@ fn test_node_from_binary_data(
 )]
 fn test_node_from_edge_data(
     #[case] path: &PathToBottom,
-    #[case] bottom_index: &NodeIndex,
-    #[case] bottom: &TempSkeletonNode,
+    #[case] bottom_data: (&NodeIndex, &TempSkeletonNode),
     #[case] _leaf_modifications: &[(NodeIndex, u8)],
+    #[case] _original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(&[], _leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(_original_skeleton, _leaf_modifications)]
+    mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
+    let (bottom_index, bottom) = bottom_data;
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
     let temp_node = initial_updated_skeleton.node_from_edge_data(path, bottom_index, bottom);

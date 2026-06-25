@@ -266,34 +266,29 @@ impl UpdatedSkeletonTreeImpl {
         bottom_index: &NodeIndex,
         bottom: &TempSkeletonNode,
     ) -> TempSkeletonNode {
-        let TempSkeletonNode::Original(original_node) = bottom else {
-            match bottom {
-                TempSkeletonNode::Empty => {
-                    return TempSkeletonNode::Empty;
-                }
-                TempSkeletonNode::Leaf => {
-                    // Leaf is finalized in the initial phase of updated skeleton creation.
-                    assert!(
-                        self.skeleton_tree.contains_key(bottom_index),
-                        "bottom {bottom_index:?} is a non-empty leaf but doesn't appear in the \
-                         skeleton."
-                    );
-                    return TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path));
-                }
-                TempSkeletonNode::Original(_) => unreachable!("bottom is not an Original variant."),
-            };
-        };
-        TempSkeletonNode::Original(match original_node {
-            OriginalSkeletonNode::Edge(path_to_bottom) => {
-                OriginalSkeletonNode::Edge(path.concat_paths(*path_to_bottom))
+        match bottom {
+            TempSkeletonNode::Empty => TempSkeletonNode::Empty,
+            TempSkeletonNode::Original(OriginalSkeletonNode::Edge(path_to_bottom)) => {
+                TempSkeletonNode::Original(OriginalSkeletonNode::Edge(
+                    path.concat_paths(*path_to_bottom),
+                ))
             }
-            OriginalSkeletonNode::Binary => {
+            TempSkeletonNode::Original(OriginalSkeletonNode::Binary) => {
                 // Finalize bottom - a binary descendant cannot change form.
                 self.skeleton_tree.insert(*bottom_index, UpdatedSkeletonNode::Binary);
-                OriginalSkeletonNode::Edge(*path)
+                TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path))
             }
-            OriginalSkeletonNode::UnmodifiedSubTree(_) => OriginalSkeletonNode::Edge(*path),
-        })
+            TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(_))
+            | TempSkeletonNode::Leaf => {
+                // Leaves and unmodified subtrees are finalized in the initial phase of updated
+                // skeleton creation.
+                assert!(
+                    self.skeleton_tree.contains_key(bottom_index),
+                    "bottom {bottom_index:?} doesn't appear in the skeleton."
+                );
+                TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path))
+            }
+        }
     }
 
     /// Update an original subtree rooted with an edge node.
