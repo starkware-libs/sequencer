@@ -16,7 +16,6 @@ apollo_infra_utils.workspace = true
 apollo_node_config.workspace = true
 jrsonnet-evaluator = { workspace = true, optional = true }
 jrsonnet-stdlib = { workspace = true, optional = true }
-phf = { workspace = true, features = ["macros"] }
 serde.workspace = true
 serde_json.workspace = true
 static_assertions.workspace = true

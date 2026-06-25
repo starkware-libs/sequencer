@@ -7,12 +7,6 @@ use apollo_config::converters::{
 use serde::{Serialize, Serializer};
 use url::Url;
 
-/// Returns `true` if `prefix` is a path-prefix of the dotted config key `path`: either the same key
-/// or a dot-bounded ancestor of it (so `range_check` does not match the sibling `range_check96`).
-pub(crate) fn is_path_prefix(prefix: &str, path: &str) -> bool {
-    path.strip_prefix(prefix).is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
-}
-
 #[derive(Serialize)]
 pub struct SecretsConfigOverride {
     #[serde(
