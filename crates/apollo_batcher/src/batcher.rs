@@ -991,6 +991,9 @@ impl Batcher {
 
         // The OS only needs the read values for the keys it accesses; drop the extra reads (e.g.
         // reverted-tx reads).
+        // Note that the accessed keys also contain keys with no initial read - write-only leaves
+        // the OS produces but never reads, e.g. freshly allocated aliases or proof-fact
+        // block-hash entries.
         #[cfg(feature = "os_input")]
         let initial_reads = {
             let mut initial_reads = block_execution_artifacts.initial_reads;
