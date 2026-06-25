@@ -6,7 +6,6 @@ pub mod deployments;
 pub mod jsonnet_eval;
 #[cfg(test)]
 mod jsonnet_tests;
-pub(crate) mod replacers;
 pub(crate) mod scale_policy;
 pub mod service;
 #[cfg(test)]
