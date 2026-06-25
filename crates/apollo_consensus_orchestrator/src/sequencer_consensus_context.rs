@@ -1300,7 +1300,7 @@ async fn send_reproposal(
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
     stream_sender.send(ProposalPart::Init(init)).await?;
-    for batch in txs.into_iter() {
+    for batch in txs {
         let transactions = futures::future::join_all(batch.into_iter().map(|tx| {
             // transaction_converter is an external dependency (class manager) and so
             // we can't assume success on reproposal.
