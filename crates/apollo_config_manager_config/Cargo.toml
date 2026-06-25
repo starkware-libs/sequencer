@@ -7,7 +7,6 @@ license-file.workspace = true
 description = "Configuration types for Apollo config manager"
 
 [dependencies]
-apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 
