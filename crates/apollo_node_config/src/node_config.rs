@@ -1,21 +1,13 @@
-use std::collections::{BTreeMap, HashSet};
-use std::sync::LazyLock;
+use std::collections::BTreeMap;
 use std::vec::Vec;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
 use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
 use apollo_committer_config::config::ApolloCommitterConfig;
-use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::{
-    generate_optional_struct_pointer,
-    generate_struct_pointer,
     prepend_sub_config_name,
     ser_optional_sub_config,
     ser_param,
-    ser_pointer_target_param,
-    set_pointing_param_paths,
-    ConfigPointers,
-    Pointers,
     SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
@@ -33,12 +25,9 @@ use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_proof_manager_config::config::ProofManagerConfig;
-use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
-use blockifier::blockifier::config::NativeClassesWhitelist;
-use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
@@ -53,180 +42,9 @@ use crate::version::VERSION_FULL;
 // the crate.
 pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
     "crates/apollo_node/resources/config_secrets_schema.json";
-pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // TODO(Tsabary): move metrics recorder to the node level, like tracing, instead of being
 // initialized as part of the endpoint.
-
-// Configuration parameters that share the same value across multiple components.
-pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    let mut pointers = vec![
-        (
-            ser_pointer_target_param(
-                "chain_id",
-                &POINTER_TARGET_VALUE.to_string(),
-                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.static_config.block_builder_config.chain_info.chain_id",
-                "batcher_config.static_config.storage.db_config.chain_id",
-                "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.chain_id",
-                "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id",
-                "consensus_manager_config.context_config.static_config.chain_id",
-                "consensus_manager_config.network_config.chain_id",
-                "gateway_config.static_config.chain_info.chain_id",
-                "l1_events_scraper_config.chain_id",
-                "l1_gas_price_scraper_config.chain_id",
-                "mempool_p2p_config.network_config.chain_id",
-                "state_sync_config.static_config.storage_config.db_config.chain_id",
-                "state_sync_config.static_config.network_config.chain_id",
-                "state_sync_config.static_config.rpc_config.chain_id",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "eth_fee_token_address",
-                &POINTER_TARGET_VALUE.to_string(),
-                "Address of the ETH fee token.",
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
-                 eth_fee_token_address",
-                "gateway_config.static_config.chain_info.fee_token_addresses.eth_fee_token_address",
-                "state_sync_config.static_config.rpc_config.execution_config.eth_fee_contract_address",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "native_classes_whitelist",
-                &"[]".to_string(),
-                NativeClassesWhitelist::SER_PARAM_DESCRIPTION,
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.dynamic_config.native_classes_whitelist",
-                "gateway_config.dynamic_config.native_classes_whitelist",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "starknet_url",
-                &POINTER_TARGET_VALUE.to_string(),
-                "URL for communicating with Starknet.",
-            ),
-            set_pointing_param_paths(&[
-                "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url",
-                "state_sync_config.static_config.rpc_config.starknet_url",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "strk_fee_token_address",
-                &POINTER_TARGET_VALUE.to_string(),
-                "Address of the STRK fee token.",
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
-                 strk_fee_token_address",
-                "gateway_config.static_config.chain_info.fee_token_addresses.strk_fee_token_address",
-                "state_sync_config.static_config.rpc_config.execution_config.strk_fee_contract_address",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "validator_id",
-                &POINTER_TARGET_VALUE.to_string(),
-                "The ID of the validator. \
-                 Also the address of this validator as a starknet contract.",
-            ),
-            set_pointing_param_paths(&["consensus_manager_config.consensus_manager_config.dynamic_config.validator_id"]),
-        ),
-        (
-            ser_pointer_target_param(
-                "recorder_url",
-                &POINTER_TARGET_VALUE.to_string(),
-                "The URL of the Pythonic cende_recorder",
-            ),
-            set_pointing_param_paths(&[
-                "consensus_manager_config.cende_config.recorder_url",
-                "batcher_config.static_config.pre_confirmed_cende_config.recorder_url",
-                "mempool_config.static_config.recorder_url",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "validate_resource_bounds",
-                &true,
-                "Indicates that validations related to resource bounds are applied. \
-                It should be set to false during a system bootstrap.",
-            ),
-            set_pointing_param_paths(&[
-                "gateway_config.static_config.stateful_tx_validator_config.validate_resource_bounds",
-                "gateway_config.static_config.stateless_tx_validator_config.validate_resource_bounds",
-                "mempool_config.static_config.validate_resource_bounds",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "max_cpu_time",
-                &600u64,
-                "Limitation of compilation cpu time (seconds).",
-            ),
-            set_pointing_param_paths(&[
-                "sierra_compiler_config.max_cpu_time",
-                "batcher_config.static_config.contract_class_manager_config.native_compiler_config.\
-                 max_cpu_time",
-                "gateway_config.static_config.contract_class_manager_config.native_compiler_config.\
-                 max_cpu_time",
-            ]),
-        ),
-    ];
-    let mut common_execution_config = generate_optional_struct_pointer::<VersionedConstantsOverrides>(
-        "versioned_constants_overrides".to_owned(),
-        None,
-        set_pointing_param_paths(&[
-            "batcher_config.static_config.block_builder_config.versioned_constants_overrides",
-            "gateway_config.static_config.stateful_tx_validator_config.\
-             versioned_constants_overrides",
-        ]),
-    );
-    pointers.append(&mut common_execution_config);
-
-    let mut common_execution_config = generate_struct_pointer(
-        "revert_config".to_owned(),
-        &RevertConfig::default(),
-        set_pointing_param_paths(&[
-            "state_sync_config.static_config.revert_config",
-            "consensus_manager_config.revert_config",
-        ]),
-    );
-    pointers.append(&mut common_execution_config);
-
-    pointers.push((
-        ser_pointer_target_param(
-            "behavior_mode",
-            &BehaviorMode::Starknet,
-            "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
-        ),
-        set_pointing_param_paths(&[
-            "consensus_manager_config.context_config.static_config.behavior_mode",
-            "mempool_config.static_config.behavior_mode",
-        ]),
-    ));
-    pointers.push((
-        ser_pointer_target_param(
-            "validation_only",
-            &false,
-            "If true, the node validates proposed blocks but does not build proposals. Requires \
-             gateway, http_server, and mempool to be disabled.",
-        ),
-        set_pointing_param_paths(&["batcher_config.static_config.validation_only"]),
-    ));
-    pointers
-});
-
-// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param.
-pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
-    LazyLock::new(HashSet::<ParamPath>::new);
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
@@ -610,19 +428,18 @@ impl SequencerNodeConfig {
 
     /// Asserts that the formerly-pointer-resolved values are equal across all present components.
     ///
-    /// The `CONFIG_POINTERS` mechanism copies a single source value into many nested component
-    /// fields at load time. Once those values are baked into the config (e.g. by jsonnet `build()`)
-    /// nothing re-checks that the copies actually agree. These present-only equality asserts are a
+    /// The pointer mechanism copied a single source value into many nested component fields at load
+    /// time. Once those values are baked into the config (e.g. by jsonnet `build()`) nothing
+    /// re-checks that the copies actually agree. These present-only equality asserts are a
     /// defense-in-depth guard for hand-edited, test, or otherwise non-jsonnet-generated configs:
     /// for each pointer group with more than one target, every present component must hold the same
     /// value. Components that are absent (`None`) are skipped, so partial/distributed deployments
     /// that own only a subset of a group still validate. Each group below mirrors one multi-target
-    /// entry of `CONFIG_POINTERS`, plus `validation_only`: a single-target pointer whose target
-    /// (the batcher's copy) is checked against the always-present top-level source field, since
-    /// the node reads the two independently. Two single-target pointers are intentionally not
-    /// checked here: `starknet_url` (its targets are typed `String` vs `Url` and cannot be
-    /// compared directly) and `validator_id` (a lone target with no independent source to
-    /// disagree with).
+    /// pointer group, plus `validation_only`: a single-target pointer whose target (the batcher's
+    /// copy) is checked against the always-present top-level source field, since the node reads the
+    /// two independently. Two single-target pointers are intentionally not checked here:
+    /// `starknet_url` (its targets are typed `String` vs `Url` and cannot be compared directly) and
+    /// `validator_id` (a lone target with no independent source to disagree with).
     fn validate_pointer_groups_equal(&self) -> Result<(), ConfigError> {
         let batcher = self.batcher_config.as_ref();
         let class_manager = self.class_manager_config.as_ref();

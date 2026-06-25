@@ -1,8 +1,4 @@
-use std::collections::BTreeSet;
-
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config::dumping::SerializeConfig;
-use apollo_config::ParamPath;
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use apollo_infra_utils::dumping::serialize_to_file_test;
@@ -23,7 +19,7 @@ use crate::component_execution_config::{
 };
 use crate::config_utils::{normalize_pointer_groups, private_parameters};
 use crate::monitoring::MonitoringConfig;
-use crate::node_config::{SequencerNodeConfig, CONFIG_POINTERS, CONFIG_SECRETS_SCHEMA_PATH};
+use crate::node_config::{SequencerNodeConfig, CONFIG_SECRETS_SCHEMA_PATH};
 
 const FIX_BINARY_NAME: &str = "update_apollo_node_config_schema";
 
@@ -82,56 +78,11 @@ fn valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
-/// Computes the private-parameter set the way it was historically derived: from the config dump
-/// (`SequencerNodeConfig::default().dump()`), filtering private params and remapping pointer
-/// members to their pointer target. This is the source of truth the committed secrets schema was
-/// generated from.
-///
-/// TRANSIENT: this mirrors the pre-Phase-4 body of `private_parameters()`. It exists only to guard
-/// that re-sourcing `private_parameters()` off the committed secrets schema did not drift from the
-/// config-derived set. Remove it together with the transient equivalence test.
-fn private_parameters_from_config_dump() -> BTreeSet<ParamPath> {
-    let dumped_config = SequencerNodeConfig::default().dump();
-
-    let mut private_values = BTreeSet::new();
-    for (param_path, ser_param) in dumped_config.into_iter() {
-        if !ser_param.is_private() {
-            continue;
-        }
-        let mut included_as_a_pointer = false;
-        for ((pointer_target_param_path, _ser_param), pointing_params) in CONFIG_POINTERS.iter() {
-            if pointing_params.contains(&param_path) {
-                private_values.insert(pointer_target_param_path.clone());
-                included_as_a_pointer = true;
-            }
-        }
-        if !included_as_a_pointer {
-            private_values.insert(param_path);
-        }
-    }
-    private_values
-}
-
 /// Test that the committed secrets schema file is up to date. To update it, run
 /// `cargo run --bin <FIX_BINARY_NAME>`.
 #[test]
 fn default_config_file_is_up_to_date() {
     serialize_to_file_test(&private_parameters(), CONFIG_SECRETS_SCHEMA_PATH, FIX_BINARY_NAME);
-}
-
-/// TRANSIENT: proves that the file-sourced `private_parameters()` returns the same set as the
-/// historical config-dump-derived computation, guarding the Phase-4 re-source against drift. Remove
-/// this together with `private_parameters_from_config_dump` once the config-derivation path is
-/// gone.
-#[test]
-fn private_parameters_matches_config_dump_derivation() {
-    let file_sourced: BTreeSet<ParamPath> = private_parameters();
-    let config_derived = private_parameters_from_config_dump();
-    assert_eq!(
-        file_sourced, config_derived,
-        "File-sourced private_parameters() drifted from the config-dump derivation. Regenerate \
-         the secrets schema with `cargo run --bin {FIX_BINARY_NAME}`."
-    );
 }
 
 #[test]
