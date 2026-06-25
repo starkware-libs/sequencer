@@ -29,7 +29,7 @@ pub trait Leaf:
     // add a default implementation for `create`.
     // [Issue](https://github.com/rust-lang/rust/issues/29661).
     type Input: Send + Sync + 'static;
-    type Output: Send + Debug + 'static;
+    type Output: Send + Sync + Debug + 'static;
 
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
