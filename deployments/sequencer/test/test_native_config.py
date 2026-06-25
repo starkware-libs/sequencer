@@ -11,11 +11,12 @@ from pathlib import Path
 
 import _jsonnet
 import yaml
-from src.config.native import JSONNET_DIR, deep_merge_preserving_null
+from src.config.native import JSONNET_DIR, build_native_config, deep_merge_preserving_null
 
 DEPLOYMENTS_SEQUENCER = Path(__file__).resolve().parents[1]
 
 LAYOUT = "hybrid"
+CORE_SERVICE = "core"
 
 # Per-layer override-file dirs: each layer holds a `sequencer_config.jsonnet` that must mirror the
 # combined `config.sequencerConfig` of the YAMLs in the same dir (see
@@ -26,6 +27,13 @@ INTEGRATION_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-integration"
 SEPOLIA_ALPHA_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-alpha"
 MAINNET_LAYER_DIR = HYBRID_OVERLAYS_DIR / "mainnet"
 DUMMY_FOR_TESTING_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common" / "dummy_for_testing"
+# Functional testing overlay deployed live by `hybrid_system_test.yaml`; its native layer is a full
+# value-parity translation of its YAMLs (subject to the strict YAML-mirror invariant below).
+NODE0_LAYER_DIR = HYBRID_OVERLAYS_DIR / "testing" / "node-0"
+# Structure-validation overlay (cdk8s `kubectl validate` only); its native layer is a synth-only stub
+# carrying dummy `overrides.*` values its YAMLs lack, so it is NOT a YAML-mirror layer (see
+# `test_all_constructs_native_config_synthesizes`).
+ALL_CONSTRUCTS_OVERLAYS = ["hybrid.testing.all-constructs"]
 
 
 def test_deep_merge_preserves_explicit_null():
@@ -195,3 +203,33 @@ def test_dummy_for_testing_layer_jsonnet_mirrors_combined_yaml():
     mirror the combined YAMLs like the env layers do.
     """
     _assert_layer_jsonnet_mirrors_combined_yaml(DUMMY_FOR_TESTING_LAYER_DIR)
+
+
+def test_node0_layer_jsonnet_mirrors_combined_yaml():
+    """REGRESSION: same invariant for the `testing/node-0` overlay layer.
+
+    `node-0` is a FUNCTIONAL overlay deployed live by `hybrid_system_test.yaml`, so its native
+    override jsonnet is a full value-parity translation of its YAMLs and must mirror the combined
+    `config.sequencerConfig` (folded) exactly, like the env layers do.
+    """
+    _assert_layer_jsonnet_mirrors_combined_yaml(NODE0_LAYER_DIR)
+
+
+def test_all_constructs_native_config_synthesizes():
+    """REGRESSION: the `testing/all-constructs` overlay synthesizes a native config.
+
+    Unlike the env/dummy layers, `all-constructs` is a STRUCTURE-validation stub: its cdk8s output is
+    only `kubectl validate`d for manifest structure, never for config content, and its YAML
+    `config.sequencerConfig` folds to empty. It is therefore NOT a YAML-mirror layer; its native
+    layer instead supplies the minimum dummy `overrides.*` values `build()` reads unconditionally. The
+    only invariant we assert is that native synth SUCCEEDS and yields a nested config (the CI
+    `sequencer_cdk8s-test.yml` job synths this overlay under `--config-format native`).
+    """
+    native_nested = build_native_config(
+        service_name=CORE_SERVICE,
+        layout=LAYOUT,
+        overlays=ALL_CONSTRUCTS_OVERLAYS,
+    )
+    assert isinstance(native_nested, dict) and native_nested
+    # A nested SequencerNodeConfig (not the flat dotted preset form): top-level component sections.
+    assert any(isinstance(value, dict) for value in native_nested.values())
