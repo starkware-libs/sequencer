@@ -1,17 +1,9 @@
-use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     serialize_duration_as_milliseconds,
 };
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
@@ -43,19 +35,6 @@ pub struct BlockBuilderConfig {
     pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
 }
 
-impl SerializeConfig for BlockBuilderConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = prepend_sub_config_name(self.chain_info.dump(), "chain_info");
-        dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
-        dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
-        dump.append(&mut ser_optional_sub_config(
-            &self.versioned_constants_overrides,
-            "versioned_constants_overrides",
-        ));
-        dump
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
@@ -73,32 +52,6 @@ impl Default for CommitmentManagerConfig {
     }
 }
 
-impl SerializeConfig for CommitmentManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "tasks_channel_size",
-                &self.tasks_channel_size,
-                "The size of the channel for sending tasks to the commitment manager.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "results_channel_size",
-                &self.results_channel_size,
-                "The size of the channel for receiving results from the commitment manager.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "panic_if_task_channel_full",
-                &self.panic_if_task_channel_full,
-                "If the task channel is full: if true, will panic. If false, will wait for the \
-                 tasks channel to be available.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
 /// Configuration for the preconfirmed block writer component of the batcher.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PreconfirmedBlockWriterConfig {
@@ -109,26 +62,6 @@ pub struct PreconfirmedBlockWriterConfig {
 impl Default for PreconfirmedBlockWriterConfig {
     fn default() -> Self {
         Self { channel_buffer_capacity: 1000, write_block_interval_millis: 50 }
-    }
-}
-
-impl SerializeConfig for PreconfirmedBlockWriterConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "channel_buffer_capacity",
-                &self.channel_buffer_capacity,
-                "The capacity of the channel buffer for receiving pre-confirmed transactions.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "write_block_interval_millis",
-                &self.write_block_interval_millis,
-                "Time interval (ms) between writing pre-confirmed blocks. Writes occur only when \
-                 block data changes.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 
@@ -148,48 +81,11 @@ impl Default for PreconfirmedCendeConfig {
     }
 }
 
-impl SerializeConfig for PreconfirmedCendeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct FirstBlockWithPartialBlockHash {
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,
     pub parent_block_hash: BlockHash,
-}
-
-impl SerializeConfig for FirstBlockWithPartialBlockHash {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "block_number",
-                &self.block_number,
-                "The number of the first block with a partial block hash components.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "block_hash",
-                &self.block_hash,
-                "The hash of the first block with a partial block hash components.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "parent_block_hash",
-                &self.parent_block_hash,
-                "The hash of the parent block of the first block with a partial block hash \
-                 components.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
@@ -212,76 +108,6 @@ pub struct BatcherStaticConfig {
     /// If true, the batcher only validates proposed blocks and cannot build proposals.
     /// Mirrors the node-level `validation_only`; `validate_node_config` asserts the two are equal.
     pub validation_only: bool,
-}
-
-impl SerializeConfig for BatcherStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        // TODO(yair): create nicer function to append sub configs.
-        let mut dump = BTreeMap::from([
-            ser_param(
-                "outstream_content_buffer_size",
-                &self.outstream_content_buffer_size,
-                "The maximum number of items to include in a single get_proposal_content response.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "input_stream_content_buffer_size",
-                &self.input_stream_content_buffer_size,
-                "Sets the buffer size for the input transaction channel. Adding more transactions \
-                 beyond this limit will block until space is available.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_l1_handler_txs_per_block_proposal",
-                &self.max_l1_handler_txs_per_block_proposal,
-                "The maximum number of L1 handler transactions to include in a block proposal.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "propose_l1_txs_every",
-                &self.propose_l1_txs_every,
-                "Only propose L1 transactions every N proposals.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
-        dump.append(&mut prepend_sub_config_name(
-            self.block_builder_config.dump(),
-            "block_builder_config",
-        ));
-        dump.append(&mut prepend_sub_config_name(
-            self.pre_confirmed_block_writer_config.dump(),
-            "pre_confirmed_block_writer_config",
-        ));
-        dump.append(&mut prepend_sub_config_name(
-            self.contract_class_manager_config.dump(),
-            "contract_class_manager_config",
-        ));
-        dump.append(&mut prepend_sub_config_name(
-            self.commitment_manager_config.dump(),
-            "commitment_manager_config",
-        ));
-        dump.append(&mut prepend_sub_config_name(
-            self.pre_confirmed_cende_config.dump(),
-            "pre_confirmed_cende_config",
-        ));
-        dump.extend(ser_optional_sub_config(
-            &self.first_block_with_partial_block_hash,
-            "first_block_with_partial_block_hash",
-        ));
-        dump.append(&mut prepend_sub_config_name(
-            self.storage_reader_server_static_config.dump(),
-            "storage_reader_server_static_config",
-        ));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "validation_only",
-            &self.validation_only,
-            "If true, the batcher only validates proposed blocks and cannot build proposals. Set \
-             via the node-level validation_only config pointer.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump
-    }
 }
 
 impl Default for BatcherStaticConfig {
@@ -354,51 +180,6 @@ impl Default for BatcherDynamicConfig {
     }
 }
 
-impl SerializeConfig for BatcherDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([
-            self.native_classes_whitelist.ser_param(),
-            ser_param(
-                "n_concurrent_txs",
-                &self.n_concurrent_txs,
-                "Number of transactions in each request from the tx_provider.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "tx_polling_interval_millis",
-                &self.tx_polling_interval_millis,
-                "Time to wait (in milliseconds) between transaction requests when the previous \
-                 request returned no transactions. Applies when proposing (polls the mempool). \
-                 Kept intentionally high so txs accumulate between polls and ordering is decided \
-                 by tip/priority fee rather than by arrival latency (geographic proximity).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "validate_tx_polling_interval_millis",
-                &self.validate_tx_polling_interval_millis,
-                "Time to wait (in milliseconds) between transaction requests when the previous \
-                 request returned no transactions. Applies when validating a proposal, where the \
-                 tx order is already fixed; a short interval reduces the delay before streamed \
-                 txs are executed.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "proposer_idle_detection_delay_millis",
-                &self.proposer_idle_detection_delay_millis.as_millis(),
-                "Minimum time (in milliseconds) that must pass since block creation started \
-                 before checking for idle state. If this delay has passed AND no transactions are \
-                 currently being executed, the proposer will finish building the current block.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.append(&mut prepend_sub_config_name(
-            self.storage_reader_server_dynamic_config.dump(),
-            "storage_reader_server_dynamic_config",
-        ));
-        dump
-    }
-}
-
 /// The batcher related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_batcher_config"))]
@@ -407,15 +188,6 @@ pub struct BatcherConfig {
     pub static_config: BatcherStaticConfig,
     #[validate(nested)]
     pub dynamic_config: BatcherDynamicConfig,
-}
-
-impl SerializeConfig for BatcherConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
-        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
-        config
-    }
 }
 
 fn validate_batcher_dynamic_config(

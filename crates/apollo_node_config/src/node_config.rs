@@ -1,18 +1,11 @@
-use std::collections::BTreeMap;
 use std::vec::Vec;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
 use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
 use apollo_committer_config::config::ApolloCommitterConfig;
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
-use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::ConfigError;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -96,51 +89,6 @@ pub struct SequencerNodeConfig {
     pub state_sync_config: Option<StateSyncConfig>,
 }
 
-impl SerializeConfig for SequencerNodeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "validation_only",
-            &self.validation_only,
-            "If true, the node validates proposed blocks but does not build proposals. Requires \
-             gateway, http_server, and mempool to be disabled.",
-            ParamPrivacyInput::Public,
-        )]);
-        let sub_configs = vec![
-            // Infra related configs.
-            prepend_sub_config_name(self.components.dump(), "components"),
-            ser_optional_sub_config(&self.config_manager_config, "config_manager_config"),
-            prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
-            // Business-logic component configs.
-            ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
-            ser_optional_sub_config(&self.batcher_config, "batcher_config"),
-            ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
-            ser_optional_sub_config(&self.committer_config, "committer_config"),
-            ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
-            ser_optional_sub_config(&self.gateway_config, "gateway_config"),
-            ser_optional_sub_config(&self.http_server_config, "http_server_config"),
-            ser_optional_sub_config(&self.mempool_config, "mempool_config"),
-            ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
-            ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
-            ser_optional_sub_config(
-                &self.l1_gas_price_provider_config,
-                "l1_gas_price_provider_config",
-            ),
-            ser_optional_sub_config(
-                &self.l1_gas_price_scraper_config,
-                "l1_gas_price_scraper_config",
-            ),
-            ser_optional_sub_config(&self.l1_events_provider_config, "l1_events_provider_config"),
-            ser_optional_sub_config(&self.l1_events_scraper_config, "l1_events_scraper_config"),
-            ser_optional_sub_config(&self.proof_manager_config, "proof_manager_config"),
-            ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
-            ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
-        ];
-
-        dump.extend(sub_configs.into_iter().flatten());
-        dump
-    }
-}
-
 impl Default for SequencerNodeConfig {
     fn default() -> Self {
         Self {
@@ -192,29 +140,6 @@ pub struct NodeDynamicConfig {
     pub staking_manager_dynamic_config: Option<StakingManagerDynamicConfig>,
     #[validate(nested)]
     pub state_sync_dynamic_config: Option<StateSyncDynamicConfig>,
-}
-
-impl SerializeConfig for NodeDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let sub_configs = [
-            ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
-            ser_optional_sub_config(
-                &self.class_manager_dynamic_config,
-                "class_manager_dynamic_config",
-            ),
-            ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
-            ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
-            ser_optional_sub_config(&self.gateway_dynamic_config, "gateway_dynamic_config"),
-            ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
-            ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
-            ser_optional_sub_config(
-                &self.staking_manager_dynamic_config,
-                "staking_manager_dynamic_config",
-            ),
-            ser_optional_sub_config(&self.state_sync_dynamic_config, "state_sync_dynamic_config"),
-        ];
-        sub_configs.into_iter().flatten().collect()
-    }
 }
 
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {

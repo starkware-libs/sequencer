@@ -1,8 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::num::NonZeroU64;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::{Deserialize, Serialize};
@@ -137,18 +135,6 @@ impl BouncerConfig {
     }
 }
 
-impl SerializeConfig for BouncerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump =
-            prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
-        dump.append(&mut prepend_sub_config_name(
-            self.builtin_instance_limits.dump(),
-            "builtin_instance_limits",
-        ));
-        dump
-    }
-}
-
 #[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::AddAssign))]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 /// Represents the execution resources counted throughout block creation.
@@ -227,61 +213,6 @@ impl Default for BouncerWeights {
             // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
             receipt_l2_gas: GasAmount(5800000000),
         }
-    }
-}
-
-impl SerializeConfig for BouncerWeights {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "l1_gas",
-            &self.l1_gas,
-            "An upper bound on the total l1_gas used in a block.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.append(&mut BTreeMap::from([ser_param(
-            "message_segment_length",
-            &self.message_segment_length,
-            "An upper bound on the message segment length in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_events",
-            &self.n_events,
-            "An upper bound on the total number of events generated in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "state_diff_size",
-            &self.state_diff_size,
-            "An upper bound on the total state diff size in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "sierra_gas",
-            &self.sierra_gas,
-            "An upper bound on the total sierra_gas used in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_txs",
-            &self.n_txs,
-            "An upper bound on the total number of transactions in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "proving_gas",
-            &self.proving_gas,
-            "An upper bound on the total builtins and steps gas usage used in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "receipt_l2_gas",
-            &self.receipt_l2_gas,
-            "An upper bound on the total receipt-based L2 gas in a block. Includes execution gas \
-             plus state allocation costs. Should equal max_block_size.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump
     }
 }
 
@@ -487,79 +418,6 @@ impl Default for BuiltinInstanceLimits {
             mul_mod: nz(3_000_000),
             blake: nz(1_800_000),
         }
-    }
-}
-
-impl SerializeConfig for BuiltinInstanceLimits {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "pedersen",
-            &self.pedersen,
-            "Instance limit for the pedersen builtin.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.append(&mut BTreeMap::from([ser_param(
-            "range_check",
-            &self.range_check,
-            "Instance limit for the range_check builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "range_check96",
-            &self.range_check96,
-            "Instance limit for the range_check96 builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "poseidon",
-            &self.poseidon,
-            "Instance limit for the poseidon builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "ecdsa",
-            &self.ecdsa,
-            "Instance limit for the ecdsa builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "ecop",
-            &self.ecop,
-            "Instance limit for the ec_op builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "add_mod",
-            &self.add_mod,
-            "Instance limit for the add_mod builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "mul_mod",
-            &self.mul_mod,
-            "Instance limit for the mul_mod builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "keccak",
-            &self.keccak,
-            "Instance limit for the keccak builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "bitwise",
-            &self.bitwise,
-            "Instance limit for the bitwise builtin.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "blake",
-            &self.blake,
-            "Instance limit for the blake opcode.",
-            ParamPrivacyInput::Public,
-        )]));
-
-        dump
     }
 }
 

@@ -1,12 +1,12 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 use std::fs::File;
 use std::path::Path;
 
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::{ConfigError, ParamPath, FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_config::{ConfigError, ParamPath};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use tracing::{error, info};
 
 use crate::node_config::{SequencerNodeConfig, CONFIG_SECRETS_SCHEMA_PATH};
@@ -14,81 +14,12 @@ use crate::node_config::{SequencerNodeConfig, CONFIG_SECRETS_SCHEMA_PATH};
 /// Returns the set of all non-pointer private parameters and all pointer target parameters pointed
 /// by private parameters, as committed in the secrets schema file (`CONFIG_SECRETS_SCHEMA_PATH`).
 ///
-/// The committed file is exactly this set serialized; the `default_config_file_is_up_to_date` test
-/// guards that it stays in sync with the config derivation.
+/// The committed file is hand-maintained. The `secrets_schema_contains_all_default_redacted_fields`
+/// test guards (best-effort) that every default-redacted `Sensitive` field is present in it.
 pub fn private_parameters() -> BTreeSet<ParamPath> {
     let secrets_schema_path = &resolve_project_relative_path(CONFIG_SECRETS_SCHEMA_PATH).unwrap();
     let secrets_schema_file = File::open(secrets_schema_path).unwrap();
     serde_json::from_reader(secrets_schema_file).unwrap()
-}
-
-/// Transforms a nested JSON dictionary object into a simplified JSON dictionary object by
-/// extracting specific values from the inner dictionaries.
-///
-/// # Parameters
-/// - `config_map`: A reference to a `serde_json::Value` that must be a JSON dictionary object. Each
-///   key in the object maps to another JSON dictionary object.
-///
-/// # Returns
-/// - A `serde_json::Value` dictionary object where:
-///   - Each key is preserved from the top-level dictionary.
-///   - Each value corresponds to the `"value"` field of the nested JSON dictionary under the
-///     original key.
-///
-/// # Panics
-/// This function panics if the provided `config_map` is not a JSON dictionary object.
-pub fn config_to_preset(config_map: &Value) -> Value {
-    // Ensure the config_map is a JSON object.
-    if let Value::Object(map) = config_map {
-        let mut result = Map::new();
-
-        for (key, value) in map {
-            if let Value::Object(inner_map) = value {
-                // Extract the value.
-                if let Some(inner_value) = inner_map.get("value") {
-                    // Add it to the result map
-                    result.insert(key.clone(), inner_value.clone());
-                }
-            }
-        }
-
-        // Return the transformed result as a JSON object.
-        Value::Object(result)
-    } else {
-        panic!("Config map is not a JSON object: {config_map:?}");
-    }
-}
-
-/// Keep "{prefix}.#is_none": true, remove all other keys that begin with "{prefix}" (including
-/// the bare prefix).
-pub fn prune_by_is_none(mut v: Value) -> Value {
-    let obj: &mut Map<String, Value> =
-        v.as_object_mut().expect("prune_by_is_none: expected a JSON object");
-
-    // Find optional parameter paths which are unset
-    let is_none_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
-    let mut unset_optional_param_paths: HashSet<String> = HashSet::new();
-
-    for (k, val) in obj.iter() {
-        if let Some(prefix) = k.strip_suffix(&is_none_suffix) {
-            if val.as_bool() == Some(true) {
-                unset_optional_param_paths.insert(prefix.to_string());
-            }
-        }
-    }
-
-    // Remove keys that begin with any such prefix (including the bare prefix), except the
-    // "#is_none" flag itself
-    obj.retain(|k, _| {
-        if let Some(p) = unset_optional_param_paths.iter().find(|p| k.starts_with(&***p)) {
-            // keep only the "{prefix}.#is_none" key
-            k == &format!("{p}{FIELD_SEPARATOR}{IS_NONE_MARK}")
-        } else {
-            true
-        }
-    });
-
-    v
 }
 
 // TODO(Nadin/Tsabary): `DeploymentBaseAppConfig` is only used in tests, and should be marked as

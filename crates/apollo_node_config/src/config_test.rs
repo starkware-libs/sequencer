@@ -1,12 +1,13 @@
-use apollo_config::behavior_mode::BehaviorMode;
+use std::collections::BTreeSet;
+
+use apollo_config::secrets::DEFAULT_REDACTION_OUTPUT;
+use apollo_config::{ParamPath, FIELD_SEPARATOR};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
-use apollo_infra_utils::dumping::serialize_to_file_test;
-use apollo_reverts::RevertConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncStaticConfig};
 use apollo_storage::{StorageConfig, StorageScope};
-use blockifier::blockifier::config::NativeClassesWhitelist;
 use rstest::rstest;
+use serde_json::Value;
 use starknet_api::contract_address;
 use starknet_api::core::ChainId;
 use validator::Validate;
@@ -20,8 +21,6 @@ use crate::component_execution_config::{
 use crate::config_utils::{normalize_pointer_groups, private_parameters};
 use crate::monitoring::MonitoringConfig;
 use crate::node_config::{SequencerNodeConfig, CONFIG_SECRETS_SCHEMA_PATH};
-
-const FIX_BINARY_NAME: &str = "update_apollo_node_config_schema";
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
@@ -78,11 +77,75 @@ fn valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
-/// Test that the committed secrets schema file is up to date. To update it, run
-/// `cargo run --bin <FIX_BINARY_NAME>`.
+/// Collects the dotted paths of every leaf in `value` whose serialized form is the
+/// `Sensitive<T>` default-redaction sentinel. These are the secret fields the type system can
+/// detect automatically. Paths use [`FIELD_SEPARATOR`] to match the secrets-schema convention.
+fn default_redacted_paths(value: &Value, prefix: &str, paths: &mut BTreeSet<ParamPath>) {
+    match value {
+        Value::String(string_value) if string_value == DEFAULT_REDACTION_OUTPUT => {
+            paths.insert(prefix.to_owned());
+        }
+        Value::Object(map) => {
+            for (key, child) in map {
+                let child_prefix = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}{FIELD_SEPARATOR}{key}")
+                };
+                default_redacted_paths(child, &child_prefix, paths);
+            }
+        }
+        // A `Vec<Sensitive<T>>`/`Option<Vec<Sensitive<T>>>` secret (e.g.
+        // `ordered_l1_endpoint_urls`, `url_header_list`) serializes to an array of
+        // redaction sentinels. The whole field is one schema entry, so recurse into each
+        // element with the SAME prefix (no per-element index): any redacted element marks
+        // the field's own path.
+        Value::Array(items) => {
+            for item in items {
+                default_redacted_paths(item, prefix, paths);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Safety guard for the hand-maintained secrets schema (`CONFIG_SECRETS_SCHEMA_PATH`).
+///
+/// Walks the serialized default config for `Sensitive<T>` default-redaction sentinels and asserts
+/// every such field is declared in the committed schema. This catches a newly added secret field
+/// (with the default redactor) that wasn't added to the schema.
+///
+/// Best-effort by design: the schema is now hand-maintained (the generator binary was retired), so
+/// this guard only enforces the subset direction. Gaps it cannot cover:
+/// - `Sensitive<T>` fields that attach a custom redactor serialize to that custom string, not the
+///   default sentinel, so they are not detected here.
+/// - Secret fields enforced only via `#[serde(deserialize_with = ...)]` (no `Sensitive<T>` type)
+///   have no serialized marker at all.
+/// Such fields, and any unset (`None`) optional secrets, must be kept in the schema by hand.
 #[test]
-fn default_config_file_is_up_to_date() {
-    serialize_to_file_test(&private_parameters(), CONFIG_SECRETS_SCHEMA_PATH, FIX_BINARY_NAME);
+fn secrets_schema_contains_all_default_redacted_fields() {
+    let default_config_value = serde_json::to_value(SequencerNodeConfig::default())
+        .expect("Should be able to serialize the default config to a JSON value");
+    let mut detected_secret_paths = BTreeSet::new();
+    default_redacted_paths(&default_config_value, "", &mut detected_secret_paths);
+
+    // Guard against the detector silently regressing to vacuous (e.g. a serialized shape that stops
+    // hitting any arm, like the missing array arm this once had). At least the known array-typed L1
+    // endpoint secret must be detected; otherwise the subset check below is meaningless.
+    assert!(
+        detected_secret_paths.contains("base_layer_config.ordered_l1_endpoint_urls"),
+        "secret detector found no default-redacted array fields — the recursion is likely not \
+         descending into arrays; detected: {detected_secret_paths:?}"
+    );
+
+    let committed_secret_paths = private_parameters();
+    let missing_paths: Vec<&ParamPath> =
+        detected_secret_paths.difference(&committed_secret_paths).collect();
+    assert!(
+        missing_paths.is_empty(),
+        "The following default-redacted secret fields are missing from the committed secrets \
+         schema ({CONFIG_SECRETS_SCHEMA_PATH}). Add them by hand: {missing_paths:?}"
+    );
 }
 
 #[test]

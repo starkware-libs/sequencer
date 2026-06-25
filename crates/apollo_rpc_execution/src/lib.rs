@@ -19,12 +19,9 @@ pub mod testing_instances;
 
 pub mod objects;
 use std::cell::Cell;
-use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use blockifier::blockifier::block::pre_process_block;
@@ -138,31 +135,6 @@ impl Default for ExecutionConfig {
             eth_fee_contract_address: *ETH_FEE_CONTRACT_ADDRESS,
             default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
         }
-    }
-}
-
-impl SerializeConfig for ExecutionConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "strk_fee_contract_address",
-                &self.strk_fee_contract_address,
-                "The strk fee token address to receive fees",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "eth_fee_contract_address",
-                &self.eth_fee_contract_address,
-                "The eth fee token address to receive fees",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "default_initial_gas_cost",
-                &self.default_initial_gas_cost,
-                "The initial gas cost for a transaction",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 
