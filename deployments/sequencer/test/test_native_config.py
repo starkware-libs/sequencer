@@ -25,6 +25,7 @@ COMMON_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common"
 INTEGRATION_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-integration"
 SEPOLIA_ALPHA_LAYER_DIR = HYBRID_OVERLAYS_DIR / "sepolia-alpha"
 MAINNET_LAYER_DIR = HYBRID_OVERLAYS_DIR / "mainnet"
+DUMMY_FOR_TESTING_LAYER_DIR = HYBRID_OVERLAYS_DIR / "common" / "dummy_for_testing"
 
 
 def test_deep_merge_preserves_explicit_null():
@@ -184,3 +185,13 @@ def test_sepolia_alpha_layer_jsonnet_mirrors_combined_yaml():
 def test_mainnet_layer_jsonnet_mirrors_combined_yaml():
     """REGRESSION: same invariant for the `mainnet` env layer."""
     _assert_layer_jsonnet_mirrors_combined_yaml(MAINNET_LAYER_DIR)
+
+
+def test_dummy_for_testing_layer_jsonnet_mirrors_combined_yaml():
+    """REGRESSION: same invariant for the `dummy_for_testing` overlay layer.
+
+    This layer supplies the dummy values the `prepare-production-overlays` CI job needs for env-only
+    synth (validator_id + the consensus/mempool multiaddrs), so its native override jsonnet must
+    mirror the combined YAMLs like the env layers do.
+    """
+    _assert_layer_jsonnet_mirrors_combined_yaml(DUMMY_FOR_TESTING_LAYER_DIR)
