@@ -2,7 +2,7 @@
 
 The legacy "preset" path fills `$$$_..._$$$` placeholders in flat dotted-key replacer JSON to
 produce the ConfigMap. The "native" path instead assembles the nested `SequencerNodeConfig` the
-node deserializes directly (loaded with `--config_format native`).
+node deserializes directly from its `--config_file`(s).
 
 Pipeline:
   1. Locate the per-layer `*sequencer_config.jsonnet` override files along the SAME overlay chain the

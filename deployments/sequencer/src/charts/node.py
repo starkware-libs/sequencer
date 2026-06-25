@@ -31,13 +31,11 @@ class SequencerNodeChart(Chart):
         service_config: ServiceConfig,
         layout: str,
         overlays: list[str],
-        config_format: str,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
 
         self.monitoring = monitoring
         self.service_config = service_config
-        self.config_format = config_format
 
         # Create labels dictionary from service config + service name
         # Base labels from shared config (metaLabels) - now merged into service_config
@@ -57,7 +55,6 @@ class SequencerNodeChart(Chart):
             monitoring_endpoint_port,
             layout,
             overlays,
-            config_format=config_format,
         )
 
         # Create ServiceAccount if enabled
@@ -104,7 +101,6 @@ class SequencerNodeChart(Chart):
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
-                config_format=config_format,
             )
         else:
             self.controller = DeploymentConstruct(
@@ -113,7 +109,6 @@ class SequencerNodeChart(Chart):
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
-                config_format=config_format,
             )
 
         # Create BackendConfig if enabled
