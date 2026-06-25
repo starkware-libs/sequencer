@@ -5,7 +5,6 @@ use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_node::test_utils::node_runner::NodeRunner;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
-use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
@@ -115,14 +114,6 @@ impl ExecutableSetup {
         F: Fn(&mut SequencerNodeConfig),
     {
         self.base_app_config.modify_config(modify_config_fn);
-        self.dump_config_file_changes();
-    }
-
-    pub fn modify_config_pointers<F>(&mut self, modify_config_pointers_fn: F)
-    where
-        F: Fn(&mut ConfigPointersMap),
-    {
-        self.base_app_config.modify_config_pointers(modify_config_pointers_fn);
         self.dump_config_file_changes();
     }
 

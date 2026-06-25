@@ -2,23 +2,14 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
-use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::create_validation_error;
 use apollo_config::{ConfigError, ParamPath, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use serde_json::{Map, Value};
 use tracing::{error, info};
-use validator::ValidationError;
 
-use crate::definitions::ConfigPointersMap;
-use crate::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_SECRETS_SCHEMA_PATH,
-    POINTER_TARGET_VALUE,
-};
+use crate::node_config::{SequencerNodeConfig, CONFIG_SECRETS_SCHEMA_PATH};
 
 /// Returns the set of all non-pointer private parameters and all pointer target parameters pointed
 /// by private parameters, as committed in the secrets schema file (`CONFIG_SECRETS_SCHEMA_PATH`).
@@ -100,47 +91,20 @@ pub fn prune_by_is_none(mut v: Value) -> Value {
     v
 }
 
-// TODO(Nadin): Consider adding methods to ConfigPointers to encapsulate related functionality.
-fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError> {
-    if let Some(preset_map) = preset.as_object() {
-        for (key, value) in preset_map {
-            if value == POINTER_TARGET_VALUE {
-                return Err(create_validation_error(
-                    format!("Pointer target not set for key: '{key}'"),
-                    "pointer_target_not_set",
-                    "Pointer target not set",
-                ));
-            }
-        }
-        Ok(())
-    } else {
-        Err(create_validation_error(
-            "Preset must be an object".to_string(),
-            "invalid_preset_format",
-            "Preset is not a valid object",
-        ))
-    }
-}
-
 // TODO(Nadin/Tsabary): `DeploymentBaseAppConfig` is only used in tests, and should be marked as
 // such.
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
-    config_pointers_map: ConfigPointersMap,
 }
 
 impl DeploymentBaseAppConfig {
-    pub fn new(config: SequencerNodeConfig, config_pointers_map: ConfigPointersMap) -> Self {
-        Self { config, config_pointers_map }
+    pub fn new(config: SequencerNodeConfig) -> Self {
+        Self { config }
     }
 
     pub fn get_config(&self) -> &SequencerNodeConfig {
         &self.config
-    }
-
-    pub fn get_config_pointers_map(&self) -> &ConfigPointersMap {
-        &self.config_pointers_map
     }
 
     pub fn modify_config<F>(&mut self, modify_config_fn: F)
@@ -150,44 +114,10 @@ impl DeploymentBaseAppConfig {
         modify_config_fn(&mut self.config);
     }
 
-    pub fn modify_config_pointers<F>(&mut self, modify_config_pointers_fn: F)
-    where
-        F: Fn(&mut ConfigPointersMap),
-    {
-        modify_config_pointers_fn(&mut self.config_pointers_map);
-    }
-
-    pub fn as_value(&self) -> Value {
-        // Create the entire mapping of the config and the pointers, without the required params.
-        let config_as_map = combine_config_map_and_pointers(
-            self.config.dump(),
-            // TODO(Tsabary): avoid the cloning here
-            &self.config_pointers_map.clone().into(),
-            &CONFIG_NON_POINTERS_WHITELIST,
-        )
-        .unwrap();
-
-        // Extract only the required fields from the config map.
-        let preset = config_to_preset(&config_as_map);
-        let preset = prune_by_is_none(preset);
-        validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
-        preset
-    }
-
     /// Returns the nested config as JSON, matching the `SequencerNodeConfig` field hierarchy.
-    /// This is the artifact consumed by the native config loader (as the base config), in contrast
-    /// to the flat preset produced by `as_value`.
+    /// This is the artifact consumed by the native config loader (as the base config).
     pub fn as_native_value(&self) -> Value {
         serde_json::to_value(&self.config).expect("Should be able to serialize config to value")
-    }
-
-    // TODO(Tsabary): unify path types throughout.
-    pub fn dump_config_file(&self, config_path: &Path) {
-        let value = self.as_value();
-        serialize_to_file(
-            &value,
-            config_path.to_str().expect("Should be able to convert path to string"),
-        );
     }
 
     /// Dumps the nested native base config (see `as_native_value`) to `config_path`.

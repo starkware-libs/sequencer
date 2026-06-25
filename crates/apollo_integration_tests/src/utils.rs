@@ -70,9 +70,8 @@ use apollo_network::network_manager::test_utils::create_connected_network_config
 use apollo_network::NetworkConfig;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::ExpectedComponentConfig;
-use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::monitoring::MonitoringConfig;
-use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
+use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
@@ -114,7 +113,7 @@ use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
-use serde_json::{json, to_value};
+use serde_json::json;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -329,9 +328,7 @@ pub fn create_node_config(
     allow_bootstrap_txs: bool,
     validation_only: bool,
     verify_state_diff_hash: bool,
-) -> (SequencerNodeConfig, ConfigPointersMap) {
-    let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
-    let fee_token_addresses = chain_info.fee_token_addresses.clone();
+) -> SequencerNodeConfig {
     let storage_reader_server_port = available_ports.get_next_port();
     let mut batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
@@ -378,42 +375,15 @@ pub fn create_node_config(
     let proof_manager_config = storage_config.proof_manager_config.clone();
     state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
-    let starknet_url = state_sync_config.static_config.rpc_config.starknet_url.clone();
 
     consensus_manager_config.consensus_manager_config.static_config.storage_config =
         storage_config.consensus_storage_config.clone();
+    // Formerly propagated via the `validator_id` config pointer; the native config carries the
+    // value directly at its nested location.
+    consensus_manager_config.consensus_manager_config.dynamic_config.validator_id = validator_id;
 
     let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
     let sierra_compiler_config = SierraCompilationConfig::default();
-
-    // Update config pointer values.
-    let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
-    config_pointers_map.change_target_value(
-        "chain_id",
-        to_value(chain_info.chain_id).expect("Failed to serialize ChainId"),
-    );
-    config_pointers_map.change_target_value(
-        "eth_fee_token_address",
-        to_value(fee_token_addresses.eth_fee_token_address)
-            .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "strk_fee_token_address",
-        to_value(fee_token_addresses.strk_fee_token_address)
-            .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "validator_id",
-        to_value(validator_id).expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "recorder_url",
-        to_value(&recorder_url).expect("Failed to serialize Url"),
-    );
-    config_pointers_map.change_target_value(
-        "starknet_url",
-        to_value(starknet_url).expect("Failed to serialize starknet_url"),
-    );
 
     // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
     // otherwise returns `None`. Assumes `components` is in scope.
@@ -430,8 +400,7 @@ pub fn create_node_config(
     // Retain only the required configs.
     let base_layer_config = Some(base_layer_config);
     // The batcher's own validation_only must match the node-level flag so it knows whether to
-    // expect a mempool client. The config pointer in CONFIG_POINTERS only propagates this when
-    // loading from a file; when building in code we set it directly.
+    // expect a mempool client; set it directly on the native config.
     batcher_config.static_config.validation_only = validation_only;
     // TODO(Asaf): once consensus works on a StateOnly state_sync (see
     // `validate_validation_only_config` in apollo_node_config), restore an
@@ -492,7 +461,7 @@ pub fn create_node_config(
 
     sequencer_node_config.validate_node_config().expect("Generated node config should be valid.");
 
-    (sequencer_node_config, config_pointers_map)
+    sequencer_node_config
 }
 
 pub(crate) fn create_consensus_manager_configs_from_network_configs(

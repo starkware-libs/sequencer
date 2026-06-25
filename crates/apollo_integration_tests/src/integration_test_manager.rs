@@ -21,7 +21,6 @@ use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
-use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
 use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
@@ -560,27 +559,6 @@ impl IntegrationTestManager {
             node_setup.get_executables_mut().for_each(|executable| {
                 info!("Modifying {} config.", executable.node_executable_id);
                 executable.modify_config(modify_config_fn);
-            });
-        });
-    }
-
-    pub fn modify_config_pointers_idle_nodes<F>(
-        &mut self,
-        nodes_to_modify_config_pointers: HashSet<usize>,
-        modify_config_pointers_fn: F,
-    ) where
-        F: Fn(&mut ConfigPointersMap) + Copy,
-    {
-        info!("Modifying specified nodes config pointers.");
-
-        nodes_to_modify_config_pointers.into_iter().for_each(|node_index| {
-            let node_setup = self
-                .idle_nodes
-                .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
-            node_setup.get_executables_mut().for_each(|executable| {
-                info!("Modifying {} config pointers.", executable.node_executable_id);
-                executable.modify_config_pointers(modify_config_pointers_fn);
             });
         });
     }
@@ -1407,7 +1385,7 @@ async fn get_sequencer_setup_configs(
                 ..Default::default()
             };
 
-            let (config, config_pointers_map) = create_node_config(
+            let config = create_node_config(
                 &mut config_available_ports,
                 chain_info.clone(),
                 storage_setup.storage_config.clone(),
@@ -1426,7 +1404,7 @@ async fn get_sequencer_setup_configs(
                 !is_proof_flow,
             );
 
-            let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
+            let base_app_config = DeploymentBaseAppConfig::new(config);
 
             let node_executable_id = NodeExecutableId::new(
                 node_index,
