@@ -102,6 +102,33 @@ fn test_create_message_batch_packed_maximally() {
 }
 
 #[test]
+fn test_create_message_batch_tight_boundary() {
+    // Verify via prost's own encoded_len() that the batch fits and that the first excluded
+    // item would in fact push it over the limit — independent of the test helper formula.
+    let unit = make_proto_unit(25);
+    let single_cost = item_batch_cost(&unit);
+    let num_items = 4usize;
+    let max_size = 3 * single_cost; // fits exactly 3, 4th would exceed
+
+    let mut queue: VecDeque<ProtoUnit> = (0..num_items).map(|_| unit.clone()).collect();
+    let batch = Handler::create_message_batch(&mut queue, max_size);
+
+    assert_eq!(batch.batch.len(), 3);
+    // Independent check: prost's encoded_len must be within budget.
+    assert!(batch.encoded_len() <= max_size, "batch overflows max_size");
+    // Independent check: adding the next item would exceed the budget.
+    let next_unit_encoded = queue.front().unwrap().encoded_len();
+    let next_unit_encoded_u64 =
+        u64::try_from(next_unit_encoded).expect("encoded length fits in u64");
+    let next_item_len =
+        1 + prost::encoding::encoded_len_varint(next_unit_encoded_u64) + next_unit_encoded;
+    assert!(
+        batch.encoded_len() + next_item_len > max_size,
+        "next item should not fit"
+    );
+}
+
+#[test]
 fn test_create_message_batch_encoded_len_matches_proto() {
     // The incremental size tracking must agree with prost's own encoded_len at every step.
     let unit = make_proto_unit(15);

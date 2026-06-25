@@ -239,6 +239,10 @@ impl Handler {
     }
 
     /// Create a batch of messages from the send queue that fits within max_wire_message_size.
+    ///
+    /// `max_wire_message_size` bounds the protobuf body (i.e. `ProtoBatch::encoded_len()`),
+    /// matching the codec's length check. The framed wire bytes are up to ~5 bytes larger due
+    /// to the length delimiter prepended by `PropellerCodec::encode`.
     fn create_message_batch(
         send_queue: &mut VecDeque<ProtoUnit>,
         max_wire_message_size: usize,
