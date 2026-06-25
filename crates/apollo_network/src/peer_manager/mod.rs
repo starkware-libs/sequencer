@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -7,8 +7,6 @@ use apollo_config::converters::{
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
 };
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -83,25 +81,6 @@ impl Default for PeerManagerConfig {
             malicious_timeout_seconds: Duration::from_secs(1),
             unstable_timeout_millis: Duration::from_millis(1000),
         }
-    }
-}
-
-impl SerializeConfig for PeerManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "malicious_timeout_seconds",
-                &self.malicious_timeout_seconds.as_secs(),
-                "The duration in seconds a peer is blacklisted after being marked as malicious.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "unstable_timeout_millis",
-                &self.unstable_timeout_millis.as_millis(),
-                "The duration in milliseconds a peer blacklisted after being reported as unstable.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

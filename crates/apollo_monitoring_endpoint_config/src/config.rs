@@ -1,9 +1,6 @@
-use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::net::{IpAddr, Ipv4Addr};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -32,32 +29,6 @@ impl MonitoringEndpointConfig {
 impl Default for MonitoringEndpointConfig {
     fn default() -> Self {
         MonitoringEndpointConfig::deployment()
-    }
-}
-
-impl SerializeConfig for MonitoringEndpointConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "ip",
-                &self.ip.to_string(),
-                "The monitoring endpoint ip address.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "port",
-                &self.port,
-                "The monitoring endpoint port.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "snapshot_timeout_millis",
-                &self.snapshot_timeout_millis,
-                "Timeout in milliseconds for snapshot requests to internal services (mempool, L1 \
-                 provider). Returns 504 if the service does not respond within this deadline.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

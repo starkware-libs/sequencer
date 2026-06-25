@@ -29,7 +29,6 @@ pub mod kad_impl;
 #[cfg(test)]
 mod testing_utils;
 
-use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -38,8 +37,6 @@ use apollo_config::converters::{
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use behaviours::bootstrapping::BootstrappingBehaviour;
 use behaviours::dialing::DialingBehaviour;
 use behaviours::kad_requesting::KadRequestingBehaviour;
@@ -147,22 +144,6 @@ impl Default for DiscoveryConfig {
     }
 }
 
-impl SerializeConfig for DiscoveryConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "heartbeat_interval",
-            &self.heartbeat_interval.as_millis(),
-            "The interval between each discovery (Kademlia) query in milliseconds.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.append(&mut prepend_sub_config_name(
-            self.bootstrap_dial_retry_config.dump(),
-            "bootstrap_dial_retry_config",
-        ));
-        dump
-    }
-}
-
 /// Configuration for exponential backoff retry logic.
 ///
 /// This struct defines the parameters for the exponential backoff strategy
@@ -230,37 +211,6 @@ impl Default for RetryConfig {
             factor: 5,
             new_connection_stabilization_millis: Duration::from_millis(2000),
         }
-    }
-}
-
-impl SerializeConfig for RetryConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "base_delay_millis",
-                &self.base_delay_millis,
-                "The base delay in milliseconds for the exponential backoff strategy.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_delay_seconds",
-                &self.max_delay_seconds.as_secs(),
-                "The maximum delay in seconds for the exponential backoff strategy.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "factor",
-                &self.factor,
-                "The factor for the exponential backoff strategy.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "new_connection_stabilization_millis",
-                &self.new_connection_stabilization_millis.as_millis(),
-                "Milliseconds to wait on a new connection before treating it as stable.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

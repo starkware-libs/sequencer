@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -7,13 +7,9 @@ use apollo_config::converters::{
     deserialize_seconds_to_duration,
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
-    serialize_optional_map,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::RetryConfig;
-use itertools::chain;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;
@@ -52,58 +48,6 @@ impl Default for CentralSourceConfig {
     }
 }
 
-impl SerializeConfig for CentralSourceConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let self_params_dump = BTreeMap::from_iter([
-            ser_param(
-                "concurrent_requests",
-                &self.concurrent_requests,
-                "Maximum number of concurrent requests to Starknet feeder-gateway for getting a \
-                 type of data (for example, blocks).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "starknet_url",
-                &self.starknet_url,
-                "Starknet feeder-gateway URL. It should match chain_id.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "http_headers",
-                &serialize_optional_map(&None),
-                "'k1:v1 k2:v2 ...' headers for SN-client.",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
-                "max_state_updates_to_download",
-                &self.max_state_updates_to_download,
-                "Maximum number of state updates to download at a given time.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_state_updates_to_store_in_memory",
-                &self.max_state_updates_to_store_in_memory,
-                "Maximum number of state updates to store in memory at a given time.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_classes_to_download",
-                &self.max_classes_to_download,
-                "Maximum number of classes to download at a given time.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "class_cache_size",
-                &self.class_cache_size,
-                "Size of class cache, must be a positive integer.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        chain!(self_params_dump, prepend_sub_config_name(self.retry_config.dump(), "retry_config"))
-            .collect()
-    }
-}
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
     #[serde(
@@ -130,75 +74,6 @@ pub struct SyncConfig {
     /// within this many blocks of the chain tip. This ensures low-latency commits
     /// near the tip so that readers see new data immediately.
     pub blocks_before_tip_to_disable_batching: u64,
-}
-
-impl SerializeConfig for SyncConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "latest_block_poll_interval_millis",
-                &self.latest_block_poll_interval_millis.as_millis(),
-                "Time in milliseconds between polling for the latest block while node is \
-                 synchronized.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "base_layer_propagation_sleep_duration",
-                &self.base_layer_propagation_sleep_duration.as_secs(),
-                "Time in seconds to poll the base layer to get the latest proved block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "recoverable_error_sleep_duration",
-                &self.recoverable_error_sleep_duration.as_secs(),
-                "Waiting time in seconds before restarting synchronization after a recoverable \
-                 error.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "blocks_max_stream_size",
-                &self.blocks_max_stream_size,
-                "Max amount of blocks to download in a stream.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "state_updates_max_stream_size",
-                &self.state_updates_max_stream_size,
-                "Max amount of state updates to download in a stream.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "verify_blocks",
-                &self.verify_blocks,
-                "Whether to verify incoming blocks.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "collect_pending_data",
-                &self.collect_pending_data,
-                "Whether to collect data on pending blocks.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "store_sierras_and_casms_block_threshold",
-                &self.store_sierras_and_casms_block_threshold,
-                "Block-number threshold for persisting **Sierra** and **CASM** to local storage \
-                 (for backward compatibility with the native blockifier). For blocks with \
-                 block_number < this value, Sierra and CASM are stored for all classes; for \
-                 block_number >= this value they are stored only for **legacy** classes (compiled \
-                 with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Use 0 to store for no \
-                 blocks, or a large value (e.g. u64::MAX) to store for all.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "blocks_before_tip_to_disable_batching",
-                &self.blocks_before_tip_to_disable_batching,
-                "Batching is automatically disabled (batch_size=1) once the node is within this \
-                 many blocks of the chain tip, ensuring low-latency commits near the tip.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for SyncConfig {
