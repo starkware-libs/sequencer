@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::time::Duration;
 
 use assert_matches::assert_matches;
@@ -116,6 +116,18 @@ impl SerializeConfig for TypicalConfig {
     }
 }
 
+/// Derives the set of `Private` param paths from a fixture's `dump()`. Mirrors the privacy registry
+/// that production callers inject (e.g. `private_parameters()`), so the presentation tests stay
+/// pinned to the fixtures' own privacy declarations.
+fn private_paths_from_dump<T: SerializeConfig>(config: &T) -> BTreeSet<ParamPath> {
+    config
+        .dump()
+        .into_iter()
+        .filter(|(_, serialized_param)| serialized_param.privacy == ParamPrivacy::Private)
+        .map(|(param_path, _)| param_path)
+        .collect()
+}
+
 #[test]
 fn test_config_presentation() {
     let config = TypicalConfig {
@@ -126,13 +138,42 @@ fn test_config_presentation() {
         e: 10,
         f: 0.5,
     };
-    let presentation = get_config_presentation(&config, true).unwrap();
+    let private_paths = private_paths_from_dump(&config);
+    // `c` is the only `Private` param in this fixture.
+    assert_eq!(private_paths, BTreeSet::from(["c".to_owned()]));
+
+    let presentation = get_config_presentation(&config, true, &private_paths).unwrap();
     let keys: Vec<_> = presentation.as_object().unwrap().keys().collect();
     assert_eq!(keys, vec!["a", "b", "c", "d", "e", "f"]);
 
-    let public_presentation = get_config_presentation(&config, false).unwrap();
+    let public_presentation = get_config_presentation(&config, false, &private_paths).unwrap();
     let keys: Vec<_> = public_presentation.as_object().unwrap().keys().collect();
     assert_eq!(keys, vec!["a", "b", "d", "e", "f"]);
+}
+
+#[test]
+fn test_config_presentation_does_not_leak_private_params() {
+    let config = TypicalConfig {
+        a: Duration::from_secs(1),
+        b: "bbb".to_owned(),
+        c: true,
+        d: -1,
+        e: 10,
+        f: 0.5,
+    };
+    // Inject `c` as the private path (the secret), matching what production callers do.
+    let private_paths = BTreeSet::from(["c".to_owned()]);
+
+    // Redacted presentation must NOT contain the private param.
+    let public_presentation = get_config_presentation(&config, false, &private_paths).unwrap();
+    assert!(
+        public_presentation.as_object().unwrap().get("c").is_none(),
+        "private param `c` leaked into the redacted presentation"
+    );
+
+    // Full presentation MUST contain it.
+    let full_presentation = get_config_presentation(&config, true, &private_paths).unwrap();
+    assert!(full_presentation.as_object().unwrap().get("c").is_some());
 }
 
 #[test]
@@ -152,10 +193,14 @@ fn test_nested_config_presentation() {
     ];
 
     for config in configs {
-        let presentation = get_config_presentation(&config, true).unwrap();
+        let private_paths = private_paths_from_dump(&config);
+        // This fixture declares no `Private` params, so nothing is redacted.
+        assert!(private_paths.is_empty());
+
+        let presentation = get_config_presentation(&config, true, &private_paths).unwrap();
         let keys: Vec<_> = presentation.as_object().unwrap().keys().collect();
         assert_eq!(keys, vec!["inner_config", "opt_config", "opt_elem"]);
-        let public_presentation = get_config_presentation(&config, false).unwrap();
+        let public_presentation = get_config_presentation(&config, false, &private_paths).unwrap();
         let keys: Vec<_> = public_presentation.as_object().unwrap().keys().collect();
         assert_eq!(keys, vec!["inner_config", "opt_config", "opt_elem"]);
     }
