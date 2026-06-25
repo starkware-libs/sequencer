@@ -1,10 +1,7 @@
 //! Types and configuration for Cairo native compilation.
 
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -49,45 +46,5 @@ impl SierraCompilationConfig {
             max_memory_usage: 5 * 1024 * 1024 * 1024,
             optimization_level: 0,
         }
-    }
-}
-
-impl SerializeConfig for SierraCompilationConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([
-            ser_param(
-                "optimization_level",
-                &self.optimization_level,
-                "The level of optimization to apply during compilation.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_cpu_time",
-                &self.max_cpu_time,
-                "Limitation of compilation cpu time (seconds).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_memory_usage",
-                &self.max_memory_usage,
-                "Limitation of compilation process's virtual memory (bytes).",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend(ser_optional_param(
-            &self.compiler_binary_path,
-            "".into(),
-            "compiler_binary_path",
-            "The path to the Sierra-to-Native compiler binary.",
-            ParamPrivacyInput::Public,
-        ));
-        dump.extend(ser_optional_param(
-            &self.max_file_size,
-            DEFAULT_MAX_FILE_SIZE,
-            "max_file_size",
-            "Limitation of compiled Cairo Native file size (bytes).",
-            ParamPrivacyInput::Public,
-        ));
-        dump
     }
 }
