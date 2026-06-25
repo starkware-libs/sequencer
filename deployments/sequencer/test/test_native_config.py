@@ -1,14 +1,15 @@
 """Tests for the native (nested) node-config generation machinery.
 
-Covers the pure building blocks of the native config builder (`src/config/native.py`):
-  - the null-preserving deep-merge.
-
-The override-layer data (the per-layer `sequencer_config.jsonnet` files) and the data-validation
-tests that exercise it end-to-end — the AUTHORITATIVE PARITY test (native vs folded/filtered preset)
-and the "jsonnet mirrors combined YAML" layer tests — land together with those layers in a follow-up.
+Covers:
+  - the null-preserving deep-merge building block (`src/config/native.py`);
+  - that the `testing/all-constructs` overlay synthesizes a native config end-to-end.
 """
 
-from src.config.native import deep_merge_preserving_null
+from src.config.native import build_native_config, deep_merge_preserving_null
+
+LAYOUT = "hybrid"
+CORE_SERVICE = "core"
+ALL_CONSTRUCTS_OVERLAYS = ["hybrid.testing.all-constructs"]
 
 
 def test_deep_merge_preserves_explicit_null():
@@ -38,3 +39,22 @@ def test_deep_merge_does_not_mutate_inputs():
     deep_merge_preserving_null(base, overlay)
     assert base == {"a": {"x": 1}}  # Verify base is not mutated.
     assert overlay == {"a": {"y": 2}}  # Verify overlay is not mutated.
+
+
+def test_all_constructs_native_config_synthesizes():
+    """REGRESSION: the `testing/all-constructs` overlay synthesizes a native config.
+
+    `all-constructs` is a STRUCTURE-validation stub: its cdk8s output is only `kubectl validate`d for
+    manifest structure, never for config content. Its native override layers supply the minimum dummy
+    chain_params/node_params (and a few replacer deltas) that `build()` needs. The only invariant we
+    assert is that native synth SUCCEEDS and yields a nested config (the CI `sequencer_cdk8s-test.yml`
+    job synths this overlay under `--config-format native`).
+    """
+    native_nested = build_native_config(
+        service_name=CORE_SERVICE,
+        layout=LAYOUT,
+        overlays=ALL_CONSTRUCTS_OVERLAYS,
+    )
+    assert isinstance(native_nested, dict) and native_nested
+    # A nested SequencerNodeConfig (not the flat dotted preset form): top-level component sections.
+    assert any(isinstance(value, dict) for value in native_nested.values())
