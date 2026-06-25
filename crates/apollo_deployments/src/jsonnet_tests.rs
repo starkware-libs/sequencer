@@ -1,7 +1,7 @@
-//! Parity test helpers driven off the jsonnet evaluator (`jsonnet_eval`): assert the jsonnet-derived
-//! infra matches the Rust source of truth, and that every service's `build()` output deserializes
-//! into `SequencerNodeConfig`. Compiled only under `test`; the reusable evaluator core lives in
-//! `jsonnet_eval`.
+//! Parity test helpers driven off the jsonnet evaluator (`jsonnet_eval`): assert the
+//! jsonnet-derived infra matches the Rust source of truth, and that every service's `build()`
+//! output deserializes into `SequencerNodeConfig`. Compiled only under `test`; the reusable
+//! evaluator core lives in `jsonnet_eval`.
 
 use apollo_node_config::node_config::SequencerNodeConfig;
 use serde_json::Value;
@@ -59,10 +59,18 @@ where
     assert!(!services.is_empty(), "build({layout}) produced no services");
 
     for (service_name, config) in services {
-        serde_json::from_value::<SequencerNodeConfig>(config.clone()).unwrap_or_else(|error| {
+        let mut node_config = serde_json::from_value::<SequencerNodeConfig>(config.clone())
+            .unwrap_or_else(|error| {
+                panic!(
+                    "service {service_name} of layout {layout} does not deserialize into \
+                     SequencerNodeConfig: {error}"
+                )
+            });
+        node_config.components.set_urls_to_localhost();
+        node_config.validate_node_config().unwrap_or_else(|error| {
             panic!(
-                "service {service_name} of layout {layout} does not deserialize into \
-                 SequencerNodeConfig: {error}"
+                "service {service_name} of layout {layout} deserializes but fails \
+                 validate_node_config: {error}"
             )
         });
     }

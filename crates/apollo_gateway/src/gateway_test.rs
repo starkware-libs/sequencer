@@ -834,10 +834,7 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     #[case] authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 ) {
     let original_config = GatewayConfig {
-        static_config: GatewayStaticConfig {
-            authorized_declarer_accounts,
-            ..Default::default()
-        },
+        static_config: GatewayStaticConfig { authorized_declarer_accounts, ..Default::default() },
         ..Default::default()
     };
 
