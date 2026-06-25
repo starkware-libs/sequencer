@@ -1,10 +1,7 @@
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::result;
 
 use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
-use apollo_config::dumping::{prepend_sub_config_name, ser_optional_sub_config, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
@@ -40,29 +37,6 @@ pub struct StateSyncStaticConfig {
     pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
 }
 
-impl SerializeConfig for StateSyncStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-        config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
-        config.extend(ser_optional_sub_config(&self.network_config, "network_config"));
-        config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
-        config.extend(prepend_sub_config_name(self.rpc_config.dump(), "rpc_config"));
-        config.extend(prepend_sub_config_name(
-            self.storage_reader_server_static_config.dump(),
-            "storage_reader_server_static_config",
-        ));
-        config.extend(ser_optional_sub_config(
-            &self.p2p_sync_client_config,
-            "p2p_sync_client_config",
-        ));
-        config.extend(ser_optional_sub_config(
-            &self.central_sync_client_config,
-            "central_sync_client_config",
-        ));
-        config
-    }
-}
-
 impl Default for StateSyncStaticConfig {
     fn default() -> Self {
         Self {
@@ -88,30 +62,12 @@ pub struct StateSyncDynamicConfig {
     pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
 }
 
-impl SerializeConfig for StateSyncDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(
-            self.storage_reader_server_dynamic_config.dump(),
-            "storage_reader_server_dynamic_config",
-        )
-    }
-}
-
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct StateSyncConfig {
     #[validate(nested)]
     pub static_config: StateSyncStaticConfig,
     #[validate(nested)]
     pub dynamic_config: StateSyncDynamicConfig,
-}
-
-impl SerializeConfig for StateSyncConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
-        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
-        config
-    }
 }
 
 fn validate_state_sync_static_config(
@@ -132,16 +88,4 @@ fn validate_state_sync_static_config(
 pub struct CentralSyncClientConfig {
     pub sync_config: SyncConfig,
     pub central_source_config: CentralSourceConfig,
-}
-
-impl SerializeConfig for CentralSyncClientConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        vec![
-            prepend_sub_config_name(self.sync_config.dump(), "sync_config"),
-            prepend_sub_config_name(self.central_source_config.dump(), "central_source_config"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
-    }
 }

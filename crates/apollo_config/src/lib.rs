@@ -45,7 +45,6 @@
 
 use clap::parser::MatchesError;
 use const_format::formatcp;
-use dumping::REQUIRED_PARAM_DESCRIPTION_PREFIX;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum::Display;
@@ -59,15 +58,11 @@ pub const CONFIG_FILE_SHORT_ARG_NAME: char = 'f';
 /// The config file arg name prepended with a double dash.
 pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
 
-/// A config indicator for optional parameters.
-pub const IS_NONE_MARK: &str = "#is_none";
 /// A config indicator for a sub config.
 pub const FIELD_SEPARATOR: &str = ".";
 
 /// A nested path of a configuration parameter.
 pub type ParamPath = String;
-/// A description of a configuration parameter.
-pub type Description = String;
 
 /// Behavior mode configuration for the node.
 pub mod behavior_mode;
@@ -75,104 +70,10 @@ mod command;
 #[cfg(test)]
 mod config_test;
 pub mod converters;
-pub mod dumping;
 pub mod loading;
 pub mod presentation;
 pub mod secrets;
-#[cfg(any(feature = "testing", test))]
-/// Utilities for the produced configuration.
-pub mod test_utils;
 pub mod validators;
-
-/// The privacy level of a config parameter, that received as input from the configs.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub enum ParamPrivacyInput {
-    /// The field is visible only by a secret.
-    Private,
-    /// The field is visible only to node's users.
-    Public,
-}
-
-/// The privacy level of a config parameter.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-enum ParamPrivacy {
-    /// The field is visible only by a secret.
-    Private,
-    /// The field is visible only to node's users.
-    Public,
-    /// The field is not a part of the final config.
-    TemporaryValue,
-}
-
-impl From<ParamPrivacyInput> for ParamPrivacy {
-    fn from(user_param_privacy: ParamPrivacyInput) -> Self {
-        match user_param_privacy {
-            ParamPrivacyInput::Private => ParamPrivacy::Private,
-            ParamPrivacyInput::Public => ParamPrivacy::Public,
-        }
-    }
-}
-
-/// A serialized content of a configuration parameter.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum SerializedContent {
-    /// Serialized JSON default value.
-    #[serde(rename = "value")]
-    DefaultValue(Value),
-    /// The target from which to take the JSON value of a configuration parameter.
-    PointerTarget(ParamPath),
-    /// Type of a configuration parameter.
-    ParamType(SerializationType),
-}
-
-impl SerializedContent {
-    fn get_serialization_type(&self) -> Option<SerializationType> {
-        match self {
-            SerializedContent::DefaultValue(value) => match value {
-                // JSON "Number" is handled as PosInt(u64), NegInt(i64), or Float(f64).
-                Value::Number(num) => {
-                    if num.is_f64() {
-                        Some(SerializationType::Float)
-                    } else if num.is_u64() {
-                        Some(SerializationType::PositiveInteger)
-                    } else {
-                        Some(SerializationType::NegativeInteger)
-                    }
-                }
-                Value::Bool(_) => Some(SerializationType::Boolean),
-                Value::String(_) => Some(SerializationType::String),
-                _ => None,
-            },
-            SerializedContent::PointerTarget(_) => None,
-            SerializedContent::ParamType(ser_type) => Some(*ser_type),
-        }
-    }
-}
-
-/// A description and serialized content of a configuration parameter.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct SerializedParam {
-    /// The description of the parameter.
-    pub description: Description,
-    /// The content of the parameter.
-    #[serde(flatten)]
-    pub content: SerializedContent,
-    pub(crate) privacy: ParamPrivacy,
-}
-
-impl SerializedParam {
-    /// Whether the parameter is required.
-    // TODO(yair): Find a better way to identify required params - maybe add to the dump.
-    pub fn is_required(&self) -> bool {
-        self.description.starts_with(REQUIRED_PARAM_DESCRIPTION_PREFIX)
-    }
-
-    /// Whether the parameter is private.
-    pub fn is_private(&self) -> bool {
-        self.privacy == ParamPrivacy::Private
-    }
-}
 
 /// A serialized type of a configuration parameter.
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Display)]
