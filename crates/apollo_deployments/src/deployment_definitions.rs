@@ -5,7 +5,6 @@ use strum::{AsRefStr, Display, EnumIter};
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
-pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const RETRIES_FOR_L1_SERVICES: usize = 0;
 
 pub(crate) const BASE_APP_CONFIGS_DIR_PATH: &str =
@@ -58,13 +57,6 @@ impl ComponentConfigInService {
         self.get_component_config_names()
             .into_iter()
             .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/{name}.json"))
-            .collect()
-    }
-
-    pub fn get_replacer_component_config_file_paths(&self) -> Vec<String> {
-        self.get_component_config_names()
-            .into_iter()
-            .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/replacer_{name}.json"))
             .collect()
     }
 }
