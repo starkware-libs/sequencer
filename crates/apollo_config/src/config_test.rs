@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 use assert_matches::assert_matches;
@@ -16,43 +16,14 @@ use crate::converters::{
     serialize_optional_list_with_url_and_headers,
     UrlAndHeaders,
 };
-use crate::dumping::{
-    combine_config_map_and_pointers,
-    generate_struct_pointer,
-    prepend_sub_config_name,
-    required_param_description,
-    ser_optional_param,
-    ser_optional_sub_config,
-    ser_param,
-    ser_pointer_target_param,
-    ser_pointer_target_required_param,
-    ser_required_param,
-    set_pointing_param_paths,
-    SerializeConfig,
-};
 use crate::loading::{load, load_and_process_config};
 use crate::presentation::get_config_presentation;
-use crate::{
-    ConfigError,
-    ParamPath,
-    ParamPrivacy,
-    ParamPrivacyInput,
-    SerializationType,
-    SerializedContent,
-    SerializedParam,
-    CONFIG_FILE_ARG,
-};
+use crate::{ConfigError, ParamPath, CONFIG_FILE_ARG};
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq, Validate)]
 struct InnerConfig {
     #[validate(range(min = 0, max = 10))]
     o: usize,
-}
-
-impl SerializeConfig for InnerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param("o", &self.o, "This is o.", ParamPrivacyInput::Public)])
-    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Validate)]
@@ -61,23 +32,6 @@ struct OuterConfig {
     opt_config: Option<InnerConfig>,
     #[validate(nested)]
     inner_config: InnerConfig,
-}
-
-impl SerializeConfig for OuterConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        chain!(
-            ser_optional_param(
-                &self.opt_elem,
-                1,
-                "opt_elem",
-                "This is elem.",
-                ParamPrivacyInput::Public
-            ),
-            ser_optional_sub_config(&self.opt_config, "opt_config"),
-            prepend_sub_config_name(self.inner_config.dump(), "inner_config"),
-        )
-        .collect()
-    }
 }
 
 #[test]
@@ -98,36 +52,6 @@ struct TypicalConfig {
     f: f64,
 }
 
-impl SerializeConfig for TypicalConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "a",
-                &self.a.as_millis(),
-                "This is a as milliseconds.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param("b", &self.b, "This is b.", ParamPrivacyInput::Public),
-            ser_param("c", &self.c, "This is c.", ParamPrivacyInput::Private),
-            ser_param("d", &self.d, "This is d.", ParamPrivacyInput::Public),
-            ser_param("e", &self.e, "This is e.", ParamPrivacyInput::Public),
-            ser_param("f", &self.f, "This is f.", ParamPrivacyInput::Public),
-        ])
-    }
-}
-
-/// Derives the set of `Private` param paths from a fixture's `dump()`. Mirrors the privacy registry
-/// that production callers inject (e.g. `private_parameters()`), so the presentation tests stay
-/// pinned to the fixtures' own privacy declarations.
-fn private_paths_from_dump<T: SerializeConfig>(config: &T) -> BTreeSet<ParamPath> {
-    config
-        .dump()
-        .into_iter()
-        .filter(|(_, serialized_param)| serialized_param.privacy == ParamPrivacy::Private)
-        .map(|(param_path, _)| param_path)
-        .collect()
-}
-
 #[test]
 fn test_config_presentation() {
     let config = TypicalConfig {
@@ -138,9 +62,9 @@ fn test_config_presentation() {
         e: 10,
         f: 0.5,
     };
-    let private_paths = private_paths_from_dump(&config);
-    // `c` is the only `Private` param in this fixture.
-    assert_eq!(private_paths, BTreeSet::from(["c".to_owned()]));
+    // `c` is the secret param for this fixture; production callers inject the private path set
+    // (e.g. `private_parameters()`) rather than deriving it.
+    let private_paths = BTreeSet::from(["c".to_owned()]);
 
     let presentation = get_config_presentation(&config, true, &private_paths).unwrap();
     let keys: Vec<_> = presentation.as_object().unwrap().keys().collect();
@@ -192,220 +116,16 @@ fn test_nested_config_presentation() {
         OuterConfig { opt_elem: Some(1), opt_config: None, inner_config: InnerConfig { o: 3 } },
     ];
 
-    for config in configs {
-        let private_paths = private_paths_from_dump(&config);
-        // This fixture declares no `Private` params, so nothing is redacted.
-        assert!(private_paths.is_empty());
+    // This fixture declares no private params, so nothing is redacted.
+    let private_paths = BTreeSet::new();
 
+    for config in configs {
         let presentation = get_config_presentation(&config, true, &private_paths).unwrap();
         let keys: Vec<_> = presentation.as_object().unwrap().keys().collect();
         assert_eq!(keys, vec!["inner_config", "opt_config", "opt_elem"]);
         let public_presentation = get_config_presentation(&config, false, &private_paths).unwrap();
         let keys: Vec<_> = public_presentation.as_object().unwrap().keys().collect();
         assert_eq!(keys, vec!["inner_config", "opt_config", "opt_elem"]);
-    }
-}
-
-#[test]
-fn test_required_pointers_flow() {
-    // Set up the config map and pointers.
-    const REQUIRED_PARAM_NAME: &str = "b";
-    const REQUIRED_PARAM_DESCRIPTION: &str = "This is common required b.";
-    const POINTING_PARAM_DESCRIPTION: &str = "This is b.";
-    const PUBLIC_POINTING_PARAM_NAME: &str = "public_b.b";
-    const PRIVATE_POINTING_PARAM_NAME: &str = "private_b.b";
-    const WHITELISTED_POINTING_PARAM_NAME: &str = "non_pointing.b";
-    const VALUE: usize = 6;
-
-    let config_map = BTreeMap::from([
-        ser_param(
-            PUBLIC_POINTING_PARAM_NAME,
-            &json!(VALUE),
-            POINTING_PARAM_DESCRIPTION,
-            ParamPrivacyInput::Public,
-        ),
-        ser_param(
-            PRIVATE_POINTING_PARAM_NAME,
-            &json!(VALUE),
-            POINTING_PARAM_DESCRIPTION,
-            ParamPrivacyInput::Private,
-        ),
-        ser_param(
-            WHITELISTED_POINTING_PARAM_NAME,
-            &json!(VALUE),
-            POINTING_PARAM_DESCRIPTION,
-            ParamPrivacyInput::Private,
-        ),
-    ]);
-    let pointers = vec![(
-        ser_pointer_target_required_param(
-            REQUIRED_PARAM_NAME,
-            SerializationType::PositiveInteger,
-            REQUIRED_PARAM_DESCRIPTION,
-        ),
-        HashSet::from([
-            PUBLIC_POINTING_PARAM_NAME.to_string(),
-            PRIVATE_POINTING_PARAM_NAME.to_string(),
-        ]),
-    )];
-    let non_pointer_params = HashSet::from([WHITELISTED_POINTING_PARAM_NAME.to_string()]);
-    let stored_map =
-        combine_config_map_and_pointers(config_map, &pointers, &non_pointer_params).unwrap();
-
-    // Assert the pointing parameters are correctly set.
-    assert_eq!(
-        stored_map[PUBLIC_POINTING_PARAM_NAME],
-        json!(SerializedParam {
-            description: POINTING_PARAM_DESCRIPTION.to_owned(),
-            content: SerializedContent::PointerTarget(REQUIRED_PARAM_NAME.to_owned()),
-            privacy: ParamPrivacy::Public,
-        })
-    );
-    assert_eq!(
-        stored_map[PRIVATE_POINTING_PARAM_NAME],
-        json!(SerializedParam {
-            description: POINTING_PARAM_DESCRIPTION.to_owned(),
-            content: SerializedContent::PointerTarget(REQUIRED_PARAM_NAME.to_owned()),
-            privacy: ParamPrivacy::Private,
-        })
-    );
-
-    // Assert the whitelisted parameter is correctly set.
-    assert_eq!(
-        stored_map[WHITELISTED_POINTING_PARAM_NAME],
-        json!(SerializedParam {
-            description: POINTING_PARAM_DESCRIPTION.to_owned(),
-            content: SerializedContent::DefaultValue(json!(VALUE)),
-            privacy: ParamPrivacy::Private,
-        })
-    );
-
-    // Assert the pointed parameter is correctly set as a required parameter.
-    assert_eq!(
-        stored_map[REQUIRED_PARAM_NAME],
-        json!(SerializedParam {
-            description: required_param_description(REQUIRED_PARAM_DESCRIPTION).to_owned(),
-            content: SerializedContent::ParamType(SerializationType::PositiveInteger),
-            privacy: ParamPrivacy::TemporaryValue,
-        })
-    );
-}
-
-#[test]
-#[should_panic(
-    expected = "The target param should_be_pointing.c should point to c, or to be whitelisted."
-)]
-fn test_missing_pointer_flow() {
-    const TARGET_PARAM_NAME: &str = "c";
-    const TARGET_PARAM_DESCRIPTION: &str = "This is common c.";
-    const PARAM_DESCRIPTION: &str = "This is c.";
-    const NON_POINTING_PARAM_NAME: &str = "should_be_pointing.c";
-
-    // Define a non-pointing parameter and a target pointer such that the parameter name matches the
-    // target.
-    let config_map = BTreeMap::from([ser_param(
-        NON_POINTING_PARAM_NAME,
-        &json!(7),
-        PARAM_DESCRIPTION,
-        ParamPrivacyInput::Private,
-    )]);
-    let pointers = vec![(
-        ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION),
-        HashSet::new(),
-    )];
-    // Do not whitelist the non-pointing parameter.
-    let non_pointer_params = HashSet::new();
-
-    // Attempt to combine the config map and pointers. This should panic.
-    combine_config_map_and_pointers(config_map, &pointers, &non_pointer_params).unwrap();
-}
-
-#[test]
-fn test_struct_pointers() {
-    const TARGET_PREFIX: &str = "base";
-    let target_value =
-        RequiredConfig { param_path: "Not a default param_path.".to_owned(), num: 10 };
-    let config_map = StructPointersConfig::default().dump();
-
-    let pointers = generate_struct_pointer(
-        TARGET_PREFIX.to_owned(),
-        &target_value,
-        set_pointing_param_paths(&["a", "b"]),
-    );
-    let stored_map =
-        combine_config_map_and_pointers(config_map, &pointers, &HashSet::default()).unwrap();
-
-    // Assert the pointing parameters are correctly set.
-    assert_eq!(
-        stored_map["a.param_path"],
-        json!(SerializedParam {
-            description: required_param_description(RequiredConfig::param_path_description())
-                .to_owned(),
-            content: SerializedContent::PointerTarget(
-                format!("{TARGET_PREFIX}.param_path").to_owned()
-            ),
-            privacy: ParamPrivacy::Public,
-        })
-    );
-    assert_eq!(
-        stored_map["a.num"],
-        json!(SerializedParam {
-            description: RequiredConfig::num_description().to_owned(),
-            content: SerializedContent::PointerTarget(format!("{TARGET_PREFIX}.num").to_owned()),
-            privacy: ParamPrivacy::Public,
-        })
-    );
-    assert_eq!(
-        stored_map["b.param_path"],
-        json!(SerializedParam {
-            description: required_param_description(RequiredConfig::param_path_description())
-                .to_owned(),
-            content: SerializedContent::PointerTarget(
-                format!("{TARGET_PREFIX}.param_path").to_owned()
-            ),
-            privacy: ParamPrivacy::Public,
-        })
-    );
-    assert_eq!(
-        stored_map["b.num"],
-        json!(SerializedParam {
-            description: RequiredConfig::num_description().to_owned(),
-            content: SerializedContent::PointerTarget(format!("{TARGET_PREFIX}.num").to_owned()),
-            privacy: ParamPrivacy::Public,
-        })
-    );
-
-    // Assert the pointed parameter is correctly set.
-    assert_eq!(
-        stored_map[format!("{TARGET_PREFIX}.param_path").to_owned()],
-        json!(SerializedParam {
-            description: required_param_description(RequiredConfig::param_path_description())
-                .to_owned(),
-            content: SerializedContent::ParamType(SerializationType::String),
-            privacy: ParamPrivacy::TemporaryValue,
-        })
-    );
-    assert_eq!(
-        stored_map[format!("{TARGET_PREFIX}.num").to_owned()],
-        json!(SerializedParam {
-            description: RequiredConfig::num_description().to_owned(),
-            content: SerializedContent::DefaultValue(json!(10)),
-            privacy: ParamPrivacy::TemporaryValue,
-        })
-    );
-}
-
-#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
-struct StructPointersConfig {
-    pub a: RequiredConfig,
-    pub b: RequiredConfig,
-}
-impl SerializeConfig for StructPointersConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::new();
-        dump.append(&mut prepend_sub_config_name(self.a.dump(), "a"));
-        dump.append(&mut prepend_sub_config_name(self.b.dump(), "b"));
-        dump
     }
 }
 
@@ -638,50 +358,10 @@ fn serialization_precision() {
     assert_eq!(input, deserialized);
 }
 
-#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
-struct RequiredConfig {
-    param_path: String,
-    num: usize,
-}
-
-impl RequiredConfig {
-    pub const fn param_path_description() -> &'static str {
-        "This is param_path."
-    }
-    pub const fn num_description() -> &'static str {
-        "This is num."
-    }
-}
-
-impl SerializeConfig for RequiredConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_required_param(
-                "param_path",
-                SerializationType::String,
-                Self::param_path_description(),
-                ParamPrivacyInput::Public,
-            ),
-            ser_param("num", &self.num, Self::num_description(), ParamPrivacyInput::Public),
-        ])
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 struct TestConfigWithNestedJson {
     #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
     list_of_maps: Option<Vec<UrlAndHeaders>>,
-}
-
-impl SerializeConfig for TestConfigWithNestedJson {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "list_of_maps",
-            &serialize_optional_list_with_url_and_headers(&self.list_of_maps),
-            "A list of nested JSON values.",
-            ParamPrivacyInput::Public,
-        )])
-    }
 }
 
 #[test]
@@ -712,15 +392,11 @@ fn optional_list_nested_btreemaps() {
             },
         ]),
     };
-    // Build the flat values map directly from the dump (a single serialized leaf), then load it.
-    let config_map: BTreeMap<ParamPath, serde_json::Value> = config
-        .dump()
-        .into_iter()
-        .filter_map(|(param_path, serialized_param)| match serialized_param.content {
-            SerializedContent::DefaultValue(value) => Some((param_path, value)),
-            _ => None,
-        })
-        .collect();
+    // Build the flat single-leaf values map directly from the converter, then load it back.
+    let config_map: BTreeMap<ParamPath, serde_json::Value> = BTreeMap::from([(
+        "list_of_maps".to_owned(),
+        json!(serialize_optional_list_with_url_and_headers(&config.list_of_maps)),
+    )]);
     let loaded_config = load::<TestConfigWithNestedJson>(&config_map).unwrap();
     assert_eq!(loaded_config.list_of_maps, config.list_of_maps);
     let serialized = serde_json::to_string(&config_map).unwrap();

@@ -7,7 +7,6 @@ license-file.workspace = true
 description = "Configuration types for the Apollo consensus manager."
 
 [dependencies]
-apollo_config.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
 apollo_network.workspace = true

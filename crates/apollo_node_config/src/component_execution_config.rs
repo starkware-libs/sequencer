@@ -1,9 +1,6 @@
-use std::collections::BTreeMap;
 use std::net::ToSocketAddrs;
 
-use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use apollo_config::validators::create_validation_error;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use serde::{Deserialize, Serialize};
@@ -77,40 +74,6 @@ pub struct ReactiveComponentExecutionConfig {
     pub remote_client_config: Option<RemoteClientConfig>,
     pub url: String,
     pub port: u16,
-}
-
-impl SerializeConfig for ReactiveComponentExecutionConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([
-            ser_param(
-                "execution_mode",
-                &self.execution_mode,
-                "The component execution mode.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "url",
-                &self.url,
-                "URL of the remote component server.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "port",
-                &self.port,
-                "Listening port of the remote component server.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        vec![
-            members,
-            ser_optional_sub_config(&self.local_server_config, "local_server_config"),
-            ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),
-            ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
-    }
 }
 
 impl Default for ReactiveComponentExecutionConfig {
@@ -205,17 +168,6 @@ impl ExpectedComponentConfig for ReactiveComponentExecutionConfig {
 #[validate(schema(function = "validate_active_component_execution_config"))]
 pub struct ActiveComponentExecutionConfig {
     pub execution_mode: ActiveComponentExecutionMode,
-}
-
-impl SerializeConfig for ActiveComponentExecutionConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "execution_mode",
-            &self.execution_mode,
-            "The component execution mode.",
-            ParamPrivacyInput::Public,
-        )])
-    }
 }
 
 impl Default for ActiveComponentExecutionConfig {

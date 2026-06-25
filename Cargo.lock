@@ -1053,7 +1053,6 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_starknet_client",
- "itertools 0.12.1",
  "serde",
  "url",
  "validator",
@@ -1086,7 +1085,6 @@ dependencies = [
 name = "apollo_class_manager_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "apollo_storage",
  "serde",
  "validator",
@@ -1136,7 +1134,6 @@ dependencies = [
 name = "apollo_committer_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "starknet_committer",
  "starknet_patricia_storage",
@@ -1240,7 +1237,6 @@ dependencies = [
 name = "apollo_compile_to_native_types"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "validator",
 ]
@@ -1300,7 +1296,6 @@ dependencies = [
 name = "apollo_config_manager_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "validator",
 ]
@@ -1416,7 +1411,6 @@ dependencies = [
 name = "apollo_consensus_manager_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "apollo_consensus_config",
  "apollo_consensus_orchestrator_config",
  "apollo_network",
@@ -2122,7 +2116,6 @@ dependencies = [
 name = "apollo_monitoring_endpoint_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "validator",
 ]
@@ -2391,7 +2384,6 @@ dependencies = [
 name = "apollo_proof_manager_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "validator",
 ]
@@ -2474,7 +2466,6 @@ dependencies = [
 name = "apollo_reverts"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "apollo_metrics",
  "apollo_storage",
  "futures",
@@ -2541,7 +2532,6 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
@@ -2570,7 +2560,6 @@ dependencies = [
 name = "apollo_sierra_compilation_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "validator",
 ]
@@ -2658,7 +2647,6 @@ dependencies = [
 name = "apollo_staking_config"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -2770,7 +2758,6 @@ name = "apollo_state_sync_config"
 version = "0.0.0"
 dependencies = [
  "apollo_central_sync_config",
- "apollo_config",
  "apollo_network",
  "apollo_p2p_sync_config",
  "apollo_reverts",
@@ -3979,7 +3966,6 @@ dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_native",
  "apollo_compile_to_native_types",
- "apollo_config",
  "apollo_infra_utils",
  "apollo_metrics",
  "ark-ec 0.5.0",
@@ -4035,7 +4021,6 @@ name = "blockifier_reexecution"
 version = "0.0.0"
 dependencies = [
  "apollo_compilation_utils",
- "apollo_config",
  "apollo_rpc_execution",
  "apollo_sierra_compilation_config",
  "assert_matches",
@@ -13360,7 +13345,6 @@ dependencies = [
 name = "starknet_committer"
 version = "0.0.0"
 dependencies = [
- "apollo_config",
  "async-recursion",
  "async-trait",
  "bincode 1.3.3",
@@ -13566,7 +13550,6 @@ name = "starknet_patricia_storage"
 version = "0.0.0"
 dependencies = [
  "aerospike",
- "apollo_config",
  "async-trait",
  "blake2",
  "digest 0.10.7",

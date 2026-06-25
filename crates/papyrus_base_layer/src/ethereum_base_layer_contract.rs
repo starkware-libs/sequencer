@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::future::IntoFuture;
 use std::ops::RangeInclusive;
 use std::time::Duration;
@@ -19,11 +18,8 @@ use apollo_config::converters::{
     deserialize_vec,
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
-    serialize_slice,
 };
-use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -462,64 +458,6 @@ impl Validate for EthereumBaseLayerConfig {
         }
 
         if errors.is_empty() { Ok(()) } else { Err(errors) }
-    }
-}
-
-impl SerializeConfig for EthereumBaseLayerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "ordered_l1_endpoint_urls",
-                &serialize_slice(
-                    &self
-                        .ordered_l1_endpoint_urls
-                        .iter()
-                        .map(|url| url.peek_secret().clone())
-                        .collect::<Vec<_>>(),
-                ),
-                "An ordered list of URLs for communicating with Ethereum. The list is used in \
-                 order, cyclically, switching if the current one is non-operational.",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
-                "starknet_contract_address",
-                &self.starknet_contract_address.to_string(),
-                "Starknet contract address in ethereum.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "fusaka_no_bpo_start_block_number",
-                &self.fusaka_no_bpo_start_block_number,
-                "The block number at which the Fusaka upgrade was deployed (not including any BPO \
-                 updates).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bpo1_start_block_number",
-                &self.bpo1_start_block_number,
-                "The block number at which BPO1 update was deployed.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bpo2_start_block_number",
-                &self.bpo2_start_block_number,
-                "The block number at which BPO2 update was deployed.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "timeout_millis",
-                &self.timeout_millis.as_millis(),
-                "The timeout (milliseconds) for a query of the L1 base layer",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "retry_primary_interval_seconds",
-                &self.retry_primary_interval_seconds.as_secs(),
-                "The interval (seconds) after which the next base-layer access retries the \
-                 primary (first) endpoint.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

@@ -3,8 +3,6 @@ use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
@@ -1498,36 +1496,5 @@ impl Default for VersionedConstantsOverrides {
             invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
             max_n_events: latest_versioned_constants.tx_event_limits.max_n_emitted_events,
         }
-    }
-}
-
-impl SerializeConfig for VersionedConstantsOverrides {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "validate_max_n_steps",
-                &self.validate_max_n_steps,
-                "Maximum number of steps the validation function is allowed to run.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_recursion_depth",
-                &self.max_recursion_depth,
-                "Maximum recursion depth for nested calls during blockifier validation.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "invoke_tx_max_n_steps",
-                &self.invoke_tx_max_n_steps,
-                "Maximum number of steps the invoke function is allowed to run.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_n_events",
-                &self.max_n_events,
-                "Maximum number of events that can be emitted from the transaction.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
