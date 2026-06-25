@@ -7,8 +7,6 @@ use apollo_config::converters::{
 use serde::{Serialize, Serializer};
 use url::Url;
 
-pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
-
 /// Returns `true` if `prefix` is a path-prefix of the dotted config key `path`: either the same key
 /// or a dot-bounded ancestor of it (so `range_check` does not match the sibling `range_check96`).
 pub(crate) fn is_path_prefix(prefix: &str, path: &str) -> bool {
