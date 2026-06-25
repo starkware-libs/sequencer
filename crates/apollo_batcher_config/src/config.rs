@@ -321,8 +321,12 @@ pub struct BatcherDynamicConfig {
     /// Number of transactions in each request from the tx_provider.
     pub n_concurrent_txs: usize,
     /// Time to wait (in milliseconds) between transaction requests when the previous request
-    /// returned no transactions.
+    /// returned no transactions. Applies when proposing, where the provider polls the mempool.
     pub tx_polling_interval_millis: u64,
+    /// Same as `tx_polling_interval_millis`, but applied when validating a proposal. The validate
+    /// provider reads from a local in-process channel fed by the consensus stream, so polling is
+    /// cheap and this can be much shorter to reduce the delay before streamed txs are executed.
+    pub validate_tx_polling_interval_millis: u64,
     /// Minimum time (in milliseconds) that must pass since block creation started before checking
     /// for idle state. If this delay has passed AND no transactions are currently being executed,
     /// the proposer will finish building the current block.
@@ -340,6 +344,7 @@ impl Default for BatcherDynamicConfig {
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig::default(),
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
+            validate_tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
         }
     }
@@ -359,7 +364,15 @@ impl SerializeConfig for BatcherDynamicConfig {
                 "tx_polling_interval_millis",
                 &self.tx_polling_interval_millis,
                 "Time to wait (in milliseconds) between transaction requests when the previous \
-                 request returned no transactions.",
+                 request returned no transactions. Applies when proposing (polls the mempool).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_tx_polling_interval_millis",
+                &self.validate_tx_polling_interval_millis,
+                "Time to wait (in milliseconds) between transaction requests when the previous \
+                 request returned no transactions. Applies when validating a proposal (polls a \
+                 local channel fed by the consensus stream).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

@@ -65,7 +65,12 @@
     "value": false
   },
   "batcher_config.dynamic_config.tx_polling_interval_millis": {
-    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions. Applies when proposing (polls the mempool).",
+    "privacy": "Public",
+    "value": 10
+  },
+  "batcher_config.dynamic_config.validate_tx_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions. Applies when validating a proposal (polls a local channel fed by the consensus stream).",
     "privacy": "Public",
     "value": 10
   },

@@ -3,6 +3,7 @@
   "batcher_config.dynamic_config.proposer_idle_detection_delay_millis": 1500,
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": false,
   "batcher_config.dynamic_config.tx_polling_interval_millis": 200,
+  "batcher_config.dynamic_config.validate_tx_polling_interval_millis": 10,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 4400000,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,
