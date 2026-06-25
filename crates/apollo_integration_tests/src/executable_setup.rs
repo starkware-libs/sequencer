@@ -11,7 +11,6 @@ use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_node::test_utils::node_runner::NodeRunner;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
-use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use serde_json::{Map, Value};
 use tempfile::{tempdir, TempDir};
@@ -97,9 +96,7 @@ impl ExecutableSetup {
         base_app_config.dump_native_config_file(&config_path);
 
         let secrets_path = node_config_dir.join(NODE_SECRETS_FILE_PATH);
-        let secrets = build_secrets(&base_app_config.config);
-        std::fs::write(&secrets_path, serde_json::to_string(&secrets).expect("Secrets serialize"))
-            .expect("Should be able to write secrets file");
+        write_secrets_file(&secrets_path, &base_app_config.config);
 
         Self {
             node_executable_id,
@@ -125,22 +122,22 @@ impl ExecutableSetup {
         self.dump_config_file_changes();
     }
 
-    pub fn modify_config_pointers<F>(&mut self, modify_config_pointers_fn: F)
-    where
-        F: Fn(&mut ConfigPointersMap),
-    {
-        self.base_app_config.modify_config_pointers(modify_config_pointers_fn);
-        self.dump_config_file_changes();
-    }
-
     pub fn get_config(&self) -> &SequencerNodeConfig {
         self.base_app_config.get_config()
     }
 
-    /// Re-emits the native base config file for the sequencer node after a config change.
+    /// Re-emits both native config files after a config change: the secrets file must carry a key
+    /// for every component that is now enabled, or the base's `null` secret fields fail to load.
     pub fn dump_config_file_changes(&self) {
         self.base_app_config.dump_native_config_file(&self.node_config_path);
+        write_secrets_file(&self.node_secrets_path, self.base_app_config.get_config());
     }
+}
+
+fn write_secrets_file(secrets_path: &Path, config: &SequencerNodeConfig) {
+    let secrets = build_secrets(config);
+    std::fs::write(secrets_path, serde_json::to_string(&secrets).expect("Secrets serialize"))
+        .expect("Should be able to write secrets file");
 }
 
 fn build_secrets(config: &SequencerNodeConfig) -> Value {
