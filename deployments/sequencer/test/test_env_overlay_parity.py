@@ -1,10 +1,12 @@
-"""Parity test: each env overlay's bucketed native config matches its YAML `config.sequencerConfig`.
+"""Parity test: each overlay's bucketed native config matches its YAML `config.sequencerConfig`.
 
 Asserts every key set by the layer's bucketed jsonnet (chain_params, flattened) exists in
-the layer's folded YAML sequencerConfig with an equal value.
+the layer's folded YAML sequencerConfig with an equal value. Covers the sepolia/mainnet env overlays
+and the `testing/*` overlays (node-0, all-constructs).
 
-Skips when the YAML `config.sequencerConfig` has been removed downstack (at `drop-yaml-sequencer-config`),
-so the test self-disables past that point instead of failing on a missing comparison source.
+Skips when the YAML `config.sequencerConfig` is absent (either removed downstack at
+`drop-yaml-sequencer-config`, or a structure-only stub like `all-constructs` whose sole entry is a
+folded-away `components.*` marker), so the test self-disables instead of failing on a missing source.
 """
 
 import json
@@ -172,3 +174,11 @@ def test_sepolia_alpha_native_matches_yaml():
 
 def test_mainnet_native_matches_yaml():
     assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "mainnet")
+
+
+def test_node_0_native_matches_yaml():
+    assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "testing" / "node-0")
+
+
+def test_all_constructs_native_matches_yaml():
+    assert_env_overlay_matches_yaml(HYBRID_OVERLAYS_DIR / "testing" / "all-constructs")
