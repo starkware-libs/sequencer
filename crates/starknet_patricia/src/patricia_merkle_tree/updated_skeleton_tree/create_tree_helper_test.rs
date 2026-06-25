@@ -165,9 +165,7 @@ fn test_get_path_to_lca(
     &TempSkeletonNode::Leaf,
     &TempSkeletonNode::Empty,
     &[(NodeIndex::from(2), 1), (NodeIndex::from(3), 0)],
-    TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)
-    ),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::LEFT_CHILD },
     &[]
 )]
 #[case::two_leaves(
@@ -175,15 +173,15 @@ fn test_get_path_to_lca(
     &TempSkeletonNode::Leaf,
     &TempSkeletonNode::Leaf,
     &[(NodeIndex::from(10),1), (NodeIndex::from(11),1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[]
 )]
 #[case::two_nodes(
     &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &TempSkeletonNode::OriginalBinary,
+    &TempSkeletonNode::OriginalBinary,
     &[],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[
         (NodeIndex::from(10),UpdatedSkeletonNode::Binary),
         (NodeIndex::from(11), UpdatedSkeletonNode::Binary
@@ -192,9 +190,9 @@ fn test_get_path_to_lca(
 #[case::deleted_left_child(
     &NodeIndex::from(5),
     &TempSkeletonNode::Empty,
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &TempSkeletonNode::OriginalBinary,
     &[(NodeIndex::from(20), 0)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::RIGHT_CHILD },
     &[(NodeIndex::from(11),UpdatedSkeletonNode::Binary)]
 )]
 #[case::deleted_two_children(
@@ -207,10 +205,10 @@ fn test_get_path_to_lca(
 )]
 #[case::left_edge_right_deleted(
     &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
+    &TempSkeletonNode::OriginalEdge { path: PathToBottom::RIGHT_CHILD },
     &TempSkeletonNode::Empty,
     &[(NodeIndex::from(22), 0)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("01"))),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::from("01") },
     &[]
 )]
 fn test_node_from_binary_data(
@@ -242,37 +240,31 @@ fn test_node_from_binary_data(
     &PathToBottom::from("00"),
     (
         &NodeIndex::from(4),
-        &TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("11"))),
+        &TempSkeletonNode::OriginalEdge { path: PathToBottom::from("11") },
     ),
     &[],
     &[],
-    TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge(PathToBottom::from("0011"))
-    ),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::from("0011") },
     &[],
 )]
 #[case::to_unmodified_bottom(
     &PathToBottom::from("101"),
     (
         &NodeIndex::from(5),
-        &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(
-            HashOutput::ROOT_OF_EMPTY_TREE
-        )),
+        &TempSkeletonNode::OriginalUnmodified { hash: HashOutput::ROOT_OF_EMPTY_TREE },
     ),
    &[],
     // The unmodified subtree is finalized in the initial phase, so it appears in the skeleton.
     &[(NodeIndex::from(5), OriginalSkeletonNode::UnmodifiedSubTree(HashOutput::ROOT_OF_EMPTY_TREE))],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("101"))),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::from("101") },
     &[],
 )]
 #[case::to_binary(
     &PathToBottom::RIGHT_CHILD,
-    (&NodeIndex::from(7), &TempSkeletonNode::Original(OriginalSkeletonNode::Binary)),
+    (&NodeIndex::from(7), &TempSkeletonNode::OriginalBinary),
     &[],
     &[],
-    TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
-    ),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::RIGHT_CHILD },
     &[(NodeIndex::from(7), UpdatedSkeletonNode::Binary)]
 )]
 #[case::to_non_empty_leaf(
@@ -280,9 +272,7 @@ fn test_node_from_binary_data(
     (&NodeIndex::from(7), &TempSkeletonNode::Leaf),
     &[(NodeIndex::from(7), 1)],
     &[],
-    TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
-    ),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::RIGHT_CHILD },
     &[]
 )]
 fn test_node_from_edge_data(
@@ -307,9 +297,7 @@ fn test_node_from_edge_data(
 #[case::one_leaf(
     &NodeIndex::ROOT,
     &[(NodeIndex::FIRST_LEAF, 1)],
-    TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge(PathToBottom::from("0".repeat(251).as_str()))
-    ),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::from("0".repeat(251).as_str()) },
     &[],
 )]
 // Note: the root is only finalized in the outer (create) function, so it doesn't appear in the
@@ -317,7 +305,7 @@ fn test_node_from_edge_data(
 #[case::leaves_on_both_sides(
     &NodeIndex::ROOT,
     &[(NodeIndex::FIRST_LEAF, 1), (NodeIndex::MAX, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[
         (NodeIndex::from(2),
         UpdatedSkeletonNode::Edge(PathToBottom::from("0".repeat(250).as_str()))),
@@ -376,7 +364,7 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary)
     ],
     &[(NodeIndex::FIRST_LEAF, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[],
 )]
 #[case::orig_binary_with_deleted_leaf(
@@ -387,7 +375,7 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary)
     ],
     &[(NodeIndex::FIRST_LEAF, 0)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::RIGHT_CHILD },
     &[],
 )]
 #[case::orig_binary_with_deleted_leaves(
@@ -410,7 +398,7 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF + 2, 1),
         (NodeIndex::FIRST_LEAF + 3, 1)
     ],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[
         (NodeIndex::FIRST_LEAF >> 1, UpdatedSkeletonNode::Binary),
         ((NodeIndex::FIRST_LEAF >> 1) + 1, UpdatedSkeletonNode::Binary)
@@ -432,14 +420,14 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
     ],
     &[(NodeIndex::FIRST_LEAF, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::LEFT_CHILD },
     &[],
 )]
 #[case::orig_edge_with_two_modified_leaves(
     &(NodeIndex::FIRST_LEAF >> 1),
     vec![(NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD))],
     &[(NodeIndex::FIRST_LEAF, 1), (NodeIndex::FIRST_LEAF + 1, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[
         (NodeIndex::FIRST_LEAF, UpdatedSkeletonNode::Leaf),
         (NodeIndex::FIRST_LEAF + 1, UpdatedSkeletonNode::Leaf)
@@ -452,7 +440,7 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF, OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
     &[(NodeIndex::FIRST_LEAF + 1, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    TempSkeletonNode::OriginalBinary,
     &[],
 )]
 #[case::orig_edge_with_deleted_bottom_and_added_leaf(
@@ -461,7 +449,7 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
     ],
     &[(NodeIndex::FIRST_LEAF, 0), (NodeIndex::FIRST_LEAF + 1, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::RIGHT_CHILD },
     &[],
 )]
 #[case::orig_edge_with_modified_leaves_beneath_bottom(
@@ -471,7 +459,7 @@ fn test_update_node_in_empty_tree(
         (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary),
     ],
     &[(NodeIndex::FIRST_LEAF, 1), (NodeIndex::FIRST_LEAF + 1, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    TempSkeletonNode::OriginalEdge { path: PathToBottom::LEFT_CHILD },
     &[(NodeIndex::FIRST_LEAF >> 1, UpdatedSkeletonNode::Binary)],
 )]
 fn test_update_node_in_nonempty_tree(
