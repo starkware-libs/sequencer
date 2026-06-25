@@ -49,8 +49,8 @@ use crate::component_execution_config::{ExpectedComponentConfig, ReactiveCompone
 use crate::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
-// The path of the configuration schema file, provided as part of the crate.
-pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
+// The path of the secrets schema file (the serialized private-parameter set), provided as part of
+// the crate.
 pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
     "crates/apollo_node/resources/config_secrets_schema.json";
 pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
