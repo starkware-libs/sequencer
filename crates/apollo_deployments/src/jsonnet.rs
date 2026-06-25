@@ -93,12 +93,45 @@ where
     assert!(!services.is_empty(), "build({layout}) produced no services");
 
     for (service_name, config) in services {
-        serde_json::from_value::<SequencerNodeConfig>(config.clone()).unwrap_or_else(|error| {
+        let mut config = config.clone();
+        fill_placeholder_component_urls(&mut config);
+        let node_config =
+            serde_json::from_value::<SequencerNodeConfig>(config).unwrap_or_else(|error| {
+                panic!(
+                    "service {service_name} of layout {layout} does not deserialize into \
+                     SequencerNodeConfig: {error}"
+                )
+            });
+        // The build output must also satisfy the cross-component invariants (chain_id and the other
+        // formerly-pointer-resolved values agreeing across components, etc.). Without this, a
+        // jsonnet change that broke a pointer group would pass CI and only fail at prod boot.
+        node_config.validate_node_config().unwrap_or_else(|error| {
             panic!(
-                "service {service_name} of layout {layout} does not deserialize into \
-                 SequencerNodeConfig: {error}"
+                "service {service_name} of layout {layout} deserializes but fails \
+                 validate_node_config: {error}"
             )
         });
+    }
+}
+
+/// Rewrites every reactive component's `url` in a built config to a resolvable value.
+///
+/// A component's `url` is a deploy-time placeholder: the build emits the in-cluster service DNS
+/// name (e.g. `sequencer-core-service`) for remote components, which does not resolve outside the
+/// cluster. `validate_node_config` runs the per-component url validator, which actually resolves
+/// the address, so rewrite every present `url` to `localhost` (always resolvable, no network
+/// needed) to let validation reach the cross-component invariants. url/port are placeholders anyway
+/// — the infra-parity check (`without_url_port`) excludes them for the same reason. Active
+/// components have no `url` key and are left untouched.
+fn fill_placeholder_component_urls(config: &mut Value) {
+    let Some(components) = config.get_mut("components").and_then(Value::as_object_mut) else {
+        return;
+    };
+    for component in components.values_mut() {
+        let Some(component) = component.as_object_mut() else { continue };
+        if component.contains_key("url") {
+            component.insert("url".to_owned(), Value::String("localhost".to_owned()));
+        }
     }
 }
 
