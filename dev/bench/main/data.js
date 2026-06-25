@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782312429457,
+  "lastUpdate": 1782383991884,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6391,6 +6391,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1421.59474121,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0cc164451a414294b44f67fdaa67450511eb7fbc",
+          "message": "starknet_patricia: use OnceLock for write-once filled-tree output maps (#14622)\n\nThe filled-tree output maps are written exactly once per node and then\nreclaimed, yet they used `Mutex<Option<T>>` and locked on every write and on\nevery reclaim - even though after `Arc::into_inner` the map is uniquely owned\nand can never be contended.\n\nReplace the output maps with `OnceLock<T>`, the primitive that matches this\nwrite-once access pattern: `write_to_output_map` becomes a lock-free `set`\n(a failed `set` is the double-update error), and reclaiming via\n`OnceLock::into_inner` drops the locking entirely. Pre-allocate the collected\nmap with the known capacity. `Leaf::Output` gains a `Sync` bound, required for\n`OnceLock<L::Output>: Sync`. The leaf *input* map keeps `Mutex<Option<_>>`,\nsince its values are moved out (take-once), not written.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-25T10:26:21Z",
+          "tree_id": "1344ff799b96d5139ef9ee362ec84520fd130ed3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0cc164451a414294b44f67fdaa67450511eb7fbc"
+        },
+        "date": 1782383991490,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 915.65434527,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1372.46842373,
             "unit": "ms"
           }
         ]
