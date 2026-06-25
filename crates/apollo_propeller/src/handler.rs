@@ -18,12 +18,17 @@ use libp2p::swarm::handler::{
     StreamUpgradeError,
 };
 use libp2p::swarm::{Stream, SubstreamProtocol};
+use prost::encoding::encoded_len_varint;
 use prost::Message;
 use tracing::{error, trace, warn};
 
 use crate::config::Config;
 use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
+
+#[cfg(test)]
+#[path = "handler_test.rs"]
+mod handler_test;
 
 /// Events that the handler can send to the behaviour.
 #[derive(Debug)]
@@ -242,19 +247,27 @@ impl Handler {
             return ProtoBatch { batch: Vec::new() };
         }
 
-        let mut batch = ProtoBatch { batch: vec![send_queue.pop_front().unwrap()] };
-        if batch.encoded_len() > max_wire_message_size {
+        let first = send_queue.pop_front().unwrap();
+        let mut batch = ProtoBatch { batch: vec![first] };
+        let mut batch_encoded_len = batch.encoded_len();
+        if batch_encoded_len > max_wire_message_size {
             warn!("Propeller unit size exceeds max wire message size, sending will fail");
         }
 
         while let Some(msg) = send_queue.front() {
-            batch.batch.push(msg.clone());
-            if batch.encoded_len() <= max_wire_message_size {
-                send_queue.pop_front();
-            } else {
-                batch.batch.pop();
+            let msg_encoded_len = msg.encoded_len();
+            // Per-item cost in a protobuf `repeated` message field: 1-byte tag (field 1,
+            // LEN wire type = 0x0A) + varint-encoded length prefix + the message bytes.
+            // Tracking this incrementally avoids re-encoding the entire batch on every
+            // iteration, dropping the loop from O(N²) to O(N).
+            let msg_encoded_len_u64 =
+                u64::try_from(msg_encoded_len).expect("message encoded length fits in u64");
+            let item_len = 1 + encoded_len_varint(msg_encoded_len_u64) + msg_encoded_len;
+            if batch_encoded_len + item_len > max_wire_message_size {
                 break;
             }
+            batch_encoded_len += item_len;
+            batch.batch.push(send_queue.pop_front().unwrap());
         }
 
         batch
@@ -550,7 +563,11 @@ impl ConnectionHandler for Handler {
     > {
         let result = self.poll_inner(cx);
         // Store the waker so on_behaviour_event / on_connection_event can wake us.
-        self.waker = Some(cx.waker().clone());
+        // Skip the clone when the stored waker already refers to the same task — avoids
+        // an atomic increment on every poll in the common steady-state case.
+        if self.waker.as_ref().is_none_or(|w| !w.will_wake(cx.waker())) {
+            self.waker = Some(cx.waker().clone());
+        }
         result
     }
 
