@@ -15,8 +15,7 @@ fn make_proto_unit(payload_bytes: usize) -> ProtoUnit {
 /// Matches the formula used in `create_message_batch`.
 fn item_batch_cost(unit: &ProtoUnit) -> usize {
     let unit_encoded_len = unit.encoded_len();
-    let unit_encoded_len_u64 =
-        u64::try_from(unit_encoded_len).expect("encoded length fits in u64");
+    let unit_encoded_len_u64 = u64::try_from(unit_encoded_len).expect("encoded length fits in u64");
     1 + prost::encoding::encoded_len_varint(unit_encoded_len_u64) + unit_encoded_len
 }
 
@@ -122,10 +121,7 @@ fn test_create_message_batch_tight_boundary() {
         u64::try_from(next_unit_encoded).expect("encoded length fits in u64");
     let next_item_len =
         1 + prost::encoding::encoded_len_varint(next_unit_encoded_u64) + next_unit_encoded;
-    assert!(
-        batch.encoded_len() + next_item_len > max_size,
-        "next item should not fit"
-    );
+    assert!(batch.encoded_len() + next_item_len > max_size, "next item should not fit");
 }
 
 #[test]
