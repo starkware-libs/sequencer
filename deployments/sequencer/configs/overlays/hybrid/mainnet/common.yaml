@@ -2,10 +2,3 @@ include: configs/overlays/hybrid/common/common.yaml
 
 image:
   tag: APOLLO-0.14.2-RC.6
-
-config:
-  sequencerConfig:
-    chain_id: SN_MAIN
-    native_classes_whitelist: '["0x054c5afe61ed27be53b1e4dec5707209a9fcabdb14712fb800fbc60439090115"]'
-    recorder_url: http://starknet-mainnet.cende-recorder-proxy.starknet.io/
-    starknet_url: https://feeder.alpha-mainnet.starknet.io/
