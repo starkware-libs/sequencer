@@ -318,6 +318,9 @@ impl TestDeps {
         self.cende_ambassador
             .expect_write_prev_height_blob()
             .return_once(|_height| tokio::spawn(ready(true)));
+        // Default: recorder reports nothing stored → full window sent. Delta tests override this.
+        #[cfg(feature = "os_input")]
+        self.cende_ambassador.expect_query_last_stored_commitment_height().returning(|| None);
     }
 
     pub(crate) fn setup_default_gas_price_provider(&mut self) {
