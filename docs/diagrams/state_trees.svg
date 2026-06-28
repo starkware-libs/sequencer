@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 270" width="720" font-family="sans-serif">
+  <style>
+    .link  { stroke: #6f9bc4; stroke-width: 2; fill: none; }
+    .inode { fill: #1b3c5c; stroke: #8ec1ff; stroke-width: 2; }
+    .leaf  { fill: #11243b; stroke: #2d4a6b; stroke-width: 2; }
+    .lbl   { fill: #cfe3ff; font-size: 12px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+    .arrow    { fill: url(#arrowGrad); stroke: #a9d0ff; stroke-width: 1.5; stroke-linejoin: round; }
+    .arrowlbl { fill: #a9d0ff; font-size: 11px; font-style: italic; letter-spacing: 0.04em; text-anchor: middle; }
+    .iread { fill: #ffd479; font-size: 12px; font-weight: 700; text-anchor: middle; }
+    .sdiff { fill: #8ec1ff; font-size: 12px; font-weight: 700; text-anchor: middle; }
+  </style>
+
+  <defs>
+    <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#3f5f80" />
+      <stop offset="100%" stop-color="#8ec1ff" />
+    </linearGradient>
+  </defs>
+
+  <!-- ===== left tree (prev state) ===== -->
+  <path class="link" d="M180 34 L100 118" />
+  <path class="link" d="M180 34 L272 118" />
+  <path class="link" d="M100 118 L56 206" />
+  <path class="link" d="M100 118 L144 206" />
+  <path class="link" d="M272 118 L230 206" />
+
+  <circle class="inode" cx="180" cy="34"  r="17" />
+  <circle class="inode" cx="100" cy="118" r="17" />
+  <circle class="inode" cx="272" cy="118" r="17" />
+
+  <rect class="leaf" x="41"  y="191" width="30" height="30" rx="6" />
+  <rect class="leaf" x="129" y="191" width="30" height="30" rx="6" />
+  <rect class="leaf" x="215" y="191" width="30" height="30" rx="6" />
+
+  <text class="lbl" x="180" y="35">root</text>
+  <text class="lbl" x="56"  y="206">5</text>
+  <text class="lbl" x="144" y="206">7</text>
+  <text class="lbl" x="230" y="206">2</text>
+
+  <text class="iread" x="56"  y="240">initial<tspan x="56"  dy="13">read</tspan></text>
+  <text class="iread" x="230" y="240">initial<tspan x="230" dy="13">read</tspan></text>
+
+  <!-- ===== wide arrow ===== -->
+  <text class="arrowlbl" x="380" y="96">transition</text>
+  <polygon class="arrow" points="307,112 414,112 414,101 456,120 414,139 414,128 307,128" />
+
+  <!-- ===== right tree (new state) ===== -->
+  <path class="link" d="M600 34 L520 118" />
+  <path class="link" d="M600 34 L692 118" />
+  <path class="link" d="M520 118 L476 206" />
+  <path class="link" d="M520 118 L564 206" />
+  <path class="link" d="M692 118 L650 206" />
+
+  <circle class="inode" cx="600" cy="34"  r="17" />
+  <circle class="inode" cx="520" cy="118" r="17" />
+  <circle class="inode" cx="692" cy="118" r="17" />
+
+  <rect class="leaf" x="461" y="191" width="30" height="30" rx="6" />
+  <rect class="leaf" x="549" y="191" width="30" height="30" rx="6" />
+  <rect class="leaf" x="635" y="191" width="30" height="30" rx="6" />
+
+  <text class="lbl" x="600" y="35">root</text>
+  <text class="lbl" x="476" y="206">9</text>
+  <text class="lbl" x="564" y="206">7</text>
+  <text class="lbl" x="650" y="206">2</text>
+
+  <text class="sdiff" x="476" y="240">state<tspan x="476" dy="13">diff</tspan></text>
+  <text class="iread" x="650" y="240">initial<tspan x="650" dy="13">read</tspan></text>
+</svg>
