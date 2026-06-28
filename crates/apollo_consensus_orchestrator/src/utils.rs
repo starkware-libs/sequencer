@@ -11,7 +11,10 @@ use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ProposalInit, ProposalPart};
-use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::SharedStateSyncClient;
+#[cfg(not(feature = "os_input"))]
+use apollo_state_sync_types::communication::StateSyncClientError;
+#[cfg(not(feature = "os_input"))]
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -34,10 +37,9 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
-use crate::metrics::{
-    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
-    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
-};
+use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+#[cfg(not(feature = "os_input"))]
+use crate::metrics::CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH;
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -51,10 +53,12 @@ impl StreamSender {
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum RetrospectiveBlockHashError {
+    #[cfg(not(feature = "os_input"))]
     #[error(transparent)]
     StateSyncError(#[from] StateSyncClientError),
     #[error(transparent)]
     BatcherError(#[from] BatcherClientError),
+    #[cfg(not(feature = "os_input"))]
     #[error(
         "Block hash mismatch for block {block_number}. State sync block hash: \
          {state_sync_block_hash:?}, batcher block hash: {batcher_block_hash:?}"
@@ -361,6 +365,44 @@ pub(crate) async fn retrospective_block_hash(
 
     let block_number = BlockNumber(block_number);
 
+    let hash = resolve_retrospective_block_hash(
+        batcher_client,
+        state_sync_client,
+        block_number,
+        compare_retrospective_block_hash,
+    )
+    .await?;
+
+    Ok(Some(BlockHashAndNumber { number: block_number, hash }))
+}
+
+/// Resolves the retrospective block hash.
+///
+/// Under `os_input` the batcher runs the OS and is authoritative for block hashes, so the hash is
+/// read from the batcher ONLY. Consensus therefore does not depend on State Sync (and through it on
+/// CEN) to keep producing blocks — when State Sync lags, the retrospective hash is still available
+/// locally from the batcher.
+///
+/// Without `os_input` the hash is read from both State Sync and the batcher and, when
+/// `compare_retrospective_block_hash` is set, the two must match.
+#[cfg(feature = "os_input")]
+async fn resolve_retrospective_block_hash(
+    batcher_client: Arc<dyn BatcherClient>,
+    _state_sync_client: SharedStateSyncClient,
+    block_number: BlockNumber,
+    _compare_retrospective_block_hash: bool,
+) -> RetrospectiveBlockHashResult<BlockHash> {
+    // The batcher ran the OS and is authoritative; never query State Sync (CEN) here.
+    Ok(batcher_client.get_block_hash(block_number).await?)
+}
+
+#[cfg(not(feature = "os_input"))]
+async fn resolve_retrospective_block_hash(
+    batcher_client: Arc<dyn BatcherClient>,
+    state_sync_client: SharedStateSyncClient,
+    block_number: BlockNumber,
+    compare_retrospective_block_hash: bool,
+) -> RetrospectiveBlockHashResult<BlockHash> {
     // First try from state sync - assuming it takes longer to this one to be ready.
     let state_sync_block_hash = state_sync_client.get_block_hash(block_number).await?;
 
@@ -379,7 +421,8 @@ pub(crate) async fn retrospective_block_hash(
             batcher_block_hash,
         });
     }
-    Ok(Some(BlockHashAndNumber { number: block_number, hash: batcher_block_hash }))
+
+    Ok(batcher_block_hash)
 }
 
 pub(crate) async fn wait_for_retrospective_block_hash(
@@ -405,12 +448,17 @@ pub(crate) async fn wait_for_retrospective_block_hash(
 
         // If the block is not found, try again after the retry interval. In any other case, return
         // the result.
+        #[cfg(not(feature = "os_input"))]
         let state_sync_not_ready = matches!(
             result,
             Err(RetrospectiveBlockHashError::StateSyncError(StateSyncClientError::StateSyncError(
                 StateSyncError::BlockNotFound(_)
             )))
         );
+        // os_input: State Sync is never queried for the retrospective hash, so it is never the
+        // reason to retry.
+        #[cfg(feature = "os_input")]
+        let state_sync_not_ready = false;
         let batcher_not_ready = matches!(
             result,
             Err(RetrospectiveBlockHashError::BatcherError(BatcherClientError::BatcherError(
@@ -428,7 +476,10 @@ pub(crate) async fn wait_for_retrospective_block_hash(
         if effective_retry_interval == Duration::ZERO {
             break result;
         } else {
+            #[cfg(not(feature = "os_input"))]
             let not_ready_client = if state_sync_not_ready { "State Sync" } else { "Batcher" };
+            #[cfg(feature = "os_input")]
+            let not_ready_client = "Batcher";
             warn!(
                 "Attempt to retrieve retrospective block hash failed. {not_ready_client} is not \
                  ready. \nRetrying in {effective_retry_interval:?}."
