@@ -1,8 +1,1 @@
 include: configs/overlays/hybrid/common/services/l1.yaml
-
-config:
-  sequencerConfig:
-    base_layer_config.bpo1_start_block_number: 9456501
-    base_layer_config.bpo2_start_block_number: 9504747
-    base_layer_config.fusaka_no_bpo_start_block_number: 9408577
-    base_layer_config.starknet_contract_address: '0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057'

@@ -1,5 +1,1 @@
 include: configs/overlays/hybrid/common/services/gateway.yaml
-
-config:
-  sequencerConfig:
-    gateway_config.static_config.proof_archive_writer_config.bucket_name: starkware-starknet-alpha
