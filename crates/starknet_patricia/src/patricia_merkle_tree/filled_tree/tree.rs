@@ -177,7 +177,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     {
         let node = updated_skeleton.get_node(index)?;
         match node {
-            UpdatedSkeletonNode::Binary => {
+            UpdatedSkeletonNode::Binary { n_new_hashes: _ } => {
                 let left_index = index * 2.into();
                 let right_index = left_index + NodeIndex::ROOT;
 
@@ -209,7 +209,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 )?;
                 Ok(hash)
             }
-            UpdatedSkeletonNode::Edge(path_to_bottom) => {
+            UpdatedSkeletonNode::Edge { path_to_bottom, n_new_hashes: _ } => {
                 let bottom_node_index = NodeIndex::compute_bottom_index(index, path_to_bottom);
                 let bottom_hash = Self::compute_filled_tree_rec::<TH>(
                     Arc::clone(&updated_skeleton),
