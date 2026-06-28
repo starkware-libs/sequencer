@@ -128,6 +128,12 @@ pub trait CendeContext: Send + Sync {
         &self,
         blob_parameters: BlobParameters,
     ) -> CendeAmbassadorResult<()>;
+
+    /// Returns the highest block whose state commitment info the recorder has contiguously stored,
+    /// or `None` if the recorder has none stored or the query failed. Used to bound the
+    /// `recent_state_commitment_infos` window to only the delta the recorder is still missing.
+    #[cfg(feature = "os_input")]
+    async fn query_last_stored_commitment_height(&self) -> Option<BlockNumber>;
 }
 
 #[derive(Clone)]
@@ -138,6 +144,8 @@ pub struct CendeAmbassador {
     prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
     write_blob_url: Url,
     get_latest_received_block_url: Url,
+    #[cfg(feature = "os_input")]
+    get_last_stored_commitment_height_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -148,9 +156,20 @@ pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
 /// to DB. returns null when no blocks exist).
 pub const RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH: &str =
     "/cende_recorder/get_latest_received_block";
+/// The path to get the highest block whose state commitment info the Recorder has contiguously
+/// stored (returns null when none are stored).
+#[cfg(feature = "os_input")]
+pub const RECORDER_GET_LAST_STORED_COMMITMENT_HEIGHT_PATH: &str =
+    "/cende_recorder/get_last_stored_commitment_height";
 
 #[derive(Debug, Deserialize)]
 struct GetLatestReceivedBlockResponse {
+    block_number: Option<u64>,
+}
+
+#[cfg(feature = "os_input")]
+#[derive(Debug, Deserialize)]
+struct GetLastStoredCommitmentHeightResponse {
     block_number: Option<u64>,
 }
 
@@ -171,6 +190,11 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
                 .expect("Failed to construct get latest received block URL"),
+            #[cfg(feature = "os_input")]
+            get_last_stored_commitment_height_url: cende_config
+                .recorder_url
+                .join(RECORDER_GET_LAST_STORED_COMMITMENT_HEIGHT_PATH)
+                .expect("Failed to construct get last stored commitment height URL"),
             // Bound each attempt by the max retry interval. Without a per-attempt timeout
             // `RetryTransientMiddleware` only retries attempts that *return* a transient error, so
             // a request that hangs against a slow recorder would block until the build deadline
@@ -265,6 +289,38 @@ async fn fetch_latest_received_block(
     }
 }
 
+#[cfg(feature = "os_input")]
+async fn fetch_last_stored_commitment_height(
+    client: &ClientWithMiddleware,
+    url: &Url,
+) -> Option<BlockNumber> {
+    match client.get(url.as_str()).send().await {
+        Ok(response) if response.status().is_success() => {
+            match response.json::<GetLastStoredCommitmentHeightResponse>().await {
+                Ok(resp) => resp.block_number.map(BlockNumber),
+                Err(e) => {
+                    warn!(
+                        "Failed to parse recorder get_last_stored_commitment_height response: {e}"
+                    );
+                    None
+                }
+            }
+        }
+        Ok(response) => {
+            warn!(
+                "Recorder get_last_stored_commitment_height returned error status {}: {}",
+                response.status(),
+                response.text().await.unwrap_or_else(|_| "unparseable".to_string())
+            );
+            None
+        }
+        Err(e) => {
+            warn!("Failed to request recorder get_last_stored_commitment_height: {e}");
+            None
+        }
+    }
+}
+
 #[async_trait]
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
@@ -334,6 +390,15 @@ impl CendeContext for CendeAmbassador {
         info!("Blob for block number {block_number} is ready.");
         CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn query_last_stored_commitment_height(&self) -> Option<BlockNumber> {
+        fetch_last_stored_commitment_height(
+            &self.client,
+            &self.get_last_stored_commitment_height_url,
+        )
+        .await
     }
 }
 
