@@ -47,6 +47,18 @@ def service_name_to_build_key(service_name: str) -> str:
     return _SERVICE_NAME_TO_BUILD_KEY.get(service_name, service_name)
 
 
+def flatten_dotted(nested: dict, prefix: str = "") -> Dict[str, Any]:
+    """Flatten a nested config to dotted keys. Lists and null are leaf values (not recursed)."""
+    flat: Dict[str, Any] = {}
+    for key, value in nested.items():
+        dotted = f"{prefix}{key}"
+        if isinstance(value, dict):
+            flat.update(flatten_dotted(value, prefix=f"{dotted}."))
+        else:
+            flat[dotted] = value
+    return flat
+
+
 def _dir_bucket_file(layer_dir: Path, filename: str) -> Optional[Path]:
     """Returns the bucket file `layer_dir` contributes for `filename` (e.g. `chain_params.jsonnet`).
 
