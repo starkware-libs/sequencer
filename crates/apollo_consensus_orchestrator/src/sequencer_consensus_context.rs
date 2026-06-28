@@ -702,7 +702,15 @@ impl SequencerConsensusContext {
                 .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
                 + 1,
         );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        // Send only the delta the recorder hasn't stored yet, bounded above by the fixed window.
+        let fixed_window_lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        let lowest_height =
+            match self.deps.cende_ambassador.query_last_stored_commitment_height().await {
+                Some(last_stored_height) => {
+                    fixed_window_lowest_height.max(last_stored_height.0.saturating_add(1))
+                }
+                None => fixed_window_lowest_height,
+            };
         for height in lowest_height..=height.0 {
             let block_number = BlockNumber(height);
             match self.deps.batcher.get_state_commitment_infos(block_number).await {
