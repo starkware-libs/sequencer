@@ -65,7 +65,12 @@
     "value": false
   },
   "batcher_config.dynamic_config.tx_polling_interval_millis": {
-    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions. Applies when proposing (polls the mempool). Kept intentionally high so txs accumulate between polls and ordering is decided by tip/priority fee rather than by arrival latency (geographic proximity).",
+    "privacy": "Public",
+    "value": 10
+  },
+  "batcher_config.dynamic_config.validate_tx_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions. Applies when validating a proposal, where the tx order is already fixed; a short interval reduces the delay before streamed txs are executed.",
     "privacy": "Public",
     "value": 10
   },
