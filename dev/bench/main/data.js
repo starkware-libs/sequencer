@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782646502855,
+  "lastUpdate": 1782651682068,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6493,6 +6493,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1249.57471926,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47e23a2b33645e51b8e67d4ec05382bb7718220b",
+          "message": "starknet_patricia: track new-hash count per subtree in updated skeleton nodes (#14643)\n\nAdd an `n_new_hashes` field to the Binary and Edge variants of\nUpdatedSkeletonNode, holding the number of node hashes that must be\n(re)computed for the subtree rooted at that node. The count is accumulated\nin O(1) per node while the updated skeleton is structured bottom-up.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-28T12:50:02Z",
+          "tree_id": "022d7084d34fd713b8ac8d4bf5f687d09cddcf6c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/47e23a2b33645e51b8e67d4ec05382bb7718220b"
+        },
+        "date": 1782651681726,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 757.00100692,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1162.8883576199999,
             "unit": "ms"
           }
         ]
