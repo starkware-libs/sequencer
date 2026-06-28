@@ -32,3 +32,15 @@ def build_native_config(service_name: str, node_file: Path) -> Dict[str, Any]:
             f"'{service_name}'). Available services: {sorted(built.keys())}"
         )
     return built[build_key]
+
+
+def flatten_dotted(nested: dict, prefix: str = "") -> Dict[str, Any]:
+    """Flatten a nested config to dotted keys. Lists and null are leaf values (not recursed)."""
+    flat: Dict[str, Any] = {}
+    for key, value in nested.items():
+        dotted = f"{prefix}{key}"
+        if isinstance(value, dict):
+            flat.update(flatten_dotted(value, prefix=f"{dotted}."))
+        else:
+            flat[dotted] = value
+    return flat
