@@ -519,11 +519,6 @@ impl BlockBuilder {
             block_txs_start + n_txs
         );
 
-        // Move next_txs into block_txs instead of cloning. Conversion and (in propose mode)
-        // forwarding to validators each require one clone per tx — but those clones can be taken
-        // directly from block_txs, so the initial extend no longer needs to clone.
-        // Savings: N heap allocations per batch on the validate path; same count on the propose
-        // path (the clone previously done for the extend is now done for the send instead).
         self.block_txs.extend(next_txs);
 
         let tx_convert_futures = self.block_txs[block_txs_start..]
