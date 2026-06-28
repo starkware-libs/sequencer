@@ -14,3 +14,14 @@ pub enum UpdatedSkeletonNode {
     UnmodifiedSubTree(HashOutput),
     Leaf,
 }
+
+impl UpdatedSkeletonNode {
+    /// Returns the number of inner-node hashes that must be computed for the subtree rooted here.
+    /// Leaf and UnmodifiedSubTree nodes contribute zero.
+    pub fn n_new_hashes(&self) -> usize {
+        match self {
+            Self::Binary { n_new_hashes } | Self::Edge { n_new_hashes, .. } => *n_new_hashes,
+            Self::UnmodifiedSubTree(_) | Self::Leaf => 0,
+        }
+    }
+}
