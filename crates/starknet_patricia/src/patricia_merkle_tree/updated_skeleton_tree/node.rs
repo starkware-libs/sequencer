@@ -3,7 +3,7 @@ use starknet_api::hash::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 
 /// A node in the structure of a Patricia-Merkle tree, after the update.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UpdatedSkeletonNode {
     Binary,
     Edge(PathToBottom),

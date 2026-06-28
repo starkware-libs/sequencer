@@ -103,6 +103,6 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
     }
 
     fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, UpdatedSkeletonNode)> {
-        self.skeleton_tree.iter().map(|(index, node)| (*index, node.clone()))
+        self.skeleton_tree.iter().map(|(index, node)| (*index, *node))
     }
 }
