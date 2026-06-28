@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use starknet_api::hash::HashOutput;
 
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
-use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::TempSkeletonNode;
@@ -57,30 +56,25 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
 
         let temp_root_node = updated_skeleton_tree.finalize_middle_layers(original_skeleton);
         // Finalize root.
-        match temp_root_node {
-            TempSkeletonNode::Empty => assert!(updated_skeleton_tree.skeleton_tree.is_empty()),
+        let root_node = match temp_root_node {
+            TempSkeletonNode::OriginalBinary => UpdatedSkeletonNode::Binary,
+            TempSkeletonNode::OriginalEdge { path } => UpdatedSkeletonNode::Edge(path),
+            TempSkeletonNode::Empty => {
+                assert!(updated_skeleton_tree.skeleton_tree.is_empty());
+                return Ok(updated_skeleton_tree);
+            }
             TempSkeletonNode::Leaf => {
                 unreachable!("Root node cannot be a leaf")
             }
-            TempSkeletonNode::Original(original_skeleton_node) => {
-                let new_node = match original_skeleton_node {
-                    OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
-                    OriginalSkeletonNode::Edge(path_to_bottom) => {
-                        UpdatedSkeletonNode::Edge(path_to_bottom)
-                    }
-                    OriginalSkeletonNode::UnmodifiedSubTree(_) => {
-                        unreachable!(
-                            "Root node cannot be unmodified when there are some modifications."
-                        )
-                    }
-                };
-
-                updated_skeleton_tree
-                    .skeleton_tree
-                    .insert(NodeIndex::ROOT, new_node)
-                    .map_or((), |_| panic!("Root node already exists in the updated skeleton tree"))
+            TempSkeletonNode::OriginalUnmodified { .. } => {
+                unreachable!("Root node cannot be unmodified when there are some modifications.")
             }
         };
+        if let Some(previous_root_node) =
+            updated_skeleton_tree.skeleton_tree.insert(NodeIndex::ROOT, root_node)
+        {
+            panic!("Root node {previous_root_node:?} already exists in the updated skeleton tree");
+        }
         Ok(updated_skeleton_tree)
     }
 
