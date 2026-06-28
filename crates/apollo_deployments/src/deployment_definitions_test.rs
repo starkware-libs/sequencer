@@ -17,6 +17,7 @@ use crate::jsonnet::{
     assert_build_deserializes,
     assert_infra_matches_rust,
     test_applicative_matches_app_configs,
+    test_keys_to_be_replaced_are_covered_by_override_schema,
 };
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
@@ -33,6 +34,17 @@ fn applicative_matches_app_configs() {
         .expect("Couldn't set working dir.");
 
     test_applicative_matches_app_configs();
+}
+
+/// Enforces the invariant tying the Rust replacer set (`KEYS_TO_BE_REPLACED`) to the applicative
+/// config's override schema, both ways. See the doc on
+/// `test_keys_to_be_replaced_are_covered_by_override_schema`.
+#[test]
+fn keys_to_be_replaced_are_covered_by_override_schema() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    test_keys_to_be_replaced_are_covered_by_override_schema();
 }
 
 /// Verifies the jsonnet hybrid infra config matches the Rust deployment definitions (hybrid.rs).
