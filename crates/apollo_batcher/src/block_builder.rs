@@ -512,17 +512,23 @@ impl BlockBuilder {
         }
 
         let n_txs = next_txs.len();
+        let block_txs_start = self.block_txs.len();
         debug!(
             "Got {} transactions from the transaction provider (aggregated: {}).",
             n_txs,
-            self.block_txs.len() + n_txs
+            block_txs_start + n_txs
         );
 
-        self.block_txs.extend(next_txs.iter().cloned());
+        // Move next_txs into block_txs instead of cloning. Conversion and (in propose mode)
+        // forwarding to validators each require one clone per tx — but those clones can be taken
+        // directly from block_txs, so the initial extend no longer needs to clone.
+        // Savings: N heap allocations per batch on the validate path; same count on the propose
+        // path (the clone previously done for the extend is now done for the send instead).
+        self.block_txs.extend(next_txs);
 
-        let tx_convert_futures = next_txs.iter().map(|tx| async {
-            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
-        });
+        let tx_convert_futures = self.block_txs[block_txs_start..]
+            .iter()
+            .map(|tx| convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()));
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
         // Start the execution of the transactions on the worker pool.
@@ -537,8 +543,8 @@ impl BlockBuilder {
         if let Some(output_content_sender) = &self.output_content_sender {
             // Send the transactions to the validators.
             // Only reached in proposal flow.
-            for tx in next_txs.into_iter() {
-                output_content_sender.send(tx).map_err(Box::new)?;
+            for tx in &self.block_txs[block_txs_start..] {
+                output_content_sender.send(tx.clone()).map_err(Box::new)?;
             }
         }
 
