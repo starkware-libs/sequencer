@@ -78,8 +78,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
         let nodes_iter = updated_skeleton.get_nodes();
-        let capacity = nodes_iter.size_hint().1.unwrap_or_default();
-        let mut filled_tree_output_map = HashMap::with_capacity(capacity);
+        let mut filled_tree_output_map = HashMap::with_capacity(nodes_iter.len());
         for (index, node) in nodes_iter {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
                 filled_tree_output_map.insert(index, OnceLock::new());

@@ -31,7 +31,7 @@ pub trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     fn is_empty(&self) -> bool;
 
     /// Returns an iterator over all (node index, node) pairs in the tree.
-    fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, UpdatedSkeletonNode)>;
+    fn get_nodes(&self) -> impl ExactSizeIterator<Item = (NodeIndex, UpdatedSkeletonNode)>;
 
     /// Returns the node with the given index.
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode>;
@@ -102,7 +102,7 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
         }
     }
 
-    fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, UpdatedSkeletonNode)> {
+    fn get_nodes(&self) -> impl ExactSizeIterator<Item = (NodeIndex, UpdatedSkeletonNode)> {
         self.skeleton_tree.iter().map(|(index, node)| (*index, *node))
     }
 }
