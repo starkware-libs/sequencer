@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782390268966,
+  "lastUpdate": 1782646502855,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6459,6 +6459,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1223.76873832,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6718fc39201dda39eb8793471f20c9150951fbd",
+          "message": "starknet_patricia: flatten TempSkeletonNode variants and add conversions (#14640)\n\nReplace the Original(OriginalSkeletonNode) wrapper with explicit\nOriginalBinary/OriginalEdge/OriginalUnmodified variants, and add\nFrom conversions OriginalSkeletonNode -> TempSkeletonNode and\n&TempSkeletonNode -> UpdatedSkeletonNode.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-28T11:23:39Z",
+          "tree_id": "01544db896b48fd45207f285bd82a22c3e86451f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c6718fc39201dda39eb8793471f20c9150951fbd"
+        },
+        "date": 1782646502469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 770.96372726,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1249.57471926,
             "unit": "ms"
           }
         ]
