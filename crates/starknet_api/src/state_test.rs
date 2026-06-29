@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use indexmap::{indexmap, IndexMap};
 use serde_json::json;
+use starknet_types_core::felt::Felt;
 
 use crate::class_hash;
 use crate::core::{ClassHash, CompiledClassHash, Nonce};
@@ -26,6 +27,20 @@ fn entry_point_offset_from_json_str() {
 fn entry_point_offset_into_json_str() {
     let offset = EntryPointOffset(123);
     assert_eq!(json!(offset), json!(format!("{:#x}", offset.0)));
+}
+
+#[test]
+fn sierra_contract_class_debug_hides_program_and_abi() {
+    let class = SierraContractClass {
+        sierra_program: vec![Felt::from(1_u8), Felt::from(2_u8), Felt::from(3_u8)],
+        abi: "secret-abi-contents".to_string(),
+        ..Default::default()
+    };
+    let debug = format!("{class:?}");
+    assert!(debug.contains("sierra_program: <3 felts>"), "got: {debug}");
+    assert!(debug.contains("abi: <19 bytes>"), "got: {debug}");
+    // The heavy contents must not appear.
+    assert!(!debug.contains("secret-abi-contents"), "abi leaked: {debug}");
 }
 
 #[test]
