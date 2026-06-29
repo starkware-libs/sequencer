@@ -164,7 +164,7 @@ impl HttpServer {
 
 // HttpServer handlers.
 
-#[instrument(skip(app_state))]
+#[instrument(skip(app_state, tx, headers))]
 async fn add_rpc_tx(
     Extension(app_state): Extension<AppState>,
     headers: HeaderMap,
@@ -180,7 +180,7 @@ async fn add_rpc_tx(
     add_tx_inner(app_state, headers, tx).await
 }
 
-#[instrument(skip(app_state))]
+#[instrument(skip(app_state, tx, headers))]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     Extension(app_state): Extension<AppState>,
@@ -298,6 +298,7 @@ async fn add_tx_inner(
     headers: HeaderMap,
     tx: RpcTransaction,
 ) -> HttpServerResult<Json<GatewayOutput>> {
+    debug!("Received transaction: {tx:?}");
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     // Wrap the gateway client interaction with a tokio::spawn as it is NOT cancel-safe.
     // Even if the current task is cancelled, e.g., when a request is dropped while still being
