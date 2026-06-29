@@ -92,6 +92,9 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
             gas_price_params: args.gas_price_params,
             cancel_token: args.cancel_token,
             compare_retrospective_block_hash: args.compare_retrospective_block_hash,
+            max_concurrent_tx_conversions: ContextConfig::default()
+                .static_config
+                .max_concurrent_tx_conversions,
         }
     }
 }

@@ -88,6 +88,11 @@ pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
 // This matches the min_gas_price in orchestrator_versioned_constants_0_14_1.json (0x1dcd65000).
 const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
 
+// Per-transaction conversion fans out work to the class manager, hashing, and proof-task spawning.
+// Batch size is proposer-controlled, so bound concurrency to stop one oversized batch from flooding
+// the class manager and saturating CPU. The whole batch is still converted, just this many at once.
+const DEFAULT_MAX_CONCURRENT_TX_CONVERSIONS: usize = 10;
+
 /// Represents a minimum gas price that applies starting from a specific block height.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PricePerHeight {
@@ -176,6 +181,10 @@ pub struct ContextStaticConfig {
     /// The interval between retrospective block hash retries.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    /// Caps how many transaction conversions in a single batch run concurrently (build and
+    /// validate paths). The whole batch is still converted.
+    #[validate(range(min = 1))]
+    pub max_concurrent_tx_conversions: usize,
     pub behavior_mode: BehaviorMode,
 }
 
@@ -234,6 +243,13 @@ impl SerializeConfig for ContextStaticConfig {
                 "The interval between retrospective block hash retries.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_concurrent_tx_conversions",
+                &self.max_concurrent_tx_conversions,
+                "Maximum number of transaction conversions in a single batch allowed to run \
+                 concurrently.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         dump.extend([ser_param(
             "behavior_mode",
@@ -256,6 +272,7 @@ impl Default for ContextStaticConfig {
             validate_proposal_margin_millis: Duration::from_millis(10_000),
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
+            max_concurrent_tx_conversions: DEFAULT_MAX_CONCURRENT_TX_CONVERSIONS,
             behavior_mode: BehaviorMode::default(),
         }
     }
