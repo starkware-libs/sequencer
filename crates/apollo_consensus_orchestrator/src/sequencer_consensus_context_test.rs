@@ -1,6 +1,4 @@
 use std::collections::BTreeMap;
-#[cfg(feature = "os_input")]
-use std::collections::HashMap;
 use std::future::ready;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -63,8 +61,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 
 #[cfg(feature = "os_input")]
 use crate::cende::StateCommitmentInfosAndNumber;
@@ -920,11 +916,8 @@ async fn blob_parent_proposal_commitment_binds_parent_fee_proposal() {
 async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let (mut deps, _network) = create_test_and_network_deps();
 
-    let state_commitment_infos = StateCommitmentInfos {
-        contracts_trie_commitment_info: CommitmentInfo::default(),
-        classes_trie_commitment_info: CommitmentInfo::default(),
-        storage_tries_commitment_infos: HashMap::new(),
-    };
+    // The batcher serves the compressed witness string; the orchestrator forwards it verbatim.
+    let state_commitment_infos = "compressed-state-commitment-infos".to_string();
 
     let returned_infos = state_commitment_infos.clone();
     deps.batcher
@@ -960,12 +953,8 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
 }
 
 #[cfg(feature = "os_input")]
-fn default_state_commitment_infos() -> StateCommitmentInfos {
-    StateCommitmentInfos {
-        contracts_trie_commitment_info: CommitmentInfo::default(),
-        classes_trie_commitment_info: CommitmentInfo::default(),
-        storage_tries_commitment_infos: HashMap::new(),
-    }
+fn default_state_commitment_infos() -> String {
+    "compressed-state-commitment-infos".to_string()
 }
 
 /// Builds a context whose batcher serves a commitment info for any height and whose recorder

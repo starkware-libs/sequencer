@@ -44,8 +44,6 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{info, warn, Instrument};
@@ -80,7 +78,9 @@ pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 #[cfg(feature = "os_input")]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct StateCommitmentInfosAndNumber {
-    pub state_commitment_infos: StateCommitmentInfos,
+    /// Compressed (`base64(zstd(serde_json(..)))`) commitment infos from the committer, forwarded
+    /// as-is into the cende blob.
+    pub state_commitment_infos: String,
     pub block_number: BlockNumber,
 }
 

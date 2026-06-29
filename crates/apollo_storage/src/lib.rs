@@ -188,8 +188,6 @@ use crate::header::StorageBlockHeader;
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
-#[cfg(feature = "os_input")]
-use crate::state_commitment_infos::StateCommitmentInfos;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -1173,7 +1171,7 @@ struct FileHandlers<Mode: TransactionKind> {
     #[cfg(feature = "os_input")]
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
     #[cfg(feature = "os_input")]
-    state_commitment_infos: FileHandler<VersionZeroWrapper<StateCommitmentInfos>, Mode>,
+    state_commitment_infos: FileHandler<VersionZeroWrapper<String>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -1216,11 +1214,11 @@ impl FileHandlers<RW> {
         self.clone().accessed_keys.append(accessed_keys)
     }
 
+    // Takes `&String` (not `&str`) because the mmap file handler appends `&V::Value`, i.e.
+    // `&String`.
     #[cfg(feature = "os_input")]
-    fn append_state_commitment_infos(
-        &self,
-        state_commitment_infos: &StateCommitmentInfos,
-    ) -> LocationInFile {
+    #[allow(clippy::ptr_arg)]
+    fn append_state_commitment_infos(&self, state_commitment_infos: &String) -> LocationInFile {
         self.clone().state_commitment_infos.append(state_commitment_infos)
     }
 
@@ -1326,11 +1324,11 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 
     #[cfg(feature = "os_input")]
-    // Returns the commitment infos at the given location or an error in case they don't exist.
+    // Returns the compressed commitment infos at the given location.
     pub(crate) fn get_state_commitment_infos_unchecked(
         &self,
         location: LocationInFile,
-    ) -> StorageResult<StateCommitmentInfos> {
+    ) -> StorageResult<String> {
         self.state_commitment_infos.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("StateCommitmentInfos at location {location:?} not found."),
         })

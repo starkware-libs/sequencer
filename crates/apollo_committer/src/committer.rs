@@ -61,6 +61,8 @@ use starknet_committer::forest::filled_forest::FilledForest;
 #[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
 #[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
+#[cfg(feature = "os_input")]
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
@@ -147,6 +149,21 @@ fn commit_tip_metadata_bundle(
         next_offset,
     )
 }
+
+/// Compresses the state commitment infos to `base64(zstd(serde_json(..)))`, once at the source, so
+/// the witness stays compact across the committer->batcher RPC (which has an 8 MB response cap),
+/// batcher storage, and the cende blob.
+#[cfg(feature = "os_input")]
+fn compress_state_commitment_infos(infos: &StateCommitmentInfos) -> CommitterResult<String> {
+    let json = serde_json::to_vec(infos)
+        .map_err(|err| CommitterError::StateCommitmentInfosSerialization(err.to_string()))?;
+    let compressed = zstd::encode_all(json.as_slice(), STATE_COMMITMENT_INFOS_ZSTD_LEVEL)
+        .map_err(|err| CommitterError::StateCommitmentInfosCompression(err.to_string()))?;
+    Ok(base64::encode(compressed))
+}
+
+#[cfg(feature = "os_input")]
+const STATE_COMMITMENT_INFOS_ZSTD_LEVEL: i32 = 3;
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
 pub struct Committer<S: Storage, ForestDB>
@@ -540,7 +557,12 @@ where
                     .await
                     .map_err(|error| self.map_internal_error_at_height(height, error))?
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root,
+                    state_commitment_infos: compress_state_commitment_infos(
+                        &state_commitment_infos,
+                    )?,
+                })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -603,7 +625,12 @@ where
                 block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
                 update_metrics(height, &block_measurements.block_measurement);
                 self.update_offset(next_offset);
-                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root,
+                    state_commitment_infos: compress_state_commitment_infos(
+                        &state_commitment_infos,
+                    )?,
+                })
             }
         }
     }

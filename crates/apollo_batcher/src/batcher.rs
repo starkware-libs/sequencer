@@ -66,10 +66,8 @@ use apollo_storage::partial_block_hash::{
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 #[cfg(feature = "os_input")]
-use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageReader;
-#[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::{
-    StateCommitmentInfos,
+    StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
 };
 use apollo_storage::storage_reader_server::{
@@ -1545,10 +1543,7 @@ impl Batcher {
     }
 
     #[cfg(feature = "os_input")]
-    pub fn get_state_commitment_infos(
-        &self,
-        block_number: BlockNumber,
-    ) -> BatcherResult<StateCommitmentInfos> {
+    pub fn get_state_commitment_infos(&self, block_number: BlockNumber) -> BatcherResult<String> {
         self.storage_reader
             .get_state_commitment_infos(block_number)
             .map_err(|err| {
@@ -1758,10 +1753,7 @@ pub trait BatcherStorageReader: Send + Sync {
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 
     #[cfg(feature = "os_input")]
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>>;
+    fn get_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<Option<String>>;
 
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
@@ -1858,10 +1850,7 @@ impl BatcherStorageReader for StorageReader {
     }
 
     #[cfg(feature = "os_input")]
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>> {
+    fn get_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<Option<String>> {
         self.begin_ro_txn()?.get_state_commitment_infos(height)
     }
 
@@ -1927,7 +1916,7 @@ pub trait BatcherStorageWriter: Send + Sync {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        state_commitment_infos: Option<StateCommitmentInfos>,
+        state_commitment_infos: Option<String>,
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
@@ -1973,7 +1962,7 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        #[cfg(feature = "os_input")] state_commitment_infos: Option<StateCommitmentInfos>,
+        #[cfg(feature = "os_input")] state_commitment_infos: Option<String>,
     ) -> StorageResult<()> {
         #[cfg(not(feature = "os_input"))]
         info!(
@@ -1983,10 +1972,10 @@ impl BatcherStorageWriter for StorageWriter {
         #[cfg(feature = "os_input")]
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
-             hash: {block_hash:?}, number of storage-trie commitment infos: {:?}.",
-            state_commitment_infos.as_ref().map(|state_commitment_infos| state_commitment_infos
-                .storage_tries_commitment_infos
-                .len())
+             hash: {block_hash:?}, compressed commitment infos byte length: {:?}.",
+            state_commitment_infos
+                .as_ref()
+                .map(|state_commitment_infos| state_commitment_infos.len())
         );
         let mut txn = self
             .begin_rw_txn()?

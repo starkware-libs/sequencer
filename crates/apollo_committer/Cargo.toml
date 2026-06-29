@@ -7,7 +7,12 @@ license.workspace = true
 description = "State root commitment computation component for the Starknet sequencer."
 
 [features]
-os_input = ["apollo_committer_types/os_input", "starknet_committer/os_input"]
+os_input = [
+  "apollo_committer_types/os_input",
+  "dep:base64",
+  "dep:zstd",
+  "starknet_committer/os_input",
+]
 testing = []
 
 [dependencies]
@@ -16,10 +21,13 @@ apollo_committer_types.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
+base64 = { workspace = true, optional = true }
+serde_json.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_patricia_storage = { workspace = true, features = ["rocksdb_storage"] }
 tracing.workspace = true
+zstd = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches.workspace = true
