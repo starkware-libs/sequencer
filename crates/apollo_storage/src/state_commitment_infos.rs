@@ -1,49 +1,26 @@
 //! Storage for the per-block OS-input commitment infos (state-trie commitment data for the OS).
+//!
+//! The commitment infos are stored as an already-compressed string
+//! (`base64(zstd(serde_json(StateCommitmentInfos)))`) produced by the committer, so this storage
+//! path persists the witness verbatim without (de)serializing the `StateCommitmentInfos` itself.
 
 use starknet_api::block::BlockNumber;
-pub use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfosCodecError;
 
 #[cfg(test)]
 #[path = "state_commitment_infos_test.rs"]
 mod state_commitment_infos_test;
 
-use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
 use crate::{OffsetKind, StorageResult, StorageTransaction};
 
-// Encoded with bincode (not serde_json): this is hash/`Felt`-heavy data, where bincode's fixed
-// binary encoding is markedly more compact than JSON's hex-string encoding. The trade-off is that
-// bincode is positional and not schema-evolution tolerant, which is acceptable here.
-impl StorageSerde for StateCommitmentInfos {
-    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        let compressed = self.compress()?;
-        compressed.serialize_into(res)
-    }
-
-    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
-        let compressed = Vec::<u8>::deserialize_from(bytes)?;
-        Self::decompress(&compressed).ok()
-    }
-}
-
-impl From<StateCommitmentInfosCodecError> for StorageSerdeError {
-    fn from(error: StateCommitmentInfosCodecError) -> Self {
-        match error {
-            StateCommitmentInfosCodecError::Bincode(error) => StorageSerdeError::Bincode(error),
-            StateCommitmentInfosCodecError::Io(error) => StorageSerdeError::Io(error),
-        }
-    }
-}
-
 /// Interface for reading the OS-input commitment infos from storage.
 pub trait StateCommitmentInfosStorageReader<Mode: TransactionKind> {
-    /// Returns the commitment infos for the given block, or `None` if not stored.
+    /// Returns the compressed commitment infos for the given block, or `None` if not stored.
     fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>>;
+    ) -> StorageResult<Option<String>>;
 }
 
 /// Interface for writing the OS-input commitment infos to storage.
@@ -51,11 +28,15 @@ pub trait StateCommitmentInfosStorageWriter
 where
     Self: Sized,
 {
-    /// Appends the commitment infos for the given block to storage.
+    /// Appends the compressed commitment infos for the given block to storage.
+    // Takes `&String` (not `&str`) because the underlying mmap file handler appends `&V::Value`,
+    // i.e. `&String`; threading `&str` would force an extra copy of the (potentially multi-MB)
+    // compressed witness.
+    #[allow(clippy::ptr_arg)]
     fn append_state_commitment_infos(
         self,
         block_number: BlockNumber,
-        state_commitment_infos: &StateCommitmentInfos,
+        state_commitment_infos: &String,
     ) -> StorageResult<Self>;
 
     /// Removes the commitment infos for the given block from storage.
@@ -69,7 +50,7 @@ impl<T: StorageTransaction> StateCommitmentInfosStorageReader<<T as StorageTrans
     fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>> {
+    ) -> StorageResult<Option<String>> {
         let table = self.open_table(&self.tables().state_commitment_infos)?;
         let Some(location) = table.get(self.txn(), &block_number)? else {
             return Ok(None);
@@ -79,10 +60,11 @@ impl<T: StorageTransaction> StateCommitmentInfosStorageReader<<T as StorageTrans
 }
 
 impl<T: StorageTransaction<Mode = RW>> StateCommitmentInfosStorageWriter for T {
+    #[allow(clippy::ptr_arg)]
     fn append_state_commitment_infos(
         self,
         block_number: BlockNumber,
-        state_commitment_infos: &StateCommitmentInfos,
+        state_commitment_infos: &String,
     ) -> StorageResult<Self> {
         let file_offset_table = self.open_table(&self.tables().file_offsets)?;
         let state_commitment_infos_table =

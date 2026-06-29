@@ -15,8 +15,6 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, ReplayMetadata};
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
@@ -56,11 +54,13 @@ pub trait BatcherClient: Send + Sync {
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
     /// Gets the block hash for a given block number.
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
+    /// Gets the compressed (`base64(zstd(serde_json(..)))`) state commitment infos for the given
+    /// block number.
     #[cfg(feature = "os_input")]
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<StateCommitmentInfos>;
+    ) -> BatcherClientResult<String>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -146,7 +146,7 @@ pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
     #[cfg(feature = "os_input")]
-    GetStateCommitmentInfos(BatcherResult<StateCommitmentInfos>),
+    GetStateCommitmentInfos(BatcherResult<String>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -205,7 +205,7 @@ where
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<StateCommitmentInfos> {
+    ) -> BatcherClientResult<String> {
         let request = BatcherRequest::GetStateCommitmentInfos(block_number);
         handle_all_response_variants!(
             self,

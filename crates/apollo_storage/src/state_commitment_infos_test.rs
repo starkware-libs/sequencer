@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
 use starknet_api::block::BlockNumber;
-use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 
 use crate::state_commitment_infos::{
     StateCommitmentInfosStorageReader,
@@ -9,12 +6,10 @@ use crate::state_commitment_infos::{
 };
 use crate::test_utils::get_test_storage;
 
-fn sample_state_commitment_infos() -> StateCommitmentInfos {
-    StateCommitmentInfos {
-        contracts_trie_commitment_info: CommitmentInfo::default(),
-        classes_trie_commitment_info: CommitmentInfo::default(),
-        storage_tries_commitment_infos: HashMap::new(),
-    }
+// The storage persists the already-compressed witness verbatim, so a plain string stands in for the
+// `base64(zstd(serde_json(StateCommitmentInfos)))` payload the committer produces.
+fn sample_state_commitment_infos() -> String {
+    "compressed-state-commitment-infos".to_string()
 }
 
 #[test]

@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::state::ThinStateDiff;
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
@@ -50,5 +48,8 @@ pub struct ReadPathsAndCommitBlockRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReadPathsAndCommitBlockResponse {
     pub global_root: GlobalRoot,
-    pub state_commitment_infos: StateCommitmentInfos,
+    /// The OS-input commitment infos, compressed at the committer into a
+    /// `base64(zstd(serde_json(StateCommitmentInfos)))` string so the witness stays compact across
+    /// this RPC, storage, and the cende blob.
+    pub state_commitment_infos: String,
 }

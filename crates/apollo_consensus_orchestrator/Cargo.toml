@@ -42,7 +42,6 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_committer = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
@@ -82,11 +81,11 @@ rand.workspace = true
 rand_chacha.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
-starknet_committer = { workspace = true, features = ["testing"] }
+shared_execution_objects = { workspace = true, features = ["deserialize", "testing"] }
 
 [lints]
 workspace = true
 
 [features]
-os_input = ["apollo_batcher/os_input", "dep:starknet_committer"]
+os_input = ["apollo_batcher/os_input"]
 testing = ["shared_execution_objects/deserialize", "shared_execution_objects/testing"]

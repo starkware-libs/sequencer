@@ -162,6 +162,18 @@ static BLOCK_1_REVERSED_STATE_DIFF: LazyLock<ThinStateDiff> = LazyLock::new(|| T
     ..Default::default()
 });
 
+/// Reverses the committer's compression of the response witness
+/// (`base64(zstd(serde_json(StateCommitmentInfos)))`) so the structural assertions below can
+/// inspect the trie commitment infos.
+fn decompress_response_commitment_infos(
+    response: &ReadPathsAndCommitBlockResponse,
+) -> StateCommitmentInfos {
+    let compressed =
+        base64::decode(&response.state_commitment_infos).expect("response witness is valid base64");
+    let json = zstd::decode_all(compressed.as_slice()).expect("response witness is valid zstd");
+    serde_json::from_slice(&json).expect("response witness deserializes into StateCommitmentInfos")
+}
+
 fn read_paths_and_commit_block_request(
     state_diff: ThinStateDiff,
     state_diff_commitment: Option<StateDiffCommitment>,
@@ -330,11 +342,11 @@ async fn read_paths_and_commit_block_happy_flow() {
 
     let response = committer.read_paths_and_commit_block(request.clone()).await.unwrap();
     assert_eq!(committer.offset, BlockNumber(height + 1));
+    let commitment_infos = decompress_response_commitment_infos(&response);
     // The commitment infos don't retain the contract-trie leaves, so reconstruct the expected
     // contract states for the accessed contracts: storage root from the commitment infos, class
     // hash from the block-0 deployment, and the default (zero) nonce.
-    let contract_leaves: HashMap<ContractAddress, ContractState> = response
-        .state_commitment_infos
+    let contract_leaves: HashMap<ContractAddress, ContractState> = commitment_infos
         .storage_tries_commitment_infos
         .iter()
         .map(|(address, storage_info)| {
@@ -349,7 +361,7 @@ async fn read_paths_and_commit_block_happy_flow() {
         })
         .collect();
     verify_witness_patricia_paths(
-        &response.state_commitment_infos,
+        &commitment_infos,
         &accessed_keys,
         &ACCESSED_CLASS_LEAVES,
         &contract_leaves,
@@ -362,13 +374,12 @@ async fn read_paths_and_commit_block_happy_flow() {
 
     let replay_response = committer.read_paths_and_commit_block(request).await.unwrap();
     assert_eq!(response.global_root, replay_response.global_root);
-    assert_eq!(response.state_commitment_infos, replay_response.state_commitment_infos);
-    assert_witnesses_and_digest_present(
-        &mut committer,
-        BlockNumber(height),
-        &response.state_commitment_infos,
-    )
-    .await;
+    // Compare the decompressed witnesses, not the compressed strings: `StateCommitmentInfos`
+    // contains `HashMap`s whose JSON serialization order is not stable, so two equal witnesses can
+    // compress to different byte strings.
+    assert_eq!(commitment_infos, decompress_response_commitment_infos(&replay_response));
+    assert_witnesses_and_digest_present(&mut committer, BlockNumber(height), &commitment_infos)
+        .await;
 }
 
 /// Flow overview:
@@ -397,7 +408,7 @@ async fn revert_removes_witnesses_and_digest() {
     assert_witnesses_and_digest_present(
         &mut committer,
         BlockNumber(height_1),
-        &block_1_response.state_commitment_infos,
+        &decompress_response_commitment_infos(&block_1_response),
     )
     .await;
 
@@ -485,8 +496,7 @@ async fn test_bottom_of_new_edge_to_an_unmoidifed_subtree_is_present() {
     // This in turn also proves that G is not an edge node, as it's the bottom of an old
     // edge node, without explicitly requesting an opening of E.
     assert!(
-        response
-            .state_commitment_infos
+        decompress_response_commitment_infos(&response)
             .classes_trie_commitment_info
             .commitment_facts
             .contains_key(&node_g_hash),
@@ -558,8 +568,7 @@ async fn test_bottom_of_new_edge_which_was_not_bottom_of_an_old_edge_is_present(
     }));
 
     assert!(
-        response
-            .state_commitment_infos
+        decompress_response_commitment_infos(&response)
             .classes_trie_commitment_info
             .commitment_facts
             .contains_key(&node_e_hash),

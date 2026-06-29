@@ -62,6 +62,18 @@ pub enum CommitterError {
     #[cfg(feature = "os_input")]
     #[error("Missing Patricia paths for block {height}")]
     MissingPatriciaPaths { height: BlockNumber },
+    /// `serde_json` serialization of the state commitment infos failed during compression.
+    // Holds the error message rather than `#[from] serde_json::Error` because `CommitterError`
+    // crosses the RPC boundary and must stay `Clone`/`Serialize`/`Deserialize`.
+    #[cfg(feature = "os_input")]
+    #[error("Failed to serialize state commitment infos: {0}")]
+    StateCommitmentInfosSerialization(String),
+    /// `zstd` compression of the serialized state commitment infos failed.
+    // Holds the error message rather than `#[from] std::io::Error` for the same reason as
+    // `StateCommitmentInfosSerialization`.
+    #[cfg(feature = "os_input")]
+    #[error("Failed to compress state commitment infos: {0}")]
+    StateCommitmentInfosCompression(String),
 }
 
 pub type CommitterResult<T> = Result<T, CommitterError>;
