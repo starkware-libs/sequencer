@@ -87,6 +87,13 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_header(&self) -> StateSyncClientResult<Option<BlockHeader>>;
 
+    /// Request the latest block number known from the central source (the feeder gateway), i.e. the
+    /// tip the sync is progressing toward. Unlike
+    /// [`get_latest_block_number`](Self::get_latest_block_number), this is independent of how far
+    /// the node has actually downloaded/applied. Returns None if there is no central source or
+    /// no tip is known yet.
+    async fn get_highest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
+
     /// Returns whether the given class is a Cairo1 class and was declared at the given block or
     /// before it.
     async fn is_cairo_1_class_declared_at(
@@ -134,6 +141,7 @@ pub enum StateSyncRequest {
     GetClassHashAt(BlockNumber, ContractAddress),
     GetLatestBlockNumber(),
     GetLatestBlockHeader(),
+    GetHighestBlockNumber(),
     IsCairo1ClassDeclaredAt(BlockNumber, ClassHash),
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
@@ -151,6 +159,7 @@ impl PrioritizedRequest for StateSyncRequest {
             | StateSyncRequest::AddNewBlock(_)
             | StateSyncRequest::GetLatestBlockNumber()
             | StateSyncRequest::GetLatestBlockHeader()
+            | StateSyncRequest::GetHighestBlockNumber()
             | StateSyncRequest::IsCairo1ClassDeclaredAt(_, _)
             | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
         }
@@ -167,6 +176,7 @@ pub enum StateSyncResponse {
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
     GetLatestBlockHeader(StateSyncResult<Option<BlockHeader>>),
+    GetHighestBlockNumber(StateSyncResult<Option<BlockNumber>>),
     IsCairo1ClassDeclaredAt(StateSyncResult<bool>),
     IsClassDeclaredAt(StateSyncResult<bool>),
 }
@@ -288,6 +298,19 @@ where
             request,
             StateSyncResponse,
             GetLatestBlockHeader,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn get_highest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
+        let request = StateSyncRequest::GetHighestBlockNumber();
+        handle_all_response_variants!(
+            self,
+            request,
+            StateSyncResponse,
+            GetHighestBlockNumber,
             StateSyncClientError,
             StateSyncError,
             Direct

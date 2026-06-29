@@ -187,7 +187,7 @@ impl StateSyncRunner {
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
         config_manager_client: SharedConfigManagerClient,
-    ) -> (Self, StorageReader) {
+    ) -> (Self, StorageReader, Arc<RwLock<Option<BlockHashAndNumber>>>) {
         let StateSyncConfig { static_config, dynamic_config } = config;
 
         let storage_reader_server_config = ServerConfig {
@@ -283,6 +283,7 @@ impl StateSyncRunner {
                     storage_reader_server_handle,
                 },
                 storage_reader,
+                shared_highest_block,
             );
         }
 
@@ -394,6 +395,7 @@ impl StateSyncRunner {
                 storage_reader_server_handle,
             },
             storage_reader,
+            shared_highest_block,
         )
     }
 
