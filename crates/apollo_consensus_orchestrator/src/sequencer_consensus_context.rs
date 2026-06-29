@@ -718,8 +718,21 @@ impl SequencerConsensusContext {
         for height in lowest_height..=height.0 {
             let block_number = BlockNumber(height);
             match self.deps.batcher.get_state_commitment_infos(block_number).await {
-                Ok(state_commitment_infos) => recent_state_commitment_infos
-                    .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+                Ok(state_commitment_infos) => {
+                    match StateCommitmentInfosAndNumber::from_state_commitment_infos(
+                        &state_commitment_infos,
+                        block_number,
+                    ) {
+                        Ok(entry) => recent_state_commitment_infos.push(entry),
+                        Err(err) => {
+                            warn!(
+                                "Failed to compress state commitment infos for block \
+                                 {block_number}: {err:?}"
+                            );
+                            break;
+                        }
+                    }
+                }
                 Err(err) => {
                     // This error is expected if the block is not yet committed.
                     if !matches!(

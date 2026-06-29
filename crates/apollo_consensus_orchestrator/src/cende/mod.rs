@@ -70,6 +70,12 @@ pub enum CendeAmbassadorError {
     ClassNotFound { class_hash: ClassHash },
     #[error(transparent)]
     StarknetApiError(#[from] starknet_api::StarknetApiError),
+    #[cfg(feature = "os_input")]
+    #[error("Failed to serialize state commitment infos: {0}")]
+    StateCommitmentInfosSerialization(#[from] serde_json::Error),
+    #[cfg(feature = "os_input")]
+    #[error("Failed to compress state commitment infos: {0}")]
+    StateCommitmentInfosCompression(#[from] std::io::Error),
 }
 
 /// Number of recent block hashes to include in the blob.
@@ -77,11 +83,34 @@ pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
+/// zstd level for compressing the per-block `StateCommitmentInfos` before sending to the recorder.
+/// Level 3 (zstd's default) balances ratio and speed; the witness is ~30k entries per block.
+#[cfg(feature = "os_input")]
+const STATE_COMMITMENT_INFOS_ZSTD_LEVEL: i32 = 3;
+
 #[cfg(feature = "os_input")]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct StateCommitmentInfosAndNumber {
-    pub state_commitment_infos: StateCommitmentInfos,
+    /// The block's `StateCommitmentInfos`, JSON-serialized then zstd-compressed and base64-encoded.
+    /// Kept compressed end-to-end: smaller blob assembly + network send, and the recorder stores it
+    /// verbatim (zipped at rest) without parsing the ~30k-entry witness. The OS consumer
+    /// base64-decodes and zstd-decompresses it.
+    pub state_commitment_infos: String,
     pub block_number: BlockNumber,
+}
+
+#[cfg(feature = "os_input")]
+impl StateCommitmentInfosAndNumber {
+    /// Serializes, zstd-compresses, and base64-encodes `state_commitment_infos` for `block_number`.
+    pub fn from_state_commitment_infos(
+        state_commitment_infos: &StateCommitmentInfos,
+        block_number: BlockNumber,
+    ) -> CendeAmbassadorResult<Self> {
+        let serialized = serde_json::to_vec(state_commitment_infos)?;
+        let compressed =
+            zstd::encode_all(serialized.as_slice(), STATE_COMMITMENT_INFOS_ZSTD_LEVEL)?;
+        Ok(Self { state_commitment_infos: base64::encode(compressed), block_number })
+    }
 }
 
 /// A chunk of all the data to write to Aersopike.
