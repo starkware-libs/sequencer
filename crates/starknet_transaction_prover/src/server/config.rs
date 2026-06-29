@@ -26,6 +26,10 @@ mod config_test;
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
+/// Default 8 so total in-flight (2 + 8) matches the default `max_connections` (10).
+const DEFAULT_MAX_QUEUED_REQUESTS: usize = 8;
+/// Backstop (≈ the client request timeout), not the primary shed — the queue length is.
+const DEFAULT_QUEUE_WAIT_TIMEOUT_MILLIS: u64 = 30_000;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
 /// 5 MiB — matches the convention used elsewhere in the sequencer.
@@ -86,6 +90,8 @@ struct RawServiceConfig {
     ip: IpAddr,
     port: u16,
     max_concurrent_requests: usize,
+    max_queued_requests: usize,
+    queue_wait_timeout_millis: u64,
     max_connections: u32,
     cors_allow_origin: Vec<String>,
     tls_cert_file: Option<PathBuf>,
@@ -111,6 +117,8 @@ impl Default for RawServiceConfig {
             ip: DEFAULT_IP,
             port: DEFAULT_PORT,
             max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
+            max_queued_requests: DEFAULT_MAX_QUEUED_REQUESTS,
+            queue_wait_timeout_millis: DEFAULT_QUEUE_WAIT_TIMEOUT_MILLIS,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             cors_allow_origin: Vec::new(),
             tls_cert_file: None,
@@ -136,6 +144,12 @@ pub struct ServiceConfig {
     pub port: u16,
     /// Maximum number of concurrent proving requests.
     pub max_concurrent_requests: usize,
+    /// Requests that may wait FIFO for a worker slot beyond `max_concurrent_requests`. When this
+    /// buffer is full, requests are rejected with `-32005` (busy); `0` rejects the moment all
+    /// workers are busy.
+    pub max_queued_requests: usize,
+    /// Backstop (ms) a queued request waits for a worker slot before a `-32005` rejection.
+    pub queue_wait_timeout_millis: u64,
     /// Maximum number of simultaneous JSON-RPC connections (safety net).
     pub max_connections: u32,
     /// List of allowed web origins (domains) that may call this HTTP service from a browser
@@ -220,6 +234,24 @@ impl ServiceConfig {
                     config.max_concurrent_requests, max
                 );
                 config.max_concurrent_requests = max;
+            }
+        }
+        if let Some(max) = args.max_queued_requests {
+            if max != config.max_queued_requests {
+                info!(
+                    "CLI override: max_queued_requests: {} -> {}",
+                    config.max_queued_requests, max
+                );
+                config.max_queued_requests = max;
+            }
+        }
+        if let Some(millis) = args.queue_wait_timeout_millis {
+            if millis != config.queue_wait_timeout_millis {
+                info!(
+                    "CLI override: queue_wait_timeout_millis: {} -> {}",
+                    config.queue_wait_timeout_millis, millis
+                );
+                config.queue_wait_timeout_millis = millis;
             }
         }
         if let Some(max) = args.max_connections {
@@ -397,6 +429,16 @@ impl ServiceConfig {
                 "max_connections must be at least 1".to_string(),
             ));
         }
+        // Waiting requests hold a connection, so queue depth is capped by max_connections.
+        let max_in_flight =
+            config.max_concurrent_requests.saturating_add(config.max_queued_requests);
+        if max_in_flight > usize::try_from(config.max_connections).unwrap_or(usize::MAX) {
+            info!(
+                "max_concurrent_requests ({}) + max_queued_requests ({}) exceeds max_connections \
+                 ({}); queue depth is effectively capped by max_connections",
+                config.max_concurrent_requests, config.max_queued_requests, config.max_connections,
+            );
+        }
         if config.max_request_body_size == 0 {
             return Err(ConfigError::InvalidArgument(
                 "max_request_body_size must be at least 1".to_string(),
@@ -458,6 +500,8 @@ impl ServiceConfig {
             ip: config.ip,
             port: config.port,
             max_concurrent_requests: config.max_concurrent_requests,
+            max_queued_requests: config.max_queued_requests,
+            queue_wait_timeout_millis: config.queue_wait_timeout_millis,
             max_connections: config.max_connections,
             cors_allow_origin,
             transport,
@@ -496,6 +540,15 @@ pub struct CliArgs {
     /// Maximum number of concurrent proving requests (default: 1).
     #[arg(long, value_name = "N", env = "MAX_CONCURRENT_REQUESTS")]
     pub max_concurrent_requests: Option<usize>,
+
+    /// Requests that may wait for a worker slot beyond --max-concurrent-requests (default: 8; 0 =
+    /// reject immediately).
+    #[arg(long, value_name = "N", env = "MAX_QUEUED_REQUESTS")]
+    pub max_queued_requests: Option<usize>,
+
+    /// Backstop ms a queued request waits for a slot before a busy rejection (default: 30000).
+    #[arg(long, value_name = "MILLIS", env = "QUEUE_WAIT_TIMEOUT_MILLIS")]
+    pub queue_wait_timeout_millis: Option<u64>,
 
     /// Maximum number of simultaneous JSON-RPC connections (default: 10).
     #[arg(long, value_name = "N", env = "MAX_CONNECTIONS")]
