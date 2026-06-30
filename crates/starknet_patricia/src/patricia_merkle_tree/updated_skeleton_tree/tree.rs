@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use starknet_api::hash::HashOutput;
 
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::TempSkeletonNode;
@@ -31,7 +32,7 @@ pub trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     fn is_empty(&self) -> bool;
 
     /// Returns an iterator over all (node index, node) pairs in the tree.
-    fn get_nodes(&self) -> impl Iterator<Item = (&NodeIndex, &UpdatedSkeletonNode)>;
+    fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, &UpdatedSkeletonNode)> + '_;
 
     /// Returns the node with the given index.
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode>;
@@ -56,29 +57,30 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
 
         let temp_root_node = updated_skeleton_tree.finalize_middle_layers(original_skeleton);
         // Finalize root.
-        let root_node = match temp_root_node {
-            TempSkeletonNode::OriginalBinary { n_new_hashes } => {
-                UpdatedSkeletonNode::Binary { n_new_hashes }
-            }
-            TempSkeletonNode::OriginalEdge { path, n_new_hashes } => {
-                UpdatedSkeletonNode::Edge { path_to_bottom: path, n_new_hashes }
-            }
-            TempSkeletonNode::Empty => {
-                assert!(updated_skeleton_tree.skeleton_tree.is_empty());
-                return Ok(updated_skeleton_tree);
-            }
+        match temp_root_node {
+            TempSkeletonNode::Empty => assert!(updated_skeleton_tree.skeleton_tree.is_empty()),
             TempSkeletonNode::Leaf => {
                 unreachable!("Root node cannot be a leaf")
             }
-            TempSkeletonNode::OriginalUnmodified { .. } => {
-                unreachable!("Root node cannot be unmodified when there are some modifications.")
+            TempSkeletonNode::Original(original_skeleton_node) => {
+                let new_node = match original_skeleton_node {
+                    OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
+                    OriginalSkeletonNode::Edge(path_to_bottom) => {
+                        UpdatedSkeletonNode::Edge(path_to_bottom)
+                    }
+                    OriginalSkeletonNode::UnmodifiedSubTree(_) => {
+                        unreachable!(
+                            "Root node cannot be unmodified when there are some modifications."
+                        )
+                    }
+                };
+
+                updated_skeleton_tree
+                    .skeleton_tree
+                    .insert(NodeIndex::ROOT, new_node)
+                    .map_or((), |_| panic!("Root node already exists in the updated skeleton tree"))
             }
         };
-        if let Some(previous_root_node) =
-            updated_skeleton_tree.skeleton_tree.insert(NodeIndex::ROOT, root_node)
-        {
-            panic!("Root node {previous_root_node:?} already exists in the updated skeleton tree");
-        }
         Ok(updated_skeleton_tree)
     }
 
@@ -106,7 +108,7 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
         }
     }
 
-    fn get_nodes(&self) -> impl Iterator<Item = (&NodeIndex, &UpdatedSkeletonNode)> {
-        self.skeleton_tree.iter()
+    fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, &UpdatedSkeletonNode)> + '_ {
+        self.skeleton_tree.iter().map(|(index, node)| (*index, node))
     }
 }
