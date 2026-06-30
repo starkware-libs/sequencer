@@ -11,7 +11,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 #[cfg(feature = "stwo_proving")]
-use privacy_prove::{RecursiveProverPrecomputes, prepare_recursive_prover_precomputes};
+use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::block::GasPrice;
