@@ -10106,6 +10106,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17359afc20d7ab31fdb42bb844c8b3bb1dabd7dcf7e68428492da7f16966fcef"
 
 [[package]]
+name = "patricia_root_cli"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_patricia",
+ "starknet_patricia_storage",
+ "tokio",
+]
+
+[[package]]
 name = "pbkdf2"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -104,6 +104,7 @@ members = [
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
+  "crates/patricia_root_cli",
   "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_committer",
@@ -331,6 +332,7 @@ papyrus_common.path = "crates/papyrus_common"
 parity-scale-codec = "3.6"
 parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
+patricia_root_cli.path = "crates/patricia_root_cli"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
