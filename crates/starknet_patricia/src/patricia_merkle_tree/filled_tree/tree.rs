@@ -77,13 +77,21 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
-        updated_skeleton
-            .get_nodes()
-            .filter_map(|(index, node)| match node {
-                UpdatedSkeletonNode::UnmodifiedSubTree(_) => None,
-                _ => Some((*index, OnceLock::new())),
-            })
-            .collect()
+        // Lower-bound hint: n_new_hashes counts only Binary/Edge nodes; modified leaves
+        // are also inserted into this map but not reflected in the count.
+        let capacity_hint = match updated_skeleton.get_node(NodeIndex::ROOT) {
+            Ok(
+                UpdatedSkeletonNode::Binary { n_new_hashes }
+                | UpdatedSkeletonNode::Edge { n_new_hashes, .. },
+            ) => *n_new_hashes,
+            _ => 0,
+        };
+        let mut map = HashMap::with_capacity(capacity_hint);
+        map.extend(updated_skeleton.get_nodes().filter_map(|(index, node)| match node {
+            UpdatedSkeletonNode::UnmodifiedSubTree(_) => None,
+            _ => Some((*index, OnceLock::new())),
+        }));
+        map
     }
 
     fn initialize_leaf_output_map_with_placeholders(
