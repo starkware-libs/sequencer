@@ -105,6 +105,11 @@ pub trait ConsensusContext {
     /// Returns true if a decision was learned so consensus can proceed.
     async fn try_sync(&mut self, height: BlockNumber) -> bool;
 
+    /// The latest block number known from the central source (the feeder gateway) — the chain tip
+    /// the node is syncing toward — or `None` if unknown (e.g. no central source). Used to avoid
+    /// proposing while far behind the tip.
+    async fn network_tip(&self) -> Option<BlockNumber>;
+
     /// Update the context with the current height and round.
     /// Must be called at the beginning of each height.
     async fn set_height_and_round(
