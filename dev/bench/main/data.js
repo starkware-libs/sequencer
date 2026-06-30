@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782651682068,
+  "lastUpdate": 1782813714095,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6527,6 +6527,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1162.8883576199999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "38202661+liorgold2@users.noreply.github.com",
+            "name": "liorgold2",
+            "username": "liorgold2"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3ed7a1a1ba27e34d815aaba7c6685fb66d5c84f4",
+          "message": "starknet_committer: add patricia_root_cli binary (#14438)",
+          "timestamp": "2026-06-30T09:48:56Z",
+          "tree_id": "5cb2d640aae65b0fb67567a74acf73943299bb7c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3ed7a1a1ba27e34d815aaba7c6685fb66d5c84f4"
+        },
+        "date": 1782813713696,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 795.22174337,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1225.1220712,
             "unit": "ms"
           }
         ]
