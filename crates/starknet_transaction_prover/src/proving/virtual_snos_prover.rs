@@ -13,6 +13,7 @@ use blockifier_reexecution::utils::get_chain_info;
 #[cfg(feature = "stwo_proving")]
 use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
@@ -37,6 +38,13 @@ pub struct ProveTransactionResult {
     pub proof_facts: ProofFacts,
     /// Messages sent from L2 to L1 during execution.
     pub l2_to_l1_messages: Vec<MessageToL1>,
+    /// Opaque side-channel relayed verbatim from the blocking check's allow
+    /// response; omitted from the JSON response when absent. The prover does not
+    /// interpret its contents (a screened deposit carries a screening signature
+    /// under `signature`, but that is the screening domain's concern, not the
+    /// prover's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub additional_data: Option<Map<String, Value>>,
 }
 
 /// Virtual SNOS prover for Starknet transactions.
@@ -241,22 +249,24 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             tokio::time::timeout(timeout_duration, client.check_transaction(block_id, transaction))
                 .await;
 
-        let allow = match check_outcome {
+        // A transaction allowed via the fail-open policy (inconclusive check or
+        // timeout) carries no additional_data.
+        let (allow, additional_data) = match check_outcome {
             Ok(BlockingCheckResult::Blocked) => {
                 info!("Transaction blocked by external check");
-                false
+                (false, None)
             }
-            Ok(BlockingCheckResult::Allowed) => {
+            Ok(BlockingCheckResult::Allowed(additional_data)) => {
                 info!("Transaction allowed by external check");
-                true
+                (true, additional_data)
             }
             Ok(BlockingCheckResult::Inconclusive) => {
                 info!(fail_open = client.fail_open, "Blocking check inconclusive");
-                client.fail_open
+                (client.fail_open, None)
             }
             Err(_) => {
                 info!(fail_open = client.fail_open, "Blocking check timed out");
-                client.fail_open
+                (client.fail_open, None)
             }
         };
 
@@ -265,11 +275,13 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             return Err(VirtualSnosProverError::TransactionBlocked);
         }
 
-        match prove_handle.await {
-            Ok(result) => result,
+        let mut result = match prove_handle.await {
+            Ok(prove_result) => prove_result?,
             Err(err) if err.is_panic() => std::panic::resume_unwind(err.into_panic()),
             Err(err) => unreachable!("prove task cancelled unexpectedly: {err}"),
-        }
+        };
+        result.additional_data = additional_data;
+        Ok(result)
     }
 
     /// Proves a Virtual Starknet OS run from its output.
@@ -308,6 +320,8 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             proof: prover_output.proof,
             proof_facts,
             l2_to_l1_messages: runner_output.l2_to_l1_messages,
+            // Populated by the caller from the blocking check's allow response.
+            additional_data: None,
         })
     }
 }
