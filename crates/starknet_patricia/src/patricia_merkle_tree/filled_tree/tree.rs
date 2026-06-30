@@ -77,9 +77,11 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
+        // Lower-bound hint: n_new_hashes counts only Binary/Edge nodes; modified leaves
+        // are also inserted into this map but not reflected in the count.
         let capacity_hint = match updated_skeleton.get_node(NodeIndex::ROOT) {
-            Ok(UpdatedSkeletonNode::Binary { n_new_hashes }) => *n_new_hashes,
-            Ok(UpdatedSkeletonNode::Edge { n_new_hashes, .. }) => *n_new_hashes,
+            Ok(UpdatedSkeletonNode::Binary { n_new_hashes }
+            | UpdatedSkeletonNode::Edge { n_new_hashes, .. }) => *n_new_hashes,
             _ => 0,
         };
         let mut filled_tree_output_map = HashMap::with_capacity(capacity_hint);
