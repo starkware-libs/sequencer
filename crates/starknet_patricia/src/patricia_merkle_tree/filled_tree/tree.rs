@@ -77,13 +77,15 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
-        updated_skeleton
-            .get_nodes()
-            .filter_map(|(index, node)| match node {
-                UpdatedSkeletonNode::UnmodifiedSubTree(_) => None,
-                _ => Some((*index, OnceLock::new())),
-            })
-            .collect()
+        let nodes_iter = updated_skeleton.get_nodes();
+        let (node_count, _) = nodes_iter.size_hint();
+        let mut filled_tree_output_map = HashMap::with_capacity(node_count);
+        for (index, node) in nodes_iter {
+            if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
+                filled_tree_output_map.insert(index, OnceLock::new());
+            }
+        }
+        filled_tree_output_map
     }
 
     fn initialize_leaf_output_map_with_placeholders(
