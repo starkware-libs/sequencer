@@ -320,6 +320,8 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             proof: prover_output.proof,
             proof_facts,
             l2_to_l1_messages: runner_output.l2_to_l1_messages,
+            // Populated by the caller from the blocking check's allow response.
+            additional_data: None,
         })
     }
 }
