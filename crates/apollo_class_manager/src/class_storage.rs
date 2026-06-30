@@ -479,10 +479,17 @@ impl FsClassStorage {
         persistent_dir: PathBuf,
     ) -> FsClassStorageResult<()> {
         if let Err(rename_error) = std::fs::rename(&tmp_dir, &persistent_dir) {
-            if rename_error.kind() == std::io::ErrorKind::DirectoryNotEmpty {
+            // POSIX permits both ENOTEMPTY and EEXIST for a non-empty destination directory;
+            // different kernels and filesystems can return either. Recover from both.
+            if matches!(
+                rename_error.kind(),
+                std::io::ErrorKind::DirectoryNotEmpty | std::io::ErrorKind::AlreadyExists
+            ) {
                 warn!(
                     "Recovering orphaned class dir from a prior partial write: {persistent_dir:?}"
                 );
+                // Safe to remove: the directory is named by class hash, so an existing
+                // directory holds the same class content (content-addressing invariant).
                 std::fs::remove_dir_all(&persistent_dir)?;
                 std::fs::rename(tmp_dir, persistent_dir)?;
             } else {
