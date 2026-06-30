@@ -10,9 +10,14 @@ use apollo_staking_config::config::StakingManagerConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 /// The consensus manager related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ConsensusManagerConfig {
+    #[validate(nested)]
     pub consensus_manager_config: ConsensusConfig,
     #[validate(nested)]
     pub context_config: ContextConfig,

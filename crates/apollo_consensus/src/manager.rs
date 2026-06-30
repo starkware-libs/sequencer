@@ -217,11 +217,6 @@ pub struct EquivocationVoteReport {
 /// [`VoteType::Precommit`]). Used to bound the future-vote cache.
 const NUM_VOTE_TYPES: usize = 2;
 
-/// If the network tip (from the trusted central source) is more than this many blocks above the
-/// node's current height, the node is considered far behind: it keeps syncing rather than running
-/// live consensus / proposing. Replaced by a validated dynamic config value in a follow-up.
-const FAR_BEHIND_PROPOSAL_THRESHOLD: u64 = 30;
-
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
 struct ConsensusCache<ContextT: ConsensusContext> {
@@ -644,7 +639,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // Fail-open when the tip is unknown (e.g. no central source).
         if let Some(network_tip) = context.network_tip().await {
             let blocks_behind = network_tip.0.saturating_sub(height.0);
-            if blocks_behind > FAR_BEHIND_PROPOSAL_THRESHOLD {
+            if blocks_behind > self.consensus_config.dynamic_config.far_behind_proposal_threshold {
                 warn!(
                     "{SKIPPED_PROPOSER_FAR_BEHIND} (current height {height}, network tip \
                      {network_tip}, {blocks_behind} blocks behind). Waiting for sync."

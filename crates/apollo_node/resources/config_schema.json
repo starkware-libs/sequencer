@@ -2524,6 +2524,11 @@
     "pointer_target": "recorder_url",
     "privacy": "Public"
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.far_behind_proposal_threshold": {
+    "description": "If the network tip exceeds the node's current height by more than this many blocks, the node keeps syncing instead of proposing. Must be in the range [5, 1000].",
+    "privacy": "Public",
+    "value": 30
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",

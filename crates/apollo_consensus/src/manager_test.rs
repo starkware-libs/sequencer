@@ -42,14 +42,7 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing_test::traced_test;
 
-use super::{
-    run_consensus,
-    ConsensusCache,
-    MultiHeightManager,
-    RunHeightRes,
-    FAR_BEHIND_PROPOSAL_THRESHOLD,
-    NUM_VOTE_TYPES,
-};
+use super::{run_consensus, ConsensusCache, MultiHeightManager, RunHeightRes, NUM_VOTE_TYPES};
 use crate::manager::{CONSENSUS_RUNNING_PAST_STOP_HEIGHT, SKIPPED_PROPOSER_FAR_BEHIND};
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
@@ -134,6 +127,7 @@ fn consensus_config() -> ConsensusConfig {
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
             future_msg_limit: FutureMsgLimitsConfig::default(),
+            far_behind_proposal_threshold: 30,
             require_virtual_proposer_vote: true,
             stop_at_height: None,
         },
@@ -921,7 +915,8 @@ async fn far_behind_node_syncs_instead_of_proposing(consensus_config: ConsensusC
         mock_register_broadcast_topic().unwrap();
     let (_proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let network_tip = BlockNumber(HEIGHT_1.0 + FAR_BEHIND_PROPOSAL_THRESHOLD + 1);
+    let network_tip =
+        BlockNumber(HEIGHT_1.0 + consensus_config.dynamic_config.far_behind_proposal_threshold + 1);
     let mut context = MockTestContext::new();
     context.expect_network_tip().returning(move || Some(network_tip));
     // try_sync first fails, so we fall past the sync checks and reach the guard; it then succeeds,
@@ -961,14 +956,15 @@ async fn far_behind_node_syncs_instead_of_proposing(consensus_config: ConsensusC
 #[rstest]
 #[tokio::test]
 async fn at_threshold_node_proposes_normally(consensus_config: ConsensusConfig) {
-    // The tip is exactly FAR_BEHIND_PROPOSAL_THRESHOLD ahead (gap == threshold, not > it), so the
+    // The tip is exactly far_behind_proposal_threshold ahead (gap == threshold, not > it), so the
     // guard must NOT fire: the node (proposer) proceeds past the guard and builds a proposal.
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let _vote_sender = mock_network.broadcasted_messages_sender;
     let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let network_tip = BlockNumber(HEIGHT_1.0 + FAR_BEHIND_PROPOSAL_THRESHOLD);
+    let network_tip =
+        BlockNumber(HEIGHT_1.0 + consensus_config.dynamic_config.far_behind_proposal_threshold);
     let mut context = MockTestContext::new();
     context.expect_network_tip().returning(move || Some(network_tip));
     context.expect_try_sync().returning(|_| false);
