@@ -163,6 +163,55 @@ class SnapshotTextReport:
             ],
         )
 
+        os_stats = s.os_run_stats or {}
+        if os_stats:
+            completed = int(os_stats.get("completed", 0))
+            failed = int(os_stats.get("failed", 0))
+            dropped = int(os_stats.get("dropped", 0))
+            deferred_events = int(os_stats.get("deferred_events", 0))
+            abandoned = int(os_stats.get("abandoned", 0))
+            skipped = int(os_stats.get("skipped", 0))
+            total_attempts = completed + failed + dropped + abandoned + skipped
+            lines.append("")
+            lines.append("=== OS-runner outcomes ===")
+            append_key_value_lines(
+                lines,
+                [
+                    (
+                        "Completed",
+                        f"{completed} ({_format_percent(completed, total_attempts)})",
+                    ),
+                    ("Failed", f"{failed} ({_format_percent(failed, total_attempts)})"),
+                    (
+                        "Dropped (queue full)",
+                        f"{dropped} ({_format_percent(dropped, total_attempts)})",
+                    ),
+                    (
+                        "Abandoned (window expired)",
+                        f"{abandoned} ({_format_percent(abandoned, total_attempts)})",
+                    ),
+                    (
+                        "Skipped (cache miss)",
+                        f"{skipped} ({_format_percent(skipped, total_attempts)})",
+                    ),
+                    ("Deferred events (cumulative)", str(deferred_events)),
+                    (
+                        "Queue depth",
+                        f"{os_stats.get('queue_depth', 0)}/{os_stats.get('queue_max', 0)}",
+                    ),
+                    ("Currently deferred", str(os_stats.get("currently_deferred", 0))),
+                ],
+            )
+
+            recent_failures = os_stats.get("recent_failures") or []
+            if recent_failures:
+                lines.append("")
+                lines.append(f"=== OS-runner recent failures ({len(recent_failures)}) ===")
+                for entry in recent_failures:
+                    lines.append(f"block {entry.get('block_number', '?')} @ {entry.get('ts', '?')}")
+                    for err_line in str(entry.get("error", "")).splitlines():
+                        lines.append(f"  {err_line}")
+
         lines.append("")
         lines.append("=== Gateway errors (hash -> response) ===")
         if not s.gateway_errors:
@@ -546,6 +595,7 @@ class _SnapshotReportRollup:
     l2_gas_mismatches_count: int
     block_hash_mismatches_count: int
     transaction_commitment_mismatches_count: int
+    os_failed_count: int
 
     forward_rate: str
     echonet_revert_rate_pct: float
@@ -563,6 +613,7 @@ class _SnapshotReportRollup:
     l2_gas_mismatches_rows: list[dict[str, Any]]
     block_hash_mismatches_rows: list[dict[str, Any]]
     transaction_commitment_mismatches_rows: list[dict[str, Any]]
+    os_failures_rows: list[dict[str, Any]]
 
     @classmethod
     def from_snapshot(cls, s: SnapshotModel) -> "_SnapshotReportRollup":
@@ -583,6 +634,13 @@ class _SnapshotReportRollup:
         block_hash_mismatches_count = len(s.block_hash_mismatches)
         transaction_commitment_mismatches_count = len(s.transaction_commitment_mismatches)
 
+        os_stats_for_sev = s.os_run_stats or {}
+        os_completed_count = int(os_stats_for_sev.get("completed", 0))
+        os_failed_count = int(os_stats_for_sev.get("failed", 0))
+        os_dropped_count = int(os_stats_for_sev.get("dropped", 0))
+        os_abandoned_count = int(os_stats_for_sev.get("abandoned", 0))
+        os_skipped_count = int(os_stats_for_sev.get("skipped", 0))
+
         sev = {
             "pending": "neutral",
             "committed": ("ok" if committed > 0 else "neutral"),
@@ -596,6 +654,15 @@ class _SnapshotReportRollup:
             "transaction_commitment_mismatches": _severity_for_count(
                 transaction_commitment_mismatches_count
             ),
+            # OS-runner pill colors: completed → green when any have succeeded;
+            # failed/abandoned → red on ANY positive count (hard correctness
+            # signals — even one matters); dropped/skipped → warn-or-bad by
+            # threshold (throughput shortfalls, not correctness).
+            "os_completed": ("ok" if os_completed_count > 0 else "neutral"),
+            "os_failed": ("bad" if os_failed_count > 0 else "neutral"),
+            "os_dropped": _severity_for_count(os_dropped_count),
+            "os_abandoned": ("bad" if os_abandoned_count > 0 else "neutral"),
+            "os_skipped": _severity_for_count(os_skipped_count),
         }
 
         pending_txs = [(tx_hash, src_bn) for tx_hash, src_bn in s.sent_tx_hashes.items()]
@@ -626,6 +693,9 @@ class _SnapshotReportRollup:
         transaction_commitment_mismatches_rows = [
             dict(v) for v in s.transaction_commitment_mismatches
         ]
+        os_failures_rows = [
+            dict(entry) for entry in (os_stats_for_sev.get("recent_failures") or [])
+        ]
         forward_rate = _format_rate(total_sent, s.uptime_seconds, unit="TPS")
         echonet_revert_rate_pct = (
             (100.0 * reverts_echonet_count / total_sent) if total_sent > 0 else 0.0
@@ -646,6 +716,7 @@ class _SnapshotReportRollup:
             l2_gas_mismatches_count=l2_gas_mismatches_count,
             block_hash_mismatches_count=block_hash_mismatches_count,
             transaction_commitment_mismatches_count=transaction_commitment_mismatches_count,
+            os_failed_count=os_failed_count,
             forward_rate=forward_rate,
             echonet_revert_rate_pct=echonet_revert_rate_pct,
             echonet_revert_risk_0_1=echonet_revert_risk_0_1,
@@ -660,6 +731,7 @@ class _SnapshotReportRollup:
             l2_gas_mismatches_rows=l2_gas_mismatches_rows,
             block_hash_mismatches_rows=block_hash_mismatches_rows,
             transaction_commitment_mismatches_rows=transaction_commitment_mismatches_rows,
+            os_failures_rows=os_failures_rows,
         )
 
 
@@ -698,6 +770,7 @@ def build_report_view_model(
             "l2_gas_mismatches_count": r.l2_gas_mismatches_count,
             "block_hash_mismatches_count": r.block_hash_mismatches_count,
             "transaction_commitment_mismatches_count": r.transaction_commitment_mismatches_count,
+            "os_failed_count": r.os_failed_count,
             "committed_pct_of_pending_total": _format_percent(r.committed, r.pending_total),
             "pending_pct_of_pending_total": _format_percent(r.pending_commission, r.pending_total),
         },
@@ -730,4 +803,6 @@ def build_report_view_model(
         "l2_gas_mismatches": r.l2_gas_mismatches_rows,
         "block_hash_mismatches": r.block_hash_mismatches_rows,
         "transaction_commitment_mismatches": r.transaction_commitment_mismatches_rows,
+        "os_run_failures": r.os_failures_rows,
+        "os_run_stats": snapshot.os_run_stats or {},
     }
