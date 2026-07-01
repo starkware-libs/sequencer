@@ -764,8 +764,17 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
             )));
         }
 
-        let [program_hash, output_version, block_number_felt, block_hash, config_hash, ..] =
-            snos_fields
+        // Bind the trailing `n_l2_to_l1_messages` (unused) so the parser requires 8 felts,
+        // matching the Cairo OS `check_proof_facts` floor (3 + 5).
+        let [
+            program_hash,
+            output_version,
+            block_number_felt,
+            block_hash,
+            config_hash,
+            _n_l2_to_l1_messages,
+            ..,
+        ] = snos_fields
         else {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "SNOS proof facts is too small with {} fields",

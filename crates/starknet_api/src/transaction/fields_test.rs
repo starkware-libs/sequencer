@@ -33,6 +33,18 @@ fn proof_facts_variant_rejects_unknown_version() {
 }
 
 #[test]
+fn proof_facts_variant_rejects_missing_message_count() {
+    // A 7-felt array (one short of the OS floor of 8) must be rejected. Truncate rather than
+    // pop the last felt, so the array stays one short even if the fixture grows past 8 felts.
+    let mut facts = ProofFacts::snos_proof_facts_for_testing();
+    Arc::make_mut(&mut facts.0).truncate(7);
+    assert!(matches!(
+        ProofFactsVariant::try_from(&facts),
+        Err(StarknetApiError::InvalidProofFacts(_))
+    ));
+}
+
+#[test]
 fn proof_version_str_encodes_to_felt() {
     for version in ProofVersion::iter() {
         let from_short_string =
