@@ -1,5 +1,6 @@
 use std::cell::{Ref, RefCell};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::hash::Hash;
 
 use indexmap::IndexMap;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -402,11 +403,18 @@ impl StateMaps {
 
     /// Removes every entry whose key is not in `accessed_keys`.
     pub fn trim_to_accessed_keys(&mut self, accessed_keys: &AccessedKeys) {
-        self.storage.retain(|key, _| accessed_keys.storage_keys.contains(key));
-        self.nonces.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
-        self.class_hashes.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
-        self.compiled_class_hashes
-            .retain(|class_hash, _| accessed_keys.accessed_class_hashes.contains(class_hash));
+        // Rebuild the map from the given keys.
+        fn intersect<K: Copy + Eq + Hash, V: Copy>(
+            map: &HashMap<K, V>,
+            keys: &BTreeSet<K>,
+        ) -> HashMap<K, V> {
+            keys.iter().filter_map(|key| map.get(key).map(|value| (*key, *value))).collect()
+        }
+        self.storage = intersect(&self.storage, &accessed_keys.storage_keys);
+        self.nonces = intersect(&self.nonces, &accessed_keys.accessed_contracts);
+        self.class_hashes = intersect(&self.class_hashes, &accessed_keys.accessed_contracts);
+        self.compiled_class_hashes =
+            intersect(&self.compiled_class_hashes, &accessed_keys.accessed_class_hashes);
     }
 
     /// Subtracts other's mappings from self.
