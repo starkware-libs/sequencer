@@ -26,9 +26,4 @@ apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_node_config = { workspace = true, features = ["testing"] }
 jrsonnet-evaluator = { workspace = true }
 jrsonnet-stdlib = { workspace = true }
-tempfile.workspace = true
 url = { workspace = true, features = ["serde"] }
-
-[[bin]]
-name = "deployment_generator"
-path = "src/bin/deployment_generator.rs"
