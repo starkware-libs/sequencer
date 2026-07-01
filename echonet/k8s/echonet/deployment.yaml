@@ -7,6 +7,13 @@ metadata:
     app.kubernetes.io/component: api
 spec:
   replicas: 1
+  # `Recreate` so old pod is killed BEFORE the new one starts. Avoids the
+  # two-pods-fighting-for-the-PVC trap caused by the default RollingUpdate
+  # strategy: the PVC has node-affinity, so the new pod sits Pending with
+  # `Multi-Attach error` until the old one releases the volume — and the
+  # deploy never finishes.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       # NOTE: Deployment selectors are immutable once created.
@@ -26,6 +33,22 @@ spec:
         karpenter.sh/do-not-disrupt: "true"
     spec:
       serviceAccountName: echonet
+
+      # Force the pod onto an n4-standard-8 (8 CPU / 32 GiB) from the
+      # `sequencer-n4` autoscaling node pool. ScaleOps's admission webhook
+      # mutates `requests` under the `cost` policy, which would otherwise
+      # pack us onto an n4-standard-4 (4 CPU / 16 GiB) — too small to run
+      # more than ~4 OS-runner workers usefully. nodeSelector is enforced
+      # by the kube scheduler downstream of the webhook, so it survives
+      # ScaleOps mutating resource values. The pool taints
+      # `role=sequencer:NoSchedule`, so we add the matching toleration.
+      nodeSelector:
+        node.kubernetes.io/instance-type: n4-standard-8
+      tolerations:
+        - key: role
+          operator: Equal
+          value: sequencer
+          effect: NoSchedule
 
       initContainers:
         - name: extract-echonet-src
@@ -80,17 +103,24 @@ spec:
             - >
               export PYTHONPATH=/app:${PYTHONPATH:-} &&
               python -m pip install --no-cache-dir --disable-pip-version-check
-              flask gunicorn requests aiohttp 'kubernetes<36' eth_abi &&
-              echo "[echonet] starting gunicorn on :80 (1 worker, 4 threads)" &&
-              gunicorn -w 1 --threads 4 -b 0.0.0.0:80 echonet.echo_center:app --timeout 60 --access-logfile -
+              flask gunicorn requests aiohttp 'kubernetes<36' eth_abi 'cairo-lang==0.14.0.1' zstandard &&
+              echo "[echonet] starting gunicorn on :80 (1 worker, 8 threads, 300s timeout)" &&
+              gunicorn -w 1 --threads 8 -b 0.0.0.0:80 echonet.echo_center:app --timeout 300 --access-logfile -
           workingDir: /app
           resources:
+            # `requests` drive scheduling — they must reflect what the pod
+            # actually consumes so kube picks a node with that much free. With
+            # 6 OS-runner workers + flask + transient blob parsing the working
+            # set is ~6 CPU / 12–14 GiB. Asking for 6/16 lands us on an
+            # n4-standard-8 (8 CPU / 32 GiB) instead of the n4-standard-4
+            # (4 CPU / 16 GiB) ScaleOps was packing us onto under the `cost`
+            # policy. `limits` are the runtime ceiling.
             requests:
-              cpu: 250m
-              memory: 1Gi
+              cpu: "6"
+              memory: 16Gi
             limits:
-              cpu: "2"
-              memory: 4Gi
+              cpu: "8"
+              memory: 32Gi
           volumeMounts:
             - { name: app-src, mountPath: /app }
             - { name: data-dir, mountPath: /data }

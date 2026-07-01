@@ -220,6 +220,41 @@ def _install_block_hash_cli_into_pod(
     raise RuntimeError("Timed out waiting for echonet pod before copying block-hash CLI.")
 
 
+def _scale_down_existing_echonet_deployments(namespace_args: list[str]) -> None:
+    proc = subprocess.run(
+        [
+            "kubectl",
+            *namespace_args,
+            "get",
+            "deployments",
+            "-l",
+            "app.kubernetes.io/name=echonet",
+            "-o",
+            "jsonpath={.items[*].metadata.name}",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        logger.warning(
+            f"Failed to list echonet deployments (exit {proc.returncode}): "
+            f"{proc.stderr.strip() or '<no stderr>'}; skipping pre-scale-down."
+        )
+        return
+
+    deployment_names = proc.stdout.split()
+    if not deployment_names:
+        logger.info("No existing echonet deployments to scale down.")
+        return
+
+    for deployment_name in deployment_names:
+        logger.info(f"Scaling down deployment/{deployment_name} to 0 replicas...")
+        _run(["kubectl", *namespace_args, "scale", "deployment", deployment_name, "--replicas=0"])
+        logger.info(f"Waiting for rollout status deployment/{deployment_name}...")
+        _run(["kubectl", *namespace_args, "rollout", "status", f"deployment/{deployment_name}"])
+
+
 def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     """
     Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
@@ -308,6 +343,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.delete_first:
         logger.info("Deleting existing resources...")
         _run(["kubectl", *namespace_args, "delete", "-k", str(kustomize_dir), "--ignore-not-found"])
+
+    # Scale any existing echonet deployments to 0 first so the new pod doesn't
+    # come up while an old one still holds the PVC (Multi-Attach error). Belt
+    # and braces alongside the deployment's `strategy: Recreate`; useful when
+    # an unrelated/old echonet deployment is hanging around in the namespace.
+    _scale_down_existing_echonet_deployments(namespace_args)
 
     # Ensure the sequencer is scaled down before deploying/updating echonet.
     logger.info("Scaling down statefulset/sequencer-node-statefulset to 0 replicas...")
