@@ -36,6 +36,7 @@ pub use crate::reader::objects::block::{
 };
 pub use crate::reader::objects::pending_data::PendingData;
 pub use crate::reader::objects::state::{
+    BlockStateUpdate,
     ContractClass,
     DeclaredClassHashEntry,
     DeployedContract,
@@ -124,6 +125,14 @@ pub trait StarknetReader {
         block_number: BlockNumber,
     ) -> ReaderClientResult<Option<BlockSignatureData>>;
 
+    /// Returns a [`BlockStateUpdate`] for the given block number, combining the block, state
+    /// update, and block signature in a single feeder gateway call.
+    /// Returns [`None`] if the block does not exist.
+    async fn block_state_update_and_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> ReaderClientResult<Option<BlockStateUpdate>>;
+
     async fn sequencer_pub_key(&self) -> ReaderClientResult<SequencerPublicKey>;
 }
 
@@ -160,6 +169,7 @@ const LATEST_BLOCK_NUMBER: &str = "latest";
 const CLASS_HASH_QUERY: &str = "classHash";
 const PENDING_BLOCK_ID: &str = "pending";
 const INCLUDE_BLOCK: &str = "includeBlock";
+const INCLUDE_SIGNATURE: &str = "includeSignature";
 const FEEDER_GATEWAY_IS_ALIVE: &str = "feeder_gateway/is_alive";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
 const GET_BLOCK_SIGNATURE_URL: &str = "feeder_gateway/get_signature";
@@ -264,13 +274,8 @@ impl StarknetFeederGatewayClient {
             Some(KnownStarknetErrorCode::BlockNotFound),
             format!("Failed to get block number {block_number:?} from starknet server."),
         )?;
-        if let Some(Block::PostV0_13_1(block_data)) = block.as_ref() {
-            if matches!(block_data.status, BlockStatus::Aborted) {
-                debug!("Aborted block {:?}; returning error for retry.", block_data.block_number);
-                return Err(ReaderClientError::AbortedBlock {
-                    block_number: block_data.block_number,
-                });
-            }
+        if let Some(block) = block.as_ref() {
+            return_error_if_aborted(block)?;
         }
         Ok(block)
     }
@@ -289,6 +294,15 @@ impl StarknetFeederGatewayClient {
             ),
         )
     }
+}
+
+fn return_error_if_aborted(block: &Block) -> ReaderClientResult<()> {
+    let Block::PostV0_13_1(block_data) = block;
+    if matches!(block_data.status, BlockStatus::Aborted) {
+        debug!("Aborted block {:?}; returning error for retry.", block_data.block_number);
+        return Err(ReaderClientError::AbortedBlock { block_number: block_data.block_number });
+    }
+    Ok(())
 }
 
 #[async_trait]
@@ -441,6 +455,44 @@ impl StarknetReader for StarknetFeederGatewayClient {
             Some(KnownStarknetErrorCode::BlockNotFound),
             format!("Failed to get signature for block {block_number:?} from starknet server."),
         )
+    }
+
+    #[instrument(skip(self), level = "debug")]
+    async fn block_state_update_and_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> ReaderClientResult<Option<BlockStateUpdate>> {
+        let mut url = self.urls.get_state_update.clone();
+        url.query_pairs_mut()
+            .append_pair(BLOCK_NUMBER_QUERY, &block_number.to_string())
+            .append_pair(INCLUDE_BLOCK, "true")
+            .append_pair(INCLUDE_SIGNATURE, "true")
+            .append_pair(FEE_MARKET_INFO_QUERY, "true");
+        let url_without_fee_proposal_info = url.clone();
+        url.query_pairs_mut().append_pair(FEE_PROPOSAL_INFO_QUERY, "true");
+
+        let mut response = self.request_with_retry_url(url).await;
+        // TODO(Shahak): Temporary fallback for backward compatibility. Remove once the version
+        // update to 0.14.3 is complete.
+        if let Err(ReaderClientError::ClientError(ClientError::StarknetError(StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+            ..
+        }))) = response
+        {
+            response = self.request_with_retry_url(url_without_fee_proposal_info).await;
+        }
+        let block_state_update: Option<BlockStateUpdate> = load_object_from_response(
+            response,
+            Some(KnownStarknetErrorCode::BlockNotFound),
+            format!(
+                "Failed to get block, state update, and signature for block number {block_number} \
+                 from starknet server."
+            ),
+        )?;
+        if let Some(block_state_update) = block_state_update.as_ref() {
+            return_error_if_aborted(&block_state_update.block)?;
+        }
+        Ok(block_state_update)
     }
 
     #[instrument(skip(self), level = "debug")]
