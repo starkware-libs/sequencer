@@ -309,3 +309,41 @@ fn env_var_sets_tls_key_file() {
 
     assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
 }
+
+#[test]
+fn queue_config_defaults() {
+    let config = ServiceConfig::from_args(base_args()).unwrap();
+
+    assert_eq!(config.max_queued_requests, 8);
+    assert_eq!(config.queue_wait_timeout_millis, 30_000);
+}
+
+#[test]
+fn cli_overrides_queue_config() {
+    let mut args = base_args();
+    args.max_queued_requests = Some(3);
+    args.queue_wait_timeout_millis = Some(5_000);
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.max_queued_requests, 3);
+    assert_eq!(config.queue_wait_timeout_millis, 5_000);
+}
+
+#[test]
+fn env_var_sets_max_queued_requests() {
+    let _guard = EnvGuard::set("MAX_QUEUED_REQUESTS", "5");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.max_queued_requests, Some(5));
+}
+
+#[test]
+fn env_var_sets_queue_wait_timeout_millis() {
+    let _guard = EnvGuard::set("QUEUE_WAIT_TIMEOUT_MILLIS", "7500");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.queue_wait_timeout_millis, Some(7500));
+}
