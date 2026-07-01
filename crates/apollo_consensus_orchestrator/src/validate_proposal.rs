@@ -418,16 +418,23 @@ async fn is_proposal_init_valid(
     Ok(())
 }
 
-fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
+/// Returns whether `proposed` is within `margin_percent` of the locally-trusted `reference`,
+/// i.e. within the symmetric band `[reference*(1-m), reference*(1+m)]`.
+///
+/// The band is anchored to `reference` (the node's own L1 oracle read), not to the
+/// proposer-supplied `proposed`: anchoring to `proposed` would let a malicious proposer scale the
+/// band width with its own input and widen it in its favor.
+fn within_margin(proposed: GasPrice, reference: GasPrice, margin_percent: u128) -> bool {
     // For small numbers (e.g., less than 10 wei, if margin is 10%), even an off-by-one
     // error might be bigger than the margin, even if it is just a rounding error.
     // We make an exception for such mismatch, and don't bother checking percentages
     // if the difference in price is only one wei.
-    if number1.0.abs_diff(number2.0) <= GAS_PRICE_ABS_DIFF_MARGIN {
+    if proposed.0.abs_diff(reference.0) <= GAS_PRICE_ABS_DIFF_MARGIN {
         return true;
     }
-    let margin = (number1.0 * margin_percent) / 100;
-    number1.0.abs_diff(number2.0) <= margin
+    // Saturate: `reference.0 * margin_percent` can overflow u128 on large WEI prices.
+    let margin = reference.0.saturating_mul(margin_percent) / 100;
+    proposed.0.abs_diff(reference.0) <= margin
 }
 
 // The second proposal part when validating a proposal must be:

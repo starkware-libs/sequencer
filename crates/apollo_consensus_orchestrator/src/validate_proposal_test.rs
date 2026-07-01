@@ -544,17 +544,33 @@ async fn invalid_starknet_version() {
         if msg.contains("starknet_version mismatch")));
 }
 
+// Cases are (proposed, reference, margin_percent, expected). The band is anchored to `reference`.
 #[rstest]
 #[case::big_number_in_margin(1000, 1050, 10, true)]
 #[case::big_number_out_of_margin(1000, 1150, 10, false)]
 #[case::small_number_in_margin(9, 10, 10, true)]
 #[case::small_number_out_of_margin(9, 11, 10, false)]
 #[case::identical_numbers(12345, 12345, 1, true)]
+// Reference-anchored margin is 1000*10/100 = 100 < diff 111, so this is rejected; a
+// proposed-anchored margin would be 1111*10/100 = 111 and would wrongly accept it.
+#[case::inflated_proposed_rejected(1111, 1000, 10, false)]
+#[case::upper_bound_inclusive(1100, 1000, 10, true)]
+#[case::lower_bound_inclusive(900, 1000, 10, true)]
+#[case::deflated_proposed_rejected(889, 1000, 10, false)]
+// Equal values hit the abs_diff early return, before the (saturating) margin multiply.
+#[case::large_identical_no_overflow(u128::MAX, u128::MAX, 10, true)]
+#[case::large_within_no_overflow(u128::MAX - 5, u128::MAX, 10, true)]
 fn test_within_margin(
-    #[case] a: u128,
-    #[case] b: u128,
+    #[case] proposed: u128,
+    #[case] reference: u128,
     #[case] margin: u128,
     #[case] expected: bool,
 ) {
-    assert_eq!(within_margin(GasPrice(a), GasPrice(b), margin), expected);
+    assert_eq!(within_margin(GasPrice(proposed), GasPrice(reference), margin), expected);
+}
+
+// A far-out proposed against a huge reference must reject without overflowing the margin multiply.
+#[test]
+fn within_margin_large_reference_does_not_overflow() {
+    assert!(!within_margin(GasPrice(1), GasPrice(u128::MAX), 10));
 }
