@@ -2,11 +2,38 @@ import base64
 import json
 import logging
 import os
+import queue
 import subprocess
+import sys
 import tempfile
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
+
+# Bounded backlog of OS-run tasks fed to the background worker thread. With
+# blocks arriving ~1/s and each OS run taking several seconds, this lets a few
+# blocks queue up; anything beyond it is dropped (logged) so the Flask handler
+# never blocks blob storage.
+_OS_RUN_QUEUE_SIZE = 30
+# Number of OS-runner worker threads draining the queue in parallel. Each
+# worker spawns its own `committer-and-os-cli` subprocess per task. Per-worker
+# capacity ≈ 5/min (mean OS run ~12s); mainnet arrives at ~26/min, so we need
+# ≥6 workers to clear the queue. Sized at 8 (not 6) so the pod's `limits.cpu:
+# "8"` headroom over `requests.cpu: "6"` gets actually consumed under burst —
+# with 6 workers each pegging ~1 core, active CPU tops out near request; with
+# 8 the burst can reach the limit before drops start. Memory budget (post
+# cende-commitment-delta: p99 blob ~20 MB, typical subprocess ~300 MB, p99
+# ~2 GB): 8 workers worst-case ≈ 16 GiB + flask + cache ≈ 20 GiB, still
+# comfortably under the 32 GiB limit on an n4-standard-8.
+_OS_RUN_PARALLELISM = 8
+# Width of the `recent_state_commitment_infos` vector each blob carries — the
+# sequencer fills it with up to N_BLOCK_HASHES_BACK_IN_BLOB (= 10) prior blocks
+# plus the current one. A block's commit info therefore stays reachable from
+# blobs at most this many heights newer; older deferred lookups are dropped.
+_RECENT_STATE_COMMITMENT_WINDOW = 10
+
 
 import flask  # pyright: ignore[reportMissingImports]
 import requests
@@ -17,6 +44,7 @@ from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.os_input_builder import OsInputBuildError, pick_state_commitment_infos
 from echonet.reports import (
     RevertClassifier,
     RevertComparisonTextReport,
@@ -32,6 +60,24 @@ BlockNumberParam = Union[int, Literal["latest"]]
 
 flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
+
+
+def _os_run_error_text(exc: BaseException) -> str:
+    """
+    Build the per-failure `error` payload for the report — the exception's
+    message followed by the worker subprocess's stderr verbatim if present
+    (CalledProcessError carries it on `.stderr`). Recorded into the report's
+    `recent_failures` list and truncated at the storage layer; the full text
+    survives in pod logs.
+    """
+    parts = [str(exc)]
+    stderr_bytes = getattr(exc, "stderr", None)
+    if stderr_bytes:
+        if isinstance(stderr_bytes, bytes):
+            parts.append(stderr_bytes.decode(errors="replace"))
+        else:
+            parts.append(str(stderr_bytes))
+    return "\n".join(parts)
 
 
 def _static_file_b64(filename: str) -> str:
@@ -388,6 +434,109 @@ class BlobTransformer:
                 raise
             return json.loads(output_path.read_text(encoding="utf-8"))
 
+    def write_os_runner_input_file(
+        self,
+        blob_body: bytes,
+        block_document: JsonObject,
+        block_number: int,
+        state_commitment_infos: JsonObject,
+        block_commitments: JsonObject,
+    ) -> Path:
+        """
+        Serialize the worker input to a tempfile and return its path. The caller
+        is responsible for `unlink`ing it.
+
+        `blob_body` is the raw JSON bytes received from the sequencer (stored
+        verbatim in the BlockStore — see `_BlockStore.store_block` for the
+        rationale: storing the parsed Python dict balloons memory ~5-8× and
+        OOMs the pod). We splice the bytes directly into the output file's
+        `"blob"` field instead of parsing→re-serializing.
+
+        `block_commitments` was computed once at ingest (`transform_block`) and
+        stashed alongside the block in the store, so no re-parse or re-CLI-call
+        is needed here — under 6 concurrent workers that spike used to add up
+        to hundreds of MB of transient parsed-dict memory.
+        """
+        repo_root = Path(__file__).resolve().parent.parent
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f"echonet_os_in_{block_number}_",
+            suffix=".json",
+            dir=repo_root,
+            delete=False,
+        ) as input_file:
+            # Hand-assemble the outer JSON object so we can splice the raw
+            # blob_body bytes in verbatim without going through a Python
+            # dict (which would re-create the ~30-50 MB parsed-dict heap
+            # spike we're trying to avoid).
+            input_file.write(b'{"blob":')
+            input_file.write(blob_body)
+            input_file.write(b',"state_commitment_infos":')
+            input_file.write(json.dumps(state_commitment_infos).encode("utf-8"))
+            input_file.write(b',"block_document":')
+            input_file.write(
+                json.dumps(
+                    {
+                        "parent_block_hash": block_document["parent_block_hash"],
+                        "block_hash": block_document["block_hash"],
+                    }
+                ).encode("utf-8")
+            )
+            input_file.write(f',"block_number":{int(block_number)}'.encode("utf-8"))
+            input_file.write(b',"block_hash_commitments_payload":')
+            input_file.write(json.dumps(block_commitments).encode("utf-8"))
+            input_file.write(b"}")
+            return Path(input_file.name)
+
+    def run_os_subprocess(self, input_path: Path, block_number: int) -> None:
+        """
+        Block on `echonet.os_runner_worker --input-path <input_path>`. The caller
+        must own `input_path`'s lifetime (write it via `write_os_runner_input_file`,
+        unlink after).
+
+        Stdio capture: the inner committer-and-os-cli writes a final JSON metric
+        blob to stdout without a trailing newline (e.g.
+        `{"da_segment_len": 26, "unused_hints_count": 58}`). If we let stdio
+        inherit, that blob gets glued to flask's next log line — and GCP Cloud
+        Logging auto-parses any line starting with `{` as structured JSON, so
+        the trailing text (the actual "OS run completed for block N" message)
+        gets dropped from the indexed payload. Capture and discard stdout on
+        success; on failure, surface stderr in the error log so we don't lose
+        diagnostic information when the worker fails.
+        """
+        repo_root = Path(__file__).resolve().parent.parent
+        timeout = CONFIG.os_runner.cli_timeout_secs + 30
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "echonet.os_runner_worker",
+                    "--input-path",
+                    str(input_path),
+                ],
+                cwd=repo_root,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                check=True,
+                timeout=timeout,
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr_tail = (exc.stderr or b"").decode(errors="replace")[-4096:]
+            self._logger.error(
+                f"OS runner worker for block {block_number} exited {exc.returncode}\n"
+                f"stderr (last 4KB):\n{stderr_tail}"
+            )
+            raise
+        except subprocess.TimeoutExpired as exc:
+            stderr_tail = (exc.stderr or b"").decode(errors="replace")[-4096:] if exc.stderr else ""
+            self._logger.error(
+                f"OS runner worker for block {block_number} timed out after {timeout}s\n"
+                f"stderr (last 4KB):\n{stderr_tail}"
+            )
+            raise
+
     @staticmethod
     def _build_thin_state_diff(blob: JsonObject) -> JsonObject:
         state_diff = blob["state_diff"]
@@ -588,7 +737,7 @@ class BlobTransformer:
         )
         return str(result)
 
-    def transform_block(self, blob: JsonObject) -> JsonObject:
+    def transform_block(self, blob: JsonObject) -> tuple[JsonObject, JsonObject]:
         """
         Build the stored "block" document from an incoming blob.
 
@@ -596,6 +745,13 @@ class BlobTransformer:
         - transactions + receipts (minimal schema expected by downstream consumers)
         - block hash computed from real commitments and block header fields
         - fee market metadata (timestamp + gas prices)
+
+        Returns `(block_document, block_commitments)`. The commitments dict is
+        the full 5-felt `BlockHeaderCommitments` (transaction / event / receipt /
+        state_diff / concatenated_counts) as returned by the block-hash CLI —
+        block_document only keeps the first four as strings, so we hand back the
+        raw dict too so downstream (OS runner) can reuse it without re-parsing
+        the blob to recompute the same values.
         """
         block_number = int(blob["block_number"])
         tx_entries = blob["transactions"]
@@ -606,7 +762,7 @@ class BlobTransformer:
         execution_infos = blob["execution_infos"]
         assert len(execution_infos) == len(
             transformed_txs
-        ), f"The number of transactions in the blob does not match the number of execution infos."
+        ), "The number of transactions in the blob does not match the number of execution infos."
         for idx, (tx, execution_info) in enumerate(zip(transformed_txs, execution_infos)):
             receipts.append(
                 self._transform_receipt_from_execution_info(
@@ -669,7 +825,7 @@ class BlobTransformer:
             source_block=source_block,
         )
 
-        return block_document
+        return block_document, block_commitments
 
     def transform_state_update(
         self, blob: JsonObject, block_number: int, block_hash: str
@@ -776,6 +932,77 @@ class EchoCenterService:
             logger_obj=self.logger,
         )
 
+        # Background OS-run pipeline: blob-handlers enqueue tasks and return
+        # immediately; this thread drains the queue one at a time, spawning a
+        # fresh `echonet.os_runner_worker` subprocess per task. A bounded
+        # `maxsize` provides natural backpressure — if blobs arrive faster than
+        # OS runs complete, the excess are dropped (logged) so Flask never
+        # blocks blob storage.
+        self._os_run_queue: queue.Queue = queue.Queue(maxsize=_OS_RUN_QUEUE_SIZE)
+        # Block numbers whose `state_commitment_infos` were missing in their
+        # N+1 blob's vector (race in the sequencer's
+        # `collect_recent_state_commitment_infos`: the loop breaks on first
+        # NotFound, so if block N-1's commit task hasn't completed when block N
+        # is being proposed, N-1 is absent from N's vector). When a later blob
+        # arrives, retry the lookup against its vector. Anything older than
+        # the vector window (`_RECENT_STATE_COMMITMENT_WINDOW`) is permanently
+        # unreachable and dropped.
+        self._deferred_os_blocks: set[int] = set()
+        self._os_run_threads: list[threading.Thread] = []
+        for i in range(_OS_RUN_PARALLELISM):
+            t = threading.Thread(target=self._os_run_worker, name=f"os-runner-{i}", daemon=True)
+            t.start()
+            self._os_run_threads.append(t)
+
+    def _os_run_worker(self) -> None:
+        """
+        Drain `self._os_run_queue` serially, one OS run at a time.
+
+        Memory discipline: write the worker input tempfile FIRST, drop every
+        reference to the blob and other multi-MB task fields BEFORE waiting on
+        the OS subprocess. Otherwise the blob lives in this thread's heap for
+        the full ~10s OS run, and concurrent queue slots compound the cost.
+        """
+        while True:
+            task = self._os_run_queue.get()
+            block_number = task["block_number"]
+            wait_s = time.monotonic() - task["queued_at"]
+            start = time.monotonic()
+            input_path: Optional[Path] = None
+            try:
+                input_path = self._transformer.write_os_runner_input_file(
+                    blob_body=task["blob_body"],
+                    block_document=task["block_document"],
+                    block_number=block_number,
+                    state_commitment_infos=task["state_commitment_infos"],
+                    block_commitments=task["block_commitments"],
+                )
+                # Release every multi-MB reference before waiting on the
+                # subprocess. The blob/state_commitment_infos/block_document
+                # are now persisted in `input_path`; we no longer need them in
+                # memory.
+                task.clear()
+                del task
+                self._transformer.run_os_subprocess(input_path, block_number)
+                run_s = time.monotonic() - start
+                self.shared.record_os_run_completed()
+                self.flask_logger.info(
+                    f"OS run completed for block {block_number} "
+                    f"(wait={wait_s:.2f}s, run={run_s:.2f}s, queue={self._os_run_queue.qsize()}/"
+                    f"{_OS_RUN_QUEUE_SIZE})"
+                )
+            except Exception as exc:
+                run_s = time.monotonic() - start
+                self.shared.record_os_run_failed(block_number, _os_run_error_text(exc))
+                self.flask_logger.exception(
+                    f"OS run failed for block {block_number} "
+                    f"(wait={wait_s:.2f}s, run={run_s:.2f}s, queue={self._os_run_queue.qsize()}/"
+                    f"{_OS_RUN_QUEUE_SIZE})"
+                )
+            finally:
+                if input_path is not None:
+                    input_path.unlink(missing_ok=True)
+
     def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
         txs = stored_block.get("transactions", [])
         receipts = stored_block.get("transaction_receipts", [])
@@ -859,10 +1086,17 @@ class EchoCenterService:
             self.flask_logger.info(f"Duplicate WRITE_BLOB for block {block_number}; no-op")
             return self._empty_response(requests.codes.ok)
 
+        # Persist this blob's state_commitment_infos vector. Two reasons:
+        # (1) the OS runner needs each block's commit later (the cende-delta
+        # optimization on the sequencer side means a future blob may not carry
+        # it); (2) the cende-recorder `get_last_stored_commitment_height` query
+        # reads `last_stored_commitment_height` derived from this store.
+        self.shared.record_commits_from_blob(blob)
+
         self.shared.set_last_block(block_number)
         self.flask_logger.info(f"last_block={block_number}")
 
-        to_store = self._transformer.transform_block(blob)
+        to_store, block_commitments = self._transformer.transform_block(blob)
         state_update = self._transformer.transform_state_update(
             blob, block_number, to_store["block_hash"]
         )
@@ -870,7 +1104,11 @@ class EchoCenterService:
         self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
 
         self.shared.store_block(
-            block_number, blob=blob, fgw_block=to_store, state_update=state_update
+            block_number,
+            blob_body=body,
+            fgw_block=to_store,
+            state_update=state_update,
+            block_commitments=block_commitments,
         )
         self.flask_logger.info(
             f"block {block_number} tx hashes: {' '.join(self._transformer.get_blob_tx_hashes(blob))}"
@@ -878,7 +1116,128 @@ class EchoCenterService:
 
         self._update_tx_tracking_and_reverts(blob, block_number)
 
+        self._maybe_run_os(blob, block_number)
+
         return self._empty_response(requests.codes.ok)
+
+    def _maybe_run_os(self, blob: JsonObject, block_number: int) -> None:
+        """
+        Opt-in OS run, **lagged by one block** and **fire-and-forget**. When the
+        blob for block N+1 arrives we want to run the OS over block N — its
+        `StateCommitmentInfos` are inside N+1's `recent_state_commitment_infos`
+        (the cende blob's vector slides by one and does not contain its own
+        block's entry; see `pick_state_commitment_infos`).
+
+        If block N's commit info is missing from N+1's vector (sequencer race —
+        the batcher's commit for N may not have completed by the time N+1 is
+        proposed), the target block is deferred and retried against subsequent
+        blobs' vectors until it falls outside `_RECENT_STATE_COMMITMENT_WINDOW`
+        heights — at which point it's permanently unreachable.
+
+        This method only validates inputs and enqueues; the heavy lifting happens
+        on the dedicated `os-runner` thread. The Flask request returns
+        immediately. If the queue is full (OS runs can't keep up with blob
+        arrival), the task is dropped and logged — block/state_update storage is
+        unaffected either way.
+        """
+        if not CONFIG.os_runner.enabled:
+            return
+        previous_block_number = block_number - 1
+        if previous_block_number < 0:
+            return
+
+        oldest_reachable = block_number - _RECENT_STATE_COMMITMENT_WINDOW
+        for stale_block in [b for b in self._deferred_os_blocks if b < oldest_reachable]:
+            self._deferred_os_blocks.discard(stale_block)
+            self.shared.record_os_run_abandoned()
+            self.flask_logger.warning(
+                f"OS run permanently abandoned for block {stale_block}: "
+                f"state_commitment_infos no longer reachable from any blob "
+                f"(current blob={block_number}, window={_RECENT_STATE_COMMITMENT_WINDOW})"
+            )
+
+        candidate_blocks = sorted(self._deferred_os_blocks | {previous_block_number})
+        for target_block in candidate_blocks:
+            self._try_enqueue_os_run(blob, block_number, target_block)
+
+        # Refresh report's live queue/defer state with the post-enqueue counts.
+        self.shared.set_os_run_live_state(
+            queue_depth=self._os_run_queue.qsize(),
+            queue_max=_OS_RUN_QUEUE_SIZE,
+            deferred_count=len(self._deferred_os_blocks),
+        )
+
+    def _try_enqueue_os_run(self, blob: JsonObject, current_block: int, target_block: int) -> None:
+        """
+        Look up `target_block`'s `state_commitment_infos` in `blob`'s vector
+        (where `blob` is for height `current_block`) and enqueue the OS run.
+        On miss, defer for retry against a future blob.
+        """
+        # Blob bodies are evicted from RAM aggressively (separate cap from the
+        # block-doc retention used by the tx sender), so fall back to the
+        # on-disk archive — the worker is fine with either source.
+        target_blob_body = self.shared.get_blob_body_with_disk_fallback(target_block)
+        if target_blob_body is None:
+            self._deferred_os_blocks.discard(target_block)
+            self.shared.record_os_run_skipped()
+            self.flask_logger.info(
+                f"OS run skipped: target blob (block {target_block}) not in cache or archive."
+            )
+            return
+        target_block_document = self.shared.get_block_field(target_block, "block")
+        if target_block_document is None:
+            self._deferred_os_blocks.discard(target_block)
+            self.shared.record_os_run_skipped()
+            self.flask_logger.info(
+                f"OS run skipped: target block document (block {target_block}) not in cache."
+            )
+            return
+        target_block_commitments = self.shared.get_block_field(target_block, "block_commitments")
+        if target_block_commitments is None:
+            self._deferred_os_blocks.discard(target_block)
+            self.shared.record_os_run_skipped()
+            self.flask_logger.info(
+                f"OS run skipped: target block_commitments (block {target_block}) not in cache."
+            )
+            return
+        # Prefer the persistent commit store (populated from every blob's
+        # `recent_state_commitment_infos` vector at handle_write_blob time).
+        # Falls back to extracting from the current blob for backwards
+        # compatibility with pre-cende-commitment-delta sequencer images that
+        # still ship a contiguous 10-block window.
+        state_commitment_infos = self.shared.get_state_commitment_infos(target_block)
+        if state_commitment_infos is None:
+            try:
+                state_commitment_infos = pick_state_commitment_infos(blob, target_block)
+            except OsInputBuildError:
+                self._deferred_os_blocks.add(target_block)
+                self.shared.record_os_run_deferred()
+                self.flask_logger.info(
+                    f"OS run deferred for block {target_block}: state_commitment_infos "
+                    f"not in store yet and missing from blob {current_block}; "
+                    "will retry with next blob."
+                )
+                return
+
+        task = {
+            "blob_body": target_blob_body,
+            "block_document": target_block_document,
+            "block_commitments": target_block_commitments,
+            "block_number": target_block,
+            "state_commitment_infos": state_commitment_infos,
+            "queued_at": time.monotonic(),
+        }
+        try:
+            self._os_run_queue.put_nowait(task)
+            self._deferred_os_blocks.discard(target_block)
+        except queue.Full:
+            self._deferred_os_blocks.discard(target_block)
+            self.shared.record_os_run_dropped()
+            self.flask_logger.warning(
+                f"OS run dropped for block {target_block}: queue full "
+                f"({self._os_run_queue.qsize()}/{_OS_RUN_QUEUE_SIZE}) — runner can't "
+                "keep up with blob arrival rate."
+            )
 
     def handle_write_pre_confirmed_block(self) -> flask.Response:
         self.flask_logger.debug("Received pre-confirmed block")
@@ -894,6 +1253,20 @@ class EchoCenterService:
             - 1
         )
         return self._json_response({"block_number": block_number}, requests.codes.ok)
+
+    def handle_get_last_stored_commitment_height(self) -> flask.Response:
+        """
+        GET /cende_recorder/get_last_stored_commitment_height
+
+        Returns the highest `block_number` whose state-commitment-info we've
+        observed in any incoming blob's `recent_state_commitment_infos` vector,
+        or `null` if we've seen none yet. The sequencer (post
+        cende-commitment-delta in `sequencer_consensus_context.rs`) bounds the
+        commitment-info window's lower end to `last_stored + 1`, so the blob
+        only carries commits we're still missing.
+        """
+        last = self.shared.get_last_stored_commitment_height()
+        return self._json_response({"block_number": last}, requests.codes.ok)
 
     def handle_report_snapshot(self) -> flask.Response:
         """Return current in-memory tx tracking snapshot."""
@@ -1019,6 +1392,14 @@ class EchoCenterService:
                 {"error": f"Invalid kind: {kind_raw}"}, requests.codes.bad_request
             )
 
+        # The blob is stored as raw JSON bytes (memory optimization — see
+        # `_BlockStore.store_block`); serve it back as-is. Other kinds are
+        # still Python objects.
+        if kind is BlockDumpKind.BLOB:
+            payload_bytes = self.shared.get_blob_body_with_disk_fallback(bn)
+            if payload_bytes is None:
+                return self._empty_response(requests.codes.not_found)
+            return flask.Response(payload_bytes, mimetype="application/json")
         payload = self.shared.get_block_field_with_disk_fallback(bn, kind.value)
         if payload is None:
             return self._empty_response(requests.codes.not_found)
@@ -1176,6 +1557,7 @@ class EchoCenterService:
 
 app = flask.Flask(__name__)
 feeder_client = FeederClient()
+
 service = EchoCenterService(
     feeder_client=feeder_client,
     shared_ctx=shared,
@@ -1198,6 +1580,11 @@ def write_pre_confirmed_block() -> flask.Response:
 @app.route("/cende_recorder/get_latest_received_block", methods=["GET"])
 def get_latest_received_block() -> flask.Response:
     return service.handle_get_latest_received_block()
+
+
+@app.route("/cende_recorder/get_last_stored_commitment_height", methods=["GET"])
+def get_last_stored_commitment_height() -> flask.Response:
+    return service.handle_get_last_stored_commitment_height()
 
 
 @app.route("/echonet/report", methods=["GET"])
