@@ -1,8 +1,5 @@
-# syntax = devthefuture/dockerfile-x
-INCLUDE deployments/images/base/Dockerfile
-
 # ---- Stage 1: Builder (has cargo/rustc)
-FROM base AS builder
+FROM ghcr.io/starkware-libs/sequencer/base:latest AS builder
 WORKDIR /app
 
 COPY . .
