@@ -11,7 +11,6 @@ class DeploymentConstruct(BaseConstruct):
         service_config,
         labels,
         monitoring_endpoint_port,
-        config_format: str,
     ):
         super().__init__(
             scope,
@@ -21,7 +20,6 @@ class DeploymentConstruct(BaseConstruct):
             monitoring_endpoint_port,
         )
 
-        self.config_format = config_format
         self.deployment = self._create_deployment()
 
     def _create_deployment(self) -> k8s.KubeDeployment:
@@ -29,7 +27,6 @@ class DeploymentConstruct(BaseConstruct):
             self.service_config,
             self.labels,
             self.monitoring_endpoint_port,
-            config_format=self.config_format,
         )
 
         selector_labels = {"service": self.labels["service"]}
