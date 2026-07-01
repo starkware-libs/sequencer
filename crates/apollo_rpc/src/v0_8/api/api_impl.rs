@@ -20,8 +20,7 @@ use apollo_starknet_client::reader::objects::transaction::{
     TransactionReceipt as ClientTransactionReceipt,
 };
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::{StarknetWriter, WriterClientError};
-use apollo_starknet_client::ClientError;
+use apollo_starknet_client::writer::StarknetWriter;
 use apollo_storage::body::events::{EventIndex, EventsReader};
 use apollo_storage::body::{BodyStorageReader, TransactionIndex};
 use apollo_storage::compiled_class::CasmStorageReader;
@@ -75,10 +74,7 @@ use super::super::block::{
     GeneralBlockHeader,
     PendingBlockHeader,
 };
-use super::super::broadcasted_transaction::{
-    BroadcastedDeclareTransaction,
-    BroadcastedTransaction,
-};
+use super::super::broadcasted_transaction::BroadcastedTransaction;
 use super::super::error::{
     ContractError,
     JsonRpcError,
@@ -111,18 +107,6 @@ use super::super::transaction::{
     TransactionWithHash,
     TransactionWithReceipt,
     Transactions,
-    TypedDeployAccountTransaction,
-    TypedInvokeTransaction,
-};
-use super::super::write_api_error::{
-    starknet_error_to_declare_error,
-    starknet_error_to_deploy_account_error,
-    starknet_error_to_invoke_error,
-};
-use super::super::write_api_result::{
-    AddDeclareOkResult,
-    AddDeployAccountOkResult,
-    AddInvokeOkResult,
 };
 use super::{
     execution_error_to_error_object_owned,
@@ -939,59 +923,6 @@ impl JsonRpcServer for JsonRpcServerImpl {
         block_not_reverted_validator.validate(&self.storage_reader)?;
 
         Ok(res.retdata.0)
-    }
-
-    #[instrument(skip(self), level = "debug", err, ret)]
-    async fn add_invoke_transaction(
-        &self,
-        invoke_transaction: TypedInvokeTransaction,
-    ) -> RpcResult<AddInvokeOkResult> {
-        let result = self.writer_client.add_invoke_transaction(&invoke_transaction.into()).await;
-        match result {
-            Ok(res) => Ok(res.into()),
-            Err(WriterClientError::ClientError(ClientError::StarknetError(starknet_error))) => {
-                Err(ErrorObjectOwned::from(starknet_error_to_invoke_error(starknet_error)))
-            }
-            Err(err) => Err(internal_server_error(err)),
-        }
-    }
-
-    #[instrument(skip(self), level = "debug", err, ret)]
-    async fn add_deploy_account_transaction(
-        &self,
-        deploy_account_transaction: TypedDeployAccountTransaction,
-    ) -> RpcResult<AddDeployAccountOkResult> {
-        let result = self
-            .writer_client
-            .add_deploy_account_transaction(&deploy_account_transaction.into())
-            .await;
-        match result {
-            Ok(res) => Ok(res.into()),
-            Err(WriterClientError::ClientError(ClientError::StarknetError(starknet_error))) => {
-                Err(ErrorObjectOwned::from(starknet_error_to_deploy_account_error(starknet_error)))
-            }
-            Err(err) => Err(internal_server_error(err)),
-        }
-    }
-
-    #[instrument(skip(self), level = "debug", err, ret)]
-    async fn add_declare_transaction(
-        &self,
-        declare_transaction: BroadcastedDeclareTransaction,
-    ) -> RpcResult<AddDeclareOkResult> {
-        let result = self
-            .writer_client
-            .add_declare_transaction(
-                &declare_transaction.try_into().map_err(internal_server_error)?,
-            )
-            .await;
-        match result {
-            Ok(res) => Ok(res.into()),
-            Err(WriterClientError::ClientError(ClientError::StarknetError(starknet_error))) => {
-                Err(ErrorObjectOwned::from(starknet_error_to_declare_error(starknet_error)))
-            }
-            Err(err) => Err(internal_server_error(err)),
-        }
     }
 
     #[instrument(skip(self, transactions), level = "debug", err, ret)]
