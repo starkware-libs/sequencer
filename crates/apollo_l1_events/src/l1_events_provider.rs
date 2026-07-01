@@ -360,7 +360,14 @@ impl L1EventsProvider {
         // Recreating the catchupper here and detaching the current task would leak racing tasks.
         if self.catchupper.is_sync_task_running() {
             self.catchupper.update_target_height(target_height);
-            return;
+            // Re-check: the task may have exited its sync loop between the check above and the
+            // target raise, which would leave the raised target on a finished task with nothing
+            // syncing. If it's still running it picks up the new target; otherwise fall through to
+            // respawn. (A task that finishes even after this second check is recovered by
+            // `sync_task_health_check`.)
+            if self.catchupper.is_sync_task_running() {
+                return;
+            }
         }
         self.reset_catchupper();
         self.catchupper.start_l2_sync(self.current_height, target_height);

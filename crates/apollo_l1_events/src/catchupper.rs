@@ -106,13 +106,16 @@ impl Catchupper {
     }
 
     pub fn target_height(&self) -> BlockNumber {
-        BlockNumber(self.target_height.load(Ordering::Acquire))
+        // Relaxed: this atomic carries only its own value, it publishes no other memory, so no
+        // ordering against other operations is needed.
+        BlockNumber(self.target_height.load(Ordering::Relaxed))
     }
 
     /// Raises the target height of the running sync task so it keeps syncing up to `target_height`.
     /// Uses `fetch_max` so the target only moves forward; a lower height is ignored.
     pub fn update_target_height(&self, target_height: BlockNumber) {
-        self.target_height.fetch_max(target_height.0, Ordering::Release);
+        // Relaxed: see `target_height`.
+        self.target_height.fetch_max(target_height.0, Ordering::Relaxed);
     }
 
     /// Returns true while an L2 sync task is in flight (spawned and not yet finished).
@@ -170,12 +173,12 @@ async fn l2_sync_task(
     // The target is re-read every iteration so an `update_target_height` call from the provider
     // (a higher block committed before catch-up finishes) extends this same task instead of
     // spawning a competing one.
-    while current_height.0 <= target_height.load(Ordering::Acquire) {
+    while current_height.0 <= target_height.load(Ordering::Relaxed) {
         // TODO(Gilad): add tracing instrument.
         debug!(
             "Syncing L1EventsProvider with L2 height: {} to target height: {}",
             current_height,
-            target_height.load(Ordering::Acquire)
+            target_height.load(Ordering::Relaxed)
         );
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
 
