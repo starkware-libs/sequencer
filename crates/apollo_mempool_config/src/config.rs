@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config::converters::deserialize_seconds_to_duration;
+use apollo_config::converters::{deserialize_seconds_to_duration, serialize_duration_as_seconds};
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,10 @@ impl SerializeConfig for MempoolConfig {
 pub struct MempoolDynamicConfig {
     // Time-to-live for transactions in the mempool, in seconds.
     // Transactions older than this value will be lazily removed.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub transaction_ttl: Duration,
 }
 
@@ -66,7 +69,10 @@ pub struct MempoolStaticConfig {
     pub validate_resource_bounds: bool,
     // Time to wait before allowing a Declare transaction to be returned in `get_txs`.
     // Declare transactions are delayed to allow other nodes sufficient time to compile them.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub declare_delay: Duration,
     // Number of latest committed blocks for which committed account nonces are preserved.
     pub committed_nonce_retention_block_count: usize,
