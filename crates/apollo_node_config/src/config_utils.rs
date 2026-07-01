@@ -2,23 +2,14 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
-use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::create_validation_error;
 use apollo_config::{ConfigError, ParamPath, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use serde_json::{Map, Value};
 use tracing::{error, info};
-use validator::ValidationError;
 
-use crate::definitions::ConfigPointersMap;
-use crate::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_SECRETS_SCHEMA_PATH,
-    POINTER_TARGET_VALUE,
-};
+use crate::node_config::{SequencerNodeConfig, CONFIG_SECRETS_SCHEMA_PATH};
 
 /// Returns the set of all non-pointer private parameters and all pointer target parameters pointed
 /// by private parameters, as committed in the secrets schema file (`CONFIG_SECRETS_SCHEMA_PATH`).
@@ -100,47 +91,20 @@ pub fn prune_by_is_none(mut v: Value) -> Value {
     v
 }
 
-// TODO(Nadin): Consider adding methods to ConfigPointers to encapsulate related functionality.
-fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError> {
-    if let Some(preset_map) = preset.as_object() {
-        for (key, value) in preset_map {
-            if value == POINTER_TARGET_VALUE {
-                return Err(create_validation_error(
-                    format!("Pointer target not set for key: '{key}'"),
-                    "pointer_target_not_set",
-                    "Pointer target not set",
-                ));
-            }
-        }
-        Ok(())
-    } else {
-        Err(create_validation_error(
-            "Preset must be an object".to_string(),
-            "invalid_preset_format",
-            "Preset is not a valid object",
-        ))
-    }
-}
-
 // TODO(Nadin/Tsabary): `DeploymentBaseAppConfig` is only used in tests, and should be marked as
 // such.
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
-    config_pointers_map: ConfigPointersMap,
 }
 
 impl DeploymentBaseAppConfig {
-    pub fn new(config: SequencerNodeConfig, config_pointers_map: ConfigPointersMap) -> Self {
-        Self { config, config_pointers_map }
+    pub fn new(config: SequencerNodeConfig) -> Self {
+        Self { config }
     }
 
     pub fn get_config(&self) -> &SequencerNodeConfig {
         &self.config
-    }
-
-    pub fn get_config_pointers_map(&self) -> &ConfigPointersMap {
-        &self.config_pointers_map
     }
 
     pub fn modify_config<F>(&mut self, modify_config_fn: F)
@@ -150,44 +114,10 @@ impl DeploymentBaseAppConfig {
         modify_config_fn(&mut self.config);
     }
 
-    pub fn modify_config_pointers<F>(&mut self, modify_config_pointers_fn: F)
-    where
-        F: Fn(&mut ConfigPointersMap),
-    {
-        modify_config_pointers_fn(&mut self.config_pointers_map);
-    }
-
-    pub fn as_value(&self) -> Value {
-        // Create the entire mapping of the config and the pointers, without the required params.
-        let config_as_map = combine_config_map_and_pointers(
-            self.config.dump(),
-            // TODO(Tsabary): avoid the cloning here
-            &self.config_pointers_map.clone().into(),
-            &CONFIG_NON_POINTERS_WHITELIST,
-        )
-        .unwrap();
-
-        // Extract only the required fields from the config map.
-        let preset = config_to_preset(&config_as_map);
-        let preset = prune_by_is_none(preset);
-        validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
-        preset
-    }
-
     /// Returns the nested config as JSON, matching the `SequencerNodeConfig` field hierarchy.
-    /// This is the artifact consumed by the native config loader (as the base config), in contrast
-    /// to the flat preset produced by `as_value`.
+    /// This is the artifact consumed by the native config loader (as the base config).
     pub fn as_native_value(&self) -> Value {
         serde_json::to_value(&self.config).expect("Should be able to serialize config to value")
-    }
-
-    // TODO(Tsabary): unify path types throughout.
-    pub fn dump_config_file(&self, config_path: &Path) {
-        let value = self.as_value();
-        serialize_to_file(
-            &value,
-            config_path.to_str().expect("Should be able to convert path to string"),
-        );
     }
 
     /// Dumps the nested native base config (see `as_native_value`) to `config_path`.
@@ -233,4 +163,101 @@ pub fn load_and_validate_config(
     }
 
     Ok(loaded_config)
+}
+
+/// Overwrites every present target of each multi-target `CONFIG_POINTERS` group with a single,
+/// consistent value, mirroring what pointer resolution does at load time. This lets a config
+/// assembled directly from `SequencerNodeConfig::default()` satisfy the cross-component equality
+/// invariant enforced by `validate_node_config`.
+#[cfg(any(feature = "testing", test))]
+pub fn normalize_pointer_groups(config: &mut SequencerNodeConfig) {
+    use apollo_config::behavior_mode::BehaviorMode;
+    use apollo_reverts::RevertConfig;
+    use blockifier::blockifier::config::NativeClassesWhitelist;
+    use starknet_api::core::{ChainId, ContractAddress};
+
+    let chain_id = ChainId::Mainnet;
+    let eth_fee_token_address = ContractAddress::from(1u128);
+    let strk_fee_token_address = ContractAddress::from(2u128);
+    let max_cpu_time: u64 = 600;
+
+    config.validation_only = false;
+    if let Some(sierra_compiler) = config.sierra_compiler_config.as_mut() {
+        sierra_compiler.max_cpu_time = max_cpu_time;
+    }
+    if let Some(batcher) = config.batcher_config.as_mut() {
+        let static_config = &mut batcher.static_config;
+        static_config.block_builder_config.chain_info.chain_id = chain_id.clone();
+        static_config.storage.db_config.chain_id = chain_id.clone();
+        let fee_token_addresses =
+            &mut static_config.block_builder_config.chain_info.fee_token_addresses;
+        fee_token_addresses.eth_fee_token_address = eth_fee_token_address;
+        fee_token_addresses.strk_fee_token_address = strk_fee_token_address;
+        static_config.contract_class_manager_config.native_compiler_config.max_cpu_time =
+            max_cpu_time;
+        static_config.pre_confirmed_cende_config.recorder_url =
+            "https://recorder_url".parse().unwrap();
+        static_config.block_builder_config.versioned_constants_overrides = None;
+        static_config.validation_only = false;
+        batcher.dynamic_config.native_classes_whitelist = NativeClassesWhitelist::All;
+    }
+    if let Some(class_manager) = config.class_manager_config.as_mut() {
+        class_manager
+            .static_config
+            .class_storage_config
+            .class_hash_storage_config
+            .db_config
+            .chain_id = chain_id.clone();
+    }
+    if let Some(consensus_manager) = config.consensus_manager_config.as_mut() {
+        consensus_manager
+            .consensus_manager_config
+            .static_config
+            .storage_config
+            .db_config
+            .chain_id = chain_id.clone();
+        consensus_manager.context_config.static_config.chain_id = chain_id.clone();
+        consensus_manager.network_config.chain_id = chain_id.clone();
+        consensus_manager.context_config.static_config.behavior_mode = BehaviorMode::Starknet;
+        consensus_manager.cende_config.recorder_url = "https://recorder_url".parse().unwrap();
+        consensus_manager.revert_config = RevertConfig::default();
+    }
+    if let Some(gateway) = config.gateway_config.as_mut() {
+        gateway.static_config.chain_info.chain_id = chain_id.clone();
+        let fee_token_addresses = &mut gateway.static_config.chain_info.fee_token_addresses;
+        fee_token_addresses.eth_fee_token_address = eth_fee_token_address;
+        fee_token_addresses.strk_fee_token_address = strk_fee_token_address;
+        gateway.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time =
+            max_cpu_time;
+        gateway.static_config.stateful_tx_validator_config.validate_resource_bounds = true;
+        gateway.static_config.stateless_tx_validator_config.validate_resource_bounds = true;
+        gateway.static_config.stateful_tx_validator_config.versioned_constants_overrides = None;
+        gateway.dynamic_config.native_classes_whitelist = NativeClassesWhitelist::All;
+    }
+    if let Some(l1_events_scraper) = config.l1_events_scraper_config.as_mut() {
+        l1_events_scraper.chain_id = chain_id.clone();
+    }
+    if let Some(l1_gas_price_scraper) = config.l1_gas_price_scraper_config.as_mut() {
+        l1_gas_price_scraper.chain_id = chain_id.clone();
+    }
+    if let Some(mempool) = config.mempool_config.as_mut() {
+        mempool.static_config.recorder_url = "https://recorder_url".parse().unwrap();
+        mempool.static_config.validate_resource_bounds = true;
+        mempool.static_config.behavior_mode = BehaviorMode::Starknet;
+    }
+    if let Some(mempool_p2p) = config.mempool_p2p_config.as_mut() {
+        mempool_p2p.network_config.chain_id = chain_id.clone();
+    }
+    if let Some(state_sync) = config.state_sync_config.as_mut() {
+        let static_config = &mut state_sync.static_config;
+        static_config.storage_config.db_config.chain_id = chain_id.clone();
+        if let Some(network_config) = static_config.network_config.as_mut() {
+            network_config.chain_id = chain_id.clone();
+        }
+        static_config.rpc_config.chain_id = chain_id.clone();
+        static_config.rpc_config.execution_config.eth_fee_contract_address = eth_fee_token_address;
+        static_config.rpc_config.execution_config.strk_fee_contract_address =
+            strk_fee_token_address;
+        static_config.revert_config = RevertConfig::default();
+    }
 }
