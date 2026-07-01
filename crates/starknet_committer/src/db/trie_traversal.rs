@@ -233,7 +233,7 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf, Layout: NodeLayout<'
     Ok(())
 }
 
-/// Loads hashes for `hash_only_subtrees` into `hash_by_index`.
+/// Loads hashes for `hash_only_subtrees` into the given `hash_by_index`.
 async fn read_hashes<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     hash_only_subtrees: &[Layout::SubTree],
     storage: &mut impl ReadOnlyStorage,
