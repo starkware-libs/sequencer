@@ -8,11 +8,12 @@ use alloy::eips::eip7840;
 use alloy::network::Ethereum;
 use alloy::primitives::{Address, U256};
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
-use alloy::rpc::json_rpc::RpcError;
+use alloy::rpc::json_rpc::{ErrorPayload, RpcError};
 use alloy::rpc::types::eth::Filter as EthEventFilter;
+use alloy::rpc::types::Log;
 use alloy::sol;
 use alloy::sol_types::sol_data;
-use alloy::transports::TransportErrorKind;
+use alloy::transports::{HttpError, TransportErrorKind};
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
@@ -132,6 +133,99 @@ impl EthereumBaseLayerContract {
         let contract = Starknet::new(starknet_contract_address, provider);
         Self { url_iterator, contract, config, node_url }
     }
+
+    /// Runs a single getLogs query for the given range, subject to the configured timeout.
+    async fn get_logs_in_range(
+        &self,
+        block_range: RangeInclusive<u64>,
+        event_types_to_filter: &[&str],
+    ) -> EthereumBaseLayerResult<Vec<Log>> {
+        let filter = EthEventFilter::new()
+            .select(block_range)
+            .events(event_types_to_filter)
+            .address(self.config.starknet_contract_address);
+
+        Ok(tokio::time::timeout(
+            self.config.timeout_millis,
+            self.contract.provider().get_logs(&filter),
+        )
+        .await??)
+    }
+
+    /// Fetches all logs in `block_range`, bisecting the range whenever a sub-query fails with an
+    /// oversized-response / timeout error and retrying each half. Returns the logs in ascending
+    /// block order (sub-ranges are fetched low-half-before-high-half). Any non-range error, or a
+    /// range error that persists down to a single block, is propagated unchanged.
+    async fn get_logs_bisected(
+        &self,
+        block_range: RangeInclusive<u64>,
+        event_types_to_filter: &[&str],
+    ) -> EthereumBaseLayerResult<Vec<Log>> {
+        let mut all_logs: Vec<Log> = Vec::new();
+        // Explicit LIFO stack instead of async recursion. On a split we push the high half then the
+        // low half, so the low half is popped (and fetched) first, keeping `all_logs` ascending.
+        let mut ranges_to_fetch = vec![block_range];
+        while let Some(range) = ranges_to_fetch.pop() {
+            let (start, end) = (*range.start(), *range.end());
+            match self.get_logs_in_range(range, event_types_to_filter).await {
+                Ok(mut logs) => all_logs.append(&mut logs),
+                Err(error) if is_range_too_large_error(&error) => {
+                    // Single-block floor: can't split further, surface the failure.
+                    if start == end {
+                        return Err(error);
+                    }
+                    let mid = start + (end - start) / 2;
+                    ranges_to_fetch.push((mid + 1)..=end);
+                    ranges_to_fetch.push(start..=mid);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(all_logs)
+    }
+}
+
+/// Classifies whether an error from a getLogs query indicates the queried block range was too large
+/// (or too slow) and should be bisected. Whitelists the oversized / timeout error class only;
+/// auth, rate-limit, connection and decoding errors return false so they propagate to the caller
+/// (and, for endpoint-down cases, the cyclic wrapper's failover) rather than triggering bisection.
+pub(crate) fn is_range_too_large_error(error: &EthereumBaseLayerError) -> bool {
+    match error {
+        // A window that times out is treated as too big/slow and bisected.
+        EthereumBaseLayerError::ProviderTimeout(_) => true,
+        EthereumBaseLayerError::RpcError(RpcError::ErrorResp(payload)) => {
+            is_oversized_error_payload(payload)
+        }
+        EthereumBaseLayerError::RpcError(RpcError::Transport(TransportErrorKind::HttpError(
+            HttpError { status, body },
+        ))) => {
+            // 413 Payload Too Large: the response exceeded the provider/proxy size limit.
+            *status == 413 || {
+                let body = body.to_lowercase();
+                body.contains("response size") || body.contains("too large")
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Matches a JSON-RPC error payload against known provider phrasings for oversized-range /
+/// too-many-results responses. Codes alone are not sufficient (`-32000` / `-32602` are overloaded);
+/// they only count when paired with a matching message.
+fn is_oversized_error_payload(payload: &ErrorPayload) -> bool {
+    let message = payload.message.to_lowercase();
+    let too_many_results = (message.contains("more than") && message.contains("results"))
+        || message.contains("query returned more than");
+    let response_too_large = message.contains("response size exceeded");
+    let query_too_slow = message.contains("query timeout") || message.contains("took too long");
+    let range_too_large = message.contains("block range is too large")
+        || message.contains("range too large")
+        || message.contains("exceed maximum block range");
+    // "limit exceeded" is overloaded, so only treat it as oversized alongside a block-range
+    // context.
+    let block_range_limit = message.contains("limit exceeded") && message.contains("block range");
+
+    too_many_results || response_too_large || query_too_slow || range_too_large || block_range_limit
 }
 
 #[async_trait]
@@ -172,16 +266,9 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         // Don't actually need mutability here, and using mut self doesn't work with async move in
         // the loop below.
         let immutable_self = &*self;
-        let filter = EthEventFilter::new()
-            .select(block_range.clone())
-            .events(event_types_to_filter)
-            .address(immutable_self.config.starknet_contract_address);
 
-        let matching_logs = tokio::time::timeout(
-            immutable_self.config.timeout_millis,
-            immutable_self.contract.provider().get_logs(&filter),
-        )
-        .await??;
+        let matching_logs =
+            immutable_self.get_logs_bisected(block_range.clone(), event_types_to_filter).await?;
 
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
