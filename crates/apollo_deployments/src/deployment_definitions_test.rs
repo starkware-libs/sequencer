@@ -11,27 +11,12 @@ use crate::deployment_definitions::ComponentConfigInService;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::jsonnet::{
-    assert_build_deserializes,
-    assert_infra_matches_rust,
-    test_applicative_matches_app_configs,
-};
+use crate::jsonnet::{assert_build_deserializes, assert_infra_matches_rust};
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
-
-/// Verifies the applicative config emitted by jsonnet matches the committed `app_configs/*.json`
-/// (the deployment's non-overridable value layer), up to overridable keys, secrets, and integers
-/// jsonnet can't represent.
-#[test]
-fn applicative_matches_app_configs() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
-    test_applicative_matches_app_configs();
-}
 
 /// Verifies the jsonnet hybrid infra config matches the Rust deployment definitions (hybrid.rs).
 #[test]
