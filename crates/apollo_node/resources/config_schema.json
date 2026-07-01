@@ -2929,15 +2929,15 @@
     "privacy": "Public",
     "value": "consensus_proposals"
   },
-  "consensus_manager_config.revert_config.revert_up_to_and_including": {
-    "description": "The component will revert blocks up to this block number (including).",
-    "pointer_target": "revert_config.revert_up_to_and_including",
+  "consensus_manager_config.revert_config": {
+    "description": "The component will revert blocks up to and including this block number. Use carefully to prevent significant revert operations and data loss.",
+    "pointer_target": "revert_config",
     "privacy": "Public"
   },
-  "consensus_manager_config.revert_config.should_revert": {
-    "description": "If set true, the component would revert blocks and do nothing else.",
-    "pointer_target": "revert_config.should_revert",
-    "privacy": "Public"
+  "consensus_manager_config.revert_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "revert_config.#is_none",
+    "privacy": "TemporaryValue"
   },
   "consensus_manager_config.staking_manager_config.dynamic_config.default_committee": {
     "description": "Defines the default committee configuration (size and stakers) for all epochs.",
@@ -3664,15 +3664,15 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
-  "revert_config.revert_up_to_and_including": {
-    "description": "The component will revert blocks up to this block number (including).",
+  "revert_config": {
+    "description": "The component will revert blocks up to and including this block number. Use carefully to prevent significant revert operations and data loss.",
     "privacy": "TemporaryValue",
-    "value": 18446744073709551615
+    "value": 0
   },
-  "revert_config.should_revert": {
-    "description": "If set true, the component would revert blocks and do nothing else.",
+  "revert_config.#is_none": {
+    "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
-    "value": false
+    "value": true
   },
   "sierra_compiler_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -3959,15 +3959,15 @@
     "privacy": "Public",
     "value": 50
   },
-  "state_sync_config.static_config.revert_config.revert_up_to_and_including": {
-    "description": "The component will revert blocks up to this block number (including).",
-    "pointer_target": "revert_config.revert_up_to_and_including",
+  "state_sync_config.static_config.revert_config": {
+    "description": "The component will revert blocks up to and including this block number. Use carefully to prevent significant revert operations and data loss.",
+    "pointer_target": "revert_config",
     "privacy": "Public"
   },
-  "state_sync_config.static_config.revert_config.should_revert": {
-    "description": "If set true, the component would revert blocks and do nothing else.",
-    "pointer_target": "revert_config.should_revert",
-    "privacy": "Public"
+  "state_sync_config.static_config.revert_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "revert_config.#is_none",
+    "privacy": "TemporaryValue"
   },
   "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.max_retries": {
     "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",

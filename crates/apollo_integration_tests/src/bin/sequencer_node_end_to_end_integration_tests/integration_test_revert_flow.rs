@@ -7,6 +7,7 @@ use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_integration_tests::utils::NodeDescriptor;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_reverts::RevertConfig;
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use tracing::info;
@@ -157,16 +158,16 @@ fn modify_revert_config_pointers(
     config_pointers: &mut ConfigPointersMap,
     revert_up_to_and_including: Option<BlockNumber>,
 ) {
-    let should_revert = revert_up_to_and_including.is_some();
-    config_pointers.change_target_value("revert_config.should_revert", Value::from(should_revert));
+    // `None` disables reverts via the optional param's "#is_none" flag.
+    config_pointers.change_target_value(
+        "revert_config.#is_none",
+        Value::from(revert_up_to_and_including.is_none()),
+    );
 
-    // If should revert is false, the revert_up_to_and_including value is irrelevant.
-    if should_revert {
-        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
-        config_pointers.change_target_value(
-            "revert_config.revert_up_to_and_including",
-            Value::from(revert_up_to_and_including.0),
-        );
+    // If no revert is requested, the revert_config value is irrelevant.
+    if let Some(revert_up_to_and_including) = revert_up_to_and_including {
+        config_pointers
+            .change_target_value("revert_config", Value::from(revert_up_to_and_including.0));
     }
 }
 
@@ -174,28 +175,9 @@ fn modify_revert_config(
     config: &mut SequencerNodeConfig,
     revert_up_to_and_including: Option<BlockNumber>,
 ) {
-    let should_revert = revert_up_to_and_including.is_some();
-    config.state_sync_config.as_mut().unwrap().static_config.revert_config.should_revert =
-        should_revert;
-    config.consensus_manager_config.as_mut().unwrap().revert_config.should_revert = should_revert;
-
-    // If should revert is false, the revert_up_to_and_including value is irrelevant.
-    if should_revert {
-        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
-        config
-            .state_sync_config
-            .as_mut()
-            .unwrap()
-            .static_config
-            .revert_config
-            .revert_up_to_and_including = revert_up_to_and_including;
-        config
-            .consensus_manager_config
-            .as_mut()
-            .unwrap()
-            .revert_config
-            .revert_up_to_and_including = revert_up_to_and_including;
-    }
+    let revert_config = RevertConfig(revert_up_to_and_including.map(|block_number| block_number.0));
+    config.state_sync_config.as_mut().unwrap().static_config.revert_config = revert_config;
+    config.consensus_manager_config.as_mut().unwrap().revert_config = revert_config;
 }
 
 fn modify_height_configs_idle_nodes(

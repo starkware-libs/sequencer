@@ -41,9 +41,11 @@ def set_revert_mode(
     revert_up_to_block: int,
     max_parallelism: int,
 ):
+    # `revert_config` is an optional param: the "#is_none" flag toggles reverting, and the value
+    # holds the target block (ignored while "#is_none" is true).
     config_overrides = {
-        "revert_config.should_revert": should_revert,
-        "revert_config.revert_up_to_and_including": revert_up_to_block,
+        "revert_config.#is_none": not should_revert,
+        "revert_config": revert_up_to_block,
     }
     update_config_and_restart_nodes(
         ConstConfigValuesUpdater(config_overrides),
@@ -115,7 +117,7 @@ def disable_revert_mode(
             RestartStrategy.ALL_AT_ONCE, namespace_and_instruction_args, Service.Core
         ),
         False,
-        # Setting to max block to max u64 to disable revert.
+        # Revert is disabled via the "#is_none" flag, so this value is an ignored placeholder.
         2**64 - 1,
         max_parallelism,
     )

@@ -140,8 +140,8 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) {
-        if self.config.revert_config.should_revert {
-            self.revert_batcher_blocks(self.config.revert_config.revert_up_to_and_including).await;
+        if let Some(revert_up_to_and_including) = self.config.revert_config.0 {
+            self.revert_batcher_blocks(BlockNumber(revert_up_to_and_including)).await;
         }
 
         let mut network_manager = self.create_network_manager();

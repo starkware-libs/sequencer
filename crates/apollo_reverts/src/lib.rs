@@ -1,8 +1,5 @@
-use std::collections::BTreeMap;
 use std::future::Future;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 #[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::AccessedKeysStorageWriter;
@@ -22,43 +19,27 @@ use futures::never::Never;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RevertConfig {
-    pub revert_up_to_and_including: BlockNumber,
-    pub should_revert: bool,
-}
+/// The canonical config param name for [`RevertConfig`]. It is dumped (via `ser_optional_param`) as
+/// a single optional leaf param under this name by every parent config, and is the shared pointer
+/// target.
+pub const REVERT_CONFIG_NAME: &str = "revert_config";
+pub const REVERT_CONFIG_DESCRIPTION: &str = "The component will revert blocks up to and including \
+                                             this block number. Use carefully to prevent \
+                                             significant revert operations and data loss.";
 
-impl Default for RevertConfig {
-    fn default() -> Self {
-        Self {
-            // Use u64::MAX as a placeholder to prevent setting this value to
-            // a low block number by mistake, which will cause significant revert operations.
-            revert_up_to_and_including: BlockNumber(u64::MAX),
-            should_revert: false,
-        }
-    }
-}
+/// The block number up to and including which the component will revert blocks. `None` means no
+/// reverts are performed.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(transparent)]
+pub struct RevertConfig(pub Option<u64>);
 
-impl SerializeConfig for RevertConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "revert_up_to_and_including",
-                &self.revert_up_to_and_including,
-                "The component will revert blocks up to this block number (including).",
-                // Use this configuration carefully to prevent significant revert operations and
-                // data loss
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "should_revert",
-                &self.should_revert,
-                "If set true, the component would revert blocks and do nothing else.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+// Implemented manually because the `Validate` derive does not support tuple structs. There is
+// nothing to validate.
+impl Validate for RevertConfig {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        Ok(())
     }
 }
 
