@@ -164,9 +164,7 @@ where
             .await?
         {
             RunHeightRes::Decision(decision) => {
-                // We expect there to be under 100 validators, so this is a reasonable number of
-                // precommits to print.
-                let round = decision.precommits[0].round;
+                let round = decision.round;
                 // Proposer should never fail here, we already checked it in the state machine.
                 let proposer = get_proposer_for_height(
                     &run_consensus_args.committee_provider,
@@ -178,6 +176,7 @@ where
                 if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
                 }
+                // Under 100 validators expected, so printing all precommits is reasonable.
                 info!(
                     "DECISION_REACHED: Decision reached for round {} with proposer {}. {:?}",
                     round, proposer, decision
@@ -509,11 +508,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let res = match consensus_result {
             Ok(ok) => match ok {
                 RunHeightRes::Decision(decision) => {
-                    let decided_round = decision
-                        .precommits
-                        .first()
-                        .expect("Decision must contain at least one precommit")
-                        .round;
+                    let decided_round = decision.round;
                     let wait_for_last_commitment =
                         self.consensus_config.dynamic_config.stop_at_height == Some(height);
                     // Commit decision to context.

@@ -123,6 +123,8 @@ pub trait ConsensusContext {
 pub struct Decision {
     pub precommits: Vec<Vote>,
     pub block: ProposalCommitment,
+    /// The round at which this decision was reached.
+    pub round: Round,
 }
 
 pub struct BroadcastVoteChannel {
