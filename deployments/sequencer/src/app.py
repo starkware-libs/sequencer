@@ -12,6 +12,7 @@ from src.config.loaders import (
     GrafanaDashboardConfigLoader,
 )
 from src.config.merger import merge_configs
+from src.config.overlays import overlay_dirs
 from src.config.schema import DeploymentConfig as DeploymentSchema
 from src.config.schema import Image
 from src.logging_config import configure_logging
@@ -97,19 +98,7 @@ def _get_config_paths(
     layout_common = layout_common_path if layout_common_path.exists() else None
 
     overlay_layers: list[tuple[Path | None, Path | None]] = []
-    for overlay in overlays:
-        overlay_path_segments = overlay.split(".")
-
-        if not overlay_path_segments or overlay_path_segments[0] != layout:
-            raise ValueError(
-                f"Overlay path '{overlay}' must start with the layout name '{layout}'. "
-                f"Example: '{layout}.mainnet.apollo-mainnet-0'"
-            )
-
-        overlay_base_path = base_dir / "configs" / "overlays" / layout
-        for segment in overlay_path_segments[1:]:
-            overlay_base_path = overlay_base_path / segment
-
+    for overlay_base_path in overlay_dirs(base_dir, layout, overlays):
         overlay_common_path = overlay_base_path / "common.yaml"
         overlay_common = overlay_common_path if overlay_common_path.exists() else None
         overlay_services_path = overlay_base_path / "services"
