@@ -24,6 +24,11 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 pub mod tree_test;
 
 pub(crate) type FilledTreeResult<T> = Result<T, FilledTreeError>;
+
+/// Minimum number of new hashes in each child of a binary node to be computed concurrently. Below
+/// this threshold the children are computed sequentially.
+const MIN_NEW_HASHES_FOR_CONCURRENT_BINARY: usize = 16;
+
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated
 /// data and hashes.
@@ -181,25 +186,38 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 let left_index = index * 2.into();
                 let right_index = left_index + NodeIndex::ROOT;
 
-                let (left_hash, right_hash) = (
-                    tokio::spawn(Self::compute_filled_tree_rec::<TH>(
-                        Arc::clone(&updated_skeleton),
-                        left_index,
-                        Arc::clone(&leaf_source),
-                        Arc::clone(&filled_tree_output_map),
-                    )),
-                    tokio::spawn(Self::compute_filled_tree_rec::<TH>(
-                        Arc::clone(&updated_skeleton),
-                        right_index,
-                        Arc::clone(&leaf_source),
-                        Arc::clone(&filled_tree_output_map),
-                    )),
+                let left_task = Self::compute_filled_tree_rec::<TH>(
+                    Arc::clone(&updated_skeleton),
+                    left_index,
+                    Arc::clone(&leaf_source),
+                    Arc::clone(&filled_tree_output_map),
+                );
+                let right_task = Self::compute_filled_tree_rec::<TH>(
+                    Arc::clone(&updated_skeleton),
+                    right_index,
+                    Arc::clone(&leaf_source),
+                    Arc::clone(&filled_tree_output_map),
                 );
 
-                let data = NodeData::Binary(BinaryData {
-                    left_data: left_hash.await??,
-                    right_data: right_hash.await??,
-                });
+                // Spawn the children concurrently only when both subtrees are large enough to
+                // offset the task-spawning overhead, or whenever the leaves must be computed (which
+                // may be heavy); otherwise compute sequentially.
+                let both_children_heavy = updated_skeleton.get_node(left_index)?.n_new_hashes()
+                    >= MIN_NEW_HASHES_FOR_CONCURRENT_BINARY
+                    && updated_skeleton.get_node(right_index)?.n_new_hashes()
+                        >= MIN_NEW_HASHES_FOR_CONCURRENT_BINARY;
+
+                let (left_data, right_data) = if both_children_heavy
+                    || matches!(leaf_source.as_ref(), LeafSource::ComputeLeaves { .. })
+                {
+                    let (left_hash, right_hash) =
+                        (tokio::spawn(left_task), tokio::spawn(right_task));
+                    (left_hash.await??, right_hash.await??)
+                } else {
+                    (left_task.await?, right_task.await?)
+                };
+
+                let data = NodeData::Binary(BinaryData { left_data, right_data });
 
                 let hash = TH::compute_node_hash(&data);
                 Self::write_to_output_map(

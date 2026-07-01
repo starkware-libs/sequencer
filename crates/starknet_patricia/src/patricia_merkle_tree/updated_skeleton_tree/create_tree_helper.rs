@@ -42,7 +42,8 @@ impl TempSkeletonNode {
         *self == Self::Empty
     }
 
-    /// The number of node hashes that must be (re)computed for the subtree rooted at this node.
+    /// The number of node hashes that must be (re)computed for the subtree rooted at this node
+    /// during the filled-tree pass.
     fn n_new_hashes(&self) -> usize {
         match self {
             Self::Empty | Self::Leaf | Self::OriginalUnmodified { .. } => 0,
