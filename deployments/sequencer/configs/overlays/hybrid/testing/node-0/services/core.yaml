@@ -104,6 +104,10 @@ service:
     port: 55011
     targetPort: 55011
     protocol: TCP
+  - name: proof-manager
+    port: 55012
+    targetPort: 55012
+    protocol: TCP
   - name: state-sync-storage-reader
     port: 55014
     targetPort: 55014
