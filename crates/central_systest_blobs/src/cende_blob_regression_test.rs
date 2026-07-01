@@ -58,6 +58,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ChainId,
     ContractAddress,
     Nonce,
@@ -547,7 +548,8 @@ impl BlobFactory {
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),
         };
-        let contract_address = rpc_tx_unsigned.calculate_contract_address().unwrap();
+        let contract_address =
+            rpc_tx_unsigned.calculate_contract_address(AddressDerivationHash::Pedersen).unwrap();
         let without_hash_unsigned = InternalRpcTransactionWithoutTxHash::DeployAccount(
             InternalRpcDeployAccountTransaction {
                 tx: RpcDeployAccountTransaction::V3(rpc_tx_unsigned.clone()),
@@ -645,6 +647,7 @@ impl BlobFactory {
             class_hash,
             &constructor_calldata,
             *OPERATOR_ADDRESS,
+            AddressDerivationHash::Pedersen,
         )
         .unwrap();
         let calldata = [

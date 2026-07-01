@@ -26,6 +26,7 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ClassHash,
     CompiledClassHash,
     ContractAddress,
@@ -1631,6 +1632,7 @@ fn test_deploy_account_constructor_storage_write(
         class_hash,
         &constructor_calldata,
         ContractAddress::default(),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
     let read_storage_arg = state.get_storage_at(deployed_contract_address, storage_key).unwrap();
