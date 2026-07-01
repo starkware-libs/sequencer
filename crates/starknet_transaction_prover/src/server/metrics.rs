@@ -26,6 +26,8 @@ pub const METRICS_PATH: &str = "/metrics";
 pub mod names {
     /// Build identity. Value is always 1; labels carry version + git_sha.
     pub const BUILD_INFO: &str = "prover_build_info";
+    /// Unhandled panics caught by the global panic hook.
+    pub const PANICS_TOTAL: &str = "prover_panics_total";
     /// Wall-clock duration of `prove_transaction` end-to-end. Bucketed.
     pub const PROVE_TRANSACTION_DURATION_SECONDS: &str =
         "prover_prove_transaction_duration_seconds";
@@ -73,6 +75,7 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     // Pre-register counters/gauges at zero so they show up in scrapes
     // before the first request — dashboards relying on `rate(...) > 0`
     // need the series to exist.
+    metrics::counter!(names::PANICS_TOTAL).increment(0);
     super::http_metrics::preregister_http_metrics();
     Ok(handle)
 }

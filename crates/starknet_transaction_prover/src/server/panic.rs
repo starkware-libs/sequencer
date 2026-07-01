@@ -3,13 +3,16 @@
 //! Without an explicit hook, panics in `tokio::spawn`ed work hit the runtime's
 //! default handler and print to stderr in an ad-hoc format. We want one
 //! structured `tracing` event with location + backtrace so log aggregators
-//! can index it. The hook only emits a log line — runtime abort-on-panic
-//! behavior is preserved.
+//! can index it, plus a `prover_panics_total` bump so dashboards/alerts can
+//! fire on panic rate rather than relying on log search. The hook does not
+//! abort — runtime abort-on-panic behavior is preserved.
 
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
 
 use tracing::error;
+
+use crate::server::metrics::names::PANICS_TOTAL;
 
 #[cfg(test)]
 #[path = "panic_test.rs"]
@@ -20,6 +23,9 @@ pub fn install_panic_hook() {
 }
 
 fn panic_hook(info: &PanicHookInfo<'_>) {
+    // Increment first — if `Backtrace::force_capture` or the `error!` macro
+    // panic recursively, the counter still reflects the original panic.
+    metrics::counter!(PANICS_TOTAL).increment(1);
     let message = extract_payload(info);
     let location = info
         .location()
