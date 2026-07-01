@@ -36,7 +36,10 @@ use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::L1EventsProviderConfig;
 
 macro_rules! make_catchupper {
-    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {{
+    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {
+        make_catchupper!(backlog: [$($height => [$($tx),*]),*], max: usize::MAX)
+    };
+    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], max: $max:expr) => {{
         Catchupper {
             commit_block_backlog: vec![
                 $(CommitBlockBacklog {
@@ -49,7 +52,8 @@ macro_rules! make_catchupper {
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
             n_sync_health_check_failures: Default::default(),
-            sync_retry_interval: Duration::from_millis(10)
+            sync_retry_interval: Duration::from_millis(10),
+            max_commit_block_backlog_len: $max
         }
     }};
 }

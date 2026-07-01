@@ -20,6 +20,7 @@ define_metrics!(
         MetricGauge { L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS, "l1_message_scraper_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful L1 message scrape" },
         MetricGauge { L1_MESSAGE_PROVIDER_NUM_PENDING_TXS, "l1_message_provider_num_pending_txs", "The number of pending L1 handler transactions in the transaction manager" },
         MetricGauge { L1_MESSAGE_PROVIDER_OLDEST_PENDING_TX_L1_TIMESTAMP_SECONDS, "l1_message_provider_oldest_pending_tx_l1_timestamp_seconds", "The L1 block timestamp (unix seconds) of the oldest pending (uncommitted) L1 handler transaction; 0 when none are pending" },
+        MetricGauge { L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN, "l1_message_provider_commit_block_backlog_len", "The number of commit-blocks buffered in the catch-up backlog while the provider syncs to the target height; abnormal sustained growth indicates a stalled or lagging L2 sync" },
     },
 );
 
@@ -35,4 +36,5 @@ pub(crate) fn register_scraper_metrics() {
 pub(crate) fn register_provider_metrics() {
     L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.register();
     L1_MESSAGE_PROVIDER_OLDEST_PENDING_TX_L1_TIMESTAMP_SECONDS.register();
+    L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.register();
 }

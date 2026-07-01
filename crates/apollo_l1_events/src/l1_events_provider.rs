@@ -22,7 +22,7 @@ use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::catchupper::Catchupper;
-use crate::metrics::register_provider_metrics;
+use crate::metrics::{register_provider_metrics, L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN};
 use crate::transaction_manager::TransactionManager;
 use crate::L1EventsProviderConfig;
 
@@ -71,6 +71,7 @@ impl L1EventsProvider {
             l1_events_provider_client,
             state_sync_client,
             config.startup_sync_sleep_retry_interval_seconds,
+            config.max_commit_block_backlog_len,
         );
         Self {
             config,
@@ -87,6 +88,7 @@ impl L1EventsProvider {
             self.catchupper.l1_events_provider_client.clone(),
             self.catchupper.sync_client.clone(),
             self.config.startup_sync_sleep_retry_interval_seconds,
+            self.config.max_commit_block_backlog_len,
         );
     }
     // Functions Called by the scraper.
@@ -432,7 +434,7 @@ impl L1EventsProvider {
             Equal => self.apply_commit_block(committed_txs, Default::default()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
-                self.catchupper.add_commit_block_to_backlog(committed_txs, new_height);
+                self.catchupper.add_commit_block_to_backlog(committed_txs, new_height)?;
                 // No need to check the backlog or catchup completion, since those are only
                 // applicable if we just increased the provider's height, like in the `Equal` case.
                 return Ok(());
@@ -448,6 +450,8 @@ impl L1EventsProvider {
                 self.current_height
             );
             let backlog = std::mem::take(&mut self.catchupper.commit_block_backlog);
+            // The backlog is fully consumed below; reset its gauge to 0.
+            L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.set_lossy(0_usize);
             assert!(
                 backlog.is_empty()
                     || self.current_height == backlog.first().unwrap().height

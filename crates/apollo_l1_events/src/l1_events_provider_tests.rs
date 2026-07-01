@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -24,6 +25,7 @@ use apollo_time::time::Clock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
 use itertools::Itertools;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
@@ -33,6 +35,7 @@ use starknet_api::tx_hash;
 
 use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_events_provider::L1EventsProvider;
+use crate::metrics::{register_provider_metrics, L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN};
 use crate::test_utils::{
     l1_handler,
     make_catchupper,
@@ -413,6 +416,118 @@ async fn commit_block_backlog() {
         .with_state(ProviderState::Pending)
         .build();
     expected_l1_events_provider.assert_eq(&l1_events_provider);
+}
+
+/// Drives `commit_block` with strictly-increasing (`Greater`) heights while catching up, so each
+/// one is appended to the backlog. Returns the provider so callers can inspect/continue.
+fn provider_catching_up_with_backlog_cap(max_commit_block_backlog_len: usize) -> L1EventsProvider {
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(0);
+    let catchupper = make_catchupper!(backlog: [], max: max_commit_block_backlog_len);
+    L1EventsProviderContentBuilder::new()
+        .with_catchupper(catchupper)
+        .with_height(STARTUP_HEIGHT)
+        .with_state(ProviderState::CatchingUp)
+        .build_into_l1_provider()
+}
+
+#[test]
+fn backlog_below_cap_accepts_all_commits() {
+    const CAP: usize = 3;
+    let mut l1_events_provider = provider_catching_up_with_backlog_cap(CAP);
+
+    // Two commits, both above current height (0) -> backlogged, staying below the cap of 3.
+    for height in [BlockNumber(1), BlockNumber(2)] {
+        commit_block_no_rejected(&mut l1_events_provider, &[], height);
+    }
+
+    assert_eq!(l1_events_provider.catchupper.commit_block_backlog.len(), 2);
+}
+
+#[test]
+fn backlog_fills_exactly_to_cap_without_error() {
+    const CAP: usize = 3;
+    let mut l1_events_provider = provider_catching_up_with_backlog_cap(CAP);
+
+    // Exactly CAP commits fit (heights 1..=3, all above current height 0).
+    for height in [BlockNumber(1), BlockNumber(2), BlockNumber(3)] {
+        commit_block_no_rejected(&mut l1_events_provider, &[], height);
+    }
+
+    let backlog = &l1_events_provider.catchupper.commit_block_backlog;
+    assert_eq!(backlog.len(), CAP);
+    // The backlog must remain a gapless, strictly-sequential run.
+    assert_eq!(
+        backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>(),
+        vec![BlockNumber(1), BlockNumber(2), BlockNumber(3)]
+    );
+}
+
+#[test]
+fn backlog_over_cap_returns_overflow_error_without_dropping() {
+    const CAP: usize = 3;
+    let mut l1_events_provider = provider_catching_up_with_backlog_cap(CAP);
+
+    // Fill the backlog exactly to the cap.
+    for height in [BlockNumber(1), BlockNumber(2), BlockNumber(3)] {
+        commit_block_no_rejected(&mut l1_events_provider, &[], height);
+    }
+
+    // The next commit overflows the cap and must be rejected with a descriptive error.
+    let overflow_height = BlockNumber(4);
+    let result = l1_events_provider.commit_block([].into(), [].into(), overflow_height);
+    assert_matches!(
+        result,
+        Err(L1EventsProviderError::CatchUpBacklogOverflow { height, max })
+            if height == overflow_height && max == CAP
+    );
+
+    // Nothing was silently dropped: the backlog is still exactly CAP entries and gapless.
+    let backlog = &l1_events_provider.catchupper.commit_block_backlog;
+    assert_eq!(backlog.len(), CAP);
+    assert_eq!(
+        backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>(),
+        vec![BlockNumber(1), BlockNumber(2), BlockNumber(3)]
+    );
+}
+
+#[tokio::test]
+async fn backlog_len_metric_tracks_push_and_drain() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    // Start catching up with current height 0 and a target one above it, so a single `Equal`
+    // commit (height 1) completes catch-up and drains the backlog.
+    const TARGET_HEIGHT: BlockNumber = BlockNumber(0);
+    let mut catchupper = make_catchupper!(backlog: []);
+    catchupper.target_height = Arc::new(AtomicU64::new(TARGET_HEIGHT.0));
+    let mut l1_events_provider = L1EventsProviderContentBuilder::new()
+        .with_catchupper(catchupper)
+        .with_height(BlockNumber(0))
+        .with_state(ProviderState::CatchingUp)
+        .build_into_l1_provider();
+    // Registers the gauge so it is rendered even before its first `set`.
+    register_provider_metrics();
+
+    // Two `Greater` commits (heights 1, 2) are backlogged; the gauge tracks the backlog length.
+    // They start sequentially one above the current height (0), as the drain-time invariant
+    // requires.
+    commit_block_no_rejected(&mut l1_events_provider, &[], BlockNumber(1));
+    commit_block_no_rejected(&mut l1_events_provider, &[], BlockNumber(2));
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.parse_numeric_metric::<usize>(&metrics),
+        Some(2)
+    );
+
+    // The `Equal` commit at height 0 completes catch-up (current height becomes 1 > target 0),
+    // drains the backlog [1, 2], and resets the gauge to 0.
+    commit_block_no_rejected(&mut l1_events_provider, &[], BlockNumber(0));
+    assert_eq!(l1_events_provider.state, ProviderState::Pending);
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.parse_numeric_metric::<usize>(&metrics),
+        Some(0)
+    );
 }
 
 #[test]
