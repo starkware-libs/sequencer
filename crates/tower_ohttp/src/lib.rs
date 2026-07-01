@@ -34,6 +34,14 @@ pub use errors::OhttpError;
 pub use gateway::OhttpGateway;
 pub use layer::{OhttpLayer, OhttpService};
 
+/// Marker inserted into the extensions of a request rebuilt from a decapsulated
+/// OHTTP envelope, before it is forwarded to the inner service. Downstream
+/// layers can check for it (`request.extensions().get::<Decapsulated>()`) to
+/// distinguish envelope-decapsulated traffic from plaintext pass-through —
+/// the two are otherwise indistinguishable once the inner request is rebuilt.
+#[derive(Clone, Copy, Debug)]
+pub struct Decapsulated;
+
 pub(crate) const OHTTP_REQUEST_CONTENT_TYPE: &str = "message/ohttp-req";
 pub(crate) const OHTTP_RESPONSE_CONTENT_TYPE: &str = "message/ohttp-res";
 pub(crate) const OHTTP_KEYS_PATH: &str = "/ohttp-keys";
