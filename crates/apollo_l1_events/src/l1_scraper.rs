@@ -144,6 +144,8 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
         debug!("Latest L1 block number: {latest_l1_block_number:?}");
 
         // Estimate the number of blocks in the interval, to rewind from the latest block.
+        // The divisor is validated to be non-zero at config-load time (see
+        // `validate_non_zero_secs`).
         let blocks_in_interval = self.config.startup_rewind_time_seconds.as_secs()
             / self.config.l1_block_time_seconds.as_secs();
         debug!("Blocks in interval: {blocks_in_interval}");
