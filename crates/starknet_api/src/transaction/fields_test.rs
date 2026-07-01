@@ -61,3 +61,39 @@ fn proof_facts_debug_falls_back_for_unparseable() {
     let facts = ProofFacts(Arc::new(vec![Felt::from_hex_unchecked("0xDEAD")]));
     assert_eq!(format!("{:?}", facts), "ProofFacts([<1 elements>])");
 }
+
+#[test]
+fn transaction_signature_debug_hides_felts() {
+    let signature =
+        TransactionSignature(Arc::new(vec![Felt::from_hex_unchecked("0xDEADBEEF"), Felt::TWO]));
+    let debug = format!("{signature:?}");
+    assert_eq!(debug, "TransactionSignature(<2 felts>)");
+    assert!(!debug.contains("deadbeef"), "raw signature felt leaked into Debug output: {debug}");
+}
+
+#[test]
+fn calldata_debug_hides_felts() {
+    let calldata = Calldata(Arc::new(vec![Felt::from_hex_unchecked("0xC0FFEE")]));
+    let debug = format!("{calldata:?}");
+    assert_eq!(debug, "Calldata(<1 felts>)");
+    assert!(!debug.contains("c0ffee"), "raw calldata felt leaked into Debug output: {debug}");
+}
+
+#[test]
+fn paymaster_data_debug_hides_felts() {
+    let paymaster_data = PaymasterData(vec![Felt::from_hex_unchecked("0xDEADBEEF"), Felt::TWO]);
+    let debug = format!("{paymaster_data:?}");
+    assert_eq!(debug, "PaymasterData(<2 felts>)");
+    assert!(!debug.contains("deadbeef"), "raw paymaster felt leaked into Debug output: {debug}");
+}
+
+#[test]
+fn account_deployment_data_debug_hides_felts() {
+    let account_deployment_data = AccountDeploymentData(vec![Felt::from_hex_unchecked("0xC0FFEE")]);
+    let debug = format!("{account_deployment_data:?}");
+    assert_eq!(debug, "AccountDeploymentData(<1 felts>)");
+    assert!(
+        !debug.contains("c0ffee"),
+        "raw account deployment felt leaked into Debug output: {debug}"
+    );
+}
