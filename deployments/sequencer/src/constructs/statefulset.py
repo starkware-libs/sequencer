@@ -69,7 +69,7 @@ class StatefulSetConstruct(BaseConstruct):
             self.monitoring_endpoint_port,
         )
 
-        selector_labels = {"service": statefulset_labels["service"]}
+        selector_labels = {"app": "sequencer", "service": f"sequencer-{self.service_config.name}"}
 
         return k8s.KubeStatefulSet(
             self,
