@@ -210,7 +210,7 @@ pub struct BatcherStaticConfig {
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
     /// If true, the batcher only validates proposed blocks and cannot build proposals.
-    /// Set via the node-level validation_only config pointer.
+    /// Mirrors the node-level `validation_only`; `validate_node_config` asserts the two are equal.
     pub validation_only: bool,
 }
 
