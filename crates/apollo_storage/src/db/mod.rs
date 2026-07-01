@@ -22,16 +22,13 @@ pub mod serialization;
 pub(crate) mod table_types;
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::result;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use libmdbx::{DatabaseOptions, Mode, PageSize, ReadWriteOptions, WriteMap};
 use serde::{Deserialize, Serialize};
@@ -90,58 +87,6 @@ impl Default for DbConfig {
             growth_step: 1 << 32, // 4GB
             max_readers: 1 << 13, // 8K readers
         }
-    }
-}
-
-impl SerializeConfig for DbConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "path_prefix",
-                &self.path_prefix,
-                "Prefix of the path of the node's storage directory, the storage file path \
-                will be <path_prefix>/<chain_id>. The path is not created automatically.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "chain_id",
-                &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "enforce_file_exists",
-                &self.enforce_file_exists,
-                "Whether to enforce that the path exists. If true, `open_env` fails when the \
-                mdbx.dat file does not exist.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_size",
-                &self.min_size,
-                "The minimum size of the node's storage in bytes.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_size",
-                &self.max_size,
-                "The maximum size of the node's storage in bytes.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "growth_step",
-                &self.growth_step,
-                "The growth step in bytes, must be greater than zero to allow the database to \
-                 grow.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_readers",
-                &self.max_readers,
-                "The maximum number of readers used by the database.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

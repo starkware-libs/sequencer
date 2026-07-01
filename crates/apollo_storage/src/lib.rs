@@ -128,8 +128,6 @@ use std::fs;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
@@ -544,25 +542,6 @@ pub struct BatchConfig {
 impl Default for BatchConfig {
     fn default() -> Self {
         Self { enabled: false, batch_size: NonZeroUsize::new(100).expect("100 is non-zero") }
-    }
-}
-
-impl SerializeConfig for BatchConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "enabled",
-                &self.enabled,
-                "Whether transaction batching is enabled.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "batch_size",
-                &self.batch_size,
-                "Number of logical commits before actual MDBX commit.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 
@@ -1098,22 +1077,6 @@ pub struct StorageConfig {
     #[serde(default)]
     #[validate(nested)]
     pub batch_config: BatchConfig,
-}
-
-impl SerializeConfig for StorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dumped_config = BTreeMap::from_iter([ser_param(
-            "scope",
-            &self.scope,
-            "The categories of data saved in storage.",
-            ParamPrivacyInput::Public,
-        )]);
-        dumped_config
-            .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
-        dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
-        dumped_config.extend(prepend_sub_config_name(self.batch_config.dump(), "batch_config"));
-        dumped_config
-    }
 }
 
 /// A struct for the statistics of the tables in the database.

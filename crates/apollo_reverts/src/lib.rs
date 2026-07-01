@@ -1,8 +1,5 @@
-use std::collections::BTreeMap;
 use std::future::Future;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 #[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::AccessedKeysStorageWriter;
@@ -91,27 +88,6 @@ impl Default for RevertConfig {
             revert_up_to_and_including: BlockNumber(u64::MAX),
             should_revert: false,
         }
-    }
-}
-
-impl SerializeConfig for RevertConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "revert_up_to_and_including",
-                &self.revert_up_to_and_including,
-                "The component will revert blocks up to this block number (including).",
-                // Use this configuration carefully to prevent significant revert operations and
-                // data loss
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "should_revert",
-                &self.should_revert,
-                "If set true, the component would revert blocks and do nothing else.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 
