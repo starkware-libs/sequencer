@@ -3,16 +3,13 @@
 // name; the per-chain values have no default, the override keys fall back to `default_replacers` when
 // absent. (The env-shared P2P multiaddrs and per-node validator_id are supplied by the devops overlay
 // layers.)
+local constants = import 'lib/constants.libsonnet';
 {
   chain_id: 'SN_SEPOLIA',
   starknet_url: 'https://feeder.alpha-sepolia.starknet.io/',
   recorder_url: 'http://starknet-sepolia-alpha.cende-recorder-proxy.starknet.io/',
   starknet_contract_address: '0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057',
-  base_layer: {
-    bpo1_start_block_number: 9456501,
-    bpo2_start_block_number: 9504747,
-    fusaka_no_bpo_start_block_number: 9408577,
-  },
+  base_layer: constants.ETH_TESTNET_BASE_LAYER,
   staking_default_committee: '0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true',
   proof_archive_bucket_name: 'starkware-starknet-alpha',
 
