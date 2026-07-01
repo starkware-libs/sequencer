@@ -159,24 +159,23 @@ where
 
 /// In old transactions, the resource bounds names are lowercase.
 /// Need to convert to uppercase for deserialization to work.
+///
+/// Input may be attacker-controlled (e.g. an unparsable transaction body received over HTTP), so
+/// a missing or non-object `resource_bounds` field must not panic; the transaction is left
+/// unchanged and the typed deserialization that follows reports the error.
 fn upper_case_resource_bounds_names(raw_transaction: &mut Value) {
-    let resource_bounds = raw_transaction
-        .get_mut("resource_bounds")
-        .expect("tx should contain resource_bounds field")
-        .as_object_mut()
-        .expect("resource_bounds should be an object");
+    let Some(resource_bounds) =
+        raw_transaction.get_mut("resource_bounds").and_then(Value::as_object_mut)
+    else {
+        return;
+    };
 
-    if let Some(l1_gas_value) = resource_bounds.remove("l1_gas") {
-        resource_bounds.insert("L1_GAS".to_string(), l1_gas_value);
-
-        let l2_gas_value = resource_bounds
-            .remove("l2_gas")
-            .expect("If tx contains l1_gas, it should contain l2_gas");
-        resource_bounds.insert("L2_GAS".to_string(), l2_gas_value);
-    }
-
-    if let Some(l1_data_gas_value) = resource_bounds.remove("l1_data_gas") {
-        resource_bounds.insert("L1_DATA_GAS".to_string(), l1_data_gas_value);
+    for (lower_case_name, upper_case_name) in
+        [("l1_gas", "L1_GAS"), ("l2_gas", "L2_GAS"), ("l1_data_gas", "L1_DATA_GAS")]
+    {
+        if let Some(resource_bounds_value) = resource_bounds.remove(lower_case_name) {
+            resource_bounds.insert(upper_case_name.to_string(), resource_bounds_value);
+        }
     }
 }
 
