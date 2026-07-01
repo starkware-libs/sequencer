@@ -33,6 +33,13 @@ class BlockStoreTuning:
     """
 
     max_blocks_to_keep_in_memory: int = 100
+    # Raw cende blob bodies dominate memory (p95 ~80 MB, max ~110 MB) and only
+    # the OS runner consumes them — block doc + state_update are kept for the
+    # transaction sender's tx-confirmation window, which is what drives
+    # `max_blocks_to_keep_in_memory`. Cap blob_body in-memory retention much
+    # tighter; older blobs are archived to disk and read back via
+    # `get_blob_body_with_disk_fallback` on demand.
+    max_blob_bodies_to_keep_in_memory: int = 30
 
 
 class ResyncTriggerPayload(TypedDict):
@@ -161,6 +168,27 @@ class PathsConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class OsRunnerConfig:
+    """
+    Configuration for running the Starknet OS over each received blob.
+
+    The OS is invoked by shelling out to the same `starknet_committer_and_os_cli`
+    binary that backs the block-hash calculator, via its `OS run-os-stateless`
+    subcommand. The binary must be built with the `os_input` and `transaction_serde`
+    features for the cende blob to carry `recent_state_commitment_infos` and for the
+    OS input's `StateMaps` to deserialize.
+    """
+
+    enabled: bool = False
+    layout: str = "all_cairo"
+    cli_timeout_secs: int = 600
+    chain_id: str = "SN_MAIN"
+    strk_fee_token_address: str = (
+        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class TxFilterConfig:
     """Transaction forwarding filter parameters."""
 
@@ -200,6 +228,7 @@ class EchonetConfig:
     block_store: BlockStoreTuning
     severity: SeverityConfig
     paths: PathsConfig
+    os_runner: OsRunnerConfig
     tx_filter: TxFilterConfig
     l1: L1Config
     gcp_logs: GcpLogsConfig
@@ -259,6 +288,21 @@ class EchonetConfig:
             ),
             severity=SeverityConfig(),
             paths=PathsConfig(),
+            os_runner=OsRunnerConfig(
+                enabled=bool(keys.get("os_runner_enabled", True)),
+                layout=str(keys.get("os_runner_layout", "all_cairo")),
+                cli_timeout_secs=int(keys.get("os_runner_cli_timeout_secs", 600)),
+                chain_id=str(keys.get("os_runner_chain_id", "SN_MAIN")),
+                # NOTE: `OsRunnerConfig.strk_fee_token_address` evaluates to a slot
+                # descriptor (`slots=True`), NOT the default value — inline the
+                # literal here so the keys.get() fallback resolves correctly.
+                strk_fee_token_address=str(
+                    keys.get(
+                        "os_runner_strk_fee_token_address",
+                        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+                    )
+                ),
+            ),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
             ),

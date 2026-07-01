@@ -20,6 +20,7 @@ from echonet.echonet_types import (
 from echonet.l1_logic.l1_client import L1Client
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.os_input_builder import decompress_state_commitment_infos
 from echonet.report_models import SnapshotModel
 
 logger = get_logger("shared_context")
@@ -333,16 +334,58 @@ class _BlockStore:
         evict_bns = [bn for bn in store.keys() if bn < cutoff]
         return [(bn, store.pop(bn)) for bn in sorted(evict_bns)]
 
+    def _evict_old_blob_bodies(self, current_block_number: int) -> List[tuple[int, bytes]]:
+        """
+        Drop in-memory `blob_body` for entries older than the blob retention
+        window (the entry itself stays — block doc + state_update remain
+        available for the tx sender). Returns the (block_number, blob_bytes)
+        pairs that were dropped so the caller can archive them.
+        """
+        cutoff = current_block_number - CONFIG.block_store.max_blob_bodies_to_keep_in_memory
+        evicted: List[tuple[int, bytes]] = []
+        for bn, entry in self.blocks.items():
+            if bn >= cutoff:
+                continue
+            blob_body = entry.get("blob_body")
+            if blob_body is None:
+                continue
+            evicted.append((bn, blob_body))
+            entry["blob_body"] = None
+        return evicted
+
     # --- Block store API ---
     def store_block(
-        self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
-    ) -> List[tuple[int, JsonObject]]:
+        self,
+        block_number: int,
+        blob_body: bytes,
+        fgw_block: JsonObject,
+        state_update: JsonObject,
+        block_commitments: JsonObject,
+    ) -> tuple[List[tuple[int, JsonObject]], List[tuple[int, bytes]]]:
+        # MEMORY: store the blob as raw JSON bytes, not the parsed Python
+        # dict. A 6 MB blob parses to 30-50 MB of Python heap (millions of
+        # tiny dict/list/str/int objects, each with ~85 byte CPython
+        # overhead) which glibc then backs with 4-6× that in arena pages.
+        # At max_blocks_to_keep_in_memory=250 the parsed-dict variant
+        # reliably OOMs the pod above 16 GiB. Bytes give a 5-8× reduction
+        # without losing any information — consumers parse just-in-time.
+        #
+        # `block_commitments` is the 5-felt `BlockHeaderCommitments` dict
+        # (returned by the block-hash CLI at ingest); stashed here so the
+        # OS runner worker can splice it into its input without re-parsing
+        # `blob_body` just to recompute the same values.
         self.blocks[block_number] = {
-            "blob": blob,
+            "blob_body": blob_body,
             "block": fgw_block,
             "state_update": state_update,
+            "block_commitments": block_commitments,
         }
-        return self._evict_old_items(self.blocks, current_block_number=block_number)
+        evicted_items = self._evict_old_items(self.blocks, current_block_number=block_number)
+        # Blob-body retention is tighter than block retention; drop in-memory
+        # blob_body for entries that have aged past `max_blob_bodies_to_keep_in_memory`
+        # but are still within `max_blocks_to_keep_in_memory`.
+        evicted_blob_bodies = self._evict_old_blob_bodies(current_block_number=block_number)
+        return evicted_items, evicted_blob_bodies
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
         self.fgw_blocks[block_number] = block_obj
@@ -373,10 +416,9 @@ class _BlockStore:
     ) -> None:
         try:
             for bn, entry in snapshot_items:
-                (base_dir / f"blob_{bn}.json").write_text(
-                    json.dumps(entry["blob"], ensure_ascii=False),
-                    encoding="utf-8",
-                )
+                blob_body = entry.get("blob_body")
+                if blob_body is not None:
+                    (base_dir / f"blob_{bn}.json").write_bytes(blob_body)
                 (base_dir / f"block_{bn}.json").write_text(
                     json.dumps(entry["block"], ensure_ascii=False),
                     encoding="utf-8",
@@ -388,6 +430,53 @@ class _BlockStore:
             _BlockStore._enforce_blocks_archives_size_cap()
         except Exception as e:
             logger.error(f"Failed to snapshot blocks to disk: {e}")
+
+    @staticmethod
+    def write_blob_bodies_to_disk(blob_body_items: List[tuple[int, bytes]], base_dir: Path) -> None:
+        """
+        Archive blob bodies that were evicted from memory while their parent
+        entry (block doc + state_update) stays cached. The OS runner reads them
+        back via `get_blob_body_with_disk_fallback`.
+        """
+        try:
+            for bn, blob_body in blob_body_items:
+                (base_dir / f"blob_{bn}.json").write_bytes(blob_body)
+            _BlockStore._enforce_blocks_archives_size_cap()
+        except Exception as e:
+            logger.error(f"Failed to archive evicted blob bodies to disk: {e}")
+
+
+@dataclass(slots=True)
+class _OsRunStats:
+    """
+    Cumulative counters for OS-runner outcomes, surfaced in the echonet report.
+    Match the log-line categories emitted from `echo_center._maybe_run_os` /
+    `_try_enqueue_os_run` / `_os_run_worker`.
+
+    `recent_failures` is a rolling list of `{block_number, ts, error}` entries
+    for the last N hard failures — exposed in the report so a quick read can
+    map a failure count to actual blocks + the panic line that caused them.
+    """
+
+    completed: int
+    failed: int
+    dropped: int
+    deferred_events: int
+    abandoned: int
+    skipped: int
+    recent_failures: List[JsonObject]
+
+    @classmethod
+    def empty(cls) -> "_OsRunStats":
+        return cls(
+            completed=0,
+            failed=0,
+            dropped=0,
+            deferred_events=0,
+            abandoned=0,
+            skipped=0,
+            recent_failures=[],
+        )
 
 
 @dataclass(slots=True)
@@ -475,6 +564,25 @@ class SharedContext:
         self._hash_mismatches = _BlockHashMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._os_runs = _OsRunStats.empty()
+        self._os_run_live = {"queue_depth": 0, "queue_max": 0, "deferred_count": 0}
+        # State-commitment-info store, populated from every incoming blob's
+        # `recent_state_commitment_infos` vector. Two purposes:
+        #
+        # 1. OS-run input building: with the sequencer's cende-commitment-delta
+        #    optimization, blob N+1 may no longer carry N's commit (since we
+        #    told the sequencer we already have it). So we keep our own copy
+        #    instead of re-extracting from the blob at OS-run time.
+        # 2. The `last_stored_commitment_height` query — the sequencer skips
+        #    every commit at-or-below the height we return, so we must report
+        #    the highest *contiguous* block we hold (no internal gaps), else
+        #    the missing block's commit is dropped forever from the wire.
+        #
+        # Cap the dict so it doesn't grow unbounded; trim oldest entries beyond
+        # `_COMMITS_RETENTION` heights. Not persisted across pod restart — the
+        # sequencer falls back to its full window when we return null/None.
+        self._commits_by_block: Dict[int, JsonObject] = {}
+        self._last_stored_commitment_height: Optional[int] = None
         self._epoch = 0
 
     def get_uptime_seconds(self) -> int:
@@ -483,6 +591,137 @@ class SharedContext:
     def get_epoch(self) -> int:
         with self._lock:
             return self._epoch
+
+    # --- OS-runner stats ---
+    def record_os_run_completed(self) -> None:
+        with self._lock:
+            self._os_runs.completed += 1
+
+    # Cap on per-block-failure entries kept for the report. Older entries get
+    # dropped FIFO; the report shows "most recent N failures" — enough to spot
+    # patterns without growing unbounded.
+    _OS_RUN_FAILURES_RETENTION: int = 50
+
+    def record_os_run_failed(self, block_number: int, error: str) -> None:
+        # `error` is the exception message + worker subprocess stderr; capped
+        # generously so a full Cairo traceback fits but the report stays
+        # bounded. Full text always survives in pod logs.
+        entry = {
+            "block_number": int(block_number),
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "error": error[:4096],
+        }
+        with self._lock:
+            self._os_runs.failed += 1
+            self._os_runs.recent_failures.append(entry)
+            overflow = len(self._os_runs.recent_failures) - SharedContext._OS_RUN_FAILURES_RETENTION
+            if overflow > 0:
+                del self._os_runs.recent_failures[:overflow]
+
+    def record_os_run_dropped(self) -> None:
+        with self._lock:
+            self._os_runs.dropped += 1
+
+    def record_os_run_deferred(self) -> None:
+        with self._lock:
+            self._os_runs.deferred_events += 1
+
+    def record_os_run_abandoned(self) -> None:
+        with self._lock:
+            self._os_runs.abandoned += 1
+
+    def record_os_run_skipped(self) -> None:
+        with self._lock:
+            self._os_runs.skipped += 1
+
+    def set_os_run_live_state(self, queue_depth: int, queue_max: int, deferred_count: int) -> None:
+        with self._lock:
+            self._os_run_live["queue_depth"] = queue_depth
+            self._os_run_live["queue_max"] = queue_max
+            self._os_run_live["deferred_count"] = deferred_count
+
+    def _os_run_stats_dict_locked(self) -> JsonObject:
+        """Caller must hold `self._lock`. Shape mirrored by
+        `get_report_snapshot`'s `os_run_stats` field — keep in sync."""
+        return {
+            "completed": self._os_runs.completed,
+            "failed": self._os_runs.failed,
+            "dropped": self._os_runs.dropped,
+            "deferred_events": self._os_runs.deferred_events,
+            "abandoned": self._os_runs.abandoned,
+            "skipped": self._os_runs.skipped,
+            "queue_depth": self._os_run_live["queue_depth"],
+            "queue_max": self._os_run_live["queue_max"],
+            "currently_deferred": self._os_run_live["deferred_count"],
+            "recent_failures": list(self._os_runs.recent_failures),
+        }
+
+    def get_os_run_stats(self) -> JsonObject:
+        with self._lock:
+            return self._os_run_stats_dict_locked()
+
+    # --- Cende-recorder commitment-info tracking ---
+    # Retain just the deferred-retry window's worth of commits. Once a block
+    # ages past `_RECENT_STATE_COMMITMENT_WINDOW` (10) heights it's permanently
+    # abandoned for OS runs (see `_maybe_run_os` in echo_center), so older
+    # commits are dead weight. Workers hold their task's commit directly after
+    # enqueue, so the store doesn't need to span the OS-run duration either.
+    _COMMITS_RETENTION: int = 10
+
+    def get_last_stored_commitment_height(self) -> Optional[int]:
+        with self._lock:
+            return self._last_stored_commitment_height
+
+    def get_state_commitment_infos(self, block_number: int) -> Optional[JsonObject]:
+        """Return the stored `state_commitment_infos` for `block_number`, or None."""
+        with self._lock:
+            return self._commits_by_block.get(int(block_number))
+
+    def record_commits_from_blob(self, blob: JsonObject) -> None:
+        """
+        Persist every `state_commitment_infos` entry in `blob`'s
+        `recent_state_commitment_infos` vector so OS-runs can look them up
+        directly (instead of re-extracting from the blob, which post
+        cende-commitment-delta may not carry them anymore).
+
+        Also bumps `last_stored_commitment_height` only by *contiguous*
+        extension — never claiming a height beyond which we have a gap. The
+        sequencer skips every commit at-or-below the returned height, so
+        announcing a non-contiguous max would permanently lose any held-back
+        commit in the gap.
+        """
+        entries = blob.get("recent_state_commitment_infos") or []
+        if not entries:
+            return
+        with self._lock:
+            # Store every entry we don't already have. Blob-side entries are
+            # compressed strings (base64(zstd(json))) as of the committer's
+            # compress-commitment-infos change — decompress once at ingest so
+            # every downstream consumer sees the raw dict.
+            for entry in entries:
+                bn = int(entry["block_number"])
+                if bn in self._commits_by_block:
+                    continue
+                self._commits_by_block[bn] = decompress_state_commitment_infos(
+                    entry["state_commitment_infos"]
+                )
+
+            # Bump the contiguous-stored-height by extending forward block by
+            # block while present in the dict. First-time path: anchor at the
+            # min block_number we just inserted.
+            if self._last_stored_commitment_height is None:
+                self._last_stored_commitment_height = min(self._commits_by_block) - 1
+            while (self._last_stored_commitment_height + 1) in self._commits_by_block:
+                self._last_stored_commitment_height += 1
+
+            # Trim entries we no longer need (older than the contiguous head by
+            # `_COMMITS_RETENTION`). We never trim above the head — that's the
+            # window the OS-runner actually consumes.
+            if len(self._commits_by_block) > SharedContext._COMMITS_RETENTION:
+                cutoff = self._last_stored_commitment_height - SharedContext._COMMITS_RETENTION
+                stale = [bn for bn in self._commits_by_block if bn < cutoff]
+                for bn in stale:
+                    self._commits_by_block.pop(bn, None)
 
     # --- Tx lifecycle ---
     def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
@@ -589,6 +828,13 @@ class SharedContext:
             self._hash_mismatches.clear_pending_mismatch()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
+            # Stale commit map + contiguous-height marker would otherwise let
+            # `get_last_stored_commitment_height` announce a pre-resync height
+            # (sequencer omits commits at-or-below it) while `record_commits_from_blob`
+            # short-circuits on "already stored" — OS runs on replayed blocks would
+            # then see stale StateCommitmentInfos.
+            self._commits_by_block.clear()
+            self._last_stored_commitment_height = None
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
 
@@ -626,15 +872,28 @@ class SharedContext:
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
-        self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
+        self,
+        block_number: int,
+        blob_body: bytes,
+        fgw_block: JsonObject,
+        state_update: JsonObject,
+        block_commitments: JsonObject,
     ) -> None:
         with self._lock:
-            evicted_items = self._blocks.store_block(
-                block_number, blob=blob, fgw_block=fgw_block, state_update=state_update
+            evicted_items, evicted_blob_bodies = self._blocks.store_block(
+                block_number,
+                blob_body=blob_body,
+                fgw_block=fgw_block,
+                state_update=state_update,
+                block_commitments=block_commitments,
             )
         if evicted_items:
             _BlockStore.write_snapshot_items_to_disk(
                 evicted_items, base_dir=self._blocks._ensure_archive_dir()
+            )
+        if evicted_blob_bodies:
+            _BlockStore.write_blob_bodies_to_disk(
+                evicted_blob_bodies, base_dir=self._blocks._ensure_archive_dir()
             )
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
@@ -668,6 +927,26 @@ class SharedContext:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.warning(f"Failed reading archived block dump {path}: {e}")
+            return None
+
+    def get_blob_body_with_disk_fallback(self, block_number: int) -> Optional[bytes]:
+        """
+        Return the raw blob bytes for `block_number` — from memory if cached,
+        else from the on-disk archive (`blob_<N>.json`, which contains the
+        JSON body verbatim per `_BlockStore.write_snapshot_items_to_disk`).
+        """
+        in_mem = self.get_block_field(block_number, "blob_body")
+        if in_mem is not None:
+            if isinstance(in_mem, str):
+                return in_mem.encode("utf-8")
+            return in_mem
+        path = _find_archived_block_path(block_number=block_number, field="blob")
+        if not path:
+            return None
+        try:
+            return path.read_bytes()
+        except Exception as e:
+            logger.warning(f"Failed reading archived blob {path}: {e}")
             return None
 
     def get_latest_block_number(self) -> Optional[int]:
@@ -724,6 +1003,7 @@ class SharedContext:
                 transaction_commitment_mismatches=list(
                     self._hash_mismatches.transaction_commitment_mismatches
                 ),
+                os_run_stats=self._os_run_stats_dict_locked(),
             )
 
     # --- Progress markers ---

@@ -46,6 +46,10 @@ class SnapshotModel:
     block_hash_mismatches: list[JsonObject]
     transaction_commitment_mismatches: list[JsonObject]
 
+    # OS-runner outcomes (cumulative counters + live queue/defer state — see
+    # `SharedContext.get_os_run_stats`).
+    os_run_stats: JsonObject
+
     def to_dict(self) -> JsonObject:
         """
         Convert to a JSON-serializable dict compatible with `/echonet/report`.
@@ -76,6 +80,7 @@ class SnapshotModel:
             "l2_gas_mismatches": self.l2_gas_mismatches,
             "block_hash_mismatches": self.block_hash_mismatches,
             "transaction_commitment_mismatches": self.transaction_commitment_mismatches,
+            "os_run_stats": self.os_run_stats,
         }
 
     @classmethod
@@ -103,4 +108,5 @@ class SnapshotModel:
             l2_gas_mismatches=data["l2_gas_mismatches"],
             block_hash_mismatches=data.get("block_hash_mismatches", []),
             transaction_commitment_mismatches=data.get("transaction_commitment_mismatches", []),
+            os_run_stats=data.get("os_run_stats", {}),
         )
