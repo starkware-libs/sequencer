@@ -19,15 +19,68 @@ use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
 use futures::never::Never;
-use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
 use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RevertConfig {
+    #[serde(deserialize_with = "deserialize_revert_block_number")]
     pub revert_up_to_and_including: BlockNumber,
     pub should_revert: bool,
+}
+
+/// Deserialize `revert_up_to_and_including`, tolerating a floating-point representation of the
+/// value.
+///
+/// The default is the `u64::MAX` "never revert" sentinel. Configs assembled via jsonnet (the
+/// `native` config format) render every number as an IEEE-754 double, so `u64::MAX`
+/// (18446744073709551615) is emitted as the nearest double, `2^64` (18446744073709551616), which
+/// overflows `u64` and would otherwise fail to deserialize. We accept a float and saturating-cast
+/// it back to `u64`, so a config produced by jsonnet deserializes to the same `BlockNumber` as the
+/// legacy flat (`preset`) path, which carries the exact `u64::MAX` integer. Plain integer values
+/// (the common case, including real revert heights) take the `u64` branch unchanged.
+fn deserialize_revert_block_number<'de, D>(deserializer: D) -> Result<BlockNumber, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct RevertBlockNumberVisitor;
+
+    impl<'de> Visitor<'de> for RevertBlockNumberVisitor {
+        type Value = BlockNumber;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str(
+                "a block number; jsonnet renders the u64::MAX sentinel as the 2^64 value, which \
+                 deserializers may present as u128 or f64",
+            )
+        }
+
+        fn visit_u64<E: de::Error>(self, value: u64) -> Result<Self::Value, E> {
+            Ok(BlockNumber(value))
+        }
+
+        // jsonnet's f64 rounding turns u64::MAX into 2^64, which serde_json surfaces as a u128.
+        // Saturate anything past u64::MAX back to the sentinel.
+        fn visit_u128<E: de::Error>(self, value: u128) -> Result<Self::Value, E> {
+            Ok(BlockNumber(u64::try_from(value).unwrap_or(u64::MAX)))
+        }
+
+        fn visit_i64<E: de::Error>(self, value: i64) -> Result<Self::Value, E> {
+            Ok(BlockNumber(u64::try_from(value).unwrap_or(0)))
+        }
+
+        // Saturating float-to-int cast: 2^64 (and larger) maps to u64::MAX.
+        fn visit_f64<E: de::Error>(self, value: f64) -> Result<Self::Value, E> {
+            Ok(BlockNumber(value as u64))
+        }
+    }
+
+    deserializer.deserialize_any(RevertBlockNumberVisitor)
 }
 
 impl Default for RevertConfig {
