@@ -44,7 +44,7 @@ impl Default for ProverConfig {
             strk_fee_token_address: None,
             validate_zero_fee_fields: true,
             blocking_check_url: None,
-            blocking_check_timeout_millis: 2000,
+            blocking_check_timeout_millis: 10000,
             blocking_check_fail_open: true,
         }
     }

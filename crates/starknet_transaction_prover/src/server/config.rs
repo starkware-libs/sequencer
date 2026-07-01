@@ -124,7 +124,7 @@ impl Default for RawServiceConfig {
             tls_cert_file: None,
             tls_key_file: None,
             blocking_check_url: None,
-            blocking_check_timeout_millis: 2000,
+            blocking_check_timeout_millis: 10000,
             blocking_check_fail_open: true,
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             ohttp_enabled: false,
@@ -639,7 +639,7 @@ pub struct CliArgs {
     pub blocking_check_url: Option<String>,
 
     /// Milliseconds to wait for the blocking check response before applying the
-    /// fail-open/fail-close policy (default: 2000).
+    /// fail-open/fail-close policy (default: 10000).
     #[arg(long, value_name = "MILLIS", env = "BLOCKING_CHECK_TIMEOUT_MILLIS")]
     pub blocking_check_timeout_millis: Option<u64>,
 
