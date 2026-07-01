@@ -43,6 +43,8 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 /// - `RequestLogLayer` is outermost so the latency it measures covers every other layer.
 /// - `HealthLayer` (and `MetricsLayer` when configured) sit inside it so `/health` probes and
 ///   `/metrics` scrapes short-circuit before CORS/OHTTP.
+/// - `HttpMetricsLayer` records per-request latency; it sits below `HealthLayer`/`MetricsLayer` so
+///   the probe and scrape traffic they short-circuit is excluded from the distribution.
 /// - `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression applies to the inner JSON-RPC
 ///   response (the client's inner `Accept-Encoding` travels through BHTTP into jsonrpsee) rather
 ///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
@@ -56,6 +58,7 @@ macro_rules! prover_http_middleware {
             .layer(RequestLogLayer)
             .layer(HealthLayer)
             .option_layer($metrics_layer)
+            .layer(HttpMetricsLayer)
             .option_layer($cors_layer)
             .layer(MapRequestBodyLayer::new(HttpBody::new))
             .option_layer($ohttp_layer)
@@ -69,6 +72,7 @@ pub mod config;
 pub mod cors;
 pub mod errors;
 pub mod health;
+pub mod http_metrics;
 pub mod log_redact;
 pub mod metrics;
 #[cfg(test)]
@@ -83,6 +87,7 @@ pub mod test_recorder;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
+pub use http_metrics::HttpMetricsLayer;
 pub use metrics::{MetricsLayer, METRICS_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 pub use request_span::RequestSpanLayer;
