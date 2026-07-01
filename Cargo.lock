@@ -2557,7 +2557,6 @@ dependencies = [
  "expect-test",
  "hex",
  "starknet-core",
- "starknet-crypto 0.8.1",
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
