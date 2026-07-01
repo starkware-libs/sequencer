@@ -11,6 +11,7 @@ fn main() {
 async fn main() -> anyhow::Result<()> {
     use std::net::SocketAddr;
     use std::sync::Arc;
+    use std::time::Duration;
 
     use anyhow::Context;
     use clap::Parser;
@@ -21,11 +22,13 @@ async fn main() -> anyhow::Result<()> {
         TransportMode,
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
+    use starknet_transaction_prover::server::health::HealthLayer;
     use starknet_transaction_prover::server::log_redact::redact_url_host;
     use starknet_transaction_prover::server::metrics::install_exporter;
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
+    use starknet_transaction_prover::server::saturation::SaturationMonitor;
     use starknet_transaction_prover::server::{
         start_server,
         MetricsLayer,
@@ -78,8 +81,16 @@ async fn main() -> anyhow::Result<()> {
         "Starting Starknet transaction prover."
     );
 
+    // Shared saturation tracker — writer is `ProvingRpcServerImpl` on every
+    // permit acquire/reject; reader is `HealthLayer`. See `saturation.rs`.
+    let saturation_monitor = SaturationMonitor::default();
+    let health_layer = HealthLayer::new(
+        saturation_monitor.clone(),
+        Duration::from_millis(config.health_max_saturated_ms),
+    );
+
     // Build and start the JSON-RPC server.
-    let rpc_impl = ProvingRpcServerImpl::from_config(&config);
+    let rpc_impl = ProvingRpcServerImpl::from_config(&config, saturation_monitor);
     let addr = SocketAddr::new(config.ip, config.port);
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
@@ -111,6 +122,7 @@ async fn main() -> anyhow::Result<()> {
         cors_layer,
         ohttp_layer,
         metrics_layer,
+        health_layer,
     )
     .await?;
 

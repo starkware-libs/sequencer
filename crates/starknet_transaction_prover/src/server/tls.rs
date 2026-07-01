@@ -53,6 +53,7 @@ pub async fn start_tls_server(
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
     metrics_layer: Option<MetricsLayer>,
+    health_layer: HealthLayer,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
@@ -63,7 +64,12 @@ pub async fn start_tls_server(
     // See `prover_http_middleware!` for the full layer-order rationale.
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(prover_http_middleware!(metrics_layer, cors_layer, ohttp_layer))
+        .set_http_middleware(prover_http_middleware!(
+            health_layer,
+            metrics_layer,
+            cors_layer,
+            ohttp_layer
+        ))
         .to_service_builder();
 
     let listener = TcpListener::bind(addr)

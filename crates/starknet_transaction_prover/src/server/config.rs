@@ -36,6 +36,10 @@ const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
 /// 5 MiB — matches the convention used elsewhere in the sequencer.
 pub(crate) const DEFAULT_MAX_REQUEST_BODY_SIZE: u32 = 5 * 1024 * 1024;
 const DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS: u64 = 3600;
+/// Default saturation window before `/health` returns 503. 10 seconds
+/// matches "service is rejecting requests for a sustained period" without
+/// flipping on a single in-flight burst.
+const DEFAULT_HEALTH_MAX_SATURATED_MS: u64 = 10_000;
 
 /// Transport mode for the JSON-RPC server.
 #[derive(Clone, Debug)]
@@ -103,6 +107,7 @@ struct RawServiceConfig {
     max_request_body_size: u32,
     ohttp_enabled: bool,
     ohttp_key_cache_max_age_secs: u64,
+    health_max_saturated_ms: u64,
 }
 
 impl Default for RawServiceConfig {
@@ -130,6 +135,7 @@ impl Default for RawServiceConfig {
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             ohttp_enabled: false,
             ohttp_key_cache_max_age_secs: DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS,
+            health_max_saturated_ms: DEFAULT_HEALTH_MAX_SATURATED_MS,
         }
     }
 }
@@ -167,6 +173,11 @@ pub struct ServiceConfig {
     pub ohttp_enabled: bool,
     /// Cache-Control max-age for the `GET /ohttp-keys` response (seconds).
     pub ohttp_key_cache_max_age_secs: u64,
+    /// Saturation window (milliseconds) before `/health` flips to 503. The
+    /// service is "saturated" when it has been continuously rejecting
+    /// proving requests due to the concurrency limit; once that has held
+    /// for this many milliseconds, load balancers should drain the pod.
+    pub health_max_saturated_ms: u64,
 }
 
 /// Applies an optional CLI override to a config field, logging `old -> new` when it changes.
@@ -370,6 +381,11 @@ impl ServiceConfig {
             &mut config.ohttp_key_cache_max_age_secs,
             args.ohttp_key_cache_max_age_secs,
         );
+        override_field(
+            "health_max_saturated_ms",
+            &mut config.health_max_saturated_ms,
+            args.health_max_saturated_ms,
+        );
 
         // Validate required fields.
         if config.rpc_node_url.is_empty() {
@@ -466,6 +482,7 @@ impl ServiceConfig {
             max_request_body_size: config.max_request_body_size,
             ohttp_enabled: config.ohttp_enabled,
             ohttp_key_cache_max_age_secs: config.ohttp_key_cache_max_age_secs,
+            health_max_saturated_ms: config.health_max_saturated_ms,
         })
     }
 }
@@ -583,6 +600,14 @@ pub struct CliArgs {
     /// Log output format. Use `json` in production so log aggregators parse fields directly.
     #[arg(long, value_enum, value_name = "FORMAT", env = "LOG_FORMAT", default_value_t = LogFormat::Text)]
     pub log_format: LogFormat,
+
+    /// Saturation window (milliseconds) before `/health` returns 503
+    /// (default: 10000). The service is "saturated" when it has been
+    /// continuously rejecting proving requests due to the concurrency
+    /// limit; once that has held for this many milliseconds, load
+    /// balancers should drain the pod.
+    #[arg(long, value_name = "MILLIS", env = "HEALTH_MAX_SATURATED_MS")]
+    pub health_max_saturated_ms: Option<u64>,
 
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
     /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover
