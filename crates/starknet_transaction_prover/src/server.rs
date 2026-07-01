@@ -40,7 +40,8 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 /// each call site.
 ///
 /// Layer order (tower makes the last-added layer innermost):
-/// - `HealthLayer` sits outermost so `GET /health` is answered before any other middleware runs.
+/// - `RequestLogLayer` is outermost so the latency it measures covers every other layer.
+/// - `HealthLayer` sits inside it so probes complete before CORS/OHTTP.
 /// - `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression applies to the inner JSON-RPC
 ///   response (the client's inner `Accept-Encoding` travels through BHTTP into jsonrpsee) rather
 ///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
@@ -49,6 +50,7 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 macro_rules! prover_http_middleware {
     ($cors_layer:expr, $ohttp_layer:expr $(,)?) => {
         ServiceBuilder::new()
+            .layer(RequestLogLayer)
             .layer(HealthLayer)
             .option_layer($cors_layer)
             .layer(MapRequestBodyLayer::new(HttpBody::new))
@@ -65,11 +67,13 @@ pub mod health;
 pub mod log_redact;
 #[cfg(test)]
 pub mod mock_rpc;
+pub mod request_log;
 pub mod rpc_api;
 pub mod rpc_impl;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
+pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 
 #[cfg(test)]
 mod rpc_spec_test;
