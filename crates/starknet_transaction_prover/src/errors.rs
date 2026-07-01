@@ -131,6 +131,27 @@ pub enum VirtualSnosProverError {
     TransactionBlocked,
 }
 
+impl VirtualSnosProverError {
+    /// Maps the variant to one of the bounded label values declared in
+    /// `crate::server::metrics::outcomes`. The single match keeps the
+    /// `prover_prove_transaction_outcome_total{outcome}` cardinality fixed —
+    /// adding a variant requires a dashboard update at the same time.
+    pub fn metric_outcome(&self) -> &'static str {
+        use crate::server::metrics::outcomes;
+        match self {
+            VirtualSnosProverError::InvalidTransactionType(_)
+            | VirtualSnosProverError::InvalidTransactionInput(_)
+            | VirtualSnosProverError::ValidationError(_) => outcomes::VALIDATION,
+            VirtualSnosProverError::TransactionBlocked => outcomes::BLOCKED,
+            VirtualSnosProverError::RunnerError(_) => outcomes::RUNNER,
+            VirtualSnosProverError::OutputParseError(_)
+            | VirtualSnosProverError::ProgramOutputError(_) => outcomes::OUTPUT_PARSE,
+            #[cfg(feature = "stwo_proving")]
+            VirtualSnosProverError::ProvingError(_) => outcomes::PROVING,
+        }
+    }
+}
+
 /// Errors that can occur during configuration.
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -142,4 +163,47 @@ pub enum ConfigError {
     MissingRequiredField(String),
     #[error("Incomplete TLS configuration: {0}")]
     IncompleteTlsConfig(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use starknet_proof_verifier::ProgramOutputError;
+
+    use super::*;
+    use crate::server::metrics::outcomes;
+
+    /// Every `VirtualSnosProverError` variant must map to a bounded outcome
+    /// label. This locks the `prover_prove_transaction_outcome_total{outcome}`
+    /// cardinality: a mis-mapped or relabeled variant fails here rather than
+    /// silently splitting a dashboard series.
+    #[test]
+    fn metric_outcome_maps_each_variant_to_its_label() {
+        // `mut` is used only when the `stwo_proving` variant is compiled in.
+        #[allow(unused_mut)]
+        let mut cases: Vec<(VirtualSnosProverError, &str)> = vec![
+            (VirtualSnosProverError::InvalidTransactionType(String::new()), outcomes::VALIDATION),
+            (VirtualSnosProverError::InvalidTransactionInput(String::new()), outcomes::VALIDATION),
+            (VirtualSnosProverError::ValidationError(String::new()), outcomes::VALIDATION),
+            (VirtualSnosProverError::TransactionBlocked, outcomes::BLOCKED),
+            (
+                VirtualSnosProverError::RunnerError(Box::new(RunnerError::InputGenerationError(
+                    String::new(),
+                ))),
+                outcomes::RUNNER,
+            ),
+            (
+                VirtualSnosProverError::ProgramOutputError(ProgramOutputError::TooShort(0)),
+                outcomes::OUTPUT_PARSE,
+            ),
+        ];
+        #[cfg(feature = "stwo_proving")]
+        cases.push((
+            VirtualSnosProverError::ProvingError(ProvingError::ProverExecution(String::new())),
+            outcomes::PROVING,
+        ));
+
+        for (error, expected) in &cases {
+            assert_eq!(error.metric_outcome(), *expected, "unexpected outcome for {error:?}");
+        }
+    }
 }
