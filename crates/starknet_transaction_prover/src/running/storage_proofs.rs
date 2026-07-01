@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use blockifier::state::accessed_keys::AccessedKeys;
@@ -20,8 +21,8 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_rust::providers::jsonrpc::HttpTransport;
-use starknet_rust::providers::{JsonRpcClient, Provider};
+use starknet_rust::providers::jsonrpc::{HttpTransport, HttpTransportError, JsonRpcClientError};
+use starknet_rust::providers::{JsonRpcClient, Provider, ProviderError};
 use starknet_rust_core::types::{
     ConfirmedBlockId,
     ContractStorageKeys,
@@ -30,6 +31,7 @@ use starknet_rust_core::types::{
     MerkleNode,
     StorageProof as RpcStorageProof,
 };
+use tracing::warn;
 
 use crate::errors::ProofProviderError;
 use crate::running::committer_utils::{
@@ -43,6 +45,81 @@ use crate::running::virtual_block_executor::VirtualBlockExecutionData;
 /// Pathfinder hard-codes `const MAX_KEYS: usize = 100` in `get_storage_proof`, counting
 /// `class_hashes.len() + contract_addresses.len() + total_storage_keys`.
 const MAX_KEYS_PER_REQUEST: usize = 100;
+
+/// Default number of retries for a single `get_storage_proof` call, *on top of* the
+/// initial attempt — so the default `5` allows up to 6 calls (1 + 5) before giving up.
+/// Proving a virtual block fetches a storage proof per chunk of touched state; a public
+/// node will rate-limit a burst of these. Without retry, a single transient failure
+/// anywhere in input collection aborts a multi-minute prove. Overridable via
+/// `STARKNET_PROVER_RPC_MAX_RETRIES`.
+const DEFAULT_RPC_MAX_RETRIES: u32 = 5;
+/// First backoff delay; each subsequent retry doubles it, capped at [`RPC_RETRY_MAX_DELAY`].
+const RPC_RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
+/// Upper bound on a single backoff delay (default 5 retries wait
+/// 0.5 + 1 + 2 + 4 + 8 = 15.5s in total).
+const RPC_RETRY_MAX_DELAY: Duration = Duration::from_secs(8);
+
+fn rpc_max_retries() -> u32 {
+    std::env::var("STARKNET_PROVER_RPC_MAX_RETRIES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_RPC_MAX_RETRIES)
+}
+
+/// Phrases that *unambiguously* mark a rate-limit / throttling response. These are matched
+/// against the message of a structured JSON-RPC error, which is otherwise deterministic, so
+/// the set must exclude loose tokens that deterministic errors also contain — e.g.
+/// "limit exceeded" (also "gas/query limit exceeded") or "429" (can appear inside a block
+/// number). Transport/parse failures get the broader needle list in `is_retryable_rpc_error`.
+const RATE_LIMIT_NEEDLES: [&str; 3] = ["too many requests", "rate limit", "throttled"];
+
+/// Whether a `get_storage_proof` failure is transient and worth retrying.
+///
+/// A public node throttling a request usually returns a non-JSON body (an HTTP 429/5xx
+/// page), which `starknet-rs` fails to deserialize and surfaces as
+/// `ProviderError::Other(..)` carrying a transport/parse message such as
+/// `expected value at line 1 column 1`. Some nodes instead signal throttling as a valid
+/// JSON-RPC error (e.g. "too many requests"). Both of those, plus explicit
+/// connection / timeout signals, are retryable.
+///
+/// Any *other* structured JSON-RPC error (e.g. block-not-found, code `-32xxx`) is
+/// deterministic — retrying only wastes time — so it fails fast, mirroring the downcast in
+/// `impl From<ProviderError> for ProofProviderError`.
+fn is_retryable_rpc_error(err: &ProviderError) -> bool {
+    if let ProviderError::Other(inner) = err {
+        if let Some(JsonRpcClientError::JsonRpcError(rpc_err)) =
+            inner.as_any().downcast_ref::<JsonRpcClientError<HttpTransportError>>()
+        {
+            // A structured JSON-RPC error is deterministic (block-not-found, gas/query
+            // limit exceeded, bad params, ...) — except when a node signals throttling this
+            // way instead of via an HTTP 429. Match only unambiguous rate-limit wording (see
+            // RATE_LIMIT_NEEDLES); never loose tokens that deterministic errors also carry.
+            let message = rpc_err.message.to_ascii_lowercase();
+            return RATE_LIMIT_NEEDLES.iter().any(|needle| message.contains(needle));
+        }
+    }
+    let msg = err.to_string().to_ascii_lowercase();
+    [
+        "too many requests",
+        "429",
+        "rate limit",
+        "throttled",
+        "502",
+        "503",
+        "504",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "expected value", // a non-JSON throttle/error page parsed as JSON
+        "error decoding response",
+        "error sending request",
+        "connection",
+        "timed out",
+        "timeout",
+    ]
+    .iter()
+    .any(|needle| msg.contains(needle))
+}
 
 /// Counts total keys in a query, mirroring Pathfinder's counting logic.
 pub(crate) fn count_total_keys(query: &RpcStorageProofsQuery) -> usize {
@@ -289,7 +366,13 @@ impl RpcStorageProofsProvider {
         Ok(merge_storage_proofs(proofs, &chunks, query))
     }
 
-    /// Sends a single `get_storage_proof` RPC call (no chunking).
+    /// Sends a single `get_storage_proof` RPC call (no chunking), retrying transient
+    /// failures with exponential backoff.
+    ///
+    /// Input collection issues one of these per chunk of touched state, so a public node
+    /// readily rate-limits a burst. A single un-retried 429/5xx here aborts a prove that
+    /// has already run for minutes; see [`is_retryable_rpc_error`] for what counts as
+    /// transient. Deterministic errors fail fast on the first attempt.
     async fn fetch_single_proof(
         &self,
         block_number: BlockNumber,
@@ -299,17 +382,40 @@ impl RpcStorageProofsProvider {
         let contract_addresses: Vec<Felt> =
             query.contract_addresses.iter().map(|a| *a.0.key()).collect();
 
-        let storage_proof = self
-            .0
-            .get_storage_proof(
-                block_id,
-                &query.class_hashes,
-                &contract_addresses,
-                &query.contract_storage_keys,
-            )
-            .await?;
+        let max_retries = rpc_max_retries();
+        let mut delay = RPC_RETRY_BASE_DELAY;
+        let mut attempt: u32 = 0;
+        loop {
+            let result = self
+                .0
+                .get_storage_proof(
+                    block_id,
+                    &query.class_hashes,
+                    &contract_addresses,
+                    &query.contract_storage_keys,
+                )
+                .await;
 
-        Ok(storage_proof)
+            match result {
+                Ok(storage_proof) => return Ok(storage_proof),
+                Err(err) if attempt < max_retries && is_retryable_rpc_error(&err) => {
+                    attempt += 1;
+                    warn!(
+                        block_number = block_number.0,
+                        attempt,
+                        max_retries,
+                        backoff_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX),
+                        error = %err,
+                        "get_storage_proof failed with a transient error; retrying after backoff",
+                    );
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(RPC_RETRY_MAX_DELAY);
+                }
+                // Non-retryable, or retries exhausted: surface the error (the `From` impl
+                // forwards a structured JSON-RPC error verbatim).
+                Err(err) => return Err(err.into()),
+            }
+        }
     }
 
     /// Creates commitment infos from RPC storage proof and state changes.
