@@ -3309,6 +3309,11 @@
     "privacy": "Public",
     "value": 12
   },
+  "l1_events_scraper_config.max_blocks_per_fetch": {
+    "description": "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the catch-up window so a large backlog is drained over successive polls instead of in one unbounded request.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "l1_events_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
