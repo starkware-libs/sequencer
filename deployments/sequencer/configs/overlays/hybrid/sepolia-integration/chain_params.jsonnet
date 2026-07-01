@@ -1,15 +1,16 @@
 // chain_params for the `sepolia-integration` environment (hybrid layout): the mandatory per-chain
 // values, read directly by the applicative config. (The env-shared P2P multiaddrs and per-node
 // validator_id are supplied by the devops overlay layers.)
+local base_layer_constants = import '../../../base_layer_constants.libsonnet';
 {
   chain_id: 'SN_INTEGRATION_SEPOLIA',
   starknet_url: 'https://feeder.integration-sepolia.starknet.io/',
   recorder_url: 'http://starknet-sepolia-integration.cende-recorder-proxy.starknet.io/',
   native_classes_whitelist: 'All',
   base_layer_config: {
-    bpo1_start_block_number: 9456501,
-    bpo2_start_block_number: 9504747,
-    fusaka_no_bpo_start_block_number: 9408577,
+    bpo1_start_block_number: base_layer_constants.SEPOLIA_BPO1_START_BLOCK_NUMBER,
+    bpo2_start_block_number: base_layer_constants.SEPOLIA_BPO2_START_BLOCK_NUMBER,
+    fusaka_no_bpo_start_block_number: base_layer_constants.SEPOLIA_FUSAKA_NO_BPO_START_BLOCK_NUMBER,
     starknet_contract_address: '0x4737c0c1B4D5b1A687B42610DdabEE781152359c',
   },
   consensus_manager_config: {
