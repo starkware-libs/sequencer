@@ -2,11 +2,16 @@ use std::collections::HashMap;
 
 use apollo_mempool_types::mempool_types::{TransactionQueueSnapshot, TxBlockMetadata};
 use indexmap::IndexSet;
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
+
+pub(crate) struct BlockMetadata {
+    pub timestamp: UnixTimestamp,
+    pub block_number: Option<BlockNumber>,
+}
 
 // Data needed for rewinding transactions back into the queue after a block commit.
 // Different queue types require different data.
@@ -67,10 +72,11 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation is a no-op (for queues that don't support metadata updates).
     fn update_tx_block_metadata(&mut self, _tx_hash: TransactionHash, _metadata: TxBlockMetadata) {}
 
-    // Returns the sequencing timestamp and may update queue-internal state.
-    // Default implementation returns 0 for queues that don't use timestamp gating.
-    fn resolve_timestamp(&mut self) -> UnixTimestamp {
-        0
+    // Returns the block metadata and may update queue-internal state.
+    // Default implementation returns timestamp=0, block_number=None for queues that don't use
+    // timestamp gating.
+    fn resolve_metadata(&mut self) -> BlockMetadata {
+        BlockMetadata { timestamp: 0, block_number: None }
     }
 
     // Default implementation returns empty vec.

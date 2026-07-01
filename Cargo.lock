@@ -969,7 +969,6 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "starknet_committer",
  "strum",
  "thiserror 1.0.69",
  "tokio",
@@ -1095,13 +1094,16 @@ dependencies = [
  "apollo_metrics",
  "assert_matches",
  "async-trait",
+ "base64 0.13.1",
  "indexmap 2.14.0",
+ "serde_json",
  "starknet_api",
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",
  "tokio",
  "tracing",
+ "zstd",
 ]
 
 [[package]]
@@ -1454,7 +1456,6 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
- "starknet_committer",
  "strum",
  "thiserror 1.0.69",
  "tokio",
@@ -1566,6 +1567,7 @@ dependencies = [
  "num-bigint",
  "num-rational",
  "pretty_assertions",
+ "reqwest 0.12.24",
  "rstest",
  "serde_json",
  "starknet-types-core",
@@ -1591,6 +1593,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "url",
  "validator",
 ]
 
@@ -2883,6 +2886,7 @@ name = "apollo_transaction_converter"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_config",
  "apollo_metrics",
  "apollo_proof_manager_types",
  "assert_matches",

@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_proof_manager_types::{ProofManagerClientError, SharedProofManagerClient};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -116,6 +117,10 @@ pub struct TransactionConverter {
     class_manager_client: SharedClassManagerClient,
     proof_manager_client: SharedProofManagerClient,
     chain_id: ChainId,
+    // When set to `Echonet`, `convert_rpc_tx_to_internal` skips proof verification/archiving
+    // for replayed private txs that have `proof_facts` but no `proof` (mainnet's feeder
+    // strips `proof` before serving). See that method for details.
+    behavior_mode: BehaviorMode,
 }
 
 impl TransactionConverter {
@@ -124,7 +129,21 @@ impl TransactionConverter {
         proof_manager_client: SharedProofManagerClient,
         chain_id: ChainId,
     ) -> Self {
-        Self { class_manager_client, proof_manager_client, chain_id }
+        Self::new_with_behavior_mode(
+            class_manager_client,
+            proof_manager_client,
+            chain_id,
+            BehaviorMode::default(),
+        )
+    }
+
+    pub fn new_with_behavior_mode(
+        class_manager_client: SharedClassManagerClient,
+        proof_manager_client: SharedProofManagerClient,
+        chain_id: ChainId,
+        behavior_mode: BehaviorMode,
+    ) -> Self {
+        Self { class_manager_client, proof_manager_client, chain_id, behavior_mode }
     }
 
     async fn get_sierra(
@@ -209,11 +228,16 @@ impl TransactionConverterTrait for TransactionConverter {
             InternalRpcTransactionWithoutTxHash::Invoke(tx) => {
                 // We expect the proof to be available here because it has already been verified
                 // and stored by the proof manager in the gateway.
-                let proof = if tx.proof_facts.is_empty() {
-                    Proof::default()
-                } else {
-                    self.get_proof(&tx.proof_facts).await?
-                };
+                // Echonet exception: the gateway skipped storing the proof (mainnet's feeder
+                // doesn't serve it on replay), so proof_manager has no entry. The downstream
+                // consumer treats this tx the same way (also echonet, also relaxed consistency
+                // check) — give back a default proof and let proof_facts flow through.
+                let proof =
+                    if tx.proof_facts.is_empty() || self.behavior_mode == BehaviorMode::Echonet {
+                        Proof::default()
+                    } else {
+                        self.get_proof(&tx.proof_facts).await?
+                    };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
                     resource_bounds: tx.resource_bounds,
@@ -337,7 +361,13 @@ impl TransactionConverter {
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<(ProofFacts, Proof)>)> {
         let (tx_without_hash, proof_data) = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-                let proof_data = if tx.proof_facts.is_empty() {
+                // Echonet replay: mainnet's feeder strips `proof` before serving, so we receive
+                // proof_facts without a proof. Treat as "no proof data" (skip verification +
+                // archive). `proof_facts` stays on the canonical tx; tx hash and execution are
+                // unaffected.
+                let skip_proof_for_replay =
+                    self.behavior_mode == BehaviorMode::Echonet && tx.proof.is_empty();
+                let proof_data = if tx.proof_facts.is_empty() || skip_proof_for_replay {
                     None
                 } else {
                     Some((tx.proof_facts.clone(), tx.proof.clone()))

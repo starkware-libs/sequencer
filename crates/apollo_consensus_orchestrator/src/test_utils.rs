@@ -318,6 +318,10 @@ impl TestDeps {
         self.cende_ambassador
             .expect_write_prev_height_blob()
             .return_once(|_height| tokio::spawn(ready(true)));
+        // Default: recorder reports nothing stored, so blob building sends the full commitment-info
+        // window. Tests exercising the delta bounding set their own expectation instead.
+        #[cfg(feature = "os_input")]
+        self.cende_ambassador.expect_query_last_stored_commitment_height().returning(|| None);
     }
 
     pub(crate) fn setup_default_gas_price_provider(&mut self) {
@@ -493,7 +497,7 @@ pub(crate) struct TestProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    pub override_timestamp: bool,
+    pub override_block_metadata: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
@@ -519,7 +523,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
-            override_timestamp: args.override_timestamp,
+            override_block_metadata: args.override_block_metadata,
             override_l2_gas_price_fri: args.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
             compare_retrospective_block_hash: args.compare_retrospective_block_hash,
@@ -552,7 +556,7 @@ pub(crate) fn create_proposal_build_arguments()
     let cancel_token = CancellationToken::new();
     let previous_proposal_init = None;
     let proposal_round = 0;
-    let override_timestamp = false;
+    let override_block_metadata = false;
 
     (
         TestProposalBuildArguments {
@@ -572,7 +576,7 @@ pub(crate) fn create_proposal_build_arguments()
             proposal_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
-            override_timestamp,
+            override_block_metadata,
             override_l2_gas_price_fri: None,
             min_l2_gas_price_per_height: vec![],
             compare_retrospective_block_hash: true,
