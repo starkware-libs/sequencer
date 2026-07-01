@@ -1,13 +1,18 @@
 use std::collections::BTreeSet;
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::ParamPath;
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_reverts::RevertConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncStaticConfig};
 use apollo_storage::{StorageConfig, StorageScope};
+use blockifier::blockifier::config::NativeClassesWhitelist;
 use rstest::rstest;
+use starknet_api::contract_address;
+use starknet_api::core::ChainId;
 use validator::Validate;
 
 use crate::component_config::ComponentConfig;
@@ -290,7 +295,7 @@ fn config_manager_local_with_remote_enabled_is_rejected() {
 
 #[test]
 fn validation_only_with_tx_ingestion_disabled_succeeds() {
-    let config = SequencerNodeConfig {
+    let mut config = SequencerNodeConfig {
         validation_only: true,
         components: ComponentConfig {
             gateway: ReactiveComponentExecutionConfig::disabled(),
@@ -306,5 +311,181 @@ fn validation_only_with_tx_ingestion_disabled_succeeds() {
         state_sync_config: Some(state_sync_config_with_full_archive()),
         ..Default::default()
     };
+    // `SequencerNodeConfig::default()` does not have internally consistent pointer-group values
+    // (those are only reconciled by pointer resolution at load time), so normalize them before
+    // exercising the validation_only logic this test targets.
+    normalize_pointer_groups(&mut config);
     assert!(config.validate_node_config().is_ok());
+}
+
+/// Overwrites every present target of each multi-target `CONFIG_POINTERS` group with a single,
+/// consistent value, mirroring what pointer resolution does at load time. Lets a config assembled
+/// directly from `SequencerNodeConfig::default()` satisfy the cross-component equality invariant.
+fn normalize_pointer_groups(config: &mut SequencerNodeConfig) {
+    let chain_id = ChainId::Mainnet;
+    let eth_fee_token_address = contract_address!("0x1");
+    let strk_fee_token_address = contract_address!("0x2");
+    let max_cpu_time: u64 = 600;
+
+    config.validation_only = false;
+    if let Some(sierra_compiler) = config.sierra_compiler_config.as_mut() {
+        sierra_compiler.max_cpu_time = max_cpu_time;
+    }
+    if let Some(batcher) = config.batcher_config.as_mut() {
+        let static_config = &mut batcher.static_config;
+        static_config.block_builder_config.chain_info.chain_id = chain_id.clone();
+        static_config.storage.db_config.chain_id = chain_id.clone();
+        let fee_token_addresses =
+            &mut static_config.block_builder_config.chain_info.fee_token_addresses;
+        fee_token_addresses.eth_fee_token_address = eth_fee_token_address;
+        fee_token_addresses.strk_fee_token_address = strk_fee_token_address;
+        static_config.contract_class_manager_config.native_compiler_config.max_cpu_time =
+            max_cpu_time;
+        static_config.pre_confirmed_cende_config.recorder_url =
+            "https://recorder_url".parse().unwrap();
+        static_config.block_builder_config.versioned_constants_overrides = None;
+        static_config.validation_only = false;
+        batcher.dynamic_config.native_classes_whitelist = NativeClassesWhitelist::All;
+    }
+    if let Some(class_manager) = config.class_manager_config.as_mut() {
+        class_manager
+            .static_config
+            .class_storage_config
+            .class_hash_storage_config
+            .db_config
+            .chain_id = chain_id.clone();
+    }
+    if let Some(consensus_manager) = config.consensus_manager_config.as_mut() {
+        consensus_manager
+            .consensus_manager_config
+            .static_config
+            .storage_config
+            .db_config
+            .chain_id = chain_id.clone();
+        consensus_manager.context_config.static_config.chain_id = chain_id.clone();
+        consensus_manager.network_config.chain_id = chain_id.clone();
+        consensus_manager.context_config.static_config.behavior_mode = BehaviorMode::Starknet;
+        consensus_manager.cende_config.recorder_url = "https://recorder_url".parse().unwrap();
+        consensus_manager.revert_config = RevertConfig::default();
+    }
+    if let Some(gateway) = config.gateway_config.as_mut() {
+        gateway.static_config.chain_info.chain_id = chain_id.clone();
+        let fee_token_addresses = &mut gateway.static_config.chain_info.fee_token_addresses;
+        fee_token_addresses.eth_fee_token_address = eth_fee_token_address;
+        fee_token_addresses.strk_fee_token_address = strk_fee_token_address;
+        gateway.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time =
+            max_cpu_time;
+        gateway.static_config.stateful_tx_validator_config.validate_resource_bounds = true;
+        gateway.static_config.stateless_tx_validator_config.validate_resource_bounds = true;
+        gateway.static_config.stateful_tx_validator_config.versioned_constants_overrides = None;
+        gateway.dynamic_config.native_classes_whitelist = NativeClassesWhitelist::All;
+    }
+    if let Some(l1_events_scraper) = config.l1_events_scraper_config.as_mut() {
+        l1_events_scraper.chain_id = chain_id.clone();
+    }
+    if let Some(l1_gas_price_scraper) = config.l1_gas_price_scraper_config.as_mut() {
+        l1_gas_price_scraper.chain_id = chain_id.clone();
+    }
+    if let Some(mempool) = config.mempool_config.as_mut() {
+        mempool.static_config.recorder_url = "https://recorder_url".parse().unwrap();
+        mempool.static_config.validate_resource_bounds = true;
+        mempool.static_config.behavior_mode = BehaviorMode::Starknet;
+    }
+    if let Some(mempool_p2p) = config.mempool_p2p_config.as_mut() {
+        mempool_p2p.network_config.chain_id = chain_id.clone();
+    }
+    if let Some(state_sync) = config.state_sync_config.as_mut() {
+        let static_config = &mut state_sync.static_config;
+        static_config.storage_config.db_config.chain_id = chain_id.clone();
+        if let Some(network_config) = static_config.network_config.as_mut() {
+            network_config.chain_id = chain_id.clone();
+        }
+        static_config.rpc_config.chain_id = chain_id.clone();
+        static_config.rpc_config.execution_config.eth_fee_contract_address = eth_fee_token_address;
+        static_config.rpc_config.execution_config.strk_fee_contract_address =
+            strk_fee_token_address;
+        static_config.revert_config = RevertConfig::default();
+    }
+}
+
+/// A config assembled directly from `SequencerNodeConfig::default()` is not internally consistent
+/// on pointer-group values, so after normalizing those groups it validates `Ok`. This is the
+/// "full" positive case: every component is present and every group agrees.
+#[test]
+fn pointer_groups_consistent_full_config_validates() {
+    let mut config = SequencerNodeConfig::default();
+    normalize_pointer_groups(&mut config);
+    assert!(
+        config.validate_node_config().is_ok(),
+        "normalized full config should validate: {:?}",
+        config.validate_node_config()
+    );
+}
+
+/// Present-only guard: when only one owner of a pointer group is present (a partial/distributed
+/// deployment), the equality check has nothing to compare against and validates `Ok`.
+#[test]
+fn pointer_groups_single_present_owner_validates() {
+    // Only `gateway_config` owns `native_classes_whitelist`/`validate_resource_bounds`; with the
+    // batcher and mempool absent there is a single present value, so the group is trivially equal.
+    let mut config = SequencerNodeConfig {
+        batcher_config: None,
+        mempool_config: None,
+        ..SequencerNodeConfig::default()
+    };
+    // Disable the now-absent components so the per-component "set iff running locally" check
+    // passes.
+    config.components.batcher = ReactiveComponentExecutionConfig::disabled();
+    config.components.mempool = ReactiveComponentExecutionConfig::disabled();
+    normalize_pointer_groups(&mut config);
+    assert!(
+        config.validate_node_config().is_ok(),
+        "single-owner config should validate: {:?}",
+        config.validate_node_config()
+    );
+}
+
+/// Negative: a uniform shared field (`chain_id`) diverging between two present owners fails.
+#[test]
+fn pointer_group_chain_id_mismatch_fails() {
+    let mut config = SequencerNodeConfig::default();
+    normalize_pointer_groups(&mut config);
+    // Diverge the gateway's chain_id from everyone else's.
+    config.gateway_config.as_mut().unwrap().static_config.chain_info.chain_id = ChainId::Sepolia;
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("chain_id"), "Unexpected error: {err:?}");
+}
+
+/// Negative covering the fee-token name asymmetry: the batcher/gateway `eth_fee_token_address` and
+/// the state_sync `eth_fee_contract_address` are the same logical value; diverging them fails.
+#[test]
+fn pointer_group_eth_fee_token_name_asymmetry_mismatch_fails() {
+    let mut config = SequencerNodeConfig::default();
+    normalize_pointer_groups(&mut config);
+    // state_sync stores it under `eth_fee_contract_address`; diverge it from the gateway/batcher.
+    config
+        .state_sync_config
+        .as_mut()
+        .unwrap()
+        .static_config
+        .rpc_config
+        .execution_config
+        .eth_fee_contract_address = contract_address!("0xdead");
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("eth_fee_token_address"), "Unexpected error: {err:?}");
+}
+
+/// Negative: the node-level `validation_only` source disagreeing with the batcher's copy (its lone
+/// pointer target, which actually drives batcher behavior) fails. Guards the source-vs-target
+/// group.
+#[test]
+fn pointer_group_validation_only_mismatch_fails() {
+    let mut config = SequencerNodeConfig::default();
+    normalize_pointer_groups(&mut config);
+    // Top-level `validation_only` is false (set by `normalize_pointer_groups`); diverge the
+    // batcher's copy. The top-level flag stays false, so `validate_validation_only_config` is a
+    // no-op and the equality group is what must catch this.
+    config.batcher_config.as_mut().unwrap().static_config.validation_only = true;
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("validation_only"), "Unexpected error: {err:?}");
 }
