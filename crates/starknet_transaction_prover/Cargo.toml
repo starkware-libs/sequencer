@@ -44,7 +44,7 @@ starknet_patricia_storage.workspace = true
 starknet_proof_verifier.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
+tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "signal", "time"] }
 tokio-rustls.workspace = true
 tower = { workspace = true, features = ["util"] }
 tower-http = { workspace = true, features = [
@@ -55,7 +55,7 @@ tower-http = { workspace = true, features = [
 ] }
 tower_ohttp.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 url.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 
