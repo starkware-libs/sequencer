@@ -59,6 +59,8 @@ async fn main() -> anyhow::Result<()> {
 
     let config = ServiceConfig::from_args(args)?;
 
+    config.log_startup_summary();
+
     // Install Prometheus exporter and emit `prover_build_info` before binding
     // so a scrape during slow startup still returns the build identity.
     let prometheus_handle =
