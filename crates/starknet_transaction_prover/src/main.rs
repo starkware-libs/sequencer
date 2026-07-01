@@ -60,6 +60,9 @@ async fn main() -> anyhow::Result<()> {
 
     let config = ServiceConfig::from_args(args)?;
 
+    // Log the fully resolved config (secrets redacted) so the effective settings are on record.
+    config.log_startup_summary();
+
     // Install Prometheus exporter and emit `prover_build_info` before binding
     // so a scrape during slow startup still returns the build identity.
     let prometheus_handle =
