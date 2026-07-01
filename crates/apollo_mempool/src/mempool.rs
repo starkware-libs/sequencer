@@ -112,6 +112,14 @@ impl MempoolState {
             .unwrap_or(incoming_account_nonce)
     }
 
+    /// Returns the committed Nonce for the address, ignoring staged (provisional, possibly
+    /// rewound) nonces. Falls back to incoming_account_nonce if no committed value is found. Used
+    /// to decide whether a transaction is stale (committed past), where staged nonces must not be
+    /// trusted since the staging block may not be committed.
+    fn committed_nonce(&self, address: ContractAddress, incoming_account_nonce: Nonce) -> Nonce {
+        self.committed.get(&address).copied().unwrap_or(incoming_account_nonce)
+    }
+
     fn contains_account(&self, address: ContractAddress) -> bool {
         self.staged.contains_key(&address) || self.committed.contains_key(&address)
     }
@@ -233,6 +241,23 @@ impl AddTransactionQueue {
             let tx = &tx_args.tx;
             tx.contract_address() == contract_address && tx.nonce() == nonce
         })
+    }
+
+    /// Removes every queued transaction for which `keep` returns `false`, keeping `size_in_bytes`
+    /// consistent.
+    fn retain(&mut self, mut keep: impl FnMut(&AddTransactionArgs) -> bool) {
+        let mut removed_bytes = 0;
+        self.elements.retain(|(_, args)| {
+            let should_keep = keep(args);
+            if !should_keep {
+                removed_bytes += args.tx.total_bytes();
+            }
+            should_keep
+        });
+        self.size_in_bytes = self
+            .size_in_bytes
+            .checked_sub(removed_bytes)
+            .expect("Underflow when pruning AddTransactionQueue.");
     }
 
     fn len(&self) -> usize {
@@ -618,14 +643,34 @@ impl Mempool {
 
     fn add_ready_declares(&mut self) {
         let now = self.clock.now();
+        // Collect the accounts of the popped declares so their nonce-gap status is (re)evaluated
+        // for eviction tracking. Without this, a popped declare with a nonce gap would never be
+        // added to `accounts_with_gap` and thus would be immune to eviction.
+        let mut account_nonce_updates = AddressToNonce::new();
         while let Some((submission_time, _args)) = self.delayed_declares.front() {
             if now - self.config.static_config.declare_delay < *submission_time {
                 break;
             }
             let (_submission_time, args) =
                 self.delayed_declares.pop_front().expect("Delay declare should exist.");
+            let address = args.account_state.address;
+            // Staleness is judged against the committed nonce only; staged nonces are provisional
+            // (the staging block may be rewound), so dropping against them could discard a valid
+            // declare.
+            let committed_nonce = self.state.committed_nonce(address, args.account_state.nonce);
+            if args.tx.nonce() < committed_nonce {
+                debug!(
+                    "Dropping stale delayed declare for account {address}: tx nonce {} < \
+                     committed nonce {committed_nonce}.",
+                    args.tx.nonce(),
+                );
+                continue;
+            }
+            account_nonce_updates
+                .insert(address, self.state.resolve_nonce(address, args.account_state.nonce));
             self.add_tx_inner(args);
         }
+        self.update_accounts_with_gap(account_nonce_updates);
         self.update_state_metrics();
     }
 
@@ -689,6 +734,19 @@ impl Mempool {
 
         // Committed nonces should overwrite rejected transactions.
         account_nonce_updates.extend(committed_nonce_updates);
+
+        // Prune delayed declares that became stale while waiting: their nonce was committed
+        // on-chain (e.g. by another sequencer) so they can never execute. Done after `state.commit`
+        // (which updated `committed` and cleared `staged`), so `resolve_nonce` reflects the
+        // committed nonce here. Pruning before `update_accounts_with_gap` lets it correctly
+        // re-detect any gap that the stale declare was masking.
+        {
+            let Mempool { state, delayed_declares, .. } = self;
+            delayed_declares.retain(|args| {
+                args.tx.nonce()
+                    >= state.resolve_nonce(args.account_state.address, args.account_state.nonce)
+            });
+        }
 
         self.update_accounts_with_gap(account_nonce_updates);
         self.update_state_metrics();

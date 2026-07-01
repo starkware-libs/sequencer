@@ -1784,13 +1784,76 @@ fn stale_delayed_declare_does_not_suppress_gap_detection() {
     commit_block(&mut mempool, [(addr, 1)], []);
     assert!(mempool.accounts_with_gap().contains(&contract_address!(addr)));
 
-    // Once the delay elapses, the stale declare is moved from delayed_declares into tx_pool
-    // (add_ready_declares has no nonce guard). It sits there with stale nonce 0 < account nonce
-    // 1, so it is never queued. The next commit_block will clean it up via
-    // remove_up_to_nonce_when_committed.
+    // commit_block prunes the now-stale delayed declare (nonce 0 < committed nonce 1), so it never
+    // reaches tx_pool. Once the delay elapses there is nothing left to pop.
     fake_clock.advance(declare_delay);
     mempool.get_txs(1).unwrap();
     assert!(mempool.mempool_snapshot().unwrap().delayed_declares.is_empty());
+}
+
+#[test]
+fn future_gap_delayed_declare_is_evictable_after_pop() {
+    let declare_delay = Duration::from_secs(100);
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig { declare_delay, ..Default::default() },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+    let addr = "0x0";
+
+    // A declare with a future nonce (6) while the account is at nonce 5: it creates a gap and is
+    // the account's only transaction.
+    let mut gapped_declare = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(1),
+        sender_address: contract_address!(addr),
+        nonce: nonce!(6)
+    ));
+    gapped_declare.account_state.nonce = nonce!(5);
+    add_tx(&mut mempool, &gapped_declare);
+    // Still buffered (not yet in the pool), so no gap is tracked yet.
+    assert!(!mempool.accounts_with_gap().contains(&contract_address!(addr)));
+
+    // After the delay the declare is popped into the pool. Its account must be tracked in
+    // accounts_with_gap so the stuck declare is evictable (otherwise it pollutes the mempool
+    // permanently, immune to eviction).
+    fake_clock.advance(declare_delay);
+    mempool.get_txs(1).unwrap();
+    assert!(mempool.accounts_with_gap().contains(&contract_address!(addr)));
+    assert!(mempool.mempool_snapshot().unwrap().transactions.contains(&tx_hash!(1)));
+}
+
+#[test]
+fn stale_delayed_declare_pruned_on_commit() {
+    let declare_delay = Duration::from_secs(100);
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig { declare_delay, ..Default::default() },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+    let addr = "0x0";
+
+    // Delayed declare at nonce 5 (the account's only tx).
+    let declare = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(1),
+        sender_address: contract_address!(addr),
+        nonce: nonce!(5)
+    ));
+    add_tx(&mut mempool, &declare);
+    assert_eq!(mempool.mempool_snapshot().unwrap().delayed_declares, vec![tx_hash!(1)]);
+
+    // Another sequencer commits the account past nonce 5; the buffered declare is now stale and
+    // can never execute. It must be pruned at commit, not inserted into the pool later (where it
+    // would be immune to eviction).
+    commit_block(&mut mempool, [(addr, 6)], []);
+    let snapshot = mempool.mempool_snapshot().unwrap();
+    assert!(snapshot.delayed_declares.is_empty());
+    assert!(!snapshot.transactions.contains(&tx_hash!(1)));
 }
 
 #[rstest]
