@@ -13,7 +13,6 @@ const VERSION_PATCH: u32 = 0;
 
 /// Version metadata to append to the version string.
 /// Expected values are `dev` and `stable`.
-#[allow(dead_code)]
 const VERSION_META: Metadata = Metadata::Dev;
 
 /// Textual version string.
