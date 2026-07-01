@@ -28,7 +28,8 @@ Expected response:
 The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is the
 `proving-api/starknet_proving_api_openrpc.json` document in
 [starknet-specs](https://github.com/starkware-libs/starknet-specs), pinned to the revision recorded
-in `resources/starknet_specs_rev.txt`.
+in `resources/starknet_specs_rev.txt`. Two HTTP-only side endpoints are also served (`GET /health`
+and `GET /metrics`) — see the [Observability](#observability) section.
 
 ### `starknet_specVersion`
 
@@ -162,7 +163,9 @@ and environment variables override values from the config file.
 | `CHAIN_ID` | `--chain-id` | `SN_MAIN` | Target Starknet network. Determines fee token addresses and versioned constants. Accepts `SN_MAIN`, `SN_SEPOLIA`, or a custom chain ID string. |
 | `PROVER_PORT` | `--port` | `3000` | TCP port the JSON-RPC server listens on. Must be >=1. |
 | `PROVER_IP` | `--ip` | `0.0.0.0` | IP address to bind. Use `127.0.0.1` to restrict to localhost, `0.0.0.0` for all interfaces. |
-| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max parallel proving requests. Additional requests receive error `-32005`. Bound by available CPU/memory. Must be >=1. |
+| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max proving requests running in parallel (worker slots). Beyond this, requests queue (see `MAX_QUEUED_REQUESTS`); they receive error `-32005` only when the queue is full. Bound by available CPU/memory. Must be >=1. |
+| `MAX_QUEUED_REQUESTS` | `--max-queued-requests` | `8` | Requests that may wait FIFO for a worker slot beyond `MAX_CONCURRENT_REQUESTS`. When this buffer is full, further requests are rejected with `-32005`. `0` reproduces immediate rejection once all workers are busy. |
+| `QUEUE_WAIT_TIMEOUT_MILLIS` | `--queue-wait-timeout-millis` | `30000` | Backstop: how long a queued request waits for a worker slot before a `-32005` rejection, so a stuck worker can't pin a waiter's connection indefinitely. |
 | `MAX_CONNECTIONS` | `--max-connections` | `10` | Max simultaneous TCP connections accepted by the server. Must be >=1. |
 | `SKIP_FEE_FIELD_VALIDATION` | `--skip-fee-field-validation` | `false` | When `true`, allows non-zero gas prices and tip in requests. By default the service rejects them because proving is client-side and no fees are charged. |
 | `STRK_FEE_TOKEN_ADDRESS` | `--strk-fee-token-address` | _(auto per chain)_ | Override the STRK fee token contract address (hex). Only needed for custom networks that share a standard chain ID but use a different fee token. |
@@ -172,6 +175,8 @@ and environment variables override values from the config file.
 | `MAX_REQUEST_BODY_SIZE` | `--max-request-body-size` | `5242880` (5 MiB) | Maximum size of an incoming JSON-RPC request body in bytes. Requests exceeding this limit are rejected before parsing. |
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
+| `LOG_FORMAT` | `--log-format` | `text` | Log output format. Use `json` in production so aggregators (e.g. Datadog) parse fields directly. Accepts `text` or `json`. |
+| `HEALTH_MAX_SATURATED_MS` | `--health-max-saturated-ms` | `10000` | How long the service must be continuously rejecting proving requests before `GET /health` flips to 503. See [Observability → /health](#health). |
 
 ### TLS / HTTPS
 
@@ -204,6 +209,8 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `ip` | `PROVER_IP` | string |
 | `port` | `PROVER_PORT` | integer |
 | `max_concurrent_requests` | `MAX_CONCURRENT_REQUESTS` | integer |
+| `max_queued_requests` | `MAX_QUEUED_REQUESTS` | integer |
+| `queue_wait_timeout_millis` | `QUEUE_WAIT_TIMEOUT_MILLIS` | integer |
 | `max_connections` | `MAX_CONNECTIONS` | integer |
 | `validate_zero_fee_fields` | inverse of `SKIP_FEE_FIELD_VALIDATION` | bool |
 | `strk_fee_token_address` | `STRK_FEE_TOKEN_ADDRESS` | hex string or null |
@@ -214,6 +221,7 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
 | `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
 | `tls_key_file` | `TLS_KEY_FILE` | file path or null |
+| `health_max_saturated_ms` | `HEALTH_MAX_SATURATED_MS` | integer (ms) |
 
 ### Docker example with common options
 
@@ -228,10 +236,11 @@ docker run --rm -p 3000:3000 \
 
 ### Logging
 
-The service uses the `RUST_LOG` environment variable (via `tracing-subscriber`).
+The service uses the `RUST_LOG` environment variable (via `tracing-subscriber`) to control verbosity,
+and `LOG_FORMAT` to switch between human-readable text and machine-readable JSON.
 
 ```bash
-# Default — service logs at debug, noisy proving libraries at warn:
+# Default — service logs at debug, noisy proving libraries at warn, text format:
 docker run ... <IMAGE>
 
 # Verbose — all crates at debug:
@@ -239,7 +248,15 @@ docker run -e RUST_LOG=debug ... <IMAGE>
 
 # Quiet — warnings and errors only:
 docker run -e RUST_LOG=warn ... <IMAGE>
+
+# Production — JSON output so log aggregators parse fields directly:
+docker run -e LOG_FORMAT=json ... <IMAGE>
 ```
+
+`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`,
+and `span` keys. URLs that may contain credentials in the userinfo component (`rpc_node_url`,
+`blocking_check_url`) are redacted to `scheme://host[:port]` everywhere they appear in logs,
+including the startup banner and CLI-override messages.
 
 ## Compression
 
@@ -258,6 +275,120 @@ curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}' | zstd -d
 ```
+
+## Observability
+
+The service exposes three observability surfaces alongside the JSON-RPC API: HTTP probe endpoints
+(`/health`, `/metrics`), structured per-request logs with request-id propagation, and graceful
+shutdown semantics. All are unauthenticated by design — they're intended for load balancers,
+scrapers, and orchestrators, and contain no service state, no transaction data, and no URLs with
+credentials.
+
+### `/health`
+
+`GET /health` returns the current health of the service.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `200 OK` | `{"status":"ok"}` | Service is accepting requests. |
+| `503 Service Unavailable` | `{"status":"unhealthy","reason":"saturated"}` | Service has been continuously rejecting proving requests for at least `HEALTH_MAX_SATURATED_MS` (default 10 seconds). Load balancer should drain this pod. |
+
+The 503 path is driven by the same in-process semaphore that returns JSON-RPC error `-32005`
+(Service busy). A single rejection does not trigger 503 — the saturation window must hold for the
+full `HEALTH_MAX_SATURATED_MS`. A successful request clears the window immediately, so 503 → 200
+transitions are fast once load drops.
+
+The response body is intentionally opaque (no timestamps, counters, or upstream URLs) because
+`/health` is unauthenticated. The endpoint is served by the outermost tower middleware so probes
+bypass CORS, compression, and JSON-RPC parsing.
+
+### `/metrics`
+
+`GET /metrics` returns the Prometheus text-format scrape with all metrics emitted by the service.
+Like `/health`, scrapes bypass CORS and JSON-RPC parsing, and the endpoint is unauthenticated.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `prover_build_info` | gauge | `version`, `git_sha` | Always 1. Used to identify the running build from a scrape. |
+| `prover_http_requests_total` | counter | `method`, `status` | HTTP request count. `method` is a bounded enum (`GET`/`POST`/`PUT`/`DELETE`/`HEAD`/`OPTIONS`/`PATCH`/`other`); `status` is the HTTP status class (`1xx`–`5xx`, plus `other`/`error`). Excludes `/health` and `/metrics` probes. |
+| `prover_http_request_duration_seconds` | histogram | `method` | End-to-end HTTP request latency, sliced by `method` only (no `status`). Excludes `/health` and `/metrics` probes. |
+| `prover_http_inflight_requests` | gauge | — | Current count of HTTP requests being handled. Decremented via RAII so panics and cancellations don't leak. |
+| `prover_prove_transaction_outcome_total` | counter | `outcome` | Every proving request, whether served or shed, so its total is the shared denominator for all proving rates. `outcome` is a bounded enum: `success`, `failure_validation`, `failure_blocked`, `failure_runner`, `failure_output_parse`, `failure_proving`, `rejected_queue_full`, `rejected_wait_timeout`. The two `rejected_*` values are the busy-rejects (JSON-RPC error `-32005`). |
+| `prover_prove_transaction_duration_seconds` | histogram | — | End-to-end proving duration for admitted requests (virtual OS run + STWO proving). Rejected requests never reach it. |
+| `prover_os_run_duration_seconds` | histogram | — | Virtual OS execution time, recorded for successful runs only. |
+| `prover_stwo_prove_duration_seconds` | histogram | — | STWO proving time, recorded for successful runs only (requires `stwo_proving` feature). |
+| `prover_queue_waiting_requests` | gauge | — | Requests admitted to the queue but still waiting for a worker slot. Decremented via RAII on slot acquisition, timeout, or client disconnect. |
+| `prover_queue_wait_duration_seconds` | histogram | — | Time a request waited in the queue before acquiring a worker slot (successful acquisitions only). |
+| `prover_panics_total` | counter | — | Process panics caught by the global panic hook. Useful for alerting on panic rate without log search. |
+
+Label cardinality is bounded — no user-controlled values become labels.
+
+### Request IDs
+
+Every HTTP request is logged with a `request_id` field. The id is taken from the inbound
+`x-request-id` header when it's a short, printable-ASCII token (max 128 bytes); otherwise the
+service generates a UUID v4. The (possibly generated) id is echoed back on the response in the
+same header so a caller that triggered a failure can quote a single id when reporting it.
+
+Hostile inputs (whitespace, non-printable bytes, oversized values) are dropped and replaced with
+a freshly generated id rather than being trusted — this prevents header smuggling and log-field
+explosion.
+
+**OHTTP traffic uses two distinct ids, by design.** For an Oblivious HTTP request the id above is
+assigned to the *outer envelope*: it is echoed on the (relay-visible) `message/ohttp-res` response
+and appears in the outermost access-log line. The *decapsulated inner request* is given a separate,
+freshly generated id that is bound to its content-level logs and **never echoed back**. Any
+client-supplied id inside the envelope is discarded. This is a security property, not a logging
+inconsistency: keeping the relay-visible envelope id distinct from the gateway's content-log id
+means a party holding both the relay's records (id → client) and the gateway's logs (id → request
+contents) has no shared key to join them, preserving OHTTP unlinkability. Do not "fix" the two ids
+to match — that would reintroduce the join key.
+
+### Per-request log line
+
+Each HTTP request produces a single structured log line at `info` level with
+`event="http_request"`:
+
+```json
+{
+  "timestamp": "...",
+  "level": "INFO",
+  "fields": {
+    "event": "http_request",
+    "request_id": "a1b2c3d4...",
+    "method": "POST",
+    "path": "/",
+    "status": 200,
+    "latency_ms": 1247,
+    "message": "HTTP request handled."
+  }
+}
+```
+
+Request bodies are never inspected — transaction calldata is private user data and never reaches
+the log stream.
+
+### Startup banner
+
+At startup the service emits a single `info` log with version, git SHA, chain id, redacted RPC
+host, and feature flags. Credentials embedded in URLs (e.g. `https://user:secret@rpc.example.com/`)
+are stripped down to `scheme://host[:port]` before logging. No fee token address, TLS path, or
+transaction-scoped data appears in the banner.
+
+### Shutdown and panics
+
+`SIGTERM` and `SIGINT` trigger a graceful shutdown — the service stops accepting new requests and
+waits for in-flight proofs to finish. Both signals produce structured log events
+(`shutdown_started`, `shutdown_complete`) so deployment events are visible in the log stream.
+
+A **second** termination signal during graceful shutdown forces `exit(1)` so an operator can
+always reclaim a stuck process. This works around a known tokio behavior where dropping the
+`Signal` handle silently swallows subsequent signals on the same channel.
+
+Process panics are captured by a global panic hook that emits a structured `event="panic"` log
+with location, message, and a forced backtrace, then increments the `prover_panics_total` metric.
+The hook does not call `process::abort()` — the existing runtime abort-on-panic behavior is
+preserved.
 
 ## Limitations
 
