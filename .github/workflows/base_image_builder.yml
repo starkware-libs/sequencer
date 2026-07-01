@@ -1,0 +1,64 @@
+name: Base-Image-Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag for the image (e.g. v0.0.1). Always pushed."
+        required: true
+        type: string
+      tag_latest:
+        description: "Also tag this build as 'latest'. When false, only the version tag is pushed."
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  REPO_NAME: ${{ github.repository }}
+
+jobs:
+  docker-build-push:
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # Login to a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Login to registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          logout: true
+
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/base
+          tags: |
+            # Immutable version tag, pushed on every build.
+            type=raw,value=${{ inputs.version }}
+            # Moving 'latest' tag, re-points to this build when enabled.
+            type=raw,value=latest,enable=${{ inputs.tag_latest }}
+
+      # Build and push Docker image with Buildx
+      # https://github.com/docker/build-push-action
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: .
+          file: deployments/images/base/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
