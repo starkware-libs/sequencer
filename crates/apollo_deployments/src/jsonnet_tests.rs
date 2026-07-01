@@ -1,48 +1,23 @@
+//! Parity/applicative test helpers driven off the jsonnet evaluator (`jsonnet_eval`): assert the
+//! jsonnet-derived infra and applicative config match the Rust sources of truth. Compiled only
+//! under `test`; the reusable evaluator core lives in `jsonnet_eval`.
+
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_node_config::config_utils::{config_to_preset, private_parameters};
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
-use jrsonnet_evaluator::trace::PathResolver;
-use jrsonnet_evaluator::{FileImportResolver, State};
 use serde_json::Value;
 use strum::IntoEnumIterator;
 
 use crate::deployment_definitions::BASE_APP_CONFIGS_DIR_PATH;
+use crate::jsonnet_eval::{build_service_configs, eval_jsonnet};
 use crate::service::{GetComponentConfigs, NodeService, NodeType, KEYS_TO_BE_REPLACED};
 use crate::test_utils::is_path_prefix;
 
-const JSONNET_DIR: &str = "crates/apollo_deployments/jsonnet";
 const TESTING_CHAIN_PARAMS_PATH: &str = "testing/chain_params.libsonnet";
 const TESTING_NODE_PARAMS_PATH: &str = "testing/node_params.libsonnet";
-
-/// Evaluates a jsonnet `snippet` against a fresh evaluator (stdlib installed, imports resolved
-/// relative to the jsonnet dir) and converts the result to a serde `Value`. `context` labels the
-/// evaluation in panic messages.
-fn eval_jsonnet(context: &str, snippet: String) -> Value {
-    let state = jsonnet_state();
-    let _guard = state.enter();
-    let val = state
-        .evaluate_snippet(context.to_owned(), snippet)
-        .expect("Failed to evaluate jsonnet snippet.");
-    serde_json::to_value(&val).expect("Failed to serialize jsonnet result to Value.")
-}
-
-/// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
-fn eval_layout_infra(layout: &str) -> Value {
-    eval_jsonnet("layout infra", format!("import 'services/{layout}.jsonnet'"))
-}
-
-/// A jrsonnet evaluator with the stdlib installed and file imports resolved relative to the jsonnet
-/// dir (so the libraries' `std.*` calls and relative `import`s work).
-fn jsonnet_state() -> State {
-    let mut builder = State::builder();
-    builder.context_initializer(jrsonnet_stdlib::ContextInitializer::new(PathResolver::Absolute));
-    builder.import_resolver(FileImportResolver::new(vec![PathBuf::from(JSONNET_DIR)]));
-    builder.build()
-}
 
 /// Asserts the jsonnet-derived infra of every service of layout `S` matches the Rust source of
 /// truth (`<layout>.rs`'s `get_component_configs`).
@@ -74,23 +49,6 @@ where
     }
 }
 
-/// Evaluates `build(layout, { chain_params, node_params })` and returns its JSON: a map from service
-/// name to that service's fully-assembled config. The testing params supply only the mandatory
-/// chain_params + node_params buckets; `replacers` is omitted, so every replacer falls back to its
-/// applicative-config default.
-fn eval_build(layout: &str) -> Value {
-    // `layout` is the snake_case layout name (`hybrid`/`consolidated`/`distributed`) — it must match
-    // the `lib/layouts/<name>.libsonnet` filename, which `build` takes as its topology object.
-    eval_jsonnet(
-        "build",
-        format!(
-            "(import 'lib/build.libsonnet').build(import 'lib/layouts/{layout}.libsonnet', \
-             {{ chain_params: import '{TESTING_CHAIN_PARAMS_PATH}', node_params: import \
-             '{TESTING_NODE_PARAMS_PATH}' }})"
-        ),
-    )
-}
-
 /// Asserts that `build(layout, params)` produces, for every service of layout `S`, an object that
 /// deserializes into `SequencerNodeConfig`.
 pub(crate) fn assert_build_deserializes<S>()
@@ -118,7 +76,7 @@ where
 
 /// Asserts the applicative config emitted by jsonnet reproduces the committed `app_configs/*.json`
 /// for every keys, except keys that are overridable, secret, or under `components.*`.
-pub fn test_applicative_matches_app_configs() {
+pub(crate) fn test_applicative_matches_app_configs() {
     // Applicative side: the single consolidated `node` service carries every component's business
     // config; round-trip through the config struct and render it in the app_configs preset format.
     let built = eval_build("consolidated");
@@ -159,6 +117,23 @@ pub fn test_applicative_matches_app_configs() {
         mismatches.len(),
         mismatches.join("\n  ")
     );
+}
+
+/// Evaluates `build(layout, <testing params>)` and returns its JSON as a `Value`: a map from
+/// service name to that service's fully-assembled config. The testing params supply only the
+/// mandatory chain_params + node_params buckets; `replacers` is omitted, so every replacer falls
+/// back to its applicative-config default.
+fn eval_build(layout: &str) -> Value {
+    let params = format!(
+        "{{ chain_params: import '{TESTING_CHAIN_PARAMS_PATH}', node_params: import \
+         '{TESTING_NODE_PARAMS_PATH}' }}"
+    );
+    Value::Object(build_service_configs(layout, &params))
+}
+
+/// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
+fn eval_layout_infra(layout: &str) -> Value {
+    eval_jsonnet("layout infra", format!("import 'services/{layout}.jsonnet'"))
 }
 
 /// Merges every base `app_configs/<component>.json` (skipping the derived `replacer_*` files) into
