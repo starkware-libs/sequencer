@@ -28,6 +28,8 @@ http.workspace = true
 http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 privacy-prove = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
