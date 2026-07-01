@@ -84,3 +84,25 @@ fn transaction_signature_debug_does_not_leak_felts() {
 fn transaction_signature_debug_empty() {
     assert_eq!(format!("{:?}", TransactionSignature::default()), "TransactionSignature([])");
 }
+
+// Same log-exposure concern as the signature: `Calldata` is embedded in every `RpcTransaction`
+// variant, which is logged via `{:?}`. A plain derived `Debug` would dump every raw calldata
+// felt, leaking user-supplied calldata into logs.
+#[test]
+fn calldata_debug_does_not_leak_felts() {
+    let secret_looking_felt = Felt::from_hex_unchecked("0xDEADBEEF");
+    let calldata = Calldata(Arc::new(vec![secret_looking_felt]));
+
+    let debug = format!("{calldata:?}");
+
+    assert!(
+        !debug.contains("deadbeef") && !debug.contains("DEADBEEF"),
+        "calldata felt leaked into Debug output: {debug}"
+    );
+    assert_eq!(debug, "Calldata(<1 elements redacted>)");
+}
+
+#[test]
+fn calldata_debug_empty() {
+    assert_eq!(format!("{:?}", Calldata::default()), "Calldata([])");
+}

@@ -129,10 +129,22 @@ impl fmt::Debug for TransactionSignature {
 }
 
 /// The calldata of a transaction.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf)]
 pub struct Calldata(pub Arc<Vec<Felt>>);
+
+// Calldata is embedded in `RpcTransaction`, which is logged via `{:?}` at debug level (transaction
+// ingestion, gateway processing); redact the felts so user-supplied calldata never ends up
+// unredacted in logs, mirroring `TransactionSignature`'s `Debug` impl above.
+impl fmt::Debug for Calldata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.0.len();
+        if len == 0 {
+            write!(f, "Calldata([])")
+        } else {
+            write!(f, "Calldata(<{len} elements redacted>)")
+        }
+    }
+}
 
 impl From<Vec<Felt>> for Calldata {
     fn from(value: Vec<Felt>) -> Self {
