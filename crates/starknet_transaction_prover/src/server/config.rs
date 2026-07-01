@@ -402,6 +402,14 @@ impl ServiceConfig {
                 "max_request_body_size must be at least 1".to_string(),
             ));
         }
+        // A zero backstop makes an admitted request time out immediately instead of waiting for a
+        // worker slot, silently defeating the queue. Reject it when a queue is configured.
+        if config.queue_wait_timeout_millis == 0 && config.max_queued_requests > 0 {
+            return Err(ConfigError::InvalidArgument(
+                "queue_wait_timeout_millis must be at least 1 when max_queued_requests > 0"
+                    .to_string(),
+            ));
+        }
         let transport = TransportMode::new(config.tls_cert_file, config.tls_key_file)?;
         let cors_allow_origin = normalize_cors_allow_origins(config.cors_allow_origin)?;
         if cors_allow_origin == ["*"] {
