@@ -1,5 +1,6 @@
 //! Configuration for the proving service.
 
+use std::fmt::Display;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -168,6 +169,17 @@ pub struct ServiceConfig {
     pub ohttp_key_cache_max_age_secs: u64,
 }
 
+/// Applies an optional CLI override to a config field, logging `old -> new` when it changes.
+/// Centralizes the repeated per-field override pattern used in `ServiceConfig::from_args`.
+fn override_field<T: PartialEq + Display>(name: &str, current: &mut T, new: Option<T>) {
+    if let Some(value) = new {
+        if value != *current {
+            info!("CLI override: {}: {} -> {}", name, *current, value);
+            *current = value;
+        }
+    }
+}
+
 impl ServiceConfig {
     /// Creates a ServiceConfig from CLI arguments.
     pub fn from_args(args: CliArgs) -> Result<Self, ConfigError> {
@@ -212,12 +224,7 @@ impl ServiceConfig {
                 config.chain_id = new_chain_id;
             }
         }
-        if let Some(port) = args.port {
-            if port != config.port {
-                info!("CLI override: port: {} -> {}", config.port, port);
-                config.port = port;
-            }
-        }
+        override_field("port", &mut config.port, args.port);
         if let Some(ip) = args.ip {
             let new_ip: IpAddr = ip
                 .parse()
@@ -227,39 +234,22 @@ impl ServiceConfig {
                 config.ip = new_ip;
             }
         }
-        if let Some(max) = args.max_concurrent_requests {
-            if max != config.max_concurrent_requests {
-                info!(
-                    "CLI override: max_concurrent_requests: {} -> {}",
-                    config.max_concurrent_requests, max
-                );
-                config.max_concurrent_requests = max;
-            }
-        }
-        if let Some(max) = args.max_queued_requests {
-            if max != config.max_queued_requests {
-                info!(
-                    "CLI override: max_queued_requests: {} -> {}",
-                    config.max_queued_requests, max
-                );
-                config.max_queued_requests = max;
-            }
-        }
-        if let Some(millis) = args.queue_wait_timeout_millis {
-            if millis != config.queue_wait_timeout_millis {
-                info!(
-                    "CLI override: queue_wait_timeout_millis: {} -> {}",
-                    config.queue_wait_timeout_millis, millis
-                );
-                config.queue_wait_timeout_millis = millis;
-            }
-        }
-        if let Some(max) = args.max_connections {
-            if max != config.max_connections {
-                info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
-                config.max_connections = max;
-            }
-        }
+        override_field(
+            "max_concurrent_requests",
+            &mut config.max_concurrent_requests,
+            args.max_concurrent_requests,
+        );
+        override_field(
+            "max_queued_requests",
+            &mut config.max_queued_requests,
+            args.max_queued_requests,
+        );
+        override_field(
+            "queue_wait_timeout_millis",
+            &mut config.queue_wait_timeout_millis,
+            args.queue_wait_timeout_millis,
+        );
+        override_field("max_connections", &mut config.max_connections, args.max_connections);
         if let Some(tls_cert_file) = args.tls_cert_file {
             if Some(&tls_cert_file) != config.tls_cert_file.as_ref() {
                 info!(
@@ -321,35 +311,19 @@ impl ServiceConfig {
             }
         }
 
-        if let Some(prefetch_state) = args.prefetch_state {
-            if prefetch_state != config.prefetch_state {
-                info!(
-                    "CLI override: prefetch_state: {} -> {}",
-                    config.prefetch_state, prefetch_state
-                );
-                config.prefetch_state = prefetch_state;
-            }
-        }
+        override_field("prefetch_state", &mut config.prefetch_state, args.prefetch_state);
 
-        if let Some(use_latest) = args.use_latest_versioned_constants {
-            if use_latest != config.use_latest_versioned_constants {
-                info!(
-                    "CLI override: use_latest_versioned_constants: {} -> {}",
-                    config.use_latest_versioned_constants, use_latest
-                );
-                config.use_latest_versioned_constants = use_latest;
-            }
-        }
+        override_field(
+            "use_latest_versioned_constants",
+            &mut config.use_latest_versioned_constants,
+            args.use_latest_versioned_constants,
+        );
 
-        if let Some(compiled_class_cache_size) = args.compiled_class_cache_size {
-            if compiled_class_cache_size != config.compiled_class_cache_size {
-                info!(
-                    "CLI override: compiled_class_cache_size: {} -> {}",
-                    config.compiled_class_cache_size, compiled_class_cache_size
-                );
-                config.compiled_class_cache_size = compiled_class_cache_size;
-            }
-        }
+        override_field(
+            "compiled_class_cache_size",
+            &mut config.compiled_class_cache_size,
+            args.compiled_class_cache_size,
+        );
         if let Some(url) = args.blocking_check_url {
             if Some(&url) != config.blocking_check_url.as_ref() {
                 info!(
@@ -363,24 +337,16 @@ impl ServiceConfig {
                 config.blocking_check_url = Some(url);
             }
         }
-        if let Some(timeout) = args.blocking_check_timeout_millis {
-            if timeout != config.blocking_check_timeout_millis {
-                info!(
-                    "CLI override: blocking_check_timeout_millis: {} -> {}",
-                    config.blocking_check_timeout_millis, timeout
-                );
-                config.blocking_check_timeout_millis = timeout;
-            }
-        }
-        if let Some(fail_open) = args.blocking_check_fail_open {
-            if fail_open != config.blocking_check_fail_open {
-                info!(
-                    "CLI override: blocking_check_fail_open: {} -> {}",
-                    config.blocking_check_fail_open, fail_open
-                );
-                config.blocking_check_fail_open = fail_open;
-            }
-        }
+        override_field(
+            "blocking_check_timeout_millis",
+            &mut config.blocking_check_timeout_millis,
+            args.blocking_check_timeout_millis,
+        );
+        override_field(
+            "blocking_check_fail_open",
+            &mut config.blocking_check_fail_open,
+            args.blocking_check_fail_open,
+        );
 
         // Validate blocking check URL early so an invalid value surfaces as a clean config error
         // instead of a panic at prover construction time.
@@ -389,29 +355,21 @@ impl ServiceConfig {
                 ConfigError::InvalidArgument(format!("Invalid blocking_check_url: {e}"))
             })?;
         }
-        if let Some(max_request_body_size) = args.max_request_body_size {
-            if max_request_body_size != config.max_request_body_size {
-                info!(
-                    "CLI override: max_request_body_size: {} -> {}",
-                    config.max_request_body_size, max_request_body_size
-                );
-                config.max_request_body_size = max_request_body_size;
-            }
-        }
+        override_field(
+            "max_request_body_size",
+            &mut config.max_request_body_size,
+            args.max_request_body_size,
+        );
 
         if args.ohttp_enabled && !config.ohttp_enabled {
             info!("CLI override: ohttp_enabled: false -> true");
             config.ohttp_enabled = true;
         }
-        if let Some(secs) = args.ohttp_key_cache_max_age_secs {
-            if secs != config.ohttp_key_cache_max_age_secs {
-                info!(
-                    "CLI override: ohttp_key_cache_max_age_secs: {} -> {}",
-                    config.ohttp_key_cache_max_age_secs, secs
-                );
-                config.ohttp_key_cache_max_age_secs = secs;
-            }
-        }
+        override_field(
+            "ohttp_key_cache_max_age_secs",
+            &mut config.ohttp_key_cache_max_age_secs,
+            args.ohttp_key_cache_max_age_secs,
+        );
 
         // Validate required fields.
         if config.rpc_node_url.is_empty() {
