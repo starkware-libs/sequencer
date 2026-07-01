@@ -76,8 +76,16 @@ enum LeafSource<L: Leaf> {
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
+        num_leaves: usize,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
-        let mut filled_tree_output_map = HashMap::new();
+        // The root's n_new_hashes counts all Binary/Edge nodes; num_leaves is an upper bound on
+        // Leaf nodes (exact when there are no deletions). Together they give an upper bound — exact
+        // in the common case — on the capacity needed, avoiding HashMap rehashes.
+        let num_inner_nodes = updated_skeleton
+            .get_node(NodeIndex::ROOT)
+            .expect("root must exist after the empty-tree guard in the caller")
+            .n_new_hashes();
+        let mut filled_tree_output_map = HashMap::with_capacity(num_inner_nodes + num_leaves);
         for (index, node) in updated_skeleton.get_nodes() {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
                 filled_tree_output_map.insert(index, OnceLock::new());
@@ -294,7 +302,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
 
         // Wrap values in `OnceLock<T>` for write-once interior mutability.
         let filled_tree_output_map =
-            Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(&updated_skeleton));
+            Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(
+                &updated_skeleton,
+                leaf_index_to_leaf_input.len(),
+            ));
         let leaf_index_to_leaf_output =
             Arc::new(Self::initialize_leaf_output_map_with_placeholders(&leaf_index_to_leaf_input));
         let leaf_source = Arc::new(LeafSource::ComputeLeaves {
@@ -340,7 +351,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
 
         // Wrap values in `OnceLock<T>` for write-once interior mutability.
         let filled_tree_output_map =
-            Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(&updated_skeleton));
+            Arc::new(Self::initialize_filled_tree_output_map_with_placeholders(
+                &updated_skeleton,
+                leaf_modifications.len(),
+            ));
 
         // Compute the filled tree.
         let root_hash = Self::compute_filled_tree_rec::<TH>(
