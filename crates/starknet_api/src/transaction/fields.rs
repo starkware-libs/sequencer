@@ -112,10 +112,21 @@ pub struct ContractAddressSalt(pub StarkHash);
 /// A transaction signature, wrapped in `Arc` for efficient cloning and safe sharing across threads.
 /// `Rc` is avoided due to its lack of thread safety, and `Mutex` is unnecessary as the signature
 /// vector is immutable and never modified.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf)]
 pub struct TransactionSignature(pub Arc<Vec<Felt>>);
+
+// Signatures are logged (e.g. transaction ingestion, gateway processing) at debug level; redact
+// the felts so they never end up unredacted in logs, mirroring `Proof`'s `Debug` impl below.
+impl fmt::Debug for TransactionSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.0.len();
+        if len == 0 {
+            write!(f, "TransactionSignature([])")
+        } else {
+            write!(f, "TransactionSignature(<{len} elements redacted>)")
+        }
+    }
+}
 
 /// The calldata of a transaction.
 #[derive(
