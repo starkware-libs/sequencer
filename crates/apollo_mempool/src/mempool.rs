@@ -821,13 +821,12 @@ impl Mempool {
     fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
         let percentage = u128::from(self.config.static_config.fee_escalation_percentage);
 
-        // Note: To reduce precision loss, we first multiply by the percentage and then divide by
-        // 100. This could cause an overflow and an automatic rejection of the transaction, but the
-        // values aren't expected to be large enough for this to be an issue.
+        // Round up the required increase so any positive percentage always demands a strictly
+        // higher fee, even for small values.
         let Some(escalation_qualified_value) = existing_value
             .checked_mul(percentage)
-            .map(|v| v / 100)
-            .and_then(|increase| existing_value.checked_add(increase))
+            .map(|scaled| scaled.div_ceil(100))
+            .and_then(|required_increase| existing_value.checked_add(required_increase))
         else {
             // Overflow occurred during calculation; reject the transaction.
             return false;
