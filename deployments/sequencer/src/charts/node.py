@@ -40,7 +40,10 @@ class SequencerNodeChart(Chart):
         # Create labels dictionary from service config + service name
         # Base labels from shared config (metaLabels) - now merged into service_config
         labels = dict(service_config.metaLabels) if service_config.metaLabels else {}
-        # Add service label (dynamic per service)
+        # Enforce the identifying labels on top of user metaLabels so they always match the
+        # Deployment/StatefulSet selectors (which hardcode app + service). A user-provided
+        # metaLabels.app must not be able to desync the selector from the pod template labels.
+        labels["app"] = "sequencer"
         labels["service"] = f"sequencer-{service_config.name}"
 
         # Determine monitoring port

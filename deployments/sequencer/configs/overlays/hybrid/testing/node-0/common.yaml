@@ -1,7 +1,6 @@
 imagePullSecrets: []
 
-metaLabels:
-  app: sequencer
+metaLabels: {}
 
 image:
   repository: ghcr.io/starkware-libs/sequencer/sequencer

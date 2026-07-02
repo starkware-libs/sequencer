@@ -1,9 +1,15 @@
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
 StrDict = Dict[str, str]
 AnyDict = Dict[str, Any]
+
+# Label keys the deployment manages itself (set in src/charts/node.py) so that the
+# Deployment/StatefulSet selectors always match the pod template labels. Users must not set these
+# via metaLabels/podLabels — a divergent value would desync the selector from the pods and break
+# `kubectl apply`/rollouts.
+RESERVED_LABEL_KEYS = ("app", "service")
 
 
 class StrictBaseModel(BaseModel):
@@ -530,6 +536,18 @@ class ServiceConfig(StrictBaseModel):
     )  # Accepts both podMonitoring and gcpPodMonitoring in YAML
     networkPolicy: Optional[NetworkPolicy] = None
     priorityClass: Optional[PriorityClass] = None
+
+    @field_validator("metaLabels", "podLabels")
+    @classmethod
+    def _forbid_reserved_label_keys(cls, labels: StrDict, info) -> StrDict:
+        reserved_keys = [key for key in RESERVED_LABEL_KEYS if key in labels]
+        if reserved_keys:
+            raise ValueError(
+                f"{info.field_name} must not set reserved label key(s) {reserved_keys}: "
+                "'app' and 'service' are managed by the deployment and enforced on the pod "
+                "template labels to keep them in sync with the Deployment/StatefulSet selectors."
+            )
+        return labels
 
 
 # CommonConfig is now just ServiceConfig - shared config and service YAML use the same schema.

@@ -7,9 +7,9 @@ replicas: 1
 
 imagePullSecrets: []
 
-## Base labels to attach to all resources
-metaLabels:
-  app: sequencer
+## Base labels to attach to all resources. Note: `app` and `service` are managed by the
+## deployment and must not be set here (enforced by schema validation).
+metaLabels: {}
 
 image:
   repository: ghcr.io/starkware-libs/sequencer/sequencer
