@@ -112,16 +112,28 @@ pub struct ContractAddressSalt(pub StarkHash);
 /// A transaction signature, wrapped in `Arc` for efficient cloning and safe sharing across threads.
 /// `Rc` is avoided due to its lack of thread safety, and `Mutex` is unnecessary as the signature
 /// vector is immutable and never modified.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf)]
 pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 
+// The signature is security-sensitive; hide its felts from logs (e.g. `debug!("{tx:?}")` at the
+// gateway ingest point) so it is never dumped in plaintext.
+impl fmt::Debug for TransactionSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TransactionSignature(<{} felts>)", self.0.len())
+    }
+}
+
 /// The calldata of a transaction.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf)]
 pub struct Calldata(pub Arc<Vec<Felt>>);
+
+// Calldata can carry unbounded, sensitive-looking user data; hide its felts from logs (e.g.
+// `debug!("{tx:?}")` at the gateway ingest point) so it is never dumped in plaintext.
+impl fmt::Debug for Calldata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Calldata(<{} felts>)", self.0.len())
+    }
+}
 
 impl From<Vec<Felt>> for Calldata {
     fn from(value: Vec<Felt>) -> Self {
@@ -607,10 +619,16 @@ impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
 }
 
 /// Paymaster-related data.
-#[derive(
-    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
-)]
+#[derive(Clone, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
 pub struct PaymasterData(pub Vec<Felt>);
+
+// Paymaster data is unbounded, user-controlled input; hide its felts from logs (e.g.
+// `debug!("{tx:?}")` at the gateway ingest point) so it is never dumped in plaintext.
+impl fmt::Debug for PaymasterData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PaymasterData(<{} felts>)", self.0.len())
+    }
+}
 
 impl PaymasterData {
     pub fn is_empty(&self) -> bool {
@@ -620,10 +638,16 @@ impl PaymasterData {
 
 /// If nonempty, will contain the required data for deploying and initializing an account contract:
 /// its class hash, address salt and constructor calldata.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf)]
 pub struct AccountDeploymentData(pub Vec<Felt>);
+
+// Account deployment data is unbounded, user-controlled input; hide its felts from logs (e.g.
+// `debug!("{tx:?}")` at the gateway ingest point) so it is never dumped in plaintext.
+impl fmt::Debug for AccountDeploymentData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AccountDeploymentData(<{} felts>)", self.0.len())
+    }
+}
 
 impl AccountDeploymentData {
     pub fn is_empty(&self) -> bool {
