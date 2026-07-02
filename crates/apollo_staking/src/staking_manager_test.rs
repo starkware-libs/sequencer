@@ -73,10 +73,24 @@ const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_l
 const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(1001), epoch_length: 1000 };
 const EPOCH_3: Epoch = Epoch { epoch_id: 3, start_block: BlockNumber(2001), epoch_length: 1000 };
 
+// Epochs shorter than MIN_EPOCH_LENGTH, matching the config-backed mock contract's epochs.
+const SHORT_EPOCH_LENGTH: u64 = 30;
+const SHORT_EPOCH_4: Epoch =
+    Epoch { epoch_id: 4, start_block: BlockNumber(120), epoch_length: SHORT_EPOCH_LENGTH };
+const SHORT_EPOCH_5: Epoch =
+    Epoch { epoch_id: 5, start_block: BlockNumber(150), epoch_length: SHORT_EPOCH_LENGTH };
+const SHORT_EPOCH_6: Epoch =
+    Epoch { epoch_id: 6, start_block: BlockNumber(180), epoch_length: SHORT_EPOCH_LENGTH };
+const SHORT_EPOCH_7: Epoch =
+    Epoch { epoch_id: 7, start_block: BlockNumber(210), epoch_length: SHORT_EPOCH_LENGTH };
+
 const E1_H1: BlockNumber = EPOCH_1.start_block;
 const E1_H2: BlockNumber = BlockNumber(EPOCH_1.start_block.0 + EPOCH_1.epoch_length - 1);
 const E2_H1: BlockNumber = EPOCH_2.start_block;
-const E2_H2: BlockNumber = BlockNumber(EPOCH_2.start_block.0 + MIN_EPOCH_LENGTH + 1);
+// The last height within the next epoch's min bounds, and the first height past them.
+const E2_H_LAST_WITHIN_MIN_BOUNDS: BlockNumber =
+    BlockNumber(EPOCH_2.start_block.0 + MIN_EPOCH_LENGTH - 1);
+const E2_H2: BlockNumber = BlockNumber(EPOCH_2.start_block.0 + MIN_EPOCH_LENGTH);
 const E3_H1: BlockNumber = EPOCH_3.start_block;
 
 fn test_config_with_committee_size(committee_size: usize) -> StakingManagerDynamicConfig {
@@ -362,7 +376,10 @@ async fn get_committee_for_next_epoch(
     let committee = committee_manager.get_committee(E2_H1).await.unwrap().members().clone();
     assert_eq!(committee.into_iter().collect::<HashSet<_>>(), HashSet::from([STAKER_1, STAKER_2]));
 
-    // 2. Invalid Query: E2_H2 exceeds the min bounds of the next epoch.
+    // 2. Valid Query: the last height within the next epoch's min bounds.
+    assert!(committee_manager.get_committee(E2_H_LAST_WITHIN_MIN_BOUNDS).await.is_ok());
+
+    // 3. Invalid Query: E2_H2 exceeds the min bounds of the next epoch.
     // Since the next epoch's length is not known at this point, we cannot know if this height
     // belongs to Epoch 2 or a future Epoch > 2.
     let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
@@ -935,4 +952,62 @@ async fn get_actual_proposer_invalid_height(
 
     let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_committee_short_epochs_override_activates_at_start_epoch(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    // Regression test: with epochs shorter than MIN_EPOCH_LENGTH, a node whose epoch cache
+    // was synced a few epochs before an override's start_epoch must still apply the override
+    // exactly from the override's first height, rather than serving the default committee
+    // under a stale epoch ID.
+    set_current_epoch(&mut contract, SHORT_EPOCH_5);
+    set_current_epoch(&mut contract, SHORT_EPOCH_6);
+    set_previous_epoch(&mut contract, Some(SHORT_EPOCH_4));
+    set_stakers(&mut contract, SHORT_EPOCH_6, vec![STAKER_1, STAKER_2, STAKER_3]);
+    set_stakers(&mut contract, SHORT_EPOCH_7, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    let default_committee = CommitteeConfig {
+        start_epoch: 0,
+        committee_size: 3,
+        stakers: vec![
+            create_configured_staker(&STAKER_1, true),
+            create_configured_staker(&STAKER_2, true),
+            create_configured_staker(&STAKER_3, true),
+        ],
+    };
+    // Shrink the committee to 2 members starting at epoch 7.
+    let override_committee = Some(CommitteeConfig {
+        start_epoch: SHORT_EPOCH_7.epoch_id,
+        committee_size: 2,
+        stakers: vec![
+            create_configured_staker(&STAKER_2, true),
+            create_configured_staker(&STAKER_3, true),
+        ],
+    });
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { default_committee, override_committee },
+            ..default_config
+        },
+        None,
+    );
+
+    // The last height of epoch 6 primes the epoch cache at epoch 5 and still gets the
+    // default committee.
+    let last_height_before_override = BlockNumber(SHORT_EPOCH_7.start_block.0 - 1);
+    let committee = committee_manager.get_committee(last_height_before_override).await.unwrap();
+    assert_eq!(*committee.members(), vec![STAKER_3, STAKER_2, STAKER_1]);
+
+    // The first height of epoch 7 must already get the override committee.
+    let committee = committee_manager.get_committee(SHORT_EPOCH_7.start_block).await.unwrap();
+    assert_eq!(*committee.members(), vec![STAKER_3, STAKER_2]);
 }
