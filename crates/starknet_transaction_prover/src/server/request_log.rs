@@ -5,7 +5,9 @@
 //! `event="http_request"`, `request_id`, `method`, `path`, `status`, and
 //! `latency_ms` per HTTP request, and echoes `request_id` on the response so
 //! callers can quote it. The id is accepted from the incoming `x-request-id`
-//! header or generated as a UUID v4.
+//! header or generated as a UUID v4. `GET /health` probes still get the id
+//! echo but are exempt from logging — at typical probe periods they would
+//! drown real traffic.
 //!
 //! It deliberately does NOT bind the id to a span covering the downstream
 //! dispatch. For OHTTP traffic this layer runs on the *outer* envelope, whose
@@ -15,6 +17,10 @@
 //! defeating OHTTP unlinkability. Content-level correlation requires a
 //! separate, envelope-unlinkable id bound below the OHTTP layer.
 //!
+//! For OHTTP traffic `status` and `path` also describe the outer envelope: the
+//! outer status is 200 whenever decapsulation succeeds (RFC 9458), so inner
+//! JSON-RPC failures never appear in this line.
+//!
 //! Body bytes are never inspected — transaction calldata is private user data
 //! per the privacy-pool threat model.
 
@@ -22,10 +28,11 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Instant;
 
-use http::{HeaderValue, Request, Response};
-use jsonrpsee::server::HttpBody;
+use http::{HeaderValue, Method, Request, Response};
 use tower::{Layer, Service};
-use tracing::info;
+use tracing::{info, warn};
+
+use crate::server::health::HEALTH_PATH;
 
 #[cfg(test)]
 #[path = "request_log_test.rs"]
@@ -33,6 +40,89 @@ mod request_log_test;
 
 /// HTTP header carrying the request id.
 pub const REQUEST_ID_HEADER: &str = "x-request-id";
+
+/// tower [`Layer`] producing [`RequestLogService`].
+#[derive(Clone, Copy, Default)]
+pub struct RequestLogLayer;
+
+impl<S> Layer<S> for RequestLogLayer {
+    type Service = RequestLogService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        RequestLogService { inner }
+    }
+}
+
+#[derive(Clone)]
+pub struct RequestLogService<S> {
+    inner: S,
+}
+
+impl<S, ReqB, RespB> Service<Request<ReqB>> for RequestLogService<S>
+where
+    S: Service<Request<ReqB>, Response = Response<RespB>>,
+    S::Future: Send + 'static,
+    S::Error: Send + 'static,
+    RespB: Send + 'static,
+{
+    type Response = Response<RespB>;
+    type Error = S::Error;
+    type Future =
+        Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, mut request: Request<ReqB>) -> Self::Future {
+        let request_id = extract_or_generate_request_id(&request);
+        let id_header_value = request_id_header_value(&request_id);
+        request.headers_mut().insert(REQUEST_ID_HEADER, id_header_value.clone());
+        let is_health_probe =
+            request.method() == Method::GET && request.uri().path() == HEALTH_PATH;
+        let method = request.method().clone();
+        let path = truncated_log_path(request.uri().path());
+        let start = Instant::now();
+
+        let future = self.inner.call(request);
+
+        Box::pin(async move {
+            let result = future.await;
+            let latency_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
+            match result {
+                Ok(mut response) => {
+                    response.headers_mut().insert(REQUEST_ID_HEADER, id_header_value);
+                    if !is_health_probe {
+                        info!(
+                            event = "http_request",
+                            request_id = %request_id,
+                            method = %method,
+                            path = %path,
+                            status = response.status().as_u16(),
+                            latency_ms = latency_ms,
+                            "HTTP request handled."
+                        );
+                    }
+                    Ok(response)
+                }
+                Err(err) => {
+                    // The only per-request observation point before hyper
+                    // aborts the connection without a response.
+                    warn!(
+                        event = "http_request",
+                        request_id = %request_id,
+                        method = %method,
+                        path = %path,
+                        latency_ms = latency_ms,
+                        outcome = "service_error",
+                        "HTTP request failed in tower stack."
+                    );
+                    Err(err)
+                }
+            }
+        })
+    }
+}
 
 /// Cap on accepted incoming request-id length. Anything longer is dropped
 /// in favour of a freshly generated id so the value never balloons into
@@ -48,16 +138,12 @@ pub(crate) fn new_request_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
-/// Truncates an over-long path on a char boundary for safe logging.
-fn truncated_log_path(path: &str) -> String {
-    if path.len() <= MAX_LOG_PATH_LEN {
-        return path.to_string();
-    }
-    let mut end = MAX_LOG_PATH_LEN;
-    while !path.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{}…(truncated)", &path[..end])
+/// Header value for an id produced by [`extract_or_generate_request_id`] or
+/// [`new_request_id`] — always printable ASCII, so the conversion is
+/// infallible.
+pub(crate) fn request_id_header_value(request_id: &str) -> HeaderValue {
+    HeaderValue::from_str(request_id)
+        .expect("request id is printable ASCII by construction: fresh UUID or filtered header")
 }
 
 /// Accepts the incoming `x-request-id` only when it's a short printable
@@ -82,82 +168,14 @@ fn is_safe_request_id_byte(byte: u8) -> bool {
     byte.is_ascii_graphic()
 }
 
-/// tower [`Layer`] producing [`RequestLogService`].
-#[derive(Clone, Copy, Default)]
-pub struct RequestLogLayer;
-
-impl<S> Layer<S> for RequestLogLayer {
-    type Service = RequestLogService<S>;
-
-    fn layer(&self, inner: S) -> Self::Service {
-        RequestLogService { inner }
+/// Truncates an over-long path on a char boundary for safe logging.
+fn truncated_log_path(path: &str) -> String {
+    if path.len() <= MAX_LOG_PATH_LEN {
+        return path.to_string();
     }
-}
-
-#[derive(Clone)]
-pub struct RequestLogService<S> {
-    inner: S,
-}
-
-impl<S, ReqB> Service<Request<ReqB>> for RequestLogService<S>
-where
-    S: Service<Request<ReqB>, Response = Response<HttpBody>>,
-    S::Future: Send + 'static,
-    S::Error: Send + 'static,
-{
-    type Response = Response<HttpBody>;
-    type Error = S::Error;
-    type Future =
-        Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
+    let mut end = MAX_LOG_PATH_LEN;
+    while !path.is_char_boundary(end) {
+        end -= 1;
     }
-
-    fn call(&mut self, mut request: Request<ReqB>) -> Self::Future {
-        let request_id = extract_or_generate_request_id(&request);
-        if let Ok(header_value) = HeaderValue::from_str(&request_id) {
-            request.headers_mut().insert(REQUEST_ID_HEADER, header_value);
-        }
-        let method = request.method().clone();
-        let path = truncated_log_path(request.uri().path());
-        let start = Instant::now();
-
-        let future = self.inner.call(request);
-
-        Box::pin(async move {
-            let result = future.await;
-            let latency_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
-            match result {
-                Ok(mut response) => {
-                    let status = response.status().as_u16();
-                    if let Ok(header_value) = HeaderValue::from_str(&request_id) {
-                        response.headers_mut().insert(REQUEST_ID_HEADER, header_value);
-                    }
-                    info!(
-                        event = "http_request",
-                        request_id = %request_id,
-                        method = %method,
-                        path = %path,
-                        status = status,
-                        latency_ms = latency_ms,
-                        "HTTP request handled."
-                    );
-                    Ok(response)
-                }
-                Err(err) => {
-                    info!(
-                        event = "http_request",
-                        request_id = %request_id,
-                        method = %method,
-                        path = %path,
-                        latency_ms = latency_ms,
-                        outcome = "service_error",
-                        "HTTP request failed in tower stack."
-                    );
-                    Err(err)
-                }
-            }
-        })
-    }
+    format!("{}…(truncated)", &path[..end])
 }
