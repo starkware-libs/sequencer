@@ -164,7 +164,7 @@ impl HttpServer {
 
 // HttpServer handlers.
 
-#[instrument(skip(app_state, tx))]
+#[instrument(skip(app_state, headers, tx))]
 async fn add_rpc_tx(
     Extension(app_state): Extension<AppState>,
     headers: HeaderMap,
@@ -180,7 +180,7 @@ async fn add_rpc_tx(
     add_tx_inner(app_state, headers, tx).await
 }
 
-#[instrument(skip(app_state, tx))]
+#[instrument(skip(app_state, headers, tx))]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     Extension(app_state): Extension<AppState>,
