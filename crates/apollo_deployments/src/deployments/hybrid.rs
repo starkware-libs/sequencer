@@ -7,7 +7,7 @@ use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use serde::Serialize;
-use strum::{AsRefStr, Display, EnumIter, IntoEnumIterator};
+use strum::{AsRefStr, Display, EnumIter, EnumString, IntoEnumIterator};
 
 use crate::deployment_definitions::{ComponentConfigInService, RETRIES_FOR_L1_SERVICES};
 use crate::scale_policy::ScalePolicy;
@@ -17,7 +17,9 @@ use crate::utils::InfraPortAllocator;
 // Number of infra-required ports for a hybrid node service distribution.
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
-#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
+#[derive(
+    Clone, Copy, Debug, Display, EnumString, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
     Committer,
