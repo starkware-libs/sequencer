@@ -48,7 +48,4 @@ local componentsForImpl(layout, service) =
 {
   // The `components` map for one service.
   componentsFor(layout, service):: componentsForImpl(layout, service),
-
-  // Convenience wrapper used by the services/<layout>.jsonnet infra renderers (infra-only).
-  infraFor(layout, service):: { components: componentsForImpl(layout, service) },
 }

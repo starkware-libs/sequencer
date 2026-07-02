@@ -5,8 +5,6 @@ use strum::{Display, EnumIter};
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
-pub(crate) const RETRIES_FOR_L1_SERVICES: usize = 0;
-
 #[derive(Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum ComponentConfigInService {
