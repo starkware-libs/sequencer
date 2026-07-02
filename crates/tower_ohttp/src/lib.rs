@@ -39,6 +39,12 @@ pub use layer::{OhttpLayer, OhttpService};
 /// layers can check for it (`request.extensions().get::<Decapsulated>()`) to
 /// distinguish envelope-decapsulated traffic from plaintext pass-through —
 /// the two are otherwise indistinguishable once the inner request is rebuilt.
+///
+/// Layers may key privacy decisions on this marker (e.g. minting a request id
+/// unlinkable to the envelope). Extensions are silently dropped by any
+/// intermediate layer that rebuilds the request, so the marker is not the last
+/// line of defense: `x-request-id` is already stripped at decapsulation, so a
+/// lost marker costs log ergonomics, never unlinkability.
 #[derive(Clone, Copy, Debug)]
 pub struct Decapsulated;
 
