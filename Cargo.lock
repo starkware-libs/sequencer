@@ -13169,6 +13169,7 @@ dependencies = [
  "tower_ohttp",
  "tracing",
  "tracing-subscriber",
+ "tracing-test",
  "url",
  "uuid 1.18.1",
 ]

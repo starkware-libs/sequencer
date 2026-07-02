@@ -74,6 +74,7 @@ rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 tower_ohttp = { workspace = true, features = ["testing"] }
+tracing-test.workspace = true
 
 [lints]
 workspace = true
