@@ -52,23 +52,10 @@ pub async fn start_tls_server(
         .max_connections(max_connections)
         .max_request_body_size(max_request_body_size)
         .build();
-    // See `server.rs` for the rationale — `OhttpLayer` sits outside `CompressionLayer`
-    // so compression acts on the inner JSON-RPC response, not on the OHTTP envelope.
-    // `MapRequestBodyLayer`/`MapResponseBodyLayer` keep `HttpBody` on both sides of
-    // OHTTP to satisfy its symmetric-body bound.
+    // See `prover_http_middleware!` for the full layer-order rationale.
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(
-            // `HealthLayer` sits outermost so `GET /health` is answered before
-            // any other middleware runs.
-            ServiceBuilder::new()
-                .layer(HealthLayer)
-                .option_layer(cors_layer)
-                .layer(MapRequestBodyLayer::new(HttpBody::new))
-                .option_layer(ohttp_layer)
-                .layer(MapResponseBodyLayer::new(HttpBody::new))
-                .layer(CompressionLayer::new()),
-        )
+        .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))
         .to_service_builder();
 
     let listener = TcpListener::bind(addr)

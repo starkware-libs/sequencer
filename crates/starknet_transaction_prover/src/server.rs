@@ -26,6 +26,38 @@ pub type OhttpJsonrpseeLayer = OhttpLayer<fn(Full<Bytes>) -> HttpBody>;
 /// Pass this to `OhttpLayer::new` when constructing the layer.
 pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::new;
 
+/// The production HTTP middleware stack, applied verbatim by both transports:
+/// the HTTP path (`start_server`) and the HTTPS path (`tls::start_tls_server`).
+///
+/// This is a macro rather than a helper function because the value is a deeply
+/// nested `ServiceBuilder<Stack<Stack<...>>>` whose type cannot be spelled in a
+/// signature. Defining the chain once keeps the two transports from drifting.
+///
+/// Defined above `pub mod tls;` on purpose: `macro_rules!` scoping is textual, so moving the
+/// definition below the module would make it invisible to `tls.rs`. The macro also resolves
+/// `ServiceBuilder`, the layer types, and `HttpBody` at each call site (not at the definition),
+/// so every caller must have them in scope — adding a layer here adds an import obligation at
+/// each call site.
+///
+/// Layer order (tower makes the last-added layer innermost):
+/// - `HealthLayer` sits outermost so `GET /health` is answered before any other middleware runs.
+/// - `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression applies to the inner JSON-RPC
+///   response (the client's inner `Accept-Encoding` travels through BHTTP into jsonrpsee) rather
+///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
+///   `HttpBody` on both sides of OHTTP to satisfy its symmetric-body bound; `HttpBody::new` is a
+///   zero-cost wrapper, so non-OHTTP requests still stream through unbuffered.
+macro_rules! prover_http_middleware {
+    ($cors_layer:expr, $ohttp_layer:expr $(,)?) => {
+        ServiceBuilder::new()
+            .layer(HealthLayer)
+            .option_layer($cors_layer)
+            .layer(MapRequestBodyLayer::new(HttpBody::new))
+            .option_layer($ohttp_layer)
+            .layer(MapResponseBodyLayer::new(HttpBody::new))
+            .layer(CompressionLayer::new())
+    };
+}
+
 pub mod config;
 pub mod cors;
 pub mod errors;
@@ -67,31 +99,8 @@ pub async fn start_server(
                 .build();
             let server = ServerBuilder::default()
                 .set_config(server_config)
-                // `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression
-                // applies to the inner JSON-RPC response (the client's inner
-                // `Accept-Encoding` travels through BHTTP into jsonrpsee) rather than
-                // to the OHTTP ciphertext envelope. Because tower's `ServiceBuilder`
-                // makes the last-added layer innermost, `CompressionLayer` is added
-                // last here.
-                //
-                // `MapRequestBodyLayer` wraps hyper's `Request<Incoming>` into
-                // `Request<HttpBody>` before `OhttpLayer` sees it — `OhttpLayer`'s
-                // symmetric-body bound requires `B = HttpBody` on both sides.
-                // `MapResponseBodyLayer` converts `CompressionBody<HttpBody>` back to
-                // `HttpBody` on the response path so `OhttpLayer` receives the body
-                // type it expects. `HttpBody::new` is a zero-cost wrapper, so
-                // non-OHTTP requests still stream through unbuffered.
-                .set_http_middleware(
-                    // `HealthLayer` sits outermost so `GET /health` is answered
-                    // before any other middleware runs.
-                    ServiceBuilder::new()
-                        .layer(HealthLayer)
-                        .option_layer(cors_layer)
-                        .layer(MapRequestBodyLayer::new(HttpBody::new))
-                        .option_layer(ohttp_layer)
-                        .layer(MapResponseBodyLayer::new(HttpBody::new))
-                        .layer(CompressionLayer::new()),
-                )
+                // See `prover_http_middleware!` for the full layer-order rationale.
+                .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))
                 .build(&addr)
                 .await
                 .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
