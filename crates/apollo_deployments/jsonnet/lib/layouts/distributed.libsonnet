@@ -21,8 +21,8 @@ local templates = import '../infra/templates.libsonnet';
     signature_manager: 'sequencer-signature-manager-service',
     state_sync: 'sequencer-state-sync-service',
   },
-  // Remote-client tuning of components homed in each service (get_scale_policy + get_retries).
-  // Gateway/SierraCompiler are AutoScaled (idle 0); L1 uses RETRIES_FOR_L1_SERVICES (0); rest static.
+  // Remote-client tuning (idle connections + retries) per component's home service.
+  // Gateway/SierraCompiler are auto-scaled (idle 0); L1 uses zero retries; the rest are static.
   scale:: {
     batcher: { idle: templates.IDLE_STATIC, retries: templates.RETRIES_DEFAULT },
     class_manager: { idle: templates.IDLE_STATIC, retries: templates.RETRIES_DEFAULT },

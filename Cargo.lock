@@ -1546,14 +1546,12 @@ name = "apollo_deployments"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_infra",
  "apollo_infra_utils",
  "apollo_node_config",
  "jrsonnet-evaluator",
  "jrsonnet-stdlib",
  "serde",
  "serde_json",
- "static_assertions",
  "strum",
  "url",
 ]

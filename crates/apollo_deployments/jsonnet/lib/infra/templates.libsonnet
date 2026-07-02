@@ -5,10 +5,10 @@
   LOCALHOST:: 'localhost',
 
   // Remote-client tuning, selected per home service.
-  IDLE_STATIC:: 10,  // ScalePolicy::StaticallyScaled
-  IDLE_AUTO_SCALED:: 0,  // ScalePolicy::AutoScaled
-  RETRIES_DEFAULT:: 15,  // apollo_infra DEFAULT_RETRIES
-  RETRIES_L1:: 0,  // RETRIES_FOR_L1_SERVICES
+  IDLE_STATIC:: 10,  // idle connections for a statically-scaled service
+  IDLE_AUTO_SCALED:: 0,  // idle connections for an auto-scaled service
+  RETRIES_DEFAULT:: 15,  // default remote-client retries
+  RETRIES_L1:: 0,  // retries for L1 services (no retries)
 
   // Canonical infra port of each remote-served reactive component, shared by every layout.
   // Transcribed from the deployed hybrid overlays (overlays/hybrid/common/services/*.yaml,
