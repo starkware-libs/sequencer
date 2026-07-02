@@ -53,7 +53,7 @@ use apollo_versioned_constants::VersionedConstants;
 use async_trait::async_trait;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use starknet_api::block::{
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
@@ -761,6 +761,7 @@ impl ConsensusContext for SequencerConsensusContext {
             l2_gas_price,
             // TODO(Asmaa): Get it from committee once we have it.
             builder_address: self.config.static_config.builder_address,
+            max_concurrent_tx_conversions: self.config.static_config.max_concurrent_tx_conversions,
             cancel_token,
             previous_proposal_init: self.previous_proposal_init.clone(),
             proposal_round: self.current_round,
@@ -884,6 +885,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let next_l2_gas_price =
             self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
         let transaction_converter = self.deps.transaction_converter.clone();
+        let max_concurrent_tx_conversions = self.config.static_config.max_concurrent_tx_conversions;
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         let handle = tokio::spawn(
@@ -896,6 +898,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     next_l2_gas_price,
                     &mut stream_sender,
                     transaction_converter,
+                    max_concurrent_tx_conversions,
                 )
                 .await;
                 match res {
@@ -1173,6 +1176,7 @@ impl SequencerConsensusContext {
                 .config
                 .dynamic_config
                 .compare_retrospective_block_hash,
+            max_concurrent_tx_conversions: self.config.static_config.max_concurrent_tx_conversions,
         };
 
         let handle = tokio::spawn(
@@ -1232,6 +1236,7 @@ async fn validate_and_send(
     Ok(proposal_commitment)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn send_reproposal(
     proposal_commitment: ProposalCommitment,
     init: ProposalInit,
@@ -1240,14 +1245,18 @@ async fn send_reproposal(
     next_l2_gas_price: GasPrice,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
+    max_concurrent_tx_conversions: usize,
 ) -> Result<(), ReproposeError> {
     stream_sender.send(ProposalPart::Init(init)).await?;
-    for batch in txs.iter() {
-        let transactions = futures::future::join_all(batch.iter().map(|tx| {
+    for batch in txs {
+        // Bound concurrency to cap the fan-out of class-manager requests per batch.
+        let transactions = futures::stream::iter(batch.into_iter().map(|tx| {
             // transaction_converter is an external dependency (class manager) and so
             // we can't assume success on reproposal.
-            transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
+            transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx)
         }))
+        .buffered(max_concurrent_tx_conversions)
+        .collect::<Vec<_>>()
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;

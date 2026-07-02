@@ -67,6 +67,7 @@ pub(crate) struct ProposalValidateArguments {
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
     pub compare_retrospective_block_hash: bool,
+    pub max_concurrent_tx_conversions: usize,
 }
 
 // Contains parameters required for validating ProposalInit.
@@ -202,6 +203,7 @@ pub(crate) async fn validate_proposal(
                     args.deps.transaction_converter.clone(),
                     &deadline_params,
                     args.init.fee_proposal_fri,
+                    args.max_concurrent_tx_conversions,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin, finished_info) => {
                         break (built_block, received_fin, finished_info);
@@ -472,6 +474,7 @@ async fn handle_proposal_part(
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     deadline_params: &ProposalDeadlineParams,
     fee_proposal: Option<GasPrice>,
+    max_concurrent_tx_conversions: usize,
 ) -> HandledProposalPart {
     match proposal_part {
         None => {
@@ -564,10 +567,14 @@ async fn handle_proposal_part(
             // TODO(guyn): check that the length of txs and the number of batches we receive is not
             // so big it would fill up the memory (in case of a malicious proposal)
             debug!("Received transaction batch with {} txs", txs.len());
+            // Bound concurrency: a proposer-controlled batch must not fan out unbounded
+            // conversions.
             let conversion_results =
-                futures::future::join_all(txs.into_iter().map(|tx| {
+                futures::stream::iter(txs.into_iter().map(|tx| {
                     transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
                 }))
+                .buffered(max_concurrent_tx_conversions)
+                .collect::<Vec<_>>()
                 .await
                 .into_iter()
                 .collect::<Result<Vec<_>, _>>();

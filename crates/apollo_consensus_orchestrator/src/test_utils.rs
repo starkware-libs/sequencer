@@ -519,6 +519,9 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             compare_retrospective_block_hash: args.compare_retrospective_block_hash,
             fee_proposal: GasPrice::default(),
             fee_actual: None,
+            max_concurrent_tx_conversions: ContextConfig::default()
+                .static_config
+                .max_concurrent_tx_conversions,
         }
     }
 }

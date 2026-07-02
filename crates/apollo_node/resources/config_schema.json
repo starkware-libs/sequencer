@@ -2769,6 +2769,11 @@
     "privacy": "Public",
     "value": true
   },
+  "consensus_manager_config.context_config.static_config.max_concurrent_tx_conversions": {
+    "description": "Maximum number of transaction conversions in a single batch allowed to run concurrently.",
+    "privacy": "Public",
+    "value": 10
+  },
   "consensus_manager_config.context_config.static_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",

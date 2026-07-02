@@ -28,6 +28,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
+use futures::StreamExt;
 use starknet_api::block::GasPrice;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -81,6 +82,7 @@ pub(crate) struct ProposalBuildArguments {
     pub fee_proposal: GasPrice,
     /// Current fee_actual from the sliding window.
     pub fee_actual: Option<GasPrice>,
+    pub max_concurrent_tx_conversions: usize,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -250,11 +252,14 @@ async fn get_proposal_content(
                     "Sending transaction batch with {} txs.",
                     txs.len()
                 );
-                let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
+                // Bound concurrency to cap the fan-out of class-manager requests per batch.
+                let transactions = futures::stream::iter(txs.into_iter().map(|tx| {
                     args.deps
                         .transaction_converter
                         .convert_internal_consensus_tx_to_consensus_tx(tx)
                 }))
+                .buffered(args.max_concurrent_tx_conversions)
+                .collect::<Vec<_>>()
                 .await
                 .into_iter()
                 .collect::<Result<Vec<_>, _>>()?;
