@@ -7,13 +7,15 @@ use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use serde::Serialize;
-use strum::{AsRefStr, Display, EnumIter, IntoEnumIterator};
+use strum::{AsRefStr, Display, EnumIter, EnumString, IntoEnumIterator};
 
 use crate::deployment_definitions::ComponentConfigInService;
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 
-#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
+#[derive(
+    Clone, Copy, Debug, Display, EnumString, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum ConsolidatedNodeServiceName {
     Node,
