@@ -2,7 +2,7 @@
 #[path = "state_test.rs"]
 mod state_test;
 
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint as CairoLangContractEntryPoint;
 use indexmap::IndexMap;
@@ -223,12 +223,26 @@ impl StorageKey {
 impl_from_through_intermediate!(u128, StorageKey, u8, u16, u32, u64);
 
 /// A contract class.
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, Hash)]
+#[derive(Clone, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct SierraContractClass {
     pub sierra_program: Vec<Felt>,
     pub contract_class_version: String,
     pub entry_points_by_type: EntryPointByType,
     pub abi: String,
+}
+
+impl fmt::Debug for SierraContractClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Hide the heavy fields (`sierra_program`, `abi`) so transaction logs don't dump the
+        // multi-MB class; keep the identity fields. The full class is available elsewhere (class
+        // manager / declare archive) for debugging.
+        f.debug_struct("SierraContractClass")
+            .field("sierra_program", &format_args!("<{} felts>", self.sierra_program.len()))
+            .field("contract_class_version", &self.contract_class_version)
+            .field("entry_points_by_type", &self.entry_points_by_type)
+            .field("abi", &format_args!("<{} bytes>", self.abi.len()))
+            .finish()
+    }
 }
 
 impl Default for SierraContractClass {
