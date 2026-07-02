@@ -1,45 +1,55 @@
-//! Parity test helpers driven off the jsonnet evaluator (`jsonnet_eval`): assert the
-//! jsonnet-derived infra matches the Rust source of truth, and that every service's `build()`
-//! output deserializes into `SequencerNodeConfig`. Compiled only under `test`; the reusable
-//! evaluator core lives in `jsonnet_eval`.
+//! Parity test helpers driven off the jsonnet evaluator (`jsonnet_eval`): assert that every
+//! service's `build()` output deserializes into `SequencerNodeConfig`. Compiled only under `test`;
+//! the reusable evaluator core lives in `jsonnet_eval`.
 
 use apollo_node_config::node_config::SequencerNodeConfig;
 use serde_json::Value;
 use strum::IntoEnumIterator;
 
 use crate::jsonnet_eval::eval_jsonnet;
-use crate::service::{GetComponentConfigs, NodeService, NodeType};
+use crate::service::{NodeService, NodeType};
 
 const TESTING_CHAIN_PARAMS_PATH: &str = "testing/chain_params.libsonnet";
 const TESTING_NODE_PARAMS_PATH: &str = "testing/node_params.libsonnet";
 
-/// Asserts the jsonnet-derived infra of every service of layout `S` matches the Rust source of
-/// truth (`<layout>.rs`'s `get_component_configs`).
-pub(crate) fn assert_infra_matches_rust<S>()
+/// Asserts that `build(layout, params)` produces, for every service of layout `S`, an object that
+/// deserializes into `SequencerNodeConfig`.
+pub(crate) fn assert_build_deserializes<S>()
 where
-    S: GetComponentConfigs + IntoEnumIterator + Into<NodeService>,
+    S: IntoEnumIterator + Into<NodeService>,
 {
-    // Derive the layout name (the jsonnet renderer's file stem) from S's NodeType, then evaluate
-    // it.
     let some_service: NodeService =
         S::iter().next().expect("a layout has at least one service").into();
-    let infra = eval_layout_infra(&NodeType::from(&some_service).to_string());
+    let layout = NodeType::from(&some_service).to_string();
+    let built = eval_build(&layout);
+    let services = built.as_object().unwrap();
 
-    let ports_override = None;
-    let legacy = S::get_component_configs(ports_override);
-    for service in S::iter() {
-        let service_name = service.to_string();
-        let node_service: NodeService = service.into();
-        let legacy_config = legacy.get(&node_service).unwrap();
-        let legacy_value = serde_json::to_value(legacy_config).unwrap();
-        let legacy_components = legacy_value.as_object().unwrap();
-        let jsonnet_components = infra[&service_name]["components"].as_object().unwrap();
+    // Sanity check: the build result should have at least one service.
+    assert!(!services.is_empty(), "build({layout}) produced no services");
 
-        assert_eq!(
-            without_url_port(jsonnet_components),
-            without_url_port(legacy_components),
-            "infra config mismatch for service {service_name} (url/port excluded)"
-        );
+    for (service_name, config) in services {
+        let mut node_config = serde_json::from_value::<SequencerNodeConfig>(config.clone())
+            .unwrap_or_else(|error| {
+                panic!(
+                    "service {service_name} of layout {layout} does not deserialize into \
+                     SequencerNodeConfig: {error}"
+                )
+            });
+        // Component urls are the in-cluster service DNS names baked in by the jsonnet build (e.g.
+        // `sequencer-core-service`), which don't resolve off-cluster; `validate_node_config`
+        // resolves every component url. Rewrite them to localhost — the same helper the
+        // integration-test config builders use — so validation reaches the cross-component
+        // invariants. url/port are deploy-time placeholders anyway.
+        node_config.components.set_urls_to_localhost();
+        // The build output must also satisfy the cross-component invariants (chain_id and the other
+        // formerly-pointer-resolved values agreeing across components, etc.). Without this, a
+        // jsonnet change that broke a pointer group would pass CI and only fail at prod boot.
+        node_config.validate_node_config().unwrap_or_else(|error| {
+            panic!(
+                "service {service_name} of layout {layout} deserializes but fails \
+                 validate_node_config: {error}"
+            )
+        });
     }
 }
 
@@ -59,59 +69,4 @@ fn eval_build(layout: &str) -> Value {
              '{TESTING_NODE_PARAMS_PATH}' }})"
         ),
     )
-}
-
-/// Asserts that `build(layout, params)` produces, for every service of layout `S`, an object that
-/// deserializes into `SequencerNodeConfig`.
-pub(crate) fn assert_build_deserializes<S>()
-where
-    S: GetComponentConfigs + IntoEnumIterator + Into<NodeService>,
-{
-    let some_service: NodeService =
-        S::iter().next().expect("a layout has at least one service").into();
-    let layout = NodeType::from(&some_service).to_string();
-    let built = eval_build(&layout);
-    let services = built.as_object().unwrap();
-
-    // Sanity check: the build result should have at least one service.
-    assert!(!services.is_empty(), "build({layout}) produced no services");
-
-    for (service_name, config) in services {
-        let mut node_config = serde_json::from_value::<SequencerNodeConfig>(config.clone())
-            .unwrap_or_else(|error| {
-                panic!(
-                    "service {service_name} of layout {layout} does not deserialize into \
-                     SequencerNodeConfig: {error}"
-                )
-            });
-        node_config.components.set_urls_to_localhost();
-        node_config.validate_node_config().unwrap_or_else(|error| {
-            panic!(
-                "service {service_name} of layout {layout} deserializes but fails \
-                 validate_node_config: {error}"
-            )
-        });
-    }
-}
-
-/// Evaluates `services/<layout>.jsonnet` (the per-layout infra renderer) and returns its JSON.
-fn eval_layout_infra(layout: &str) -> Value {
-    eval_jsonnet("layout infra", format!("import 'services/{layout}.jsonnet'"))
-}
-
-/// Clones a `components` map with `url` and `port` removed from each component object — the two
-/// fields the Rust config leaves as deploy-time placeholders, so they can't be compared against the
-/// jsonnet's baked-in real values.
-fn without_url_port(components: &serde_json::Map<String, Value>) -> serde_json::Map<String, Value> {
-    components
-        .iter()
-        .map(|(name, config)| {
-            let mut config = config.clone();
-            if let Some(object) = config.as_object_mut() {
-                object.remove("url");
-                object.remove("port");
-            }
-            (name.clone(), config)
-        })
-        .collect()
 }
