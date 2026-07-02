@@ -77,8 +77,8 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         transaction: RpcTransaction,
     ) -> RpcResult<ProveTransactionResult> {
         // Admission: cap queue length (running + waiting). Reject with -32005 only when the queue
-        // is full; held for the whole request, so a client disconnect frees the slot.
-        let _admission = self.admission_semaphore.try_acquire().map_err(|_| {
+        // is full.
+        let admission = self.admission_semaphore.clone().try_acquire_owned().map_err(|_| {
             warn!(
                 max_concurrent_requests = self.max_concurrent_requests,
                 "Rejected proving request: queue is full"
@@ -87,9 +87,12 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         })?;
 
         // Wait FIFO for a worker slot (tokio's Semaphore is fair), with queue_wait_timeout as a
-        // backstop. Served in arrival order, or cancelled if the client disconnects.
-        let _permit = match timeout(self.queue_wait_timeout, self.concurrency_semaphore.acquire())
-            .await
+        // backstop against a stuck worker. Served in arrival order.
+        let permit = match timeout(
+            self.queue_wait_timeout,
+            self.concurrency_semaphore.clone().acquire_owned(),
+        )
+        .await
         {
             Ok(Ok(permit)) => permit,
             Ok(Err(_)) => return Err(internal_server_error("proving service is shutting down")),
@@ -102,9 +105,30 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
             }
         };
 
-        self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
-            ErrorObjectOwned::from(err)
-        })
+        // Run the proof in a task that owns both permits. The heavy work runs on an un-cancellable
+        // blocking thread, so a client disconnect (which drops this handler future) must not free
+        // the worker slot while that work continues — otherwise a burst of connect-then-disconnect
+        // requests would recycle slots and drive real proving above the concurrency cap. Dropping
+        // the JoinHandle detaches the task rather than aborting it, so the proof runs to completion
+        // and releases the permits only when it actually finishes.
+        let prover = self.prover.clone();
+        let prove_task = tokio::spawn(async move {
+            let _admission = admission;
+            let _permit = permit;
+            prover.prove_transaction(block_id, transaction).await
+        });
+
+        match prove_task.await {
+            Ok(result) => result.map_err(|err| {
+                warn!("prove_transaction failed: {:?}", err);
+                ErrorObjectOwned::from(err)
+            }),
+            Err(join_error) if join_error.is_panic() => {
+                std::panic::resume_unwind(join_error.into_panic())
+            }
+            Err(join_error) => {
+                Err(internal_server_error(format!("proving task failed: {join_error}")))
+            }
+        }
     }
 }
