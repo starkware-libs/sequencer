@@ -66,6 +66,8 @@ pub mod errors;
 pub mod health;
 pub mod log_redact;
 #[cfg(test)]
+pub mod middleware_test_utils;
+#[cfg(test)]
 pub mod mock_rpc;
 pub mod request_log;
 pub mod rpc_api;
