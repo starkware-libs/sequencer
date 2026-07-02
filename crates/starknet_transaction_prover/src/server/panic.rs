@@ -1,10 +1,6 @@
-//! Process-wide panic hook for the prover.
-//!
-//! Without an explicit hook, panics in `tokio::spawn`ed work hit the runtime's
-//! default handler and print to stderr in an ad-hoc format. We want one
-//! structured `tracing` event with location + backtrace so log aggregators
-//! can index it. The hook only emits a log line — runtime abort-on-panic
-//! behavior is preserved.
+//! Process-wide panic hook: one structured `tracing` event with location +
+//! backtrace (indexable by log aggregators) instead of the default ad-hoc
+//! stderr output. Only logs — abort-on-panic behavior is preserved.
 
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
@@ -35,13 +31,9 @@ fn panic_hook(info: &PanicHookInfo<'_>) {
     );
 }
 
-/// Best-effort extraction of the panic payload — supports the common
-/// `panic!("string literal")` and `panic!("{fmt}", ...)` cases. Returns
-/// `"<non-string panic payload>"` for arbitrary types.
-///
-/// Replace with `PanicHookInfo::payload_as_str()` once the crate's pinned nightly
-/// (see `rust-toolchain.toml`) stabilizes it (currently gated behind the
-/// `panic_payload_as_str` feature).
+/// Best-effort payload extraction: `&'static str` and `String` payloads,
+/// `"<non-string panic payload>"` otherwise. Replace with
+/// `PanicHookInfo::payload_as_str()` once it stabilizes.
 pub(crate) fn extract_payload(info: &PanicHookInfo<'_>) -> String {
     let payload = info.payload();
     if let Some(s) = payload.downcast_ref::<&'static str>() {
