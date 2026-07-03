@@ -60,11 +60,11 @@
         },
         "jsii": {
             "hashes": [
-                "sha256:22aa450dc9538952453dcd4e51de0b9e92e3c94a6b4e468832acbcbd7b124b57",
-                "sha256:c2288ce3568222883e1620dc9c2f2477331d36a4925a84711cf48297ee13cb50"
+                "sha256:575a389c56e4651f33fad0e0dafdc61d001a499d3cc0630cee734fc5e0b525ae",
+                "sha256:efc66b5831c8c41e343b644f03221d71480b69c3c39dc41df15659a01ce28fbb"
             ],
             "markers": "python_version >= '3.10'",
-            "version": "==1.134.0"
+            "version": "==1.138.0"
         },
         "publication": {
             "hashes": [
