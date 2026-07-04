@@ -37,11 +37,6 @@ const DEFAULT_CACHE_SIZE: usize = 10000000;
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
 
-#[derive(Serialize, Debug)]
-pub struct BorrowedStorage<'a, S: Storage> {
-    pub storage: &'a mut S,
-}
-
 impl ImmutableReadOnlyStorage for MapStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
