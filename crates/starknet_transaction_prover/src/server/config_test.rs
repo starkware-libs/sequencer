@@ -160,6 +160,27 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
     assert!(matches!(error, ConfigError::ConfigFileError(_)));
 }
 
+#[test]
+fn rejects_zero_queue_wait_timeout_with_a_queue() {
+    let mut args = base_args();
+    args.max_queued_requests = Some(1);
+    args.queue_wait_timeout_millis = Some(0);
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::InvalidArgument(_)));
+}
+
+#[test]
+fn allows_zero_queue_wait_timeout_without_a_queue() {
+    // With no queue, a request never waits, so a zero backstop is harmless.
+    let mut args = base_args();
+    args.max_queued_requests = Some(0);
+    args.queue_wait_timeout_millis = Some(0);
+
+    ServiceConfig::from_args(args).unwrap();
+}
+
 /// TLS configuration validation: partial TLS config is rejected, complete config is accepted.
 #[rstest]
 #[case::cert_without_key(
