@@ -570,26 +570,24 @@ impl Committee {
             "Invalid random value {random}: exceeds total weight limit of {total_weight}."
         );
 
-        // Iterates over stakers and selects staker `i` if `random < cumulative_weights[i]`.
-        // Each staker occupies a range of values proportional to their weight, defined as:
-        //     [cumulative_weights[i - 1], cumulative_weights[i])
-        // Since we iterate in order, the first staker whose cumulative weight exceeds `random`
-        // is the one whose range contains it.
-        for (i, cum_weight) in self.cumulative_weights.iter().enumerate() {
-            if random < *cum_weight {
-                return self
-                    .committee_members
-                    .get(i)
-                    .expect(
-                        "Inconsistent committee data; cumulative_weights and committee_members \
-                         are not the same length.",
-                    )
-                    .address;
-            }
-        }
+        // Selects staker `proposer_index`, the first index with `random <
+        // cumulative_weights[proposer_index]`. Each staker occupies a range of values
+        // proportional to their weight: staker `i`'s range is
+        // `[cumulative_weights[i - 1], cumulative_weights[i])`.
+        // `cumulative_weights` is sorted ascending (all staker weights are positive), so binary
+        // search via `partition_point` finds this index in O(log n) instead of a linear scan.
+        let proposer_index =
+            self.cumulative_weights.partition_point(|cum_weight| *cum_weight <= random);
 
-        // We should never reach this point.
-        panic!("Inconsistent committee data; cumulative_weights inconsistent with total weight.")
+        self.committee_members
+            .get(proposer_index)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Inconsistent committee data: no committee member at index {proposer_index}, \
+                     random value {random}, total weight {total_weight}."
+                )
+            })
+            .address
     }
 }
 
