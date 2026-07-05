@@ -10,6 +10,7 @@ use blockifier::bouncer::BouncerConfig;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
+use tokio::sync::Semaphore;
 use tracing::info;
 
 use crate::config::ProverConfig;
@@ -387,9 +388,22 @@ impl ServiceConfig {
                 "max_connections must be at least 1".to_string(),
             ));
         }
+        // max_concurrent_requests + max_queued_requests sizes the admission semaphore, which
+        // panics if built with more than `Semaphore::MAX_PERMITS`. Reject an oversized or
+        // overflowing sum with a clean error instead of crashing at startup.
+        let max_in_flight = config
+            .max_concurrent_requests
+            .checked_add(config.max_queued_requests)
+            .filter(|&total| total <= Semaphore::MAX_PERMITS)
+            .ok_or_else(|| {
+                ConfigError::InvalidArgument(format!(
+                    "max_concurrent_requests ({}) + max_queued_requests ({}) must not exceed {}",
+                    config.max_concurrent_requests,
+                    config.max_queued_requests,
+                    Semaphore::MAX_PERMITS,
+                ))
+            })?;
         // Waiting requests hold a connection, so queue depth is capped by max_connections.
-        let max_in_flight =
-            config.max_concurrent_requests.saturating_add(config.max_queued_requests);
         if max_in_flight > usize::try_from(config.max_connections).unwrap_or(usize::MAX) {
             info!(
                 "max_concurrent_requests ({}) + max_queued_requests ({}) exceeds max_connections \

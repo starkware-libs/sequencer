@@ -65,6 +65,18 @@ fn base_args() -> CliArgs {
     }
 }
 
+#[test]
+fn rejects_request_limits_exceeding_semaphore_capacity() {
+    // The sum sizes the admission semaphore; tokio's Semaphore panics above MAX_PERMITS, so an
+    // oversized config must surface as a clean error rather than a startup crash.
+    let mut args = base_args();
+    args.max_queued_requests = Some(tokio::sync::Semaphore::MAX_PERMITS);
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::InvalidArgument(_)));
+}
+
 /// Happy-path cases: input origins -> expected normalized output.
 #[rstest]
 #[case::disabled(vec![], vec![])]
