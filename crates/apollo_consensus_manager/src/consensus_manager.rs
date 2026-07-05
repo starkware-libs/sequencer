@@ -382,6 +382,7 @@ pub fn create_committee_provider(
     let staking_manager_config = config.staking_manager_config.clone();
     // TODO(Asmaa/Dafna): Create StakingContract according to config.
     let mock_staking_contract = Arc::new(MockStakingContract::new(
+        batcher_client.clone(),
         state_sync_client.clone(),
         staking_manager_config.dynamic_config.clone(),
     ));
