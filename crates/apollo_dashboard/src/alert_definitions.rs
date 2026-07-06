@@ -28,7 +28,6 @@ use apollo_l1_events::metrics::{
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
 use apollo_l1_gas_price::metrics::{
-    ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_INFRA_METRICS,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
@@ -71,6 +70,7 @@ use crate::alert_scenarios::infra_alerts::{
 };
 use crate::alert_scenarios::l1_endpoints::get_primary_l1_endpoint_down_too_long_alerts;
 use crate::alert_scenarios::l1_gas_prices::{
+    get_eth_to_strk_error_count_alert,
     get_eth_to_strk_success_count_alert,
     get_l1_gas_price_provider_insufficient_history_alert,
     get_l1_gas_price_scraper_success_count_alert,
@@ -307,22 +307,6 @@ fn get_consensus_retrospective_block_hash_mismatch() -> Alert {
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Sos,
         ObserverApplicability::Applicable,
-    )
-}
-
-fn get_eth_to_strk_error_count_alert() -> Alert {
-    Alert::new(
-        "eth_to_strk_error_count",
-        "Eth to Strk error count",
-        EvaluationRate::Default,
-        format!(
-            "sum(increase({}[1h])) or vector(0)",
-            ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()
-        ),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
-        "1m",
-        AlertSeverity::Informational,
-        ObserverApplicability::NotApplicable,
     )
 }
 
