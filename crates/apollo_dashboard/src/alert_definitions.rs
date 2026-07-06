@@ -74,6 +74,8 @@ use crate::alert_scenarios::l1_gas_prices::{
     get_eth_to_strk_success_count_alert,
     get_l1_gas_price_provider_insufficient_history_alert,
     get_l1_gas_price_scraper_success_count_alert,
+    get_strk_to_usd_error_count_alert,
+    get_strk_to_usd_success_count_alert,
 };
 use crate::alert_scenarios::l1_handlers::{
     get_l1_handler_transaction_waiting_in_l1_alert,
@@ -605,6 +607,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_round_above_zero(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
+        get_strk_to_usd_error_count_alert(),
         get_gateway_add_tx_idle(),
         get_gateway_proof_archive_write_failure(),
         get_general_pod_state_not_ready(),
@@ -636,6 +639,7 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_consensus_round_above_zero_multiple_times());
     alerts.push(get_consensus_round_high());
     alerts.push(get_eth_to_strk_success_count_alert());
+    alerts.push(get_strk_to_usd_success_count_alert());
     alerts.append(&mut get_general_pod_memory_utilization_vec());
     alerts.append(&mut get_general_pod_disk_utilization_vec());
     alerts.push(get_http_server_avg_add_tx_latency_alert());
