@@ -10,6 +10,7 @@ use crate::deprecated_contract_class::{
 use crate::serde_utils::{
     bytes_from_hex_str,
     deserialize_optional_contract_class_abi_entry_vector,
+    deserialize_transaction_json_to_starknet_api_tx,
     hex_str_from_bytes,
     BytesAsHex,
     InnerDeserializationError,
@@ -185,4 +186,26 @@ fn deserialize_optional_contract_class_abi_entry_vector_none() {
     "#;
     let res: DummyContractClass = serde_json::from_str(json).unwrap();
     assert_eq!(res, DummyContractClass { abi: None });
+}
+
+/// V3 transaction JSON may arrive from untrusted sources; a missing or malformed
+/// `resource_bounds` field must surface as a deserialization error, not a panic.
+#[test]
+fn deserialize_transaction_json_does_not_panic_on_malformed_resource_bounds() {
+    // Missing resource_bounds field.
+    let raw_transaction = serde_json::json!({"type": "INVOKE", "version": "0x3"});
+    assert!(deserialize_transaction_json_to_starknet_api_tx(raw_transaction).is_err());
+
+    // resource_bounds is not an object.
+    let raw_transaction =
+        serde_json::json!({"type": "INVOKE", "version": "0x3", "resource_bounds": 5});
+    assert!(deserialize_transaction_json_to_starknet_api_tx(raw_transaction).is_err());
+
+    // l1_gas without l2_gas.
+    let raw_transaction = serde_json::json!({
+        "type": "DECLARE",
+        "version": "0x3",
+        "resource_bounds": {"l1_gas": {"max_amount": "0x0", "max_price_per_unit": "0x0"}}
+    });
+    assert!(deserialize_transaction_json_to_starknet_api_tx(raw_transaction).is_err());
 }
