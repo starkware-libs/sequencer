@@ -698,28 +698,39 @@ async fn test_retry_primary_fires_only_after_interval_elapses() {
     assert!(result.is_ok());
 }
 
-// A failed primary retry must not advance the clock, so the next L1 access retries the primary
-// again instead of waiting another full interval.
+// A failed primary retry still advances the clock, so the next L1 access within the interval does
+// not churn the primary again — it waits a full interval before retrying it.
 #[tokio::test(start_paused = true)]
-async fn test_retry_clock_not_advanced_when_reset_fails() {
+async fn test_retry_clock_advanced_when_reset_fails() {
     const INTERVAL: Duration = Duration::from_secs(60);
 
     let mut base_layer = MockBaseLayerContract::new();
     base_layer.expect_is_at_primary().returning(|| Ok(false));
-    // Reset fails each time; the clock advances only on success, so each access stays due.
+    // Reset fires exactly once: the first access advances the clock even though the reset fails,
+    // so the second access (still within the interval) does not retry the primary again.
     base_layer
         .expect_reset_provider_url_to_primary()
-        .times(2)
+        .times(1)
         .returning(|| Err(MockError::MockError));
+    base_layer.expect_get_url().returning(|| {
+        Ok(Sensitive::new(Url::parse("http://first_endpoint").unwrap())
+            .with_redactor(to_safe_string))
+    });
+    // The second access skips the retry and runs the operation, which succeeds.
+    base_layer
+        .expect_get_proved_block_at()
+        .times(1)
+        .returning(|_| Ok(BlockHashAndNumber::default()));
     let mut wrapper = CyclicBaseLayerWrapper::new(base_layer, INTERVAL, ScraperLabel::L1Events);
 
     // Make the retry due.
     tokio::time::advance(INTERVAL).await;
 
-    // First access: retry is due, reset fails, so the operation errors.
+    // First access: retry is due, reset fails, so the operation errors before it runs.
     assert!(wrapper.get_proved_block_at(1).await.is_err());
-    // Still due (the failed reset did not advance the clock): the next access retries again.
-    assert!(wrapper.get_proved_block_at(1).await.is_err());
+    // The failed reset advanced the clock, so this access is no longer due: no second reset fires,
+    // and the operation runs and succeeds.
+    assert!(wrapper.get_proved_block_at(1).await.is_ok());
 }
 
 // Verifies the primary-down-since gauge:
