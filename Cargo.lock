@@ -4853,9 +4853,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-test-plugin"
-version = "2.19.0-rc.0"
+version = "2.19.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00bb3a904befddc475d7f4d70a6c58f42a0ce49497d71b04b8fa5aa766953c2b"
+checksum = "eaceca861261038c5162af5da78152dea4cc59a1197c32c742bee98e8d41b574"
 dependencies = [
  "anyhow",
  "cairo-lang-compiler",
@@ -4919,7 +4919,7 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.9.0-rc.7"
-source = "git+https://github.com/starkware-libs/cairo_native.git?rev=a21f3f57128d2a91067fa31bff92bd00bdc85ba5#a21f3f57128d2a91067fa31bff92bd00bdc85ba5"
+source = "git+https://github.com/starkware-libs/cairo_native.git?rev=6184f7a635110bb84fae58ffa082fb9b2d286ada#6184f7a635110bb84fae58ffa082fb9b2d286ada"
 dependencies = [
  "aquamarine",
  "ark-ec 0.5.0",
@@ -4951,7 +4951,6 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "rand 0.9.2",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -4993,7 +4992,7 @@ dependencies = [
 [[package]]
 name = "cairo-starknet-syscalls"
 version = "0.9.0-rc.7"
-source = "git+https://github.com/starkware-libs/cairo_native.git?rev=a21f3f57128d2a91067fa31bff92bd00bdc85ba5#a21f3f57128d2a91067fa31bff92bd00bdc85ba5"
+source = "git+https://github.com/starkware-libs/cairo_native.git?rev=6184f7a635110bb84fae58ffa082fb9b2d286ada#6184f7a635110bb84fae58ffa082fb9b2d286ada"
 dependencies = [
  "serde",
  "starknet-types-core",
@@ -12350,7 +12349,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "sierra-emu"
 version = "0.9.0-rc.7"
-source = "git+https://github.com/starkware-libs/cairo_native.git?rev=a21f3f57128d2a91067fa31bff92bd00bdc85ba5#a21f3f57128d2a91067fa31bff92bd00bdc85ba5"
+source = "git+https://github.com/starkware-libs/cairo_native.git?rev=6184f7a635110bb84fae58ffa082fb9b2d286ada#6184f7a635110bb84fae58ffa082fb9b2d286ada"
 dependencies = [
  "cairo-lang-compiler",
  "cairo-lang-filesystem",
@@ -12373,7 +12372,6 @@ dependencies = [
  "num-integer",
  "num-traits",
  "p256",
- "rand 0.9.2",
  "rayon",
  "sec1",
  "serde",

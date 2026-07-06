@@ -1,5 +1,5 @@
 //! Blockifier-side storage for libfunc profiles collected by
-//! [`cairo_native::ContractExecutor::run_with_profile`].
+//! `cairo_native::executor::AotWithProgram::run_with_profile`.
 //!
 //! cairo-native owns the profiling primitive; this module only provides the keying
 //! (transaction hash / block number / class hash + selector) that's not visible from
@@ -9,9 +9,9 @@
 //! externally between runs.
 
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex};
 
-use cairo_native::executor::Program;
+use cairo_native::executor::ArcProgram;
 use cairo_native::metadata::profiler::Profile;
 use starknet_types_core::felt::Felt;
 
@@ -21,7 +21,7 @@ pub struct EntrypointProfile {
     pub class_hash: Felt,
     pub selector: Felt,
     pub profile: Profile,
-    pub program: Arc<Program>,
+    pub program: ArcProgram,
 }
 
 pub struct TransactionProfile {
@@ -35,18 +35,18 @@ type ProfilesByBlockTx = HashMap<String, TransactionProfile>;
 pub static LIBFUNC_PROFILES_MAP: LazyLock<Mutex<ProfilesByBlockTx>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Builds an `FnOnce(Profile, Arc<Program>)` that, when invoked, records the captured
+/// Builds an `FnOnce(Profile, ArcProgram)` that, when invoked, records the captured
 /// profile in `LIBFUNC_PROFILES_MAP` keyed by the syscall handler's current transaction
 /// hash. The program is supplied by cairo-native's
-/// [`cairo_native::ContractExecutor::run_with_profile`] callback alongside the profile.
+/// `AotWithProgram::run_with_profile` callback alongside the profile.
 ///
 /// All keying data is extracted up front so the closure doesn't re-borrow
 /// `syscall_handler` — required because the closure outlives the call to
-/// `ContractExecutor::run_with_profile`, which itself holds a `&mut` to the handler.
+/// `AotWithProgram::run_with_profile`, which itself holds a `&mut` to the handler.
 pub fn record_profile_for(
     syscall_handler: &NativeSyscallHandler<'_>,
     selector: Felt,
-) -> impl FnOnce(Profile, Arc<Program>) + 'static {
+) -> impl FnOnce(Profile, ArcProgram) + 'static {
     let class_hash = *syscall_handler.base.call.class_hash;
     let tx_hash =
         syscall_handler.base.context.tx_context.tx_info.transaction_hash().to_hex_string();
