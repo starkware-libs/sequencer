@@ -382,7 +382,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus Block Number Stuck",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-sampling_window_secs-expression$$$s])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -408,7 +408,7 @@
       "name": "consensus_block_number_stuck_long_time",
       "title": "Consensus Block Number Stuck Long Time",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck_long_time-sampling_window_secs-expression$$$s])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck_long_time-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
