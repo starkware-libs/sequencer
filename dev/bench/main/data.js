@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782813714095,
+  "lastUpdate": 1783334706980,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6561,6 +6561,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1225.1220712,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3428d34e396fcccd335de6a4c76d0cafb0579118",
+          "message": "starknet_api: do not panic on malformed resource_bounds in tx json deserializer (#14412)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-06T10:16:40Z",
+          "tree_id": "d2508190aaa72407d262515f976f07ba8e5f51a3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3428d34e396fcccd335de6a4c76d0cafb0579118"
+        },
+        "date": 1783334706565,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 914.21721212,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1346.9464086300002,
             "unit": "ms"
           }
         ]
