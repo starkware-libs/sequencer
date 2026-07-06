@@ -41,9 +41,10 @@ def set_revert_mode(
     revert_up_to_block: int,
     max_parallelism: int,
 ):
+    # `revert_config` is a single optional value: the target block height when reverting, or null
+    # to disable reverting (there is no separate `should_revert` flag).
     config_overrides = {
-        "revert_config.should_revert": should_revert,
-        "revert_config.revert_up_to_and_including": revert_up_to_block,
+        "revert_config": revert_up_to_block if should_revert else None,
     }
     update_config_and_restart_nodes(
         ConstConfigValuesUpdater(config_overrides),
