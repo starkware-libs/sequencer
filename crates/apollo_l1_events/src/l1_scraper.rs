@@ -207,25 +207,28 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
     }
 
     /// Send an initialize message to the L1 provider, including the last L2 height that was proved
-    /// before the start block number, and all events scraped from that L1 block until current
-    /// block. The provider will return an error if it was already initialized (e.g., if the scraper
-    /// was restarted).
+    /// before the start block number, and the events scraped over the first bounded window (see
+    /// `fetch_events` / `max_blocks_per_fetch`). The provider returns an error if it was already
+    /// initialized (e.g., if the scraper was restarted).
+    ///
+    /// Returns the L1 block reference up to which events were scraped. When the catch-up range
+    /// exceeds one window, this is short of the latest block; the polling loop drains the remaining
+    /// windows via `add_events`.
     #[instrument(skip(self), err)]
     async fn initialize(
         &mut self,
         historic_l2_height: BlockNumber,
     ) -> L1EventsScraperResult<L1BlockReference, BaseLayerType> {
-        let (latest_l1_block, events) = self.fetch_events().await?;
+        let (window_end_block, events) = self.fetch_events().await?;
 
-        debug!("Latest L1 block for initialize: {latest_l1_block:?}");
+        debug!("Scraped up to L1 block for initialize: {window_end_block:?}");
         debug!("All events scraped during initialize: {events:?}");
 
-        // If this gets too high, send in batches.
         let initialize_result =
             self.l1_events_provider_client.initialize(historic_l2_height, events).await;
         handle_client_error(initialize_result)?;
 
-        Ok(latest_l1_block)
+        Ok(window_end_block)
     }
 
     /// Scrape recent events and send them to the L1 provider.
@@ -299,9 +302,31 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
         }
 
         let scraping_start_number = scrape_from_this_l1_block.number + 1;
+        // Cap the fetched range to max_blocks_per_fetch so a large backlog is drained over
+        // successive polls rather than in one unbounded eth_getLogs request. The window is
+        // inclusive on both ends, hence the `- 1`; `.max(1)` and saturating arithmetic guard
+        // against underflow even though config validation already rejects 0. The finality ceiling
+        // (latest_l1_block.number) is preserved.
+        let window_end_number = latest_l1_block
+            .number
+            .min(scraping_start_number.saturating_add(self.config.max_blocks_per_fetch.max(1) - 1));
+
+        // Reuse latest_l1_block when the window already reaches it, to avoid a needless extra RPC.
+        let window_end_block = if window_end_number == latest_l1_block.number {
+            latest_l1_block
+        } else {
+            self.base_layer
+                .l1_block_at(window_end_number)
+                .await
+                .map_err(L1EventsScraperError::BaseLayerError)?
+                .ok_or(L1EventsScraperError::LatestL1BlockNumberNoBlockFound {
+                    block_number: window_end_number,
+                })?
+        };
+
         let scraping_result = self
             .base_layer
-            .events(scraping_start_number..=latest_l1_block.number, &self.tracked_event_identifiers)
+            .events(scraping_start_number..=window_end_number, &self.tracked_event_identifiers)
             .await;
 
         let l1_events = scraping_result.map_err(L1EventsScraperError::BaseLayerError)?;
@@ -368,7 +393,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
         } else {
             debug!("Got Cancellation Started Events: {formatted_cancellation_started_events:?}");
         }
-        Ok((latest_l1_block, events))
+        Ok((window_end_block, events))
     }
 
     /// Retry the given function if it gets base layer errors. Returns the result of the function in

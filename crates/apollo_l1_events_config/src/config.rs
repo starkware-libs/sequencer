@@ -115,6 +115,11 @@ pub struct L1EventsScraperConfig {
     pub set_provider_historic_height_to_l2_genesis: bool,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub l1_block_time_seconds: Duration,
+    /// Maximum number of L1 blocks fetched per `events` (eth_getLogs) request. Caps the catch-up
+    /// window so a large backlog is drained over successive polls instead of one unbounded
+    /// request.
+    #[validate(range(min = 1))]
+    pub max_blocks_per_fetch: u64,
 }
 
 impl Default for L1EventsScraperConfig {
@@ -126,6 +131,10 @@ impl Default for L1EventsScraperConfig {
             polling_interval_seconds: Duration::from_secs(30),
             set_provider_historic_height_to_l2_genesis: false,
             l1_block_time_seconds: Duration::from_secs(12),
+            // Conservative default: well under the common public-RPC eth_getLogs block-range caps
+            // (~1k-10k) and the 1s base-layer timeout. Operators on permissive private RPCs may
+            // raise it.
+            max_blocks_per_fetch: 1000,
         }
     }
 }
@@ -168,6 +177,14 @@ impl SerializeConfig for L1EventsScraperConfig {
                 "l1_block_time_seconds",
                 &self.l1_block_time_seconds.as_secs(),
                 "The time it takes for a new L1 block to be created.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_blocks_per_fetch",
+                &self.max_blocks_per_fetch,
+                "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the \
+                 catch-up window so a large backlog is drained over successive polls instead of in \
+                 one unbounded request.",
                 ParamPrivacyInput::Public,
             ),
         ])
