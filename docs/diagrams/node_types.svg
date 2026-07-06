@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 232" width="520" font-family="sans-serif">
+  <style>
+    .link{stroke:#6f9bc4;stroke-width:2;fill:none;}
+    .stub{stroke:#4a637f;stroke-width:2;fill:none;stroke-dasharray:3 4;}
+    .edge{stroke:#8ec1ff;stroke-width:2;fill:none;stroke-dasharray:5 4;}
+    .edgelbl{fill:#a9d0ff;font-size:11px;font-style:italic;text-anchor:middle;}
+    .divider{stroke:#2d4a6b;stroke-width:1.5;stroke-dasharray:4 5;}
+    .inode{fill:#1b3c5c;stroke:#8ec1ff;stroke-width:2;}
+    .inode-gold{fill:#1b3c5c;stroke:#ffd479;stroke-width:2;}
+    .title{fill:#ffd479;font-size:13px;font-weight:700;text-anchor:middle;}
+    .lbl{fill:#cfe3ff;font-size:12px;font-weight:600;text-anchor:middle;dominant-baseline:middle;}
+    .slbl{fill:#cfe3ff;font-size:10px;font-weight:600;text-anchor:middle;dominant-baseline:middle;}
+  </style>
+
+  <line class="divider" x1="260" y1="28" x2="260" y2="208" />
+
+  <!-- Binary node (left) -->
+  <text class="title" x="135" y="17">Binary node</text>
+  <path class="link" d="M135 58 L90 146" />
+  <path class="link" d="M135 58 L180 146" />
+  <path class="stub" d="M90 162 L90 190" />
+  <path class="stub" d="M180 162 L180 190" />
+  <circle class="inode" cx="135" cy="58" r="18" />
+  <circle class="inode" cx="90" cy="146" r="16" />
+  <circle class="inode" cx="180" cy="146" r="16" />
+  <text class="lbl" x="135" y="59">bin</text>
+  <text class="slbl" x="90" y="147">child</text>
+  <text class="slbl" x="180" y="147">child</text>
+
+  <!-- Edge node (right) -->
+  <text class="title" x="385" y="17">Edge node</text>
+  <path class="edge" d="M385 50 L385 132" />
+  <path class="link" d="M385 150 L340 200" />
+  <path class="link" d="M385 150 L430 200" />
+  <circle class="inode" cx="385" cy="50" r="18" />
+  <circle class="inode-gold" cx="385" cy="150" r="18" />
+  <circle class="inode" cx="340" cy="200" r="16" />
+  <circle class="inode" cx="430" cy="200" r="16" />
+  <text class="lbl" x="385" y="51">edge</text>
+  <text class="edgelbl" x="405" y="95">path</text>
+  <text class="slbl" x="385" y="151">bottom</text>
+  <text class="slbl" x="340" y="201">child</text>
+  <text class="slbl" x="430" y="201">child</text>
+</svg>
