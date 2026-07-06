@@ -19,22 +19,20 @@ use futures::never::Never;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RevertConfig {
-    pub revert_up_to_and_including: BlockNumber,
-    pub should_revert: bool,
-}
+/// Revert target: `Some(height)` reverts blocks up to and including that height; `None` (the
+/// default) never reverts.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(transparent)]
+pub struct RevertConfig(pub Option<BlockNumber>);
 
-impl Default for RevertConfig {
-    fn default() -> Self {
-        Self {
-            // Use u64::MAX as a placeholder to prevent setting this value to
-            // a low block number by mistake, which will cause significant revert operations.
-            revert_up_to_and_including: BlockNumber(u64::MAX),
-            should_revert: false,
-        }
+// The newtype wraps a plain `Option<BlockNumber>` with no field-level constraints; `#[derive(Validate)]`
+// doesn't support tuple structs, so implement the (trivial) check by hand to satisfy the
+// `#[validate(nested)]` bound on the owning configs.
+impl Validate for RevertConfig {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        Ok(())
     }
 }
 
