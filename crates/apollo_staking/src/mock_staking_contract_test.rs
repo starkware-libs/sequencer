@@ -1,5 +1,12 @@
 use std::sync::Arc;
 
+use apollo_batcher_types::batcher_types::GetHeightResponse;
+use apollo_batcher_types::communication::{
+    BatcherClientError,
+    MockBatcherClient,
+    SharedBatcherClient,
+};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_staking_config::config::{
     CommitteeConfig,
     ConfiguredStaker,
@@ -78,6 +85,31 @@ fn mock_client_with_latest(block: Option<BlockNumber>) -> SharedStateSyncClient 
     Arc::new(mock)
 }
 
+// A no-op batcher client for tests that never query the current height.
+fn no_batcher() -> SharedBatcherClient {
+    Arc::new(MockBatcherClient::new())
+}
+
+// A batcher whose next-to-build height marker is `marker`; the latest committed block is one below.
+fn mock_batcher_with_marker(marker: BlockNumber) -> SharedBatcherClient {
+    let mut mock = MockBatcherClient::new();
+    mock.expect_get_height().returning(move || Ok(GetHeightResponse { height: marker }));
+    Arc::new(mock)
+}
+
+// A batcher reporting `committed` as its latest committed block (marker = committed + 1).
+fn mock_batcher_with_committed(committed: BlockNumber) -> SharedBatcherClient {
+    mock_batcher_with_marker(BlockNumber(committed.0 + 1))
+}
+
+// A batcher whose height query always fails, forcing the state-sync fallback.
+fn mock_batcher_erroring() -> SharedBatcherClient {
+    let mut mock = MockBatcherClient::new();
+    mock.expect_get_height()
+        .returning(|| Err(BatcherClientError::BatcherError(BatcherError::InternalError)));
+    Arc::new(mock)
+}
+
 #[rstest]
 #[tokio::test]
 async fn get_stakers_with_config_picks_latest_config_for_epoch(
@@ -93,7 +125,8 @@ async fn get_stakers_with_config_picks_latest_config_for_epoch(
         ..default_config
     };
 
-    let contract = MockStakingContract::new(mock_state_sync_client, input_config.clone());
+    let contract =
+        MockStakingContract::new(no_batcher(), mock_state_sync_client, input_config.clone());
 
     // Epoch 1 < 3, so should use default (STAKER_1 only).
     let stakers = contract.get_stakers_with_config(1, &input_config).await.unwrap();
@@ -110,7 +143,7 @@ async fn get_stakers_uses_internal_default_config(
     mock_state_sync_client: SharedStateSyncClient,
     default_config: StakingManagerDynamicConfig,
 ) {
-    let contract = MockStakingContract::new(mock_state_sync_client, default_config);
+    let contract = MockStakingContract::new(no_batcher(), mock_state_sync_client, default_config);
 
     // get_stakers() should use the internal default_config.
     let stakers = contract.get_stakers(0).await.unwrap();
@@ -129,8 +162,11 @@ async fn get_current_epoch_success(
     #[case] expected_epoch: Epoch,
     default_config: StakingManagerDynamicConfig,
 ) {
-    let contract =
-        MockStakingContract::new(mock_client_with_latest(Some(block_number)), default_config);
+    let contract = MockStakingContract::new(
+        mock_batcher_with_committed(block_number),
+        Arc::new(MockStateSyncClient::new()),
+        default_config,
+    );
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(epoch, expected_epoch);
@@ -141,7 +177,11 @@ async fn get_current_epoch_success(
 async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks(
     default_config: StakingManagerDynamicConfig,
 ) {
-    let contract = MockStakingContract::new(mock_client_with_latest(None), default_config);
+    let contract = MockStakingContract::new(
+        mock_batcher_with_marker(BlockNumber(0)),
+        Arc::new(MockStateSyncClient::new()),
+        default_config,
+    );
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(epoch, EPOCH_0);
@@ -158,8 +198,11 @@ async fn get_previous_epoch_success(
     #[case] expected_previous_epoch: Option<Epoch>,
     default_config: StakingManagerDynamicConfig,
 ) {
-    let contract =
-        MockStakingContract::new(mock_client_with_latest(Some(block_number)), default_config);
+    let contract = MockStakingContract::new(
+        mock_batcher_with_committed(block_number),
+        Arc::new(MockStateSyncClient::new()),
+        default_config,
+    );
 
     let previous_epoch = contract.get_previous_epoch().await.unwrap();
     assert_eq!(previous_epoch, expected_previous_epoch);
@@ -170,8 +213,47 @@ async fn get_previous_epoch_success(
 async fn get_previous_epoch_returns_none_when_no_blocks(
     default_config: StakingManagerDynamicConfig,
 ) {
-    let contract = MockStakingContract::new(mock_client_with_latest(None), default_config);
+    let contract = MockStakingContract::new(
+        mock_batcher_with_marker(BlockNumber(0)),
+        Arc::new(MockStateSyncClient::new()),
+        default_config,
+    );
 
     let previous_epoch = contract.get_previous_epoch().await.unwrap();
     assert_eq!(previous_epoch, None);
+}
+
+// The batcher's `get_height` returns the next-to-build marker, so the latest committed block is
+// one below it. A marker at an epoch boundary must resolve to the previous epoch, not the next.
+#[rstest]
+#[tokio::test]
+async fn get_current_epoch_uses_committed_tip_not_marker(
+    default_config: StakingManagerDynamicConfig,
+) {
+    // Marker == EPOCH_LENGTH means the latest committed block is EPOCH_LENGTH - 1, still in epoch
+    // 0.
+    let contract = MockStakingContract::new(
+        mock_batcher_with_marker(BlockNumber(EPOCH_LENGTH)),
+        Arc::new(MockStateSyncClient::new()),
+        default_config,
+    );
+
+    let epoch = contract.get_current_epoch().await.unwrap();
+    assert_eq!(epoch, EPOCH_0);
+}
+
+// When the batcher height query fails, the epoch is derived from the state-sync latest block.
+#[rstest]
+#[tokio::test]
+async fn get_current_epoch_falls_back_to_state_sync_on_batcher_error(
+    default_config: StakingManagerDynamicConfig,
+) {
+    let contract = MockStakingContract::new(
+        mock_batcher_erroring(),
+        mock_client_with_latest(Some(E2_H1)),
+        default_config,
+    );
+
+    let epoch = contract.get_current_epoch().await.unwrap();
+    assert_eq!(epoch, EPOCH_2);
 }

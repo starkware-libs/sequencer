@@ -1,3 +1,4 @@
+use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_staking_config::config::{
     get_config_for_epoch,
     ConfiguredStaker,
@@ -6,6 +7,7 @@ use apollo_staking_config::config::{
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
+use tracing::warn;
 
 use crate::committee_provider::Staker;
 use crate::staking_contract::{StakingContract, StakingContractResult};
@@ -27,6 +29,7 @@ impl From<&ConfiguredStaker> for Staker {
 
 /// Mock implementation of the staking contract backed by static in-memory configuration.
 pub struct MockStakingContract {
+    batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
     // Default configuration used when no other configuration is provided.
     default_config: StakingManagerDynamicConfig,
@@ -37,10 +40,31 @@ impl MockStakingContract {
     pub const EPOCH_LENGTH: u64 = 30;
 
     pub fn new(
+        batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
         default_config: StakingManagerDynamicConfig,
     ) -> Self {
-        Self { state_sync_client, default_config }
+        Self { batcher_client, state_sync_client, default_config }
+    }
+
+    // Returns the latest committed block number, preferring the batcher and falling back to state
+    // sync on batcher error. The batcher's height marker tracks the commit tip, whereas state sync
+    // is a downstream reader that can lag it significantly; deriving the epoch from a lagging
+    // source can push the consensus height beyond the resolvable committee window and stall block
+    // production. `get_height` returns the next-to-build marker, so the latest committed block is
+    // one below it.
+    async fn latest_committed_block(&self) -> StakingContractResult<BlockNumber> {
+        match self.batcher_client.get_height().await {
+            Ok(response) => Ok(BlockNumber(response.height.0.saturating_sub(1))),
+            Err(batcher_error) => {
+                warn!("Batcher get_height failed, falling back to state sync: {batcher_error}");
+                Ok(self
+                    .state_sync_client
+                    .get_latest_block_number()
+                    .await?
+                    .unwrap_or(BlockNumber(0)))
+            }
+        }
     }
 }
 
@@ -61,8 +85,7 @@ impl StakingContract for MockStakingContract {
     }
 
     async fn get_current_epoch(&self) -> StakingContractResult<Epoch> {
-        let latest_block_number =
-            self.state_sync_client.get_latest_block_number().await?.unwrap_or(BlockNumber(0));
+        let latest_block_number = self.latest_committed_block().await?;
 
         let epoch_id = latest_block_number.0 / Self::EPOCH_LENGTH;
         let start_block = BlockNumber(epoch_id * Self::EPOCH_LENGTH);
