@@ -180,7 +180,20 @@ impl StateMachine {
     }
 
     pub(crate) fn has_proposal_for_round(&self, round: Round) -> bool {
-        self.proposals.contains_key(&round)
+        if self.proposals.contains_key(&round) {
+            return true;
+        }
+        // While `awaiting_finished_building` is true, a `FinishedValidation`/`FinishedBuilding`
+        // for `round` may be buffered in `events_queue` but not yet applied to `proposals`. A
+        // duplicate/replayed proposal for that round must still be treated as already handled,
+        // otherwise a second validation is started and its `FinishedValidation` panics on the
+        // `proposals.insert` assertion once the queue is flushed. Mirror the `events_queue` scan
+        // that `received_vote` performs for buffered votes.
+        self.events_queue.iter().any(|event| match event {
+            StateMachineEvent::FinishedValidation(_, event_round, _)
+            | StateMachineEvent::FinishedBuilding(_, event_round) => *event_round == round,
+            _ => false,
+        })
     }
 
     pub(crate) fn last_self_prevote(&self) -> Option<Vote> {
