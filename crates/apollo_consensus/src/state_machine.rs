@@ -712,7 +712,7 @@ impl StateMachine {
             .map(|(_vote_key, (v, _w))| v.clone())
             .collect();
 
-        let decision = Decision { precommits: supporting_precommits, block: *proposal_id };
+        let decision = Decision { precommits: supporting_precommits, block: *proposal_id, round };
         VecDeque::from([SMRequest::DecisionReached(decision)])
     }
 
