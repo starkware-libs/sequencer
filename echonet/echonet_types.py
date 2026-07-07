@@ -33,6 +33,9 @@ class BlockStoreTuning:
     """
 
     max_blocks_to_keep_in_memory: int = 100
+    # Blob bodies dominate memory and are rarely read back; keep a much tighter
+    # window than block docs — older bodies are archived to disk.
+    max_blob_bodies_to_keep_in_memory: int = 30
 
 
 class ResyncTriggerPayload(TypedDict):
