@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
@@ -230,4 +231,43 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
 
     assert_eq!(rpc_tx, rpc_tx_from_internal);
+}
+
+// In Echonet mode the proof manager has no entry for a replayed tx, so converting the internal
+// tx back to RPC must not call get_proof (ProofNotFound would abort the proposal).
+#[rstest]
+#[tokio::test]
+async fn test_internal_rpc_to_rpc_in_echonet_mode_skips_proof_manager_lookup(
+    proof_facts: ProofFacts,
+) {
+    // A replayed tx: proof facts present, proof absent.
+    let rpc_tx = invoke_tx_client_side_proving(
+        CairoVersion::default(),
+        proof_facts.clone(),
+        Proof::default(),
+    );
+
+    // The mock has no expectations set, so it panics if any proof manager call is made.
+    let transaction_converter = TransactionConverter::new(
+        Arc::new(MockClassManagerClient::new()),
+        Arc::new(MockProofManagerClient::new()),
+        ChainInfo::create_for_testing().chain_id,
+    )
+    .with_behavior_mode(BehaviorMode::Echonet);
+
+    let (internal_tx, verification_handle) =
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap();
+    assert!(verification_handle.is_none(), "echonet must not spawn proof verification");
+
+    let rpc_tx_from_internal =
+        transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
+
+    let RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(
+        round_tripped_tx,
+    )) = rpc_tx_from_internal
+    else {
+        panic!("expected a V3 invoke transaction");
+    };
+    assert_eq!(round_tripped_tx.proof_facts, proof_facts);
+    assert!(round_tripped_tx.proof.is_empty(), "proof must remain empty in an echonet round-trip");
 }
