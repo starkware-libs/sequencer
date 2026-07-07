@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "state_update_stream_test.rs"]
+mod state_update_stream_test;
+
 use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -27,6 +31,7 @@ pub struct StateUpdateStreamConfig {
     pub max_state_updates_to_download: usize,
     pub max_state_updates_to_store_in_memory: usize,
     pub max_classes_to_download: usize,
+    pub max_classes_to_store_in_memory: usize,
 }
 
 pub(crate) struct StateUpdateStream<TStarknetClient: StarknetReader + Send + 'static> {
@@ -102,13 +107,9 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
             downloaded_state_updates: VecDeque::with_capacity(
                 config.max_state_updates_to_store_in_memory,
             ),
-            classes_to_download: VecDeque::with_capacity(
-                config.max_state_updates_to_store_in_memory * 5,
-            ),
+            classes_to_download: VecDeque::with_capacity(config.max_classes_to_store_in_memory),
             download_class_tasks: futures::stream::FuturesOrdered::new(),
-            downloaded_classes: VecDeque::with_capacity(
-                config.max_state_updates_to_store_in_memory * 5,
-            ),
+            downloaded_classes: VecDeque::with_capacity(config.max_classes_to_store_in_memory),
             config,
             class_cache,
         }
@@ -211,14 +212,25 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
         }
     }
 
-    // Checks for finished state update downloading tasks.
-    // Checks for finished class downloading tasks and adds the result to `downloaded_classes`.
+    // Checks for finished state update downloading tasks and adds the result to
+    // `downloaded_state_updates`, queuing its class hashes in `classes_to_download`.
     fn handle_downloaded_state_updates(
         self: &mut std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         should_poll_again: &mut bool,
     ) -> CentralResult<()> {
         if self.downloaded_state_updates.len() >= self.config.max_state_updates_to_store_in_memory {
+            return Ok(());
+        }
+
+        // Backpressure on the class backlog: a state diff can declare an arbitrary (feeder-
+        // supplied) number of classes, so bound the total held in `classes_to_download` +
+        // `downloaded_classes` instead of only bounding the number of state updates. Checked
+        // before polling the task so a completed state update isn't consumed (and its class
+        // hashes dropped) until there's room to hold them; hashes must never be dropped, since
+        // that would desync sync.
+        let num_pending_classes = self.classes_to_download.len() + self.downloaded_classes.len();
+        if num_pending_classes >= self.config.max_classes_to_store_in_memory {
             return Ok(());
         }
 
