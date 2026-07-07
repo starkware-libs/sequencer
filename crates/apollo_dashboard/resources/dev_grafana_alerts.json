@@ -2147,6 +2147,58 @@
       "severity": "p2"
     },
     {
+      "name": "strk_to_usd_error_count",
+      "title": "Strk to Usd error count",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(sum(increase(snip35_strk_usd_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "severity": "p5"
+    },
+    {
+      "name": "strk_to_usd_success_count",
+      "title": "Strk to Usd success count",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(sum(increase(snip35_strk_usd_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$strk_to_usd_success_count-severity$$$"
+    },
+    {
       "name": "sync_storage_open_read_transactions",
       "title": "sync - High number of open read transactions",
       "ruleGroup": "evaluation_rate_default",
