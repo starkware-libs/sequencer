@@ -49,10 +49,11 @@ impl<B: BaseLayerContract + Send + Sync> CyclicBaseLayerWrapper<B> {
             return Ok(());
         }
         if self.last_primary_retry.elapsed() >= self.retry_primary_interval {
-            // Advance the clock only after a successful reset, so a failed reset retries on the
-            // next access instead of waiting another full interval.
-            self.base_layer.reset_provider_url_to_primary().await?;
+            // Advance the clock before attempting the reset, so that whether or not the primary is
+            // back up we wait a full interval before retrying it again. This avoids churning the
+            // primary on every access while it is still down.
             self.last_primary_retry = tokio::time::Instant::now();
+            self.base_layer.reset_provider_url_to_primary().await?;
         }
         Ok(())
     }
