@@ -944,6 +944,7 @@ class SharedContext:
                 transaction_commitment_mismatches=list(
                     self._hash_mismatches.transaction_commitment_mismatches
                 ),
+                os_run_stats=self._os_run_stats_dict_locked(),
             )
 
     # --- Progress markers ---
