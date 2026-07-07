@@ -31,6 +31,18 @@ spec:
     spec:
       serviceAccountName: echonet
 
+      # Pin to an n4-standard-8: ScaleOps mutates `requests` under its cost
+      # policy and would pack us onto a node too small for the OS-runner
+      # workers; a nodeSelector survives that. The pool is tainted
+      # role=sequencer, hence the toleration.
+      nodeSelector:
+        node.kubernetes.io/instance-type: n4-standard-8
+      tolerations:
+        - key: role
+          operator: Equal
+          value: sequencer
+          effect: NoSchedule
+
       initContainers:
         - name: extract-echonet-src
           image: alpine:3.20
@@ -85,16 +97,18 @@ spec:
               export PYTHONPATH=/app:${PYTHONPATH:-} &&
               python -m pip install --no-cache-dir --disable-pip-version-check
               flask gunicorn requests aiohttp 'kubernetes<36' eth_abi 'cairo-lang==0.14.0.1' zstandard &&
-              echo "[echonet] starting gunicorn on :80 (1 worker, 4 threads)" &&
-              gunicorn -w 1 --threads 4 -b 0.0.0.0:80 echonet.echo_center:app --timeout 60 --access-logfile -
+              echo "[echonet] starting gunicorn on :80 (1 worker, 8 threads, 300s timeout)" &&
+              gunicorn -w 1 --threads 8 -b 0.0.0.0:80 echonet.echo_center:app --timeout 300 --access-logfile -
           workingDir: /app
           resources:
+            # Sized for 8 OS-runner workers + flask + transient blob parsing
+            # (~6 CPU / 12-14 GiB working set).
             requests:
-              cpu: 250m
-              memory: 1Gi
+              cpu: "6"
+              memory: 16Gi
             limits:
-              cpu: "2"
-              memory: 4Gi
+              cpu: "8"
+              memory: 32Gi
           volumeMounts:
             - { name: app-src, mountPath: /app }
             - { name: data-dir, mountPath: /data }
