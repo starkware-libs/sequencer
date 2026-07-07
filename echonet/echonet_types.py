@@ -164,6 +164,36 @@ class PathsConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class OsRunnerConfig:
+    """
+    Configuration for running the Starknet OS over each received blob, via the
+    block-hash CLI binary's `os run-os-stateless` subcommand (which must be
+    built with the `os_input` and `transaction_serde` features).
+    """
+
+    enabled: bool = True
+    layout: str = "all_cairo"
+    cli_timeout_secs: int = 600
+    chain_id: str = "SN_MAIN"
+    strk_fee_token_address: str = (
+        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+    )
+    # Bounded backlog of OS-run tasks; tasks beyond it are dropped (logged) so the
+    # Flask handler never blocks blob storage.
+    queue_size: int = 30
+    # Worker threads draining the queue, one OS CLI subprocess each. At ~5 runs/min
+    # per worker vs ~26 mainnet blocks/min, ≥6 are needed; 8 also uses the pod's
+    # cpu-limit headroom under burst while staying within the memory limit.
+    parallelism: int = 8
+    # Width of the blob's `recent_state_commitment_infos` vector
+    # (N_BLOCK_HASHES_BACK_IN_BLOB): a block's commit info is only reachable from
+    # blobs at most this many heights newer.
+    recent_state_commitment_window: int = 10
+    # Most-recent failed-OS-run input dumps to keep on the PVC for debugging.
+    max_failed_dumps: int = 10
+
+
+@dataclass(frozen=True, slots=True)
 class TxFilterConfig:
     """Transaction forwarding filter parameters."""
 
@@ -203,6 +233,7 @@ class EchonetConfig:
     block_store: BlockStoreTuning
     severity: SeverityConfig
     paths: PathsConfig
+    os_runner: OsRunnerConfig
     tx_filter: TxFilterConfig
     l1: L1Config
     gcp_logs: GcpLogsConfig
@@ -262,6 +293,7 @@ class EchonetConfig:
             ),
             severity=SeverityConfig(),
             paths=PathsConfig(),
+            os_runner=OsRunnerConfig(),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
             ),
