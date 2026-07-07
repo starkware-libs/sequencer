@@ -46,7 +46,9 @@ impl CurrentProposalState {
             .expected_block_number
             .next()
             .expect("Block number overflow while advancing expected block after pop.");
-        self.emit_empty_block = false;
+        // Consecutive blocks can share a timestamp, so gate further pops until the next
+        // resolve_timestamp call re-syncs the state to the queue head.
+        self.emit_empty_block = true;
     }
 }
 
