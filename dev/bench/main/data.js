@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783334706980,
+  "lastUpdate": 1783421807314,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6595,6 +6595,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1346.9464086300002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "22fc5c45f56b7260acb5344569101479da0f39d0",
+          "message": "starknet_patricia_storage: delete dead code (unsure, review carefully) (#14696)\n\nRemoves the unused struct `BorrowedStorage<'a, S: Storage>` from\n`starknet_patricia_storage::map_storage`.\n\nEvidence it is dead:\n- `BorrowedStorage` has zero references anywhere in the sequencer workspace\n  (whole-word grep across `crates/` matches only its definition), including\n  tests and benches. It has no `impl` blocks and is never constructed.\n- Zero references in the sibling repos `starkware-industries/sequencer-devops`\n  and `starkware-industries/starkware`.\n\nIt is a `#[derive(Serialize)]` wrapper around `&mut S: Storage` that was never\nwired up. Removing it orphans no imports: `Storage` and `Serialize` remain used\nby other items in the module (e.g. `MapStorage` and the storage-trait impls).\n\nVerification (env: RUSTC_WRAPPER unset, CARGO_INCREMENTAL=0):\n`cargo build -p starknet_patricia_storage` and `... --tests` build with zero\ndead_code/unused warnings; `cargo clippy` clean; `SEED=0 cargo test` passes.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-07-07T10:39:01Z",
+          "tree_id": "8f5c5c4696db4e62af18277142435a95501672e5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/22fc5c45f56b7260acb5344569101479da0f39d0"
+        },
+        "date": 1783421806903,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 843.79906796,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1317.7031236300002,
             "unit": "ms"
           }
         ]
