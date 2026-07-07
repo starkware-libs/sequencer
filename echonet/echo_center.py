@@ -870,7 +870,10 @@ class EchoCenterService:
         self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
 
         self.shared.store_block(
-            block_number, blob=blob, fgw_block=to_store, state_update=state_update
+            block_number,
+            blob_body=body,
+            fgw_block=to_store,
+            state_update=state_update,
         )
         self.flask_logger.info(
             f"block {block_number} tx hashes: {' '.join(self._transformer.get_blob_tx_hashes(blob))}"
@@ -1019,6 +1022,12 @@ class EchoCenterService:
                 {"error": f"Invalid kind: {kind_raw}"}, requests.codes.bad_request
             )
 
+        # Blobs are stored as raw JSON bytes; serve them verbatim.
+        if kind is BlockDumpKind.BLOB:
+            payload_bytes = self.shared.get_blob_body_with_disk_fallback(bn)
+            if not payload_bytes:
+                return self._empty_response(requests.codes.not_found)
+            return flask.Response(payload_bytes, mimetype="application/json")
         payload = self.shared.get_block_field_with_disk_fallback(bn, kind.value)
         if payload is None:
             return self._empty_response(requests.codes.not_found)

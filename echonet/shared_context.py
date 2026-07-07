@@ -333,16 +333,36 @@ class _BlockStore:
         evict_bns = [bn for bn in store.keys() if bn < cutoff]
         return [(bn, store.pop(bn)) for bn in sorted(evict_bns)]
 
+    @staticmethod
+    def _evict_old_blob_bodies(
+        store: Dict[int, JsonObject], current_block_number: int
+    ) -> List[tuple[int, bytes]]:
+        """Drop old in-memory blob bodies (the block entry stays); returns them for archiving."""
+        cutoff = current_block_number - CONFIG.block_store.max_blob_bodies_to_keep_in_memory
+        # An entry outlives its blob body, so filter out bodies already dropped on a prior call.
+        evict_bns = [bn for bn, entry in store.items() if bn < cutoff and entry.get("blob_body")]
+        return [(bn, store[bn].pop("blob_body")) for bn in sorted(evict_bns)]
+
     # --- Block store API ---
     def store_block(
-        self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
-    ) -> List[tuple[int, JsonObject]]:
+        self,
+        block_number: int,
+        blob_body: bytes,
+        fgw_block: JsonObject,
+        state_update: JsonObject,
+    ) -> tuple[List[tuple[int, JsonObject]], List[tuple[int, bytes]]]:
+        # Store the blob as raw JSON bytes, not a parsed dict: parsing costs
+        # 5-8x the memory and OOMs the pod; consumers parse just-in-time.
         self.blocks[block_number] = {
-            "blob": blob,
+            "blob_body": blob_body,
             "block": fgw_block,
             "state_update": state_update,
         }
-        return self._evict_old_items(self.blocks, current_block_number=block_number)
+        evicted_items = self._evict_old_items(self.blocks, current_block_number=block_number)
+        evicted_blob_bodies = self._evict_old_blob_bodies(
+            self.blocks, current_block_number=block_number
+        )
+        return evicted_items, evicted_blob_bodies
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
         self.fgw_blocks[block_number] = block_obj
@@ -373,10 +393,9 @@ class _BlockStore:
     ) -> None:
         try:
             for bn, entry in snapshot_items:
-                (base_dir / f"blob_{bn}.json").write_text(
-                    json.dumps(entry["blob"], ensure_ascii=False),
-                    encoding="utf-8",
-                )
+                blob_body = entry.get("blob_body")
+                if blob_body:
+                    (base_dir / f"blob_{bn}.json").write_bytes(blob_body)
                 (base_dir / f"block_{bn}.json").write_text(
                     json.dumps(entry["block"], ensure_ascii=False),
                     encoding="utf-8",
@@ -388,6 +407,16 @@ class _BlockStore:
             _BlockStore._enforce_blocks_archives_size_cap()
         except Exception as e:
             logger.error(f"Failed to snapshot blocks to disk: {e}")
+
+    @staticmethod
+    def write_blob_bodies_to_disk(blob_body_items: List[tuple[int, bytes]], base_dir: Path) -> None:
+        """Archive blob bodies evicted from memory while their parent entry stays cached."""
+        try:
+            for bn, blob_body in blob_body_items:
+                (base_dir / f"blob_{bn}.json").write_bytes(blob_body)
+            _BlockStore._enforce_blocks_archives_size_cap()
+        except Exception as e:
+            logger.error(f"Failed to archive evicted blob bodies to disk: {e}")
 
 
 @dataclass(slots=True)
@@ -626,15 +655,26 @@ class SharedContext:
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
-        self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
+        self,
+        block_number: int,
+        blob_body: bytes,
+        fgw_block: JsonObject,
+        state_update: JsonObject,
     ) -> None:
         with self._lock:
-            evicted_items = self._blocks.store_block(
-                block_number, blob=blob, fgw_block=fgw_block, state_update=state_update
+            evicted_items, evicted_blob_bodies = self._blocks.store_block(
+                block_number,
+                blob_body=blob_body,
+                fgw_block=fgw_block,
+                state_update=state_update,
             )
         if evicted_items:
             _BlockStore.write_snapshot_items_to_disk(
                 evicted_items, base_dir=self._blocks._ensure_archive_dir()
+            )
+        if evicted_blob_bodies:
+            _BlockStore.write_blob_bodies_to_disk(
+                evicted_blob_bodies, base_dir=self._blocks._ensure_archive_dir()
             )
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
@@ -668,6 +708,20 @@ class SharedContext:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.warning(f"Failed reading archived block dump {path}: {e}")
+            return None
+
+    def get_blob_body_with_disk_fallback(self, block_number: int) -> Optional[bytes]:
+        """Return the raw blob bytes for `block_number`, from memory or the on-disk archive."""
+        in_mem = self.get_block_field(block_number, "blob_body")
+        if in_mem:
+            return in_mem
+        path = _find_archived_block_path(block_number=block_number, field="blob")
+        if not path:
+            return None
+        try:
+            return path.read_bytes()
+        except Exception as e:
+            logger.warning(f"Failed reading archived blob {path}: {e}")
             return None
 
     def get_latest_block_number(self) -> Optional[int]:
