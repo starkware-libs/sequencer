@@ -98,7 +98,8 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<SendTxsForProposalStatus>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
-    async fn get_batch_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
+    /// Starts a new proposer round and returns the timestamp for the block about to be built.
+    async fn start_round(&self) -> BatcherClientResult<UnixTimestamp>;
     /// Executes a view (read-only) entry point on a contract against the latest committed batcher
     /// state and returns the retdata.
     async fn call_contract(
@@ -129,7 +130,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
-    GetBatchTimestamp,
+    StartRound,
     CallContract(CallContractInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
@@ -157,7 +158,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
-    GetBatchTimestamp(BatcherResult<u64>),
+    StartRound(BatcherResult<UnixTimestamp>),
     CallContract(BatcherResult<CallContractOutput>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
@@ -360,13 +361,13 @@ where
         )
     }
 
-    async fn get_batch_timestamp(&self) -> BatcherClientResult<UnixTimestamp> {
-        let request = BatcherRequest::GetBatchTimestamp;
+    async fn start_round(&self) -> BatcherClientResult<UnixTimestamp> {
+        let request = BatcherRequest::StartRound;
         handle_all_response_variants!(
             self,
             request,
             BatcherResponse,
-            GetBatchTimestamp,
+            StartRound,
             BatcherClientError,
             BatcherError,
             Direct
