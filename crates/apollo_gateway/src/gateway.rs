@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -29,6 +30,7 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::block::StarknetVersion;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -39,6 +41,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
+use starknet_api::versioned_constants_logic::set_effective_latest_version;
 use starknet_types_core::felt::Felt;
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
@@ -186,6 +189,25 @@ impl<
     pub async fn start(&self) {
         register_metrics();
         self.proof_archive_writer.connect().await;
+        self.set_effective_starknet_version_from_echonet().await;
+    }
+
+    /// In Echonet mode, overrides the effective latest Starknet version with the replayed
+    /// network's version so versioned-constants lookups match it. A no-op in other modes.
+    async fn set_effective_starknet_version_from_echonet(&self) {
+        if self.config.static_config.behavior_mode != BehaviorMode::Echonet {
+            return;
+        }
+        match fetch_starknet_version(&self.config.static_config.recorder_url).await {
+            Ok(starknet_version) => {
+                info!("Setting effective Starknet version from echonet: {starknet_version}");
+                set_effective_latest_version(starknet_version);
+            }
+            Err(fetch_error) => warn!(
+                "Failed to fetch the Starknet version from echonet; keeping the compile-time \
+                 latest: {fetch_error}"
+            ),
+        }
     }
 
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
@@ -487,6 +509,30 @@ impl<
 
         Ok(Some((handle.proof_facts, handle.proof)))
     }
+}
+
+// Fetches the replayed network's Starknet version from the recorder.
+async fn fetch_starknet_version(recorder_url: &reqwest::Url) -> Result<StarknetVersion, String> {
+    const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+    let url = recorder_url
+        .join("echonet/get_starknet_version")
+        .map_err(|join_error| format!("invalid recorder URL: {join_error}"))?;
+    let response = reqwest::Client::new()
+        .get(url)
+        .timeout(REQUEST_TIMEOUT)
+        .send()
+        .await
+        .map_err(|request_error| format!("request failed: {request_error}"))?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+    let version_string = response
+        .text()
+        .await
+        .map_err(|read_error| format!("failed to read response: {read_error}"))?;
+    StarknetVersion::try_from(version_string.trim()).map_err(|parse_error| {
+        format!("failed to parse Starknet version '{}': {parse_error}", version_string.trim())
+    })
 }
 
 pub fn create_gateway(
