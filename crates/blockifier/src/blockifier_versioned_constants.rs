@@ -495,6 +495,8 @@ impl VersionedConstants {
     // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`, and
     // squashing the functions together.
     /// Returns the latest versioned constants, applying the given overrides.
+    /// In Echonet mode, "latest" is the version set via
+    /// `starknet_api::versioned_constants_logic::set_effective_latest_version`.
     pub fn get_versioned_constants(
         versioned_constants_overrides: Option<VersionedConstantsOverrides>,
     ) -> Self {
