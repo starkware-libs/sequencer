@@ -1,9 +1,11 @@
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
     SNIP35_STRK_USD_ERROR_COUNT,
+    SNIP35_STRK_USD_RATE,
     SNIP35_STRK_USD_SUCCESS_COUNT,
 };
 use apollo_metrics::metrics::MetricQueryName;
@@ -56,6 +58,26 @@ pub(crate) fn get_strk_to_usd_error_count_alert() -> Alert {
         "Strk to Usd error count",
         &SNIP35_STRK_USD_ERROR_COUNT,
         AlertSeverity::Informational,
+    )
+}
+
+pub(crate) fn get_eth_to_strk_rate_frozen_alert() -> Alert {
+    const ALERT_NAME: &str = "eth_to_strk_rate_frozen";
+    oracle_rate_frozen_alert(
+        ALERT_NAME,
+        "Eth to Strk rate frozen",
+        &ETH_TO_STRK_RATE,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+    )
+}
+
+pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
+    const ALERT_NAME: &str = "strk_to_usd_rate_frozen";
+    oracle_rate_frozen_alert(
+        ALERT_NAME,
+        "Strk to Usd rate frozen",
+        &SNIP35_STRK_USD_RATE,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
     )
 }
 
@@ -136,5 +158,34 @@ fn oracle_error_count_alert(
         "1m",
         severity,
         ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Alert if an exchange-rate oracle's rate gauge has not changed at all in the last hour.
+///
+/// Detects a *frozen feed*: the oracle keeps resolving successfully (so the success count and
+/// last-success timestamp stay healthy) while serving a stale, unchanging price. `changes` over 1h
+/// is 0 only when the value never moved across the ~4 update buckets in that window — effectively
+/// impossible for a live 18-decimal rate. Unlike the error-count alert there is deliberately no
+/// `or vector(0)`: an absent gauge must stay no-data (so an oracle that never resolves doesn't look
+/// "frozen"); only a present-but-flat gauge trips this.
+///
+/// Applies to observers too: a frozen upstream feed is env-wide and observer nodes run the same
+/// oracle client, so the alert should fire regardless of node role.
+fn oracle_rate_frozen_alert(
+    name: &str,
+    title: &str,
+    rate_metric: &dyn MetricQueryName,
+    severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
+    Alert::new(
+        name,
+        title,
+        EvaluationRate::Default,
+        format!("sum(changes({}[1h]))", rate_metric.get_name_with_filter()),
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        severity,
+        ObserverApplicability::Applicable,
     )
 }
