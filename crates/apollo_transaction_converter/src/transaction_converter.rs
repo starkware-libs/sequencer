@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -53,8 +53,17 @@ pub enum TransactionConverterError {
     ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
     ProofVerificationError(#[from] VerifyProofError),
+    #[error(
+        "Sierra fetched for class hash {class_hash} is inconsistent with it: computed class hash \
+         {computed_class_hash} from the fetched Sierra program"
+    )]
+    SierraClassHashMismatch { class_hash: ClassHash, computed_class_hash: ClassHash },
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
+    #[error(
+        "Expected a Cairo 1 (Sierra-compiled) executable for class {class_hash}, found Cairo 0"
+    )]
+    UnexpectedCairo0Executable { class_hash: ClassHash },
     #[error(transparent)]
     ValidateCompiledClassHashError(#[from] ValidateCompiledClassHashError),
 }
@@ -161,6 +170,42 @@ impl TransactionConverter {
             .get_executable(class_hash)
             .await?
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
+    }
+
+    /// `get_sierra` and `get_executable` are two independent class-manager reads; nothing
+    /// guarantees the class manager returned artifacts for the same compiled class (e.g. a
+    /// stale cache entry or a partial write could pair them incorrectly). The Sierra-derived
+    /// lengths and version are later trusted as authoritative billing/version-gating metadata
+    /// for the (separately fetched) executable, so verify both artifacts are actually keyed to
+    /// `class_hash`/`compiled_class_hash` before using them together.
+    fn verify_class_consistency(
+        class_hash: ClassHash,
+        compiled_class_hash: CompiledClassHash,
+        sierra: &SierraContractClass,
+        contract_class: &ContractClass,
+    ) -> TransactionConverterResult<()> {
+        let computed_class_hash = sierra.calculate_class_hash();
+        if computed_class_hash != class_hash {
+            return Err(TransactionConverterError::SierraClassHashMismatch {
+                class_hash,
+                computed_class_hash,
+            });
+        }
+
+        if matches!(contract_class, ContractClass::V0(_)) {
+            return Err(TransactionConverterError::UnexpectedCairo0Executable { class_hash });
+        }
+        let computed_compiled_class_hash = contract_class.compiled_class_hash();
+        if computed_compiled_class_hash != compiled_class_hash {
+            return Err(TransactionConverterError::ValidateCompiledClassHashError(
+                ValidateCompiledClassHashError::CompiledClassHashMismatch {
+                    computed_class_hash: computed_compiled_class_hash,
+                    supplied_class_hash: compiled_class_hash,
+                },
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -279,6 +324,12 @@ impl TransactionConverterTrait for TransactionConverter {
                 let (sierra, contract_class) = tokio::try_join!(
                     self.get_sierra(tx.class_hash),
                     self.get_executable(tx.class_hash)
+                )?;
+                Self::verify_class_consistency(
+                    tx.class_hash,
+                    tx.compiled_class_hash,
+                    &sierra,
+                    &contract_class,
                 )?;
                 let class_info = ClassInfo {
                     contract_class,

@@ -340,6 +340,22 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ProofNotFound { .. } => {
             StarknetError::internal_with_signature_logging("Proof not found", tx_signature, err)
         }
+        // Internal error: the class manager returned artifacts that are inconsistent with the
+        // requested class (e.g. stale cache or partial write), not a fault in the user's tx.
+        TransactionConverterError::SierraClassHashMismatch { .. } => {
+            StarknetError::internal_with_signature_logging(
+                "Inconsistent Sierra class hash",
+                tx_signature,
+                err,
+            )
+        }
+        TransactionConverterError::UnexpectedCairo0Executable { .. } => {
+            StarknetError::internal_with_signature_logging(
+                "Unexpected Cairo 0 executable",
+                tx_signature,
+                err,
+            )
+        }
         TransactionConverterError::StarknetApiError(err) => convert_sn_api_error(err),
     }
 }
