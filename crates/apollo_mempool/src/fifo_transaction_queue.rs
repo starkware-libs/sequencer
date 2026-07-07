@@ -356,6 +356,12 @@ impl TransactionQueueTrait for FifoTransactionQueue {
 
         self.staged_txs.clear();
 
+        // Rewound txs may reference an earlier block than current_proposal_state expects.
+        // Realign so a retried round's pop_ready_chunk sees a matching head.
+        if !rewound_hashes.is_empty() {
+            let _ = self.sync_proposal_state_from_queue_front_tx();
+        }
+
         rewound_hashes
     }
 

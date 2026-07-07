@@ -61,9 +61,7 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::RevertBlock(input) => {
                 BatcherResponse::RevertBlock(self.revert_block(input).await)
             }
-            BatcherRequest::GetBatchTimestamp => {
-                BatcherResponse::GetBatchTimestamp(self.get_batch_timestamp().await)
-            }
+            BatcherRequest::StartRound => BatcherResponse::StartRound(self.start_round().await),
             BatcherRequest::CallContract(input) => {
                 BatcherResponse::CallContract(self.call_contract(input).await)
             }
