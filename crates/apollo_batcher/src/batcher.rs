@@ -724,11 +724,22 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_batch_timestamp(&self) -> BatcherResult<UnixTimestamp> {
+    pub async fn get_batch_timestamp(&mut self) -> BatcherResult<UnixTimestamp> {
+        // This call starts a proposer round; the proposer flow has no other round-transition
+        // hook, so abort the previous round's proposal here.
+        self.abort_active_proposal().await;
+
         let mempool_client = self.mempool_client.as_ref().expect(
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",
         );
+        // Rewind any staged txs left behind by an aborted round, so the timestamp resolved below
+        // reflects the block about to be built. A no-op in the normal flow, and repeated
+        // idempotently by propose_block.
+        mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+            error!("Mempool is not ready to start a new round: {err}");
+            BatcherError::NotReady
+        })?;
         mempool_client.resolve_batch_timestamp().await.map_err(|err| {
             error!("Failed to get timestamp from mempool: {err}");
             BatcherError::InternalError
