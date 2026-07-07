@@ -142,7 +142,10 @@ pub(crate) async fn validate_proposal(
     mut args: ProposalValidateArguments,
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
-    let mut verify_and_store_proof_tasks: Vec<VerifyAndStoreProofTask> = Vec::new();
+    // One entry per received transaction, in the same order as `content`, so the tasks can be
+    // truncated in lockstep with `content` once `executed_transaction_count` is known. `None`
+    // marks a transaction that spawned no proof task.
+    let mut verify_and_store_proof_tasks: Vec<Option<VerifyAndStoreProofTask>> = Vec::new();
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -492,7 +495,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
+    verify_and_store_proof_tasks: &mut Vec<Option<VerifyAndStoreProofTask>>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     deadline_params: &ProposalDeadlineParams,
     fee_proposal: Option<GasPrice>,
@@ -529,6 +532,14 @@ async fn handle_proposal_part(
 
             *content = truncate_to_executed_txs(content, executed_txs_count);
 
+            // Drop proof tasks for transactions that were streamed but not executed (those beyond
+            // `executed_txs_count`), mirroring the truncation of `content`. The task list is kept
+            // in transaction order with one slot per transaction, so truncating to the executed
+            // count keeps exactly the tasks for executed transactions. Awaiting proofs for
+            // excluded transactions would let an unexecuted (possibly invalid-proof) transaction
+            // fail an otherwise-valid proposal.
+            verify_and_store_proof_tasks.truncate(executed_txs_count);
+
             // Verification and store proof tasks are spawned during consensus transaction
             // conversion, running concurrently with batcher execution. Since the fin
             // is always the last proposal part, we await all tasks here to ensure every
@@ -536,7 +547,7 @@ async fn handle_proposal_part(
             // The tasks themselves are not cancelled, they continue running in the background,
             // but we stop waiting for them.
             let start = Instant::now();
-            for task in verify_and_store_proof_tasks.drain(..) {
+            for task in verify_and_store_proof_tasks.drain(..).flatten() {
                 tokio::select! {
                     _ = deadline_params.cancel_token.cancelled() => {
                         let duration = start.elapsed();
@@ -623,7 +634,9 @@ async fn handle_proposal_part(
                 Vec<InternalConsensusTransaction>,
                 Vec<Option<VerifyAndStoreProofTask>>,
             ) = conversion_results.into_iter().unzip();
-            verify_and_store_proof_tasks.extend(tasks.into_iter().flatten());
+            // Keep one slot per transaction (including `None`s) so the task list stays aligned
+            // with `content` for later truncation to `executed_transaction_count`.
+            verify_and_store_proof_tasks.extend(tasks);
 
             debug!(
                 "Converted transactions to internal representation. hashes={:?}",
