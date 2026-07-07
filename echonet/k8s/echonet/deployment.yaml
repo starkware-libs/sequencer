@@ -7,6 +7,10 @@ metadata:
     app.kubernetes.io/component: api
 spec:
   replicas: 1
+  # Kill the old pod before starting the new one: the PVC has node affinity,
+  # so under RollingUpdate the new pod hangs on a Multi-Attach error.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       # NOTE: Deployment selectors are immutable once created.
