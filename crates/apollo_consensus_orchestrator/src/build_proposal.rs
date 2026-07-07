@@ -28,7 +28,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, ReplayBlockMetadata};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -49,6 +49,8 @@ use crate::utils::{
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
+    L1PricesInFri,
+    L1PricesInWei,
     PreviousProposalInitInfo,
     RetrospectiveBlockHashError,
     StreamSender,
@@ -73,8 +75,9 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    // If true, for echonet mode, use the timestamp from the original block.
-    pub override_timestamp: bool,
+    // If true (Echonet mode), build the proposal from the replayed block's metadata (timestamp
+    // and gas prices) instead of the clock and the gas price provider.
+    pub override_block_metadata: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
@@ -136,36 +139,59 @@ pub(crate) async fn build_proposal(
     Ok(proposal_commitment)
 }
 
-async fn get_proposal_timestamp(
-    override_timestamp: bool,
+async fn get_proposal_metadata(
+    override_block_metadata: bool,
     batcher: &dyn BatcherClient,
     clock: &dyn Clock,
-) -> u64 {
-    if override_timestamp {
+) -> ReplayBlockMetadata {
+    if override_block_metadata {
         match batcher.get_block_metadata().await {
-            Ok(block_metadata) => return block_metadata.timestamp,
+            Ok(block_metadata) => return block_metadata,
             Err(err) => {
-                warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
+                warn!(
+                    "Failed to get block metadata from batcher, falling back to the clock \
+                     timestamp and zero gas prices: {err:?}"
+                );
             }
         }
     }
-    clock.unix_now()
+    ReplayBlockMetadata { timestamp: clock.unix_now(), ..Default::default() }
 }
 
 async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
-    let timestamp = get_proposal_timestamp(
-        args.override_timestamp,
+    let proposal_metadata = get_proposal_metadata(
+        args.override_block_metadata,
         args.deps.batcher.as_ref(),
         args.deps.clock.as_ref(),
     )
     .await;
-    let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
-        args.deps.l1_gas_price_provider.clone(),
-        timestamp,
-        args.previous_proposal_init.as_ref(),
-        &args.gas_price_params,
-    )
-    .await;
+    let timestamp = proposal_metadata.timestamp;
+    let (l1_prices_fri, l1_prices_wei, l2_gas_price_fri) = if args.override_block_metadata {
+        info!(
+            "Building proposal for height {} from replayed block metadata: {proposal_metadata:?}",
+            args.build_param.height,
+        );
+        (
+            L1PricesInFri {
+                l1_gas_price: proposal_metadata.l1_gas_price_fri,
+                l1_data_gas_price: proposal_metadata.l1_data_gas_price_fri,
+            },
+            L1PricesInWei {
+                l1_gas_price: proposal_metadata.l1_gas_price_wei,
+                l1_data_gas_price: proposal_metadata.l1_data_gas_price_wei,
+            },
+            proposal_metadata.l2_gas_price_fri,
+        )
+    } else {
+        let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
+            args.deps.l1_gas_price_provider.clone(),
+            timestamp,
+            args.previous_proposal_init.as_ref(),
+            &args.gas_price_params,
+        )
+        .await;
+        (l1_prices_fri, l1_prices_wei, args.l2_gas_price)
+    };
     let init = ProposalInit {
         height: args.build_param.height,
         round: args.build_param.round,
@@ -174,7 +200,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         builder: args.builder_address,
         timestamp,
         l1_da_mode: args.l1_da_mode,
-        l2_gas_price_fri: args.l2_gas_price,
+        l2_gas_price_fri,
         l1_gas_price_wei: l1_prices_wei.l1_gas_price,
         l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
