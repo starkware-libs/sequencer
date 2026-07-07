@@ -115,7 +115,7 @@ use starknet_api::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
-    UnixTimestamp,
+    ReplayBlockMetadata,
 };
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
@@ -724,7 +724,7 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_batch_timestamp(&mut self) -> BatcherResult<UnixTimestamp> {
+    pub async fn get_block_metadata(&mut self) -> BatcherResult<ReplayBlockMetadata> {
         // This call starts a proposer round; the proposer flow has no other round-transition
         // hook, so abort the previous round's proposal here.
         self.abort_active_proposal().await;
@@ -733,15 +733,15 @@ impl Batcher {
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",
         );
-        // Rewind any staged txs left behind by an aborted round, so the timestamp resolved below
+        // Rewind any staged txs left behind by an aborted round, so the metadata resolved below
         // reflects the block about to be built. A no-op in the normal flow, and repeated
         // idempotently by propose_block.
         mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
             error!("Mempool is not ready to start a new round: {err}");
             BatcherError::NotReady
         })?;
-        mempool_client.resolve_batch_timestamp().await.map_err(|err| {
-            error!("Failed to get timestamp from mempool: {err}");
+        mempool_client.resolve_block_metadata().await.map_err(|err| {
+            error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
         })
     }
