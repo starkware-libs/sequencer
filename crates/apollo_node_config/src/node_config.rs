@@ -151,6 +151,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "consensus_manager_config.cende_config.recorder_url",
                 "batcher_config.static_config.pre_confirmed_cende_config.recorder_url",
+                "gateway_config.static_config.recorder_url",
                 "mempool_config.static_config.recorder_url",
             ]),
         ),
@@ -211,6 +212,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ),
         set_pointing_param_paths(&[
             "consensus_manager_config.context_config.static_config.behavior_mode",
+            "gateway_config.static_config.behavior_mode",
             "mempool_config.static_config.behavior_mode",
         ]),
     ));

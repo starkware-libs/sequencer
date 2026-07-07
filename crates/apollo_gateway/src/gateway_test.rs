@@ -142,6 +142,7 @@ fn mock_dependencies() -> MockDependencies {
             authorized_declarer_accounts: None,
             max_concurrent_declare_compilations: 5,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+            ..Default::default()
         },
         ..Default::default()
     };
