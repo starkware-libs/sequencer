@@ -33,6 +33,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::versioned_constants_logic::effective_starknet_version;
 use starknet_api::StarknetApiError;
 use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
@@ -205,7 +206,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
-        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        starknet_version: effective_starknet_version(),
         // TODO(Asmaa): Put the real value once we have it.
         // Sentinel until then; see `expected_version_constant_commitment` for why this is the
         // single source of truth shared with the validator.
