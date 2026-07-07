@@ -425,6 +425,34 @@ class _BlockStore:
 
 
 @dataclass(slots=True)
+class _OsRunStats:
+    """
+    Cumulative OS-runner outcome counters for the report; `recent_failures` is
+    a rolling list of `{block_number, ts, error}` entries.
+    """
+
+    completed: int
+    failed: int
+    dropped: int
+    deferred_events: int
+    abandoned: int
+    skipped: int
+    recent_failures: List[JsonObject]
+
+    @classmethod
+    def empty(cls) -> "_OsRunStats":
+        return cls(
+            completed=0,
+            failed=0,
+            dropped=0,
+            deferred_events=0,
+            abandoned=0,
+            skipped=0,
+            recent_failures=[],
+        )
+
+
+@dataclass(slots=True)
 class _ProgressMarkers:
     """Progress markers for reporting and L1Manager callbacks."""
 
@@ -509,6 +537,8 @@ class SharedContext:
         self._hash_mismatches = _BlockHashMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._os_runs = _OsRunStats.empty()
+        self._os_run_live = {"queue_depth": 0, "queue_max": 0, "deferred_count": 0}
         self._commits_by_block: Dict[int, JsonObject] = {}
         self._last_stored_commitment_height: Optional[int] = None
         self._epoch = 0
@@ -519,6 +549,65 @@ class SharedContext:
     def get_epoch(self) -> int:
         with self._lock:
             return self._epoch
+
+    # --- OS-runner stats ---
+    def record_os_run_completed(self) -> None:
+        with self._lock:
+            self._os_runs.completed += 1
+
+    # Most-recent failure entries kept for the report (older ones drop FIFO).
+    _OS_RUN_FAILURES_RETENTION: int = 50
+
+    def record_os_run_failed(self, block_number: int, error: str) -> None:
+        # Capped so a full Cairo traceback fits; full text survives in pod logs.
+        entry = {
+            "block_number": block_number,
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "error": error[:4096],
+        }
+        with self._lock:
+            self._os_runs.failed += 1
+            self._os_runs.recent_failures.append(entry)
+            overflow = len(self._os_runs.recent_failures) - SharedContext._OS_RUN_FAILURES_RETENTION
+            if overflow > 0:
+                del self._os_runs.recent_failures[:overflow]
+
+    def record_os_run_dropped(self) -> None:
+        with self._lock:
+            self._os_runs.dropped += 1
+
+    def record_os_run_deferred(self) -> None:
+        with self._lock:
+            self._os_runs.deferred_events += 1
+
+    def record_os_run_abandoned(self) -> None:
+        with self._lock:
+            self._os_runs.abandoned += 1
+
+    def record_os_run_skipped(self) -> None:
+        with self._lock:
+            self._os_runs.skipped += 1
+
+    def set_os_run_live_state(self, queue_depth: int, queue_max: int, deferred_count: int) -> None:
+        with self._lock:
+            self._os_run_live["queue_depth"] = queue_depth
+            self._os_run_live["queue_max"] = queue_max
+            self._os_run_live["deferred_count"] = deferred_count
+
+    def _os_run_stats_dict_locked(self) -> JsonObject:
+        """Caller must hold `self._lock`."""
+        return {
+            "completed": self._os_runs.completed,
+            "failed": self._os_runs.failed,
+            "dropped": self._os_runs.dropped,
+            "deferred_events": self._os_runs.deferred_events,
+            "abandoned": self._os_runs.abandoned,
+            "skipped": self._os_runs.skipped,
+            "queue_depth": self._os_run_live["queue_depth"],
+            "queue_max": self._os_run_live["queue_max"],
+            "currently_deferred": self._os_run_live["deferred_count"],
+            "recent_failures": list(self._os_runs.recent_failures),
+        }
 
     # --- Cende-recorder commitment-info tracking ---
     # Matches the blob's `recent_state_commitment_infos` width — older commits
