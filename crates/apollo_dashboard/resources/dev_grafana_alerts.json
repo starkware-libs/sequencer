@@ -899,6 +899,32 @@
       "severity": "p5"
     },
     {
+      "name": "eth_to_strk_rate_frozen",
+      "title": "Eth to Strk rate frozen",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "sum(changes(eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$eth_to_strk_rate_frozen-severity$$$"
+    },
+    {
       "name": "eth_to_strk_success_count",
       "title": "Eth to Strk success count",
       "ruleGroup": "evaluation_rate_default",
@@ -2171,6 +2197,32 @@
       ],
       "for": "1m",
       "severity": "p5"
+    },
+    {
+      "name": "strk_to_usd_rate_frozen",
+      "title": "Strk to Usd rate frozen",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "sum(changes(snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$strk_to_usd_rate_frozen-severity$$$"
     },
     {
       "name": "strk_to_usd_success_count",

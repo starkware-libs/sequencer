@@ -71,10 +71,12 @@ use crate::alert_scenarios::infra_alerts::{
 use crate::alert_scenarios::l1_endpoints::get_primary_l1_endpoint_down_too_long_alerts;
 use crate::alert_scenarios::l1_gas_prices::{
     get_eth_to_strk_error_count_alert,
+    get_eth_to_strk_rate_frozen_alert,
     get_eth_to_strk_success_count_alert,
     get_l1_gas_price_provider_insufficient_history_alert,
     get_l1_gas_price_scraper_success_count_alert,
     get_strk_to_usd_error_count_alert,
+    get_strk_to_usd_rate_frozen_alert,
     get_strk_to_usd_success_count_alert,
 };
 use crate::alert_scenarios::l1_handlers::{
@@ -640,6 +642,8 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_consensus_round_high());
     alerts.push(get_eth_to_strk_success_count_alert());
     alerts.push(get_strk_to_usd_success_count_alert());
+    alerts.push(get_eth_to_strk_rate_frozen_alert());
+    alerts.push(get_strk_to_usd_rate_frozen_alert());
     alerts.append(&mut get_general_pod_memory_utilization_vec());
     alerts.append(&mut get_general_pod_disk_utilization_vec());
     alerts.push(get_http_server_avg_add_tx_latency_alert());
