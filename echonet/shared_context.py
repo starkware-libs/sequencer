@@ -20,6 +20,7 @@ from echonet.echonet_types import (
 from echonet.l1_logic.l1_client import L1Client
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.os_input_builder import decompress_state_commitment_infos
 from echonet.report_models import SnapshotModel
 
 logger = get_logger("shared_context")
@@ -505,6 +506,8 @@ class SharedContext:
         self._hash_mismatches = _BlockHashMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._commits_by_block: Dict[int, JsonObject] = {}
+        self._last_stored_commitment_height: Optional[int] = None
         self._epoch = 0
 
     def get_uptime_seconds(self) -> int:
@@ -513,6 +516,68 @@ class SharedContext:
     def get_epoch(self) -> int:
         with self._lock:
             return self._epoch
+
+    # --- Cende-recorder commitment-info tracking ---
+    # Matches the blob's `recent_state_commitment_infos` width — older commits
+    # are unreachable for OS runs anyway.
+    _COMMITS_RETENTION: int = 10
+
+    def get_last_stored_commitment_height(self) -> Optional[int]:
+        with self._lock:
+            return self._last_stored_commitment_height
+
+    def get_state_commitment_infos(self, block_number: int) -> Optional[JsonObject]:
+        """Return the stored `state_commitment_infos` for `block_number`, or None."""
+        with self._lock:
+            return self._commits_by_block.get(block_number)
+
+    def record_commits_from_blob(self, blob: JsonObject) -> None:
+        """
+        Store every `state_commitment_infos` entry in the blob's vector.
+
+        `last_stored_commitment_height` advances only contiguously: the
+        sequencer skips every commit at-or-below the height we advertise, so
+        claiming a height above a gap would lose the missing commit forever.
+        """
+        entries = blob.get("recent_state_commitment_infos") or []
+        if not entries:
+            return
+        with self._lock:
+            # Decompress once at ingest so every consumer sees the raw dict.
+            for entry in entries:
+                bn = entry["block_number"]
+                if bn in self._commits_by_block:
+                    continue
+                self._commits_by_block[bn] = decompress_state_commitment_infos(
+                    entry["state_commitment_infos"]
+                )
+
+            # Walk the contiguous head forward. A missing height pauses the
+            # walk while the sequencer can still send it; once it falls behind
+            # the blob window it can never arrive — skip it, or it pins the
+            # head forever and the dict grows unboundedly.
+            if self._last_stored_commitment_height is None:
+                self._last_stored_commitment_height = min(self._commits_by_block) - 1
+            newest_stored_height = max(self._commits_by_block)
+            oldest_recoverable_height = newest_stored_height - SharedContext._COMMITS_RETENTION
+            while self._last_stored_commitment_height < newest_stored_height:
+                next_height = self._last_stored_commitment_height + 1
+                if next_height not in self._commits_by_block:
+                    if next_height >= oldest_recoverable_height:
+                        break
+                    logger.warning(
+                        f"state_commitment_infos for block {next_height} never arrived and "
+                        "is now outside the blob window; skipping it in "
+                        "last_stored_commitment_height accounting."
+                    )
+                self._last_stored_commitment_height = next_height
+
+            # Trim below the head only — above it is the live window.
+            if len(self._commits_by_block) > SharedContext._COMMITS_RETENTION:
+                cutoff = self._last_stored_commitment_height - SharedContext._COMMITS_RETENTION
+                stale = [bn for bn in self._commits_by_block if bn < cutoff]
+                for bn in stale:
+                    self._commits_by_block.pop(bn, None)
 
     # --- Tx lifecycle ---
     def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
@@ -619,6 +684,8 @@ class SharedContext:
             self._hash_mismatches.clear_pending_mismatch()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
+            self._commits_by_block.clear()
+            self._last_stored_commitment_height = None
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
 

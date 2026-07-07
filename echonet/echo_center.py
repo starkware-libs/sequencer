@@ -863,6 +863,8 @@ class EchoCenterService:
             self.flask_logger.info(f"Duplicate WRITE_BLOB for block {block_number}; no-op")
             return self._empty_response(requests.codes.ok)
 
+        self.shared.record_commits_from_blob(blob)
+
         self.shared.set_last_block(block_number)
         self.flask_logger.info(f"last_block={block_number}")
 
@@ -902,6 +904,16 @@ class EchoCenterService:
             - 1
         )
         return self._json_response({"block_number": block_number}, requests.codes.ok)
+
+    def handle_get_last_stored_commitment_height(self) -> flask.Response:
+        """
+        GET /cende_recorder/get_last_stored_commitment_height
+
+        Returns the highest contiguously-stored commitment-info block number
+        (or null); the sequencer only sends commits above it.
+        """
+        last = self.shared.get_last_stored_commitment_height()
+        return self._json_response({"block_number": last}, requests.codes.ok)
 
     def handle_report_snapshot(self) -> flask.Response:
         """Return current in-memory tx tracking snapshot."""
@@ -1212,6 +1224,11 @@ def write_pre_confirmed_block() -> flask.Response:
 @app.route("/cende_recorder/get_latest_received_block", methods=["GET"])
 def get_latest_received_block() -> flask.Response:
     return service.handle_get_latest_received_block()
+
+
+@app.route("/cende_recorder/get_last_stored_commitment_height", methods=["GET"])
+def get_last_stored_commitment_height() -> flask.Response:
+    return service.handle_get_last_stored_commitment_height()
 
 
 @app.route("/echonet/report", methods=["GET"])
