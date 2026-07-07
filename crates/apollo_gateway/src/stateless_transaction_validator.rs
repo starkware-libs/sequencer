@@ -1,3 +1,4 @@
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -26,6 +27,8 @@ pub trait StatelessTransactionValidatorTrait: Send + Sync {
 #[derive(Clone)]
 pub struct StatelessTransactionValidator {
     pub config: StatelessTransactionValidatorConfig,
+    // In Echonet mode, the consistency check accepts proof facts without a proof.
+    pub behavior_mode: BehaviorMode,
 }
 
 impl StatelessTransactionValidator {
@@ -253,6 +256,11 @@ impl StatelessTransactionValidator {
         let RpcInvokeTransaction::V3(tx) = tx;
         let has_proof_facts = !tx.proof_facts.is_empty();
         let has_proof = !tx.proof.is_empty();
+        // Mainnet's feeder gateway strips `proof` but keeps `proof_facts`, so replayed txs are
+        // accepted without a proof (it is not part of the tx hash and not read in execution).
+        if self.behavior_mode == BehaviorMode::Echonet && has_proof_facts && !has_proof {
+            return Ok(());
+        }
         if has_proof_facts != has_proof {
             return Err(StatelessTransactionValidatorError::ProofFactsAndProofConsistency {
                 has_proof_facts,
