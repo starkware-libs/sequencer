@@ -49,6 +49,8 @@ pub enum ExchangeRateOracleClientError {
     AllUrlsFailedError(u64, usize),
     #[error("Invalid rate from oracle: {0}")]
     InvalidRateError(String),
+    #[error("Invalid timestamp arithmetic: {0}")]
+    InvalidTimestampError(String),
 }
 
 impl From<reqwest::Error> for ExchangeRateOracleClientError {

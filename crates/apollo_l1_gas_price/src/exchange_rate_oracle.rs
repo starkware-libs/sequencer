@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
@@ -59,7 +59,10 @@ pub struct ExchangeRateOracleClient {
     index: Arc<AtomicUsize>,
     url_header_list: Arc<Vec<UrlAndHeaderMap>>,
     client: reqwest::Client,
-    cached_prices: Arc<Mutex<LruCache<u64, u128>>>,
+    // Value is `(rate, cached_at)`, where `cached_at` is the wall-clock time the rate was
+    // fetched. This lets the previous-quantum fallback in `fetch_rate` bound how stale a
+    // substituted rate may be, instead of relying solely on LRU eviction.
+    cached_prices: Arc<Mutex<LruCache<u64, (u128, Instant)>>>,
     queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
     metrics: ExchangeRateOracleMetrics,
 }
@@ -104,7 +107,7 @@ impl ExchangeRateOracleClient {
             self.config.lag_interval_seconds > 0,
             "lag_interval_seconds should be greater than 0"
         );
-        let adjusted_timestamp = quantized_timestamp * self.config.lag_interval_seconds;
+        let lag_interval_seconds = self.config.lag_interval_seconds;
         let query_timeout_sec = self.config.query_timeout_sec;
         let client = self.client.clone();
         let index_clone = self.index.clone();
@@ -112,6 +115,15 @@ impl ExchangeRateOracleClient {
         let list_len = url_header_list.len();
         let metrics = self.metrics;
         let future = async move {
+            // Computed inside the task (rather than before spawning) so an overflow surfaces as
+            // a query error instead of panicking the caller's thread.
+            let adjusted_timestamp =
+                quantized_timestamp.checked_mul(lag_interval_seconds).ok_or_else(|| {
+                    ExchangeRateOracleClientError::InvalidTimestampError(format!(
+                        "Overflow computing adjusted timestamp: quantized_timestamp \
+                         ({quantized_timestamp}) * lag_interval_seconds ({lag_interval_seconds})"
+                    ))
+                })?;
             let initial_index = index_clone.load(Ordering::SeqCst);
             for (i, url_and_headers) in
                 url_header_list.iter().cycle().skip(initial_index).take(list_len).enumerate()
@@ -220,13 +232,24 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     #[instrument(skip(self))]
     async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
         const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
-        let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
+        // A previous-quantum rate substituted for the current quantum (see below) is only
+        // trusted if it was fetched within this long ago; otherwise it's treated as too stale
+        // to silently pass off as current.
+        let max_fallback_rate_age = Duration::from_secs(self.config.lag_interval_seconds);
+        let quantized_timestamp = timestamp
+            .checked_sub(self.config.lag_interval_seconds)
+            .ok_or_else(|| {
+                ExchangeRateOracleClientError::InvalidTimestampError(format!(
+                    "timestamp ({timestamp}) is smaller than lag_interval_seconds ({})",
+                    self.config.lag_interval_seconds
+                ))
+            })?
             .checked_div(self.config.lag_interval_seconds)
             .expect("lag_interval_seconds should be non-zero");
 
         let mut cache = self.cached_prices.lock().unwrap();
 
-        if let Some(rate) = cache.get(&quantized_timestamp) {
+        if let Some((rate, _)) = cache.get(&quantized_timestamp) {
             debug!("Cached conversion rate for timestamp {timestamp} is {rate}");
             return Ok(*rate);
         }
@@ -238,15 +261,27 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
         // If the query is not finished, return an error.
         if !handle.is_finished() {
             debug!("Query not yet resolved: timestamp={timestamp}");
-            // If the previous quantized timestamp is in the cache, use it.
-            if let Some(rate) = cache.get(&(quantized_timestamp - NUMBER_OF_TIMESTAMPS_BACK)) {
-                debug!(
-                    "Query not yet resolved: timestamp={timestamp}, using previous rate {rate} \
-                     from quantized timestamp={}",
-                    (quantized_timestamp - NUMBER_OF_TIMESTAMPS_BACK)
-                        * self.config.lag_interval_seconds
-                );
-                return Ok(*rate);
+            // If the previous quantized timestamp is in the cache and still fresh enough, use
+            // it as a bounded-staleness substitute.
+            if let Some(previous_quantized_timestamp) =
+                quantized_timestamp.checked_sub(NUMBER_OF_TIMESTAMPS_BACK)
+            {
+                if let Some((rate, cached_at)) = cache.get(&previous_quantized_timestamp) {
+                    let rate_age = cached_at.elapsed();
+                    if rate_age <= max_fallback_rate_age {
+                        debug!(
+                            "Query not yet resolved: timestamp={timestamp}, using previous rate \
+                             {rate} from quantized timestamp={} (age={rate_age:?})",
+                            previous_quantized_timestamp
+                                .saturating_mul(self.config.lag_interval_seconds)
+                        );
+                        return Ok(*rate);
+                    }
+                    debug!(
+                        "Previous rate from quantized timestamp={previous_quantized_timestamp} is \
+                         too stale to substitute (age={rate_age:?})"
+                    );
+                }
             }
             // If not, return a query not ready error.
             return Err(ExchangeRateOracleClientError::QueryNotReadyError(timestamp));
@@ -270,7 +305,7 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
         };
 
         // Make sure to cache the result.
-        cache.put(quantized_timestamp, rate);
+        cache.put(quantized_timestamp, (rate, Instant::now()));
         // We don't need to come back to this query since we have the result in cache.
         queries.pop(&quantized_timestamp);
         debug!("Caching conversion rate for timestamp {timestamp}, with rate {rate}");
