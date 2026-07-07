@@ -39,6 +39,7 @@ rand.workspace = true
 reqwest.workspace = true
 reqwest-middleware.workspace = true
 reqwest-retry.workspace = true
+serde.workspace = true
 starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
 tokio.workspace = true
@@ -65,7 +66,6 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true

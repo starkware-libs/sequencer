@@ -115,7 +115,7 @@ use starknet_api::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
-    UnixTimestamp,
+    ReplayBlockMetadata,
 };
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
@@ -725,9 +725,9 @@ impl Batcher {
 
     /// Starts a new proposer round: aborts the previous round's proposal (the proposer flow has
     /// no other round-transition hook), rewinds any staged txs it left in the mempool, and
-    /// returns the timestamp for the block about to be built.
+    /// returns the metadata for the block about to be built.
     #[instrument(skip(self), err)]
-    pub async fn start_round(&mut self) -> BatcherResult<UnixTimestamp> {
+    pub async fn start_round(&mut self) -> BatcherResult<ReplayBlockMetadata> {
         self.abort_active_proposal().await;
 
         let mempool_client = self.mempool_client.as_ref().expect(
@@ -739,8 +739,8 @@ impl Batcher {
             error!("Mempool is not ready to start a new round: {err}");
             BatcherError::NotReady
         })?;
-        mempool_client.resolve_batch_timestamp().await.map_err(|err| {
-            error!("Failed to get timestamp from mempool: {err}");
+        mempool_client.resolve_block_metadata().await.map_err(|err| {
+            error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
         })
     }
