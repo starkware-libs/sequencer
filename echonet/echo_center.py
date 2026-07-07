@@ -2,8 +2,12 @@ import base64
 import json
 import logging
 import os
+import queue
 import subprocess
+import sys
 import tempfile
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
@@ -17,6 +21,7 @@ from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.os_input_builder import OsInputBuildError, pick_state_commitment_infos
 from echonet.reports import (
     RevertClassifier,
     RevertComparisonTextReport,
@@ -32,6 +37,18 @@ BlockNumberParam = Union[int, Literal["latest"]]
 
 flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
+
+
+def _os_run_error_text(exc: BaseException) -> str:
+    """The report's per-failure text: exception message + worker stderr when present."""
+    parts = [str(exc)]
+    stderr_bytes = getattr(exc, "stderr", None)
+    if stderr_bytes:
+        if isinstance(stderr_bytes, bytes):
+            parts.append(stderr_bytes.decode(errors="replace"))
+        else:
+            parts.append(str(stderr_bytes))
+    return "\n".join(parts)
 
 
 def _static_file_b64(filename: str) -> str:
@@ -387,6 +404,91 @@ class BlobTransformer:
                 )
                 raise
             return json.loads(output_path.read_text(encoding="utf-8"))
+
+    def write_os_runner_input_file(
+        self,
+        blob_body: bytes,
+        block_document: JsonObject,
+        block_number: int,
+        state_commitment_infos: JsonObject,
+        block_commitments: JsonObject,
+    ) -> Path:
+        """
+        Serialize the worker input to a tempfile and return its path (the
+        caller unlinks it). The outer JSON is hand-assembled so the raw
+        blob_body bytes are spliced in verbatim — parsing the multi-MB blob
+        just to re-serialize it would recreate the heap spike the bytes-store
+        avoids.
+        """
+        repo_root = Path(__file__).resolve().parent.parent
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f"echonet_os_in_{block_number}_",
+            suffix=".json",
+            dir=repo_root,
+            delete=False,
+        ) as input_file:
+            input_file.write(b'{"blob":')
+            input_file.write(blob_body)
+            input_file.write(b',"state_commitment_infos":')
+            input_file.write(json.dumps(state_commitment_infos).encode("utf-8"))
+            input_file.write(b',"block_document":')
+            input_file.write(
+                json.dumps(
+                    {
+                        "parent_block_hash": block_document["parent_block_hash"],
+                        "block_hash": block_document["block_hash"],
+                    }
+                ).encode("utf-8")
+            )
+            input_file.write(f',"block_number":{block_number}'.encode("utf-8"))
+            input_file.write(b',"block_hash_commitments_payload":')
+            input_file.write(json.dumps(block_commitments).encode("utf-8"))
+            input_file.write(b"}")
+            return Path(input_file.name)
+
+    def run_os_subprocess(self, input_path: Path, block_number: int) -> None:
+        """
+        Block on `echonet.os_runner_worker --input-path <input_path>`.
+
+        Worker stderr is captured and re-logged rather than inherited —
+        interleaved subprocess output confuses GCP Cloud Logging's line parsing.
+        """
+        repo_root = Path(__file__).resolve().parent.parent
+        timeout = CONFIG.os_runner.cli_timeout_secs + 30
+        try:
+            completed_worker = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "echonet.os_runner_worker",
+                    "--input-path",
+                    str(input_path),
+                ],
+                cwd=repo_root,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                check=True,
+                timeout=timeout,
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr_tail = (exc.stderr or b"").decode(errors="replace")[-4096:]
+            self._logger.error(
+                f"OS runner worker for block {block_number} exited {exc.returncode}\n"
+                f"stderr (last 4KB):\n{stderr_tail}"
+            )
+            raise
+        except subprocess.TimeoutExpired as exc:
+            stderr_tail = (exc.stderr or b"").decode(errors="replace")[-4096:] if exc.stderr else ""
+            self._logger.error(
+                f"OS runner worker for block {block_number} timed out after {timeout}s\n"
+                f"stderr (last 4KB):\n{stderr_tail}"
+            )
+            raise
+        worker_log = (completed_worker.stderr or b"").decode(errors="replace").strip()
+        if worker_log:
+            self._logger.info(f"OS runner worker log for block {block_number}:\n{worker_log}")
 
     @staticmethod
     def _build_thin_state_diff(blob: JsonObject) -> JsonObject:
@@ -780,6 +882,58 @@ class EchoCenterService:
             logger_obj=self.logger,
         )
 
+        # Background OS-run pipeline: blob handlers enqueue tasks and return
+        # immediately; worker threads drain the queue, one subprocess per task.
+        self._os_run_queue: queue.Queue = queue.Queue(maxsize=CONFIG.os_runner.queue_size)
+        # Block numbers whose state_commitment_infos were missing from their
+        # N+1 blob's vector (sequencer-side commit race); retried against later
+        # blobs until they fall outside `CONFIG.os_runner.recent_state_commitment_window`.
+        self._deferred_os_blocks: set[int] = set()
+        for worker_index in range(CONFIG.os_runner.parallelism):
+            threading.Thread(
+                target=self._os_run_worker, name=f"os-runner-{worker_index}", daemon=True
+            ).start()
+
+    def _os_run_worker(self) -> None:
+        """Drain `self._os_run_queue`, one task at a time per worker thread."""
+        while True:
+            task = self._os_run_queue.get()
+            block_number = task["block_number"]
+            start = time.monotonic()
+            wait_s = start - task["queued_at"]
+            input_path: Optional[Path] = None
+            try:
+                input_path = self._transformer.write_os_runner_input_file(
+                    blob_body=task["blob_body"],
+                    block_document=task["block_document"],
+                    block_number=block_number,
+                    state_commitment_infos=task["state_commitment_infos"],
+                    block_commitments=task["block_commitments"],
+                )
+                # Release the multi-MB task fields (now persisted in
+                # `input_path`) before waiting on the subprocess.
+                task.clear()
+                del task
+                self._transformer.run_os_subprocess(input_path, block_number)
+                run_s = time.monotonic() - start
+                self.shared.record_os_run_completed()
+                self.flask_logger.info(
+                    f"OS run completed for block {block_number} "
+                    f"(wait={wait_s:.2f}s, run={run_s:.2f}s, queue={self._os_run_queue.qsize()}/"
+                    f"{CONFIG.os_runner.queue_size})"
+                )
+            except Exception as exc:
+                run_s = time.monotonic() - start
+                self.shared.record_os_run_failed(block_number, _os_run_error_text(exc))
+                self.flask_logger.exception(
+                    f"OS run failed for block {block_number} "
+                    f"(wait={wait_s:.2f}s, run={run_s:.2f}s, queue={self._os_run_queue.qsize()}/"
+                    f"{CONFIG.os_runner.queue_size})"
+                )
+            finally:
+                if input_path:
+                    input_path.unlink(missing_ok=True)
+
     def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
         txs = stored_block.get("transactions", [])
         receipts = stored_block.get("transaction_receipts", [])
@@ -888,7 +1042,105 @@ class EchoCenterService:
 
         self._update_tx_tracking_and_reverts(blob, block_number)
 
+        self._schedule_os_runs(blob, block_number)
+
         return self._empty_response(requests.codes.ok)
+
+    def _schedule_os_runs(self, blob: JsonObject, block_number: int) -> None:
+        """
+        Enqueue OS runs, lagged by one block: block N's `StateCommitmentInfos`
+        only appear in blob N+1 (see `pick_state_commitment_infos`). Targets
+        missing from the vector (commit race) are deferred and retried against
+        later blobs until unreachable. Fire-and-forget — this only validates
+        and enqueues; queue-full tasks are dropped and blob storage is
+        unaffected either way.
+        """
+        if not CONFIG.os_runner.enabled:
+            return
+        previous_block_number = block_number - 1
+        if previous_block_number < 0:
+            return
+
+        oldest_reachable = block_number - CONFIG.os_runner.recent_state_commitment_window
+        for stale_block in [b for b in self._deferred_os_blocks if b < oldest_reachable]:
+            self._deferred_os_blocks.discard(stale_block)
+            self.shared.record_os_run_abandoned()
+            self.flask_logger.warning(
+                f"OS run permanently abandoned for block {stale_block}: "
+                f"state_commitment_infos no longer reachable from any blob "
+                f"(current blob={block_number}, window={CONFIG.os_runner.recent_state_commitment_window})"
+            )
+
+        candidate_blocks = sorted(self._deferred_os_blocks | {previous_block_number})
+        for target_block in candidate_blocks:
+            self._try_enqueue_os_run(blob, block_number, target_block)
+
+        self.shared.set_os_run_live_state(
+            queue_depth=self._os_run_queue.qsize(),
+            queue_max=CONFIG.os_runner.queue_size,
+            deferred_count=len(self._deferred_os_blocks),
+        )
+
+    def _try_enqueue_os_run(self, blob: JsonObject, current_block: int, target_block: int) -> None:
+        """
+        Enqueue an OS run for `target_block`, resolving its inputs from the
+        stores (and `blob`, height `current_block`, as commit-info fallback).
+        On a commit-info miss, defer for retry against a future blob.
+        """
+        target_blob_body = self.shared.get_blob_body_with_disk_fallback(target_block)
+        target_block_document = self.shared.get_block_field(target_block, "block")
+        target_block_commitments = self.shared.get_block_field(target_block, "block_commitments")
+        missing_input_names = [
+            name
+            for name, value in (
+                ("blob body", target_blob_body),
+                ("block document", target_block_document),
+                ("block commitments", target_block_commitments),
+            )
+            if value is None
+        ]
+        if missing_input_names:
+            self._deferred_os_blocks.discard(target_block)
+            self.shared.record_os_run_skipped()
+            self.flask_logger.info(
+                f"OS run skipped for block {target_block}: "
+                f"{', '.join(missing_input_names)} not in cache or archive."
+            )
+            return
+        # Prefer the commit store; fall back to the current blob's vector for
+        # sequencer images that still ship the full 10-block window.
+        state_commitment_infos = self.shared.get_state_commitment_infos(target_block)
+        if state_commitment_infos is None:
+            try:
+                state_commitment_infos = pick_state_commitment_infos(blob, target_block)
+            except OsInputBuildError:
+                self._deferred_os_blocks.add(target_block)
+                self.shared.record_os_run_deferred()
+                self.flask_logger.info(
+                    f"OS run deferred for block {target_block}: state_commitment_infos "
+                    f"not in store yet and missing from blob {current_block}; "
+                    "will retry with next blob."
+                )
+                return
+
+        task = {
+            "blob_body": target_blob_body,
+            "block_document": target_block_document,
+            "block_commitments": target_block_commitments,
+            "block_number": target_block,
+            "state_commitment_infos": state_commitment_infos,
+            "queued_at": time.monotonic(),
+        }
+        self._deferred_os_blocks.discard(target_block)
+        try:
+            self._os_run_queue.put_nowait(task)
+        except queue.Full:
+            self.shared.record_os_run_dropped()
+            self.flask_logger.warning(
+                f"OS run dropped for block {target_block}: queue full "
+                f"({self._os_run_queue.qsize()}/{CONFIG.os_runner.queue_size}) — runner can't "
+                "keep up with blob arrival rate."
+            )
 
     def handle_write_pre_confirmed_block(self) -> flask.Response:
         self.flask_logger.debug("Received pre-confirmed block")
