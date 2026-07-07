@@ -371,6 +371,7 @@ impl CentralSource {
                 max_state_updates_to_download: config.max_state_updates_to_download,
                 max_state_updates_to_store_in_memory: config.max_state_updates_to_store_in_memory,
                 max_classes_to_download: config.max_classes_to_download,
+                max_classes_to_store_in_memory: config.max_classes_to_store_in_memory,
             },
             class_cache: Arc::from(Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.class_cache_size)

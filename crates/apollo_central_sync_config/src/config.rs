@@ -25,6 +25,7 @@ pub struct CentralSourceConfig {
     pub max_state_updates_to_download: usize,
     pub max_state_updates_to_store_in_memory: usize,
     pub max_classes_to_download: usize,
+    pub max_classes_to_store_in_memory: usize,
     #[validate(range(min = 1))]
     pub class_cache_size: usize,
     pub retry_config: RetryConfig,
@@ -40,6 +41,7 @@ impl Default for CentralSourceConfig {
             max_state_updates_to_download: 20,
             max_state_updates_to_store_in_memory: 20,
             max_classes_to_download: 20,
+            max_classes_to_store_in_memory: 1000,
             class_cache_size: 100,
             retry_config: RetryConfig {
                 retry_base_millis: 30,
@@ -88,6 +90,13 @@ impl SerializeConfig for CentralSourceConfig {
                 "max_classes_to_download",
                 &self.max_classes_to_download,
                 "Maximum number of classes to download at a given time.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_classes_to_store_in_memory",
+                &self.max_classes_to_store_in_memory,
+                "Maximum number of classes (downloaded or pending download) to hold in memory at \
+                 a given time, bounding the class backlog of a single state diff.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
