@@ -12,8 +12,6 @@ use crate::mempool::TransactionReference;
 // `block_number` is `None` for queues that don't track block numbers (fee-priority mode).
 pub(crate) struct BlockMetadata {
     pub timestamp: UnixTimestamp,
-    // Read by the replay-block-metadata flow added later in the stack; unused on its own here.
-    #[allow(dead_code)]
     pub block_number: Option<BlockNumber>,
 }
 
