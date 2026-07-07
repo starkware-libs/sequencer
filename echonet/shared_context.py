@@ -349,13 +349,17 @@ class _BlockStore:
         blob_body: bytes,
         fgw_block: JsonObject,
         state_update: JsonObject,
+        block_commitments: JsonObject,
     ) -> tuple[List[tuple[int, JsonObject]], List[tuple[int, bytes]]]:
         # Store the blob as raw JSON bytes, not a parsed dict: parsing costs
         # 5-8x the memory and OOMs the pod; consumers parse just-in-time.
+        # `block_commitments` (the 5-felt BlockHeaderCommitments from ingest)
+        # is stashed for downstream reuse without re-parsing blob_body.
         self.blocks[block_number] = {
             "blob_body": blob_body,
             "block": fgw_block,
             "state_update": state_update,
+            "block_commitments": block_commitments,
         }
         evicted_items = self._evict_old_items(self.blocks, current_block_number=block_number)
         evicted_blob_bodies = self._evict_old_blob_bodies(current_block_number=block_number)
@@ -657,6 +661,7 @@ class SharedContext:
         blob_body: bytes,
         fgw_block: JsonObject,
         state_update: JsonObject,
+        block_commitments: JsonObject,
     ) -> None:
         with self._lock:
             evicted_items, evicted_blob_bodies = self._blocks.store_block(
@@ -664,6 +669,7 @@ class SharedContext:
                 blob_body=blob_body,
                 fgw_block=fgw_block,
                 state_update=state_update,
+                block_commitments=block_commitments,
             )
         if evicted_items:
             _BlockStore.write_snapshot_items_to_disk(

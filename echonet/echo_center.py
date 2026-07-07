@@ -588,7 +588,7 @@ class BlobTransformer:
         )
         return str(result)
 
-    def transform_block(self, blob: JsonObject) -> JsonObject:
+    def transform_block(self, blob: JsonObject) -> tuple[JsonObject, JsonObject]:
         """
         Build the stored "block" document from an incoming blob.
 
@@ -596,6 +596,10 @@ class BlobTransformer:
         - transactions + receipts (minimal schema expected by downstream consumers)
         - block hash computed from real commitments and block header fields
         - fee market metadata (timestamp + gas prices)
+
+        Returns `(block_document, block_commitments)` — the raw 5-felt
+        `BlockHeaderCommitments` dict is handed back for downstream reuse
+        (block_document only keeps four of them, stringified).
         """
         block_number = int(blob["block_number"])
         tx_entries = blob["transactions"]
@@ -606,7 +610,7 @@ class BlobTransformer:
         execution_infos = blob["execution_infos"]
         assert len(execution_infos) == len(
             transformed_txs
-        ), f"The number of transactions in the blob does not match the number of execution infos."
+        ), "The number of transactions in the blob does not match the number of execution infos."
         for idx, (tx, execution_info) in enumerate(zip(transformed_txs, execution_infos)):
             receipts.append(
                 self._transform_receipt_from_execution_info(
@@ -669,7 +673,7 @@ class BlobTransformer:
             source_block=source_block,
         )
 
-        return block_document
+        return block_document, block_commitments
 
     def transform_state_update(
         self, blob: JsonObject, block_number: int, block_hash: str
@@ -862,7 +866,7 @@ class EchoCenterService:
         self.shared.set_last_block(block_number)
         self.flask_logger.info(f"last_block={block_number}")
 
-        to_store = self._transformer.transform_block(blob)
+        to_store, block_commitments = self._transformer.transform_block(blob)
         state_update = self._transformer.transform_state_update(
             blob, block_number, to_store["block_hash"]
         )
@@ -874,6 +878,7 @@ class EchoCenterService:
             blob_body=body,
             fgw_block=to_store,
             state_update=state_update,
+            block_commitments=block_commitments,
         )
         self.flask_logger.info(
             f"block {block_number} tx hashes: {' '.join(self._transformer.get_blob_tx_hashes(blob))}"
