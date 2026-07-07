@@ -56,7 +56,7 @@ jobs:
           self: merge-gatekeeper-new
           timeout: 3600
           interval: 30
-          ignored: "code-review/reviewable,build_docker_images,merge-gatekeeper"
+          ignored: "code-review/reviewable,build_docker_images"
 
       - name: Run merge-gatekeeper-new on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
@@ -66,32 +66,4 @@ jobs:
           ref: ${{github.ref}}
           timeout: 1800
           interval: 30
-          ignored: "code-review/reviewable,merge-gatekeeper"
-
-  merge-gatekeeper:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 75
-    # Restrict permissions of the GITHUB_TOKEN.
-    # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
-    permissions:
-      checks: read
-      statuses: read
-    steps:
-      - name: Run Merge Gatekeeper on pull request
-        if: github.event_name == 'pull_request'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 3600
-          interval: 30
-          ignored: "code-review/reviewable,build_docker_images,merge-gatekeeper-new"
-
-      - name: Run Merge Gatekeeper on Merge Queue || push
-        if: github.event_name == 'merge_group' || github.event_name == 'push'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{github.ref}}
-          timeout: 1800
-          interval: 30
-          ignored: "code-review/reviewable,merge-gatekeeper-new"
+          ignored: "code-review/reviewable"
