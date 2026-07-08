@@ -356,6 +356,15 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
                 err,
             )
         }
+        // Internal error: the tx's compiled class hash was already validated during ingestion, so a
+        // mismatch here means the class manager returned an executable inconsistent with the class.
+        TransactionConverterError::CompiledClassHashMismatch { .. } => {
+            StarknetError::internal_with_signature_logging(
+                "Inconsistent compiled class hash",
+                tx_signature,
+                err,
+            )
+        }
         TransactionConverterError::StarknetApiError(err) => convert_sn_api_error(err),
     }
 }

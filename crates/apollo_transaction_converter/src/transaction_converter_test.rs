@@ -336,11 +336,10 @@ async fn test_convert_internal_rpc_tx_to_executable_tx_declare_compiled_class_ha
 
     assert_eq!(
         err,
-        TransactionConverterError::ValidateCompiledClassHashError(
-            ValidateCompiledClassHashError::CompiledClassHashMismatch {
-                computed_class_hash: computed_compiled_class_hash,
-                supplied_class_hash: compiled_class_hash,
-            }
-        )
+        TransactionConverterError::CompiledClassHashMismatch {
+            class_hash,
+            compiled_class_hash,
+            computed_compiled_class_hash,
+        }
     );
 }

@@ -47,6 +47,16 @@ pub enum TransactionConverterError {
     ClassManagerClientError(#[from] ClassManagerClientError),
     #[error("Class of hash: {class_hash} not found")]
     ClassNotFound { class_hash: ClassHash },
+    #[error(
+        "Executable fetched for class hash {class_hash} is inconsistent with the tx: computed \
+         compiled class hash {computed_compiled_class_hash} from the fetched executable does not \
+         match the tx's compiled class hash {compiled_class_hash}"
+    )]
+    CompiledClassHashMismatch {
+        class_hash: ClassHash,
+        compiled_class_hash: CompiledClassHash,
+        computed_compiled_class_hash: CompiledClassHash,
+    },
     #[error("Proof for proof facts hash: {facts_hash} not found.")]
     ProofNotFound { facts_hash: Felt },
     #[error(transparent)]
@@ -195,14 +205,18 @@ impl TransactionConverter {
         if matches!(contract_class, ContractClass::V0(_)) {
             return Err(TransactionConverterError::UnexpectedCairo0Executable { class_hash });
         }
+        // The tx's `compiled_class_hash` was already validated against the freshly compiled class
+        // during ingestion (`convert_rpc_tx_to_internal`), so a mismatch here is not a user fault
+        // but an inconsistency between the two independent class-manager reads (like the checks
+        // above). Report it as an internal error rather than reusing the client-facing
+        // `ValidateCompiledClassHashError`.
         let computed_compiled_class_hash = contract_class.compiled_class_hash();
         if computed_compiled_class_hash != compiled_class_hash {
-            return Err(TransactionConverterError::ValidateCompiledClassHashError(
-                ValidateCompiledClassHashError::CompiledClassHashMismatch {
-                    computed_class_hash: computed_compiled_class_hash,
-                    supplied_class_hash: compiled_class_hash,
-                },
-            ));
+            return Err(TransactionConverterError::CompiledClassHashMismatch {
+                class_hash,
+                compiled_class_hash,
+                computed_compiled_class_hash,
+            });
         }
 
         Ok(())
