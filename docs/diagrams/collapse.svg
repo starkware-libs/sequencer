@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 280" width="580" font-family="sans-serif">
+  <style>
+    .link{stroke:#6f9bc4;stroke-width:2;fill:none;}
+    .dellink{stroke:#a5555f;stroke-width:2;fill:none;stroke-dasharray:5 4;}
+    .edge{stroke:#8ec1ff;stroke-width:2;fill:none;stroke-dasharray:5 4;}
+    .edgelbl{fill:#a9d0ff;font-size:11px;font-style:italic;text-anchor:middle;}
+    .inode{fill:#1b3c5c;stroke:#8ec1ff;stroke-width:2;}
+    .inode-gold{fill:#1b3c5c;stroke:#ffd479;stroke-width:2;}
+    .delnode{fill:transparent;stroke:#a5555f;stroke-width:2;stroke-dasharray:4 3;}
+    .leaf{fill:#11243b;stroke:#2d4a6b;stroke-width:2;}
+    .title{fill:#8ec1ff;font-size:13px;font-weight:700;text-anchor:middle;}
+    .title-gold{fill:#ffd479;font-size:13px;font-weight:700;text-anchor:middle;}
+    .lbl{fill:#cfe3ff;font-size:12px;font-weight:600;text-anchor:middle;dominant-baseline:middle;}
+    .goldlbl{fill:#ffd479;font-size:12px;font-weight:700;text-anchor:middle;dominant-baseline:middle;}
+    .delx{stroke:#ff9b9b;stroke-width:2;}
+    .dellbl{fill:#ff9b9b;font-size:11px;font-weight:600;text-anchor:middle;}
+    .arrow{fill:url(#arrowGrad);stroke:#a9d0ff;stroke-width:1.5;stroke-linejoin:round;}
+    .arrowlbl{fill:#a9d0ff;font-size:11px;font-style:italic;letter-spacing:0.04em;text-anchor:middle;}
+  </style>
+  <defs>
+    <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3f5f80" />
+      <stop offset="100%" stop-color="#8ec1ff" />
+    </linearGradient>
+  </defs>
+
+  <!-- Original (left) -->
+  <text class="title" x="135" y="20">Original</text>
+  <path class="link" d="M135 46 L135 106" />
+  <path class="link" d="M135 106 L80 176" />
+  <path class="dellink" d="M135 106 L200 176" />
+  <path class="link" d="M80 176 L52 240" />
+  <path class="link" d="M80 176 L110 240" />
+  <circle class="inode" cx="135" cy="46" r="17" />
+  <circle class="inode" cx="135" cy="106" r="17" />
+  <circle class="inode-gold" cx="80" cy="176" r="17" />
+  <circle class="delnode" cx="200" cy="176" r="17" />
+  <line class="delx" x1="191" y1="167" x2="209" y2="185" />
+  <line class="delx" x1="209" y1="167" x2="191" y2="185" />
+  <rect class="leaf" x="37" y="240" width="30" height="30" rx="6" />
+  <rect class="leaf" x="95" y="240" width="30" height="30" rx="6" />
+  <text class="lbl" x="135" y="47">R</text>
+  <text class="lbl" x="135" y="107">bin</text>
+  <text class="goldlbl" x="80" y="177">UC</text>
+  <text class="dellbl" x="200" y="208">deleted</text>
+
+  <!-- transition arrow -->
+  <text class="arrowlbl" x="290" y="130">collapse</text>
+  <polygon class="arrow" points="247,146 322,146 322,135 364,154 322,173 322,162 247,162" />
+
+  <!-- Updated (right) -->
+  <text class="title-gold" x="470" y="20">Updated</text>
+  <path class="edge" d="M470 46 L470 160" />
+  <path class="link" d="M470 177 L438 240" />
+  <path class="link" d="M470 177 L502 240" />
+  <circle class="inode" cx="470" cy="46" r="17" />
+  <circle class="inode-gold" cx="470" cy="177" r="17" />
+  <rect class="leaf" x="423" y="240" width="30" height="30" rx="6" />
+  <rect class="leaf" x="487" y="240" width="30" height="30" rx="6" />
+  <text class="lbl" x="470" y="47">R</text>
+  <text class="edgelbl" x="490" y="112">edge</text>
+  <text class="goldlbl" x="470" y="178">UC</text>
+</svg>
