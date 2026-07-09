@@ -6,11 +6,18 @@
 //! the signals process-wide once a handler existed (tokio-rs/tokio#7905), so
 //! without the second-signal path a follow-up Ctrl+C would be silently
 //! swallowed. Once the server has stopped cleanly, a late signal no longer
-//! force-exits.
+//! force-exits — even if it arrives in the same poll as the drain finishing,
+//! since the race between them is biased toward the clean outcome.
+
+use std::future::Future;
 
 use jsonrpsee::server::ServerHandle;
 use tokio::signal::unix::{signal, Signal, SignalKind};
 use tracing::{info, warn};
+
+#[cfg(test)]
+#[path = "shutdown_test.rs"]
+mod shutdown_test;
 
 /// Spawns the task bridging termination signals into `server_handle.stop()`.
 /// Both handlers are installed eagerly: if one fails, the other still drives
@@ -38,16 +45,40 @@ async fn stop_on_termination_signal(
         warn!(error = %err, "Failed to stop JSON-RPC server cleanly");
     }
 
-    // Force-exit only while the drain is still in progress: once `stopped`
-    // resolves the shutdown was clean, and a late signal must not flip the
-    // exit code to 1.
+    let outcome = race_shutdown_against_second_signal(
+        server_handle.stopped(),
+        recv_termination_signal(&mut sigterm, &mut sigint),
+    )
+    .await;
+    if outcome == ShutdownOutcome::ForceExit {
+        warn!(event = "force_exit", "Received second termination signal; forcing exit.");
+        std::process::exit(1);
+    }
+}
+
+/// Result of [`race_shutdown_against_second_signal`].
+#[derive(Debug, PartialEq, Eq)]
+enum ShutdownOutcome {
+    /// The drain finished; a late signal must not flip the exit code.
+    Clean,
+    /// A second signal arrived before the drain finished.
+    ForceExit,
+}
+
+/// Races a clean shutdown against a second termination signal. `biased` is
+/// load-bearing: without it, `tokio::select!` picks a ready branch at random,
+/// so a second signal landing in the same poll as `stopped` resolving could
+/// force-exit a server that already shut down cleanly. Listing `stopped`
+/// first makes it win whenever both are ready.
+async fn race_shutdown_against_second_signal(
+    stopped: impl Future<Output = ()>,
+    second_signal: impl Future<Output = Option<&'static str>>,
+) -> ShutdownOutcome {
     tokio::select! {
-        _ = server_handle.stopped() => {}
-        second_signal = recv_termination_signal(&mut sigterm, &mut sigint) => {
-            if second_signal.is_some() {
-                warn!(event = "force_exit", "Received second termination signal; forcing exit.");
-                std::process::exit(1);
-            }
+        biased;
+        _ = stopped => ShutdownOutcome::Clean,
+        signal_name = second_signal => {
+            if signal_name.is_some() { ShutdownOutcome::ForceExit } else { ShutdownOutcome::Clean }
         }
     }
 }
