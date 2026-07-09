@@ -1,7 +1,4 @@
 //! Utilities for executing contracts and transactions.
-use std::fs::File;
-use std::path::PathBuf;
-
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::{TransactionKind, RO};
 use apollo_storage::state::StateStorageReader;
@@ -25,7 +22,7 @@ use thiserror::Error;
 
 use crate::objects::TransactionTrace;
 use crate::state_reader::ExecutionStateReader;
-use crate::{ExecutableTransactionInput, ExecutionConfig, ExecutionError, ExecutionResult};
+use crate::{ExecutableTransactionInput, ExecutionResult};
 
 // An error that can occur during the use of the execution utils.
 #[derive(Debug, Error)]
@@ -38,16 +35,6 @@ pub(crate) enum ExecutionUtilsError {
     CasmTableNotSynced,
     #[error(transparent)]
     SierraValidationError(starknet_api::StarknetApiError),
-}
-
-/// Returns the execution config from the config file.
-impl TryFrom<PathBuf> for ExecutionConfig {
-    type Error = ExecutionError;
-
-    fn try_from(execution_config_file: PathBuf) -> Result<Self, Self::Error> {
-        let file = File::open(execution_config_file).map_err(ExecutionError::ConfigFileError)?;
-        serde_json::from_reader(file).map_err(ExecutionError::ConfigSerdeError)
-    }
 }
 
 pub(crate) fn is_contract_class_declared(
