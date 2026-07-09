@@ -22,7 +22,6 @@
 //! node failures, ensuring robust connectivity across the network.
 
 mod behaviours;
-mod config;
 #[cfg(test)]
 mod discovery_test;
 pub mod identify_impl;
@@ -30,10 +29,10 @@ pub mod kad_impl;
 #[cfg(test)]
 mod testing_utils;
 
+pub use apollo_network_config::discovery::{DiscoveryConfig, RetryConfig};
 use behaviours::bootstrapping::BootstrappingBehaviour;
 use behaviours::dialing::DialingBehaviour;
 use behaviours::kad_requesting::KadRequestingBehaviour;
-pub use config::{DiscoveryConfig, RetryConfig};
 use libp2p::swarm::NetworkBehaviour;
 use libp2p::{Multiaddr, PeerId};
 

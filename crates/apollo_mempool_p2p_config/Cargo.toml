@@ -8,7 +8,7 @@ description = "Configuration types for Apollo mempool P2P networking."
 
 [dependencies]
 apollo_config.workspace = true
-apollo_network.workspace = true
+apollo_network_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 
