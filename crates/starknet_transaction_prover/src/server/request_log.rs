@@ -41,6 +41,13 @@ mod request_log_test;
 /// HTTP header carrying the request id.
 pub const REQUEST_ID_HEADER: &str = "x-request-id";
 
+/// Request extension carrying the id this layer already validated/generated,
+/// so a downstream layer (e.g. `RequestSpanLayer`) can reuse it on the
+/// plaintext path instead of re-parsing and re-validating the header it just
+/// set.
+#[derive(Clone)]
+pub(crate) struct RequestId(pub String);
+
 /// tower [`Layer`] producing [`RequestLogService`].
 #[derive(Clone, Copy, Default)]
 pub struct RequestLogLayer;
@@ -78,6 +85,7 @@ where
         let request_id = extract_or_generate_request_id(&request);
         let id_header_value = request_id_header_value(&request_id);
         request.headers_mut().insert(REQUEST_ID_HEADER, id_header_value.clone());
+        request.extensions_mut().insert(RequestId(request_id.clone()));
         let is_health_probe =
             request.method() == Method::GET && request.uri().path() == HEALTH_PATH;
         let method = request.method().clone();
