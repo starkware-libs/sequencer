@@ -8,9 +8,9 @@ use apollo_config::converters::{
     serialize_optional_map,
 };
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::retry::RetryConfig;
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_starknet_client::RetryConfig;
 use itertools::chain;
 use serde::{Deserialize, Serialize};
 use url::Url;
