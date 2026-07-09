@@ -6,6 +6,7 @@ use std::convert::Infallible;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+pub use apollo_network_config::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
@@ -21,9 +22,6 @@ use libp2p::{ping, Multiaddr, PeerId};
 use tracing::{debug, warn};
 
 use crate::metrics::LatencyMetrics;
-
-pub const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(15);
-pub const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// A behaviour that monitors connection health using ping and disconnects unhealthy connections.
 ///
