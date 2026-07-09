@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783583117051,
+  "lastUpdate": 1783593528892,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -713,6 +713,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1204.15040999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "59b1e1fc3d0b2ef417fb03332b1218c7d13b0657",
+          "message": "starknet_transaction_prover: per-request structured log with request-id (#14165)\n\n* starknet_transaction_prover: per-request structured log with request-id\n\nAdds `RequestLogLayer`, the outermost middleware that emits one\n`event=\"http_request\"` log line per request (request_id, method, path,\nstatus, latency_ms) and echoes the id on the response. The id is accepted\nfrom `x-request-id` when it is a short printable-ASCII token, otherwise a\nUUID v4 is generated; hostile inputs are dropped to prevent header\nsmuggling and log-field explosion.\n\nNo request body bytes are inspected (transaction calldata is private user\ndata).\n\nCo-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>\n\n* starknet_transaction_prover: skip health-probe request logs, tighten request-id plumbing\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-09T10:17:12Z",
+          "tree_id": "4c179c0dd939a82b2e56ca0a16d410dacf449bd8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/59b1e1fc3d0b2ef417fb03332b1218c7d13b0657"
+        },
+        "date": 1783593528529,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 838.39521756,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1277.6026522,
             "unit": "ms"
           }
         ]
