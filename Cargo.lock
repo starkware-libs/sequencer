@@ -1599,7 +1599,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra",
  "apollo_network_types",
- "apollo_rpc",
+ "apollo_rpc_types",
  "async-trait",
  "enum-assoc",
  "enum-iterator",
@@ -2462,6 +2462,7 @@ dependencies = [
  "apollo_config",
  "apollo_proc_macros",
  "apollo_rpc_execution",
+ "apollo_rpc_types",
  "apollo_starknet_client",
  "apollo_storage",
  "apollo_test_utils",
@@ -2532,6 +2533,14 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_rpc_types"
+version = "0.0.0"
+dependencies = [
+ "jsonrpsee-types",
+ "serde",
 ]
 
 [[package]]
