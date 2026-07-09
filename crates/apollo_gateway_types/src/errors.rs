@@ -1,5 +1,5 @@
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_rpc::error::{
+use apollo_rpc_types::error::{
     unexpected_error,
     validation_failure,
     JsonRpcError,
