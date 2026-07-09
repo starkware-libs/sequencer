@@ -3172,7 +3172,7 @@
   "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 1
+    "value": 5
   },
   "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.patch": {
     "description": "The patch version of the configuration.",
