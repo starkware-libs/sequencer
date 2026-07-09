@@ -2457,7 +2457,7 @@
   "config_manager_config.config_update_interval_secs": {
     "description": "Update interval in seconds for config updates",
     "privacy": "Public",
-    "value": 60.0
+    "value": 20.0
   },
   "config_manager_config.enable_config_updates": {
     "description": "Enables the resampling of the config every `config_update_interval_secs` seconds",
