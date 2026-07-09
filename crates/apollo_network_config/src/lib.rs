@@ -1,0 +1,346 @@
+pub mod discovery;
+pub mod peer_manager;
+
+use std::collections::{BTreeMap, HashSet};
+use std::time::Duration;
+
+use apollo_config::converters::{
+    deserialize_comma_separated_str,
+    deserialize_optional_sensitive_vec_u8,
+    deserialize_seconds_to_duration,
+    serialize_optional_comma_separated,
+    serialize_optional_vec_u8,
+};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
+use apollo_config::secrets::Sensitive;
+use apollo_config::validators::validate_optional_sensitive_vec_u256;
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use discovery::DiscoveryConfig;
+use libp2p::identity::Keypair;
+use libp2p::swarm::dial_opts::DialOpts;
+use libp2p::Multiaddr;
+use peer_manager::PeerManagerConfig;
+use serde::{Deserialize, Serialize};
+use starknet_api::core::ChainId;
+use validator::{Validate, ValidationError};
+
+/// Default interval between pings used to detect dead connections.
+pub const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(15);
+/// Default time to wait for a ping response before considering a connection dead.
+pub const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(20);
+
+// TODO(Shahak): add peer manager config to the network config
+/// Network configuration for the Apollo networking layer.
+///
+/// This struct contains all the configuration parameters needed to initialize and run
+/// the networking subsystem. It includes network-level settings, protocol configurations,
+/// and various timeout and buffer size parameters.
+///
+/// # Examples
+///
+/// ## Basic Configuration
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network_config::NetworkConfig;
+/// use starknet_api::core::ChainId;
+///
+/// let config = NetworkConfig {
+///     port: 10000,
+///     chain_id: ChainId::Mainnet,
+///     session_timeout: Duration::from_secs(120),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// ## Configuration with Bootstrap Peers
+///
+/// ```rust
+/// use apollo_network_config::NetworkConfig;
+/// use libp2p::Multiaddr;
+/// use starknet_api::core::ChainId;
+///
+/// let bootstrap_peer = "/ip4/1.2.3.4/tcp/10000/p2p/\
+///                       12D3KooWQYHvEJzuBPEXdwMfVdPGXeEFSioa7YcXqWn5Ey6qM8q7"
+///     .parse()
+///     .unwrap();
+/// let config = NetworkConfig {
+///     port: 10000,
+///     chain_id: ChainId::Mainnet,
+///     bootstrap_peer_multiaddr: Some(vec![bootstrap_peer]),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// # Validation
+///
+/// The configuration is automatically validated when deserialized or when
+/// `validate()` is called. Validation includes:
+/// - Ensuring bootstrap peer multiaddresses contain valid peer IDs
+/// - Checking that bootstrap peer IDs are unique
+/// - Validating the secret key format if provided
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_advertised_multiaddr_peer_id"))]
+pub struct NetworkConfig {
+    /// TCP port for incoming connections. Default: 10000
+    pub port: u16,
+
+    /// Maximum session duration before timeout. Applies to inbound and outbound SQMR sessions.
+    /// Default: 120 seconds
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub session_timeout: Duration,
+
+    /// Maximum idle time before closing a connection. Default: 120 seconds
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub idle_connection_timeout: Duration,
+
+    /// Bootstrap peer multiaddresses for initial connectivity. Each must include a valid peer ID.
+    /// Format: `/ip4/1.2.3.4/tcp/10000/p2p/<peer-id>`. Default: None
+    #[serde(deserialize_with = "deserialize_comma_separated_str")]
+    #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
+    pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
+
+    /// Optional 32-byte Ed25519 private key for deterministic peer ID generation.
+    /// If None, a random key is generated on each startup. Default: None
+    #[validate(custom(function = "validate_optional_sensitive_vec_u256"))]
+    #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
+    pub secret_key: Option<Sensitive<Vec<u8>>>,
+
+    /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
+    /// Default: None (automatic detection)
+    pub advertised_multiaddr: Option<Multiaddr>,
+
+    /// Starknet chain ID. Ensures connections only to peers on the same network.
+    /// Default: ChainId::Mainnet
+    pub chain_id: ChainId,
+
+    /// Configuration for peer discovery mechanisms (Kademlia DHT, heartbeat intervals, etc.)
+    pub discovery_config: DiscoveryConfig,
+
+    /// Configuration for peer lifecycle and reputation management
+    pub peer_manager_config: PeerManagerConfig,
+
+    /// Buffer size for broadcasted message metadata. Default: 100000
+    pub broadcasted_message_metadata_buffer_size: usize,
+
+    /// Buffer size for reported peer IDs (peers flagged for malicious behavior). Default: 100000
+    pub reported_peer_ids_buffer_size: usize,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub prune_dead_connections_ping_interval: Duration,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub prune_dead_connections_ping_timeout: Duration,
+}
+
+impl SerializeConfig for NetworkConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::from_iter([
+            ser_param(
+                "port",
+                &self.port,
+                "The port that the node listens on for incoming connections.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "session_timeout",
+                &self.session_timeout.as_secs(),
+                "Maximal time in seconds that each session can take before failing on timeout.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "idle_connection_timeout",
+                &self.idle_connection_timeout.as_secs(),
+                "Amount of time in seconds that a connection with no active sessions will stay \
+                 alive.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "broadcasted_message_metadata_buffer_size",
+                &self.broadcasted_message_metadata_buffer_size,
+                "The size of the buffer that holds the metadata of the broadcasted messages.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "reported_peer_ids_buffer_size",
+                &self.reported_peer_ids_buffer_size,
+                "The size of the buffer that holds the reported peer ids.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prune_dead_connections_ping_interval",
+                &self.prune_dead_connections_ping_interval.as_secs(),
+                "The interval in seconds between each prune dead connections ping check.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prune_dead_connections_ping_timeout",
+                &self.prune_dead_connections_ping_timeout.as_secs(),
+                "The timeout in seconds for a ping to be considered failed.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "secret_key",
+                &serialize_optional_vec_u8(
+                    &self.secret_key.as_ref().map(|s| s.clone().expose_secret()),
+                ),
+                "The secret key used for building the peer id. If it's an empty string a random \
+                 one will be used.",
+                ParamPrivacyInput::Private,
+            ),
+        ]);
+        config.extend(ser_optional_param(
+            &serialize_optional_comma_separated(&self.bootstrap_peer_multiaddr),
+            String::from(""),
+            "bootstrap_peer_multiaddr",
+            "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+            ParamPrivacyInput::Public,
+        ));
+        config.extend(ser_optional_param(
+            &self.advertised_multiaddr,
+            Multiaddr::empty(),
+            "advertised_multiaddr",
+            "The external address other peers see this node. If this is set, the node will not \
+             try to find out which addresses it has and will write this address as external \
+             instead",
+            ParamPrivacyInput::Public,
+        ));
+        config.extend(prepend_sub_config_name(self.discovery_config.dump(), "discovery_config"));
+        config.extend(prepend_sub_config_name(
+            self.peer_manager_config.dump(),
+            "peer_manager_config",
+        ));
+        config
+    }
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            port: 10000,
+            session_timeout: Duration::from_secs(120),
+            idle_connection_timeout: Duration::from_secs(120),
+            bootstrap_peer_multiaddr: None,
+            secret_key: None,
+            advertised_multiaddr: None,
+            chain_id: ChainId::Mainnet,
+            discovery_config: DiscoveryConfig::default(),
+            peer_manager_config: PeerManagerConfig::default(),
+            broadcasted_message_metadata_buffer_size: 100000,
+            reported_peer_ids_buffer_size: 100000,
+            prune_dead_connections_ping_interval: DEFAULT_PING_INTERVAL,
+            prune_dead_connections_ping_timeout: DEFAULT_PING_TIMEOUT,
+        }
+    }
+}
+
+/// Validates a list of bootstrap peer multiaddresses.
+///
+/// This function ensures that:
+/// 1. Each multiaddress contains a valid peer ID
+/// 2. All peer IDs in the list are unique
+/// 3. The multiaddresses are properly formatted
+///
+/// # Arguments
+///
+/// * `bootstrap_peer_multiaddr` - A slice of multiaddresses to validate
+///
+/// # Returns
+///
+/// * `Ok(())` if all validations pass
+/// * `Err(ValidationError)` if any validation fails
+///
+/// # Examples
+///
+/// Valid bootstrap peers:
+/// ```text
+/// /ip4/1.2.3.4/tcp/10000/p2p/12D3KooWQYHvEJzuBP...
+/// /ip6/::1/tcp/10000/p2p/12D3KooWDifferentPeer...
+/// ```
+///
+/// Invalid (missing peer ID):
+/// ```text
+/// /ip4/1.2.3.4/tcp/10000
+/// ```
+///
+/// Invalid (duplicate peer ID):
+/// ```text
+/// /ip4/1.2.3.4/tcp/10000/p2p/12D3KooWSamePeer...
+/// /ip4/5.6.7.8/tcp/10000/p2p/12D3KooWSamePeer...
+/// ```
+fn validate_bootstrap_peer_multiaddr_list(
+    bootstrap_peer_multiaddr: &[Multiaddr],
+) -> Result<(), validator::ValidationError> {
+    let mut peers = HashSet::new();
+    for address in bootstrap_peer_multiaddr.iter() {
+        let Some(peer_id) = DialOpts::from(address.clone()).get_peer_id() else {
+            return Err(ValidationError::new(
+                "Bootstrap peer Multiaddr does not contain a PeerId.",
+            ));
+        };
+
+        if !peers.insert(peer_id) {
+            let mut error = ValidationError::new("Bootstrap peer PeerIds are not unique.");
+            error.message = Some(std::borrow::Cow::from(format!("Repeated PeerId: {peer_id}")));
+            return Err(error);
+        }
+    }
+    Ok(())
+}
+
+/// Validates that if advertised_multiaddr contains a peer id, it matches the peer id
+/// generated from secret_key.
+///
+/// If advertised_multiaddr contains a peer id, secret_key must not be None.
+fn validate_advertised_multiaddr_peer_id(
+    config: &NetworkConfig,
+) -> Result<(), validator::ValidationError> {
+    let Some(advertised_multiaddr) = &config.advertised_multiaddr else {
+        return Ok(());
+    };
+
+    let Some(advertised_peer_id) = DialOpts::from(advertised_multiaddr.clone()).get_peer_id()
+    else {
+        // If advertised_multiaddr doesn't contain a peer id, no validation needed
+        return Ok(());
+    };
+
+    // If advertised_multiaddr contains a peer id, secret_key must not be None
+    let Some(secret_key) = &config.secret_key else {
+        return Err(ValidationError::new(
+            "If advertised_multiaddr contains a peer id, secret_key must be provided.",
+        ));
+    };
+
+    // Generate the peer id from secret_key
+    let keypair =
+        Keypair::ed25519_from_bytes(secret_key.clone().expose_secret()).map_err(|err| {
+            let mut error = ValidationError::new("Failed to parse secret_key as Ed25519 keypair.");
+            error.message = Some(std::borrow::Cow::from(format!("Error: {err}")));
+            error
+        })?;
+    let my_peer_id = keypair.public().to_peer_id();
+
+    if advertised_peer_id != my_peer_id {
+        let mut error = ValidationError::new(
+            "The peer id in advertised_multiaddr does not match the peer id generated from \
+             secret_key.",
+        );
+        error.message = Some(std::borrow::Cow::from(format!(
+            "advertised peer id: {advertised_peer_id}, my peer id: {my_peer_id}"
+        )));
+        return Err(error);
+    }
+
+    Ok(())
+}
