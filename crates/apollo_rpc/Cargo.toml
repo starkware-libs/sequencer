@@ -9,8 +9,8 @@ description = "JSON-RPC server implementation for Starknet API."
 [dependencies]
 anyhow.workspace = true
 apollo_class_manager_types.workspace = true
-apollo_config.workspace = true
 apollo_proc_macros.workspace = true
+apollo_rpc_config.workspace = true
 apollo_rpc_execution.workspace = true
 apollo_rpc_types.workspace = true
 apollo_starknet_client.workspace = true
@@ -32,7 +32,6 @@ starknet_api.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tower = { workspace = true, features = ["full"] }
 tracing.workspace = true
-validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 apollo_rpc_execution = { workspace = true, features = ["testing"] }

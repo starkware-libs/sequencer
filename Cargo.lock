@@ -2470,8 +2470,8 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_proc_macros",
+ "apollo_rpc_config",
  "apollo_rpc_execution",
  "apollo_rpc_types",
  "apollo_starknet_client",
@@ -2512,6 +2512,15 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "apollo_rpc_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
  "validator",
 ]
 
@@ -2521,7 +2530,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
- "apollo_config",
+ "apollo_rpc_config",
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
@@ -2762,7 +2771,7 @@ dependencies = [
  "apollo_network_config",
  "apollo_p2p_sync_config",
  "apollo_reverts",
- "apollo_rpc",
+ "apollo_rpc_config",
  "apollo_storage",
  "serde",
  "validator",
