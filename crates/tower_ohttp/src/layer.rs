@@ -34,7 +34,7 @@ use tracing::debug;
 use crate::bhttp_codec::{encapsulate_response, rebuild_request};
 use crate::errors::OhttpError;
 use crate::gateway::OhttpGateway;
-use crate::{OHTTP_KEYS_PATH, OHTTP_REQUEST_CONTENT_TYPE};
+use crate::{Decapsulated, OHTTP_KEYS_PATH, OHTTP_REQUEST_CONTENT_TYPE};
 
 /// Shared runtime state for the OHTTP gateway.
 struct OhttpState<F> {
@@ -194,7 +194,11 @@ where
                         OhttpError::InvalidFormat("Invalid Binary HTTP message")
                     })?;
 
-                let inner_request = rebuild_request(&bhttp_message)?.map(build_body);
+                let mut inner_request = rebuild_request(&bhttp_message)?.map(build_body);
+                // Mark the request so downstream layers can tell decapsulated
+                // traffic apart from plaintext pass-through (e.g. to assign a
+                // fresh, envelope-unlinkable request id).
+                inner_request.extensions_mut().insert(Decapsulated);
 
                 inner.oneshot(inner_request).await.map_err(|error| {
                     debug!("Inner service error after successful OHTTP decapsulation: {error:?}");
@@ -265,6 +269,38 @@ mod tests {
 
         assert_eq!(response.status, 200);
         assert_eq!(response.body, body);
+    }
+
+    #[tokio::test]
+    async fn decapsulation_strips_client_supplied_request_id() {
+        // A client-chosen x-request-id inside the encrypted envelope must never
+        // reach the inner service — it would land in gateway logs as a stable,
+        // attacker-chosen join key (see `Decapsulated` in lib.rs).
+        let layer = test_layer();
+        let svc = layer.layer(tower::service_fn(
+            |request: http::Request<http_body_util::Full<bytes::Bytes>>| async move {
+                let saw_request_id =
+                    if request.headers().contains_key("x-request-id") { "true" } else { "false" };
+                Ok::<_, tower::BoxError>(
+                    http::Response::builder()
+                        .status(http::StatusCode::OK)
+                        .header("x-echo-saw-request-id", saw_request_id)
+                        .body(http_body_util::Full::new(bytes::Bytes::new()))
+                        .unwrap(),
+                )
+            },
+        ));
+        let mut harness = TestHarness { gateway: test_gateway(), svc };
+
+        let response = harness
+            .ohttp_round_trip("POST", "/", b"", &[("x-request-id", b"client-inner-id")])
+            .await;
+
+        assert_eq!(response.status, 200);
+        assert_eq!(
+            response.bhttp_message.header().get(b"x-echo-saw-request-id").unwrap(),
+            b"false"
+        );
     }
 
     #[tokio::test]
