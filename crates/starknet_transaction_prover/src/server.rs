@@ -69,13 +69,13 @@ pub mod errors;
 pub mod health;
 pub mod log_redact;
 #[cfg(test)]
-pub mod middleware_test_utils;
-#[cfg(test)]
 pub mod mock_rpc;
 pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+#[cfg(test)]
+pub mod test_utils;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
