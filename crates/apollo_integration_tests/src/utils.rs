@@ -46,6 +46,7 @@ use apollo_consensus_orchestrator_config::config::{
     ContextStaticConfig,
 };
 use apollo_deployments::service::NodeType;
+use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::{
     GatewayConfig,
     GatewayStaticConfig,
@@ -846,6 +847,11 @@ pub fn create_gateway_config(
         max_calldata_length: 19,
         max_signature_length: 2,
         allow_client_side_proving: true,
+        // The declare-flow tests declare `contract_class.json`, a legacy Sierra 1.3.0 fixture that
+        // is below the production default minimum. Keep the pre-bump minimum here so these tests
+        // still exercise the declare flow; Sierra-version enforcement is covered by the stateless
+        // validator unit tests.
+        min_sierra_version: VersionId::new(1, 1, 0),
         ..Default::default()
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
