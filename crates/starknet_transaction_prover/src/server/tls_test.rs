@@ -13,14 +13,15 @@ use rstest::rstest;
 use serde_json::Value;
 use tempfile::NamedTempFile;
 
-use crate::server::mock_rpc::MockProvingRpc;
-use crate::server::rpc_api::ProvingRpcServer;
+use crate::server::config::DEFAULT_MAX_REQUEST_BODY_SIZE;
 use crate::server::rpc_impl::SPEC_VERSION;
+use crate::server::test_utils::{
+    ensure_crypto_provider,
+    loopback_addr,
+    mock_rpc_module,
+    TEST_MAX_CONNECTIONS,
+};
 use crate::server::tls::{load_tls_acceptor, start_tls_server};
-
-fn ensure_crypto_provider() {
-    let _ = tokio_rustls::rustls::crypto::aws_lc_rs::default_provider().install_default();
-}
 
 fn test_cert_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/test_tls/cert.pem")
@@ -49,18 +50,15 @@ fn spec_version_request() -> Value {
 }
 
 async fn start_test_tls_server() -> (SocketAddr, ServerHandle, Vec<u8>) {
-    let methods = MockProvingRpc::from_expected_json().into_rpc();
-    let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
-
     let (local_addr, handle) = start_tls_server(
-        addr,
+        loopback_addr(),
         &test_cert_path(),
         &test_key_path(),
-        methods,
-        10,              // max_connections
-        5 * 1024 * 1024, // max_request_body_size
-        None,            // cors_layer
-        None,            // ohttp_layer
+        mock_rpc_module(),
+        TEST_MAX_CONNECTIONS,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+        None, // cors_layer
+        None, // ohttp_layer
     )
     .await
     .expect("Failed to start TLS server");
@@ -167,9 +165,8 @@ fn test_load_tls_acceptor_failure(
     #[case] key: PathMode,
     #[case] expected_error_substring: &str,
 ) {
-    // `PathMode::MismatchedKey` reaches rustls' `ServerConfig` builder, which requires a
-    // process-level crypto provider. nextest runs each test in a fresh process, so install the
-    // provider here even though the other cases error out before reaching it.
+    // Only the mismatched-key case reaches rustls' `ServerConfig` builder; the others error out
+    // earlier, so this failure test still needs the crypto provider installed.
     ensure_crypto_provider();
 
     let (cert_path, _cert_tempfile) = materialise(cert, "/nonexistent/cert.pem", test_cert_path());
@@ -186,8 +183,6 @@ fn test_load_tls_acceptor_failure(
 
 #[test]
 fn test_load_tls_acceptor_succeeds_for_valid_files() {
-    // `load_tls_acceptor` builds a rustls `ServerConfig`, which requires a process-level crypto
-    // provider. nextest runs each test in a fresh process, so install the provider here.
     ensure_crypto_provider();
     load_tls_acceptor(&test_cert_path(), &test_key_path()).unwrap();
 }
