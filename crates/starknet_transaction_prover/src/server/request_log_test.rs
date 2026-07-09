@@ -6,8 +6,8 @@ use tower::{Layer, ServiceExt};
 use tracing_test::traced_test;
 
 use crate::server::health::HEALTH_PATH;
-use crate::server::middleware_test_utils::{echo_request_id_service, read_body_and_headers};
 use crate::server::request_log::{RequestLogLayer, REQUEST_ID_HEADER};
+use crate::server::test_utils::{echo_request_id_service, read_body_and_headers};
 
 fn request_with_header(value: Option<&str>) -> Request<HttpBody> {
     let mut builder = Request::builder().method(Method::POST).uri("/");
