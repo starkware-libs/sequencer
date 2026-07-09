@@ -14,12 +14,12 @@ pub struct PeerManagerConfig {
         deserialize_with = "deserialize_seconds_to_duration",
         serialize_with = "serialize_duration_as_seconds"
     )]
-    pub(super) malicious_timeout_seconds: Duration,
+    pub malicious_timeout_seconds: Duration,
     #[serde(
         deserialize_with = "deserialize_milliseconds_to_duration",
         serialize_with = "serialize_duration_as_milliseconds"
     )]
-    pub(super) unstable_timeout_millis: Duration,
+    pub unstable_timeout_millis: Duration,
 }
 
 impl Default for PeerManagerConfig {
