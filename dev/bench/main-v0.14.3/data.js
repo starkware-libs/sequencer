@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782218364004,
+  "lastUpdate": 1783583117051,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -679,6 +679,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1729.80263358,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b091937c362d658f570a063a122e478c6668368c",
+          "message": "workspace: upgrade cairo compiler to v2.19.2 (#14736)\n\n* workspace: upgrade cairo compiler to v2.19.2\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* starknet_api,starknet_os_flow_tests: bump SierraVersion::LATEST to 1.9.1 and regen fixtures for cairo 2.19.2\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* central_systest_blobs: update cende operator/fee-token addresses and blob fixtures for cairo 2.19.2\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* central_systest_blobs: bump cende blob generation to 49 (re-uploaded blob for cairo 2.19.2)\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* apollo_integration_tests: regenerate proof-flow fixtures for cairo 2.19.2 (sierra 1.9.1)\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-09T07:24:08Z",
+          "tree_id": "3cb29689df933a0cf2f3cb023a01c77bd87489b7",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b091937c362d658f570a063a122e478c6668368c"
+        },
+        "date": 1783583116668,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 770.23674795,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1204.15040999,
             "unit": "ms"
           }
         ]
