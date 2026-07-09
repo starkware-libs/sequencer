@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783421807314,
+  "lastUpdate": 1783588650600,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6629,6 +6629,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1317.7031236300002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "405aae582ff4f9da0bd59acf6e36817cb7e65ef5",
+          "message": "apollo_l1_events: bound catch-up commit-block backlog, abandoning it to L2 sync on overflow (#14590)\n\nThe catchupper's `commit_block_backlog` was an unbounded `Vec` populated by every\ncommit-block arriving above the provider's height during startup catch-up, and\ndrained only once L2 sync reached the target. A persistently slow or stalled sync\nwhile the batcher keeps committing could grow it without limit (security finding\nL-16).\n\nAdd a configurable `max_commit_block_backlog_len` (default 1,000,000) and a\n`l1_message_provider_commit_block_backlog_len` gauge. On overflow (or a\nnon-sequential height that would tear the gapless run), `add_commit_block_to_backlog`\nabandons the in-memory backlog and defers to L2 sync to re-drive the whole range up\nto the tip: it clears the buffer, latches `backlog_overflowed`, and extends the sync\ntarget. Buffered tip commits are redundant with what L2 sync re-delivers, so dropping\nthem costs latency (until sync unstalls), not correctness -- bounded memory, no gap,\nno panic.\n\nAn earlier version returned a `CatchUpBacklogOverflow` error instead, but the batcher\nswallows commit_block errors and advances (pinned by\n`decision_reached_return_success_when_l1_commit_block_fails`), so the rejected height\nwas dropped downstream and the next tip commit tripped the sequentiality assert,\npanicking the provider into a crash loop -- the opposite of the intended\ndegraded-but-recoverable behavior. Abandoning to sync closes that loop entirely.\n\nThe gauge is updated on each push, reset to 0 on abandon, and reset again when the\nbacklog drains at catch-up completion.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-09T08:55:59Z",
+          "tree_id": "fe85cd1547953a7542119d482ef9b0382056fee2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/405aae582ff4f9da0bd59acf6e36817cb7e65ef5"
+        },
+        "date": 1783588650104,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 879.2974699600001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1288.21441628,
             "unit": "ms"
           }
         ]
