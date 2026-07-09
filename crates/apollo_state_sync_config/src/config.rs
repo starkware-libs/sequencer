@@ -5,7 +5,7 @@ use std::result;
 use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
 use apollo_config::dumping::{prepend_sub_config_name, ser_optional_sub_config, SerializeConfig};
 use apollo_config::{ParamPath, SerializedParam};
-use apollo_network::NetworkConfig;
+use apollo_network_config::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
 use apollo_rpc::RpcConfig;
