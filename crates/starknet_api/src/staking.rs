@@ -11,3 +11,7 @@ pub struct StakingWeight(pub u128);
 /// Committee identifier, derived as a hash of the sorted committee members's staker IDs.
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct CommitteeId(pub [u8; 32]);
+
+/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
+// TODO(Matan): Remove this once we have a proper validator set.
+pub const DEFAULT_VALIDATOR_ID: u64 = 100;
