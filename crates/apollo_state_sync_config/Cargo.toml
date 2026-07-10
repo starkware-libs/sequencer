@@ -13,7 +13,7 @@ apollo_network_config.workspace = true
 apollo_p2p_sync_config.workspace = true
 apollo_reverts.workspace = true
 apollo_rpc_config.workspace = true
-apollo_storage.workspace = true
+apollo_storage_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 
