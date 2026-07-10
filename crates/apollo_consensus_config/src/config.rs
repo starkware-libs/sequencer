@@ -16,8 +16,8 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_storage::db::DbConfig;
-use apollo_storage::{StorageConfig, StorageScope};
+use apollo_storage_config::db::DbConfig;
+use apollo_storage_config::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::staking::DEFAULT_VALIDATOR_ID;
