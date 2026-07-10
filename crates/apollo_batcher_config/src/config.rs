@@ -12,12 +12,12 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_storage::db::DbConfig;
-use apollo_storage::storage_reader_server::{
+use apollo_storage_config::db::DbConfig;
+use apollo_storage_config::storage_reader_server::{
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
-use apollo_storage::{StorageConfig, StorageScope};
+use apollo_storage_config::{StorageConfig, StorageScope};
 use blockifier::blockifier::config::{
     ContractClassManagerConfig,
     NativeClassesWhitelist,
