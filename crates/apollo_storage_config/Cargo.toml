@@ -1,17 +1,16 @@
 [package]
-name = "apollo_consensus_config"
+name = "apollo_storage_config"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 repository.workspace = true
-license-file.workspace = true
-description = "Configuration types for Apollo consensus"
-
-[dependencies]
-apollo_config.workspace = true
-apollo_storage_config.workspace = true
-serde = { workspace = true, features = ["derive"] }
-starknet_api.workspace = true
-validator.workspace = true
+description = "Configuration types for the Apollo storage layer."
 
 [lints]
 workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+validator = { workspace = true, features = ["derive"] }

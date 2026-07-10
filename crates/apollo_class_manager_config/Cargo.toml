@@ -8,7 +8,7 @@ description = "Configuration types for Apollo class manager"
 
 [dependencies]
 apollo_config.workspace = true
-apollo_storage.workspace = true
+apollo_storage_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 

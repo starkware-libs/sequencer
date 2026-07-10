@@ -5,7 +5,7 @@ use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncStaticConfig};
-use apollo_storage::{StorageConfig, StorageScope};
+use apollo_storage_config::{StorageConfig, StorageScope};
 use rstest::rstest;
 use validator::Validate;
 
