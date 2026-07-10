@@ -940,7 +940,7 @@ name = "apollo_batcher_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_storage",
+ "apollo_storage_config",
  "blockifier",
  "serde",
  "starknet_api",
@@ -1056,7 +1056,7 @@ name = "apollo_class_manager_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_storage",
+ "apollo_storage_config",
  "serde",
  "validator",
 ]
@@ -1337,7 +1337,7 @@ name = "apollo_consensus_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_storage",
+ "apollo_storage_config",
  "serde",
  "starknet_api",
  "validator",
@@ -2771,7 +2771,7 @@ dependencies = [
  "apollo_p2p_sync_config",
  "apollo_reverts",
  "apollo_rpc_config",
- "apollo_storage",
+ "apollo_storage_config",
  "serde",
  "validator",
 ]
@@ -2810,6 +2810,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_metrics",
  "apollo_proc_macros",
+ "apollo_storage_config",
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
@@ -2862,6 +2863,16 @@ dependencies = [
  "tracing",
  "validator",
  "zstd",
+]
+
+[[package]]
+name = "apollo_storage_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
+ "validator",
 ]
 
 [[package]]
