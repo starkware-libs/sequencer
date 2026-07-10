@@ -29,6 +29,11 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
+/// Default interval between pings used to detect dead connections.
+pub const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(15);
+/// Default time to wait for a ping response before considering a connection dead.
+pub const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(20);
+
 // TODO(Shahak): add peer manager config to the network config
 /// Network configuration for the Apollo networking layer.
 ///
@@ -233,9 +238,8 @@ impl Default for NetworkConfig {
             peer_manager_config: PeerManagerConfig::default(),
             broadcasted_message_metadata_buffer_size: 100000,
             reported_peer_ids_buffer_size: 100000,
-            // Values match apollo_network::prune_dead_connections's own defaults.
-            prune_dead_connections_ping_interval: Duration::from_secs(15),
-            prune_dead_connections_ping_timeout: Duration::from_secs(20),
+            prune_dead_connections_ping_interval: DEFAULT_PING_INTERVAL,
+            prune_dead_connections_ping_timeout: DEFAULT_PING_TIMEOUT,
         }
     }
 }
