@@ -5,6 +5,7 @@ use pretty_assertions::assert_eq;
 use rand::RngExt;
 use tempfile::tempdir;
 use tokio::sync::{Barrier, RwLock};
+use validator::Validate;
 
 use super::*;
 use crate::db::serialization::NoVersionValueWrapper;
