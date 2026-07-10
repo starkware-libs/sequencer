@@ -2258,7 +2258,7 @@ dependencies = [
  "apollo_sierra_compilation_config",
  "apollo_staking_config",
  "apollo_state_sync_config",
- "apollo_storage",
+ "apollo_storage_config",
  "blockifier",
  "clap",
  "const_format",
