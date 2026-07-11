@@ -12,8 +12,25 @@ use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockBody, BlockNumber};
-use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::transaction::fields::{
+    AccountDeploymentData,
+    AllResourceBounds,
+    Calldata,
+    PaymasterData,
+    ProofFacts,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    FullTransaction,
+    InvokeTransaction,
+    InvokeTransactionV3,
+    Transaction,
+    TransactionOutput,
+};
 
 use super::block_data_stream_builder::{
     BadPeerError,
@@ -113,12 +130,27 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
             })
             .take(num_transactions)
             .collect::<Vec<_>>(),
-            transactions: std::iter::repeat_with(|| {
-                Transaction::Invoke(invoke_tx(InvokeTxArgs::default()))
-            })
-            .take(num_transactions)
-            .collect::<Vec<_>>(),
+            transactions: vec![empty_invoke_transaction(); num_transactions],
         };
         (block_body, block_number)
     }
+}
+
+/// An all-zero invoke transaction, used to pad a block body to the transaction count reported by
+/// the sync block. The sync block carries only transaction hashes, so the bodies themselves are
+/// placeholders and are never executed or fee-checked.
+fn empty_invoke_transaction() -> Transaction {
+    Transaction::Invoke(InvokeTransaction::V3(InvokeTransactionV3 {
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default()),
+        tip: Tip::default(),
+        signature: TransactionSignature::default(),
+        nonce: Nonce::default(),
+        sender_address: ContractAddress::default(),
+        calldata: Calldata::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData::default(),
+        account_deployment_data: AccountDeploymentData::default(),
+        proof_facts: ProofFacts::default(),
+    }))
 }
