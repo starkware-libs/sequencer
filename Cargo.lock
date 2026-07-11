@@ -2888,7 +2888,6 @@ dependencies = [
  "apollo_proof_manager_types",
  "assert_matches",
  "async-trait",
- "blockifier",
  "blockifier_test_utils",
  "mempool_test_utils",
  "mockall",
