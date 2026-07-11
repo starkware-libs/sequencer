@@ -1,4 +1,3 @@
-use blockifier::execution::call_info::Retdata;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -75,16 +74,16 @@ where
     }
 }
 
-impl<T> TryFrom<Retdata> for CairoArray<T>
+impl<T> TryFrom<Vec<Felt>> for CairoArray<T>
 where
     T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
 {
     type Error = RetdataDeserializationError;
 
-    fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
-        let mut iter = retdata.0.into_iter();
+    fn try_from(felts: Vec<Felt>) -> Result<Self, Self::Error> {
+        let mut iter = felts.into_iter();
 
-        // The first Felt in the Retdata must be the number of structs in the array.
+        // The first Felt in the retdata must be the number of structs in the array.
         let raw_num_items = Felt::try_from_iter(&mut iter)?;
 
         let num_items = usize::try_from(raw_num_items).map_err(|_| {
@@ -120,15 +119,15 @@ where
     }
 }
 
-impl<T> TryFrom<Retdata> for CairoOption<T>
+impl<T> TryFrom<Vec<Felt>> for CairoOption<T>
 where
     T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
 {
     type Error = RetdataDeserializationError;
 
     /// Deserializes a Cairo `Option<T>` from retdata.
-    fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
-        let mut iter = retdata.0.into_iter();
+    fn try_from(felts: Vec<Felt>) -> Result<Self, Self::Error> {
+        let mut iter = felts.into_iter();
         let result = Option::<T>::try_from_iter(&mut iter)?;
         if iter.next().is_some() {
             return Err(RetdataDeserializationError::InvalidObjectLength {

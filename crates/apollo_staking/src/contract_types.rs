@@ -78,7 +78,7 @@ impl TryFromIterator<Felt> for Epoch {
 
 impl ContractStaker {
     pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
-        Ok(CairoArray::try_from(retdata)?.0)
+        Ok(CairoArray::try_from(retdata.0)?.0)
     }
 }
 
