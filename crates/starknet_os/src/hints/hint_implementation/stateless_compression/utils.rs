@@ -541,7 +541,6 @@ where
 }
 
 /// Decompresses the given compressed data.
-#[allow(dead_code)]
 pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
     fn unpack_chunk<const LENGTH: usize>(
         compressed: &mut impl Iterator<Item = Felt>,
