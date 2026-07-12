@@ -540,7 +540,10 @@ where
                     .await
                     .map_err(|error| self.map_internal_error_at_height(height, error))?
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root,
+                    state_commitment_infos: state_commitment_infos.compress()?,
+                })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -603,7 +606,10 @@ where
                 block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
                 update_metrics(height, &block_measurements.block_measurement);
                 self.update_offset(next_offset);
-                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root,
+                    state_commitment_infos: state_commitment_infos.compress()?,
+                })
             }
         }
     }

@@ -18,6 +18,8 @@ use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 #[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::AccessedKeys;
+#[cfg(feature = "os_input")]
+use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -45,8 +47,6 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
@@ -309,7 +309,7 @@ impl Default for MockClients {
             Box::pin(async {
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root: GlobalRoot::default(),
-                    state_commitment_infos: StateCommitmentInfos::default(),
+                    state_commitment_infos: CompressedStateCommitmentInfos(Vec::new()),
                 })
             })
         });

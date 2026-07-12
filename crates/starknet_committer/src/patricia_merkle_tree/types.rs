@@ -118,19 +118,30 @@ impl From<StateCommitmentInfosCodecError> for SerializationError {
     }
 }
 
-impl StateCommitmentInfos {
-    /// Bincode-serializes and zstd-compresses the commitment infos into a byte vector.
-    #[cfg(feature = "os_input")]
-    pub fn compress(&self) -> Result<Vec<u8>, StateCommitmentInfosCodecError> {
-        let bincode_payload = bincode::serialize(self)?;
-        Ok(zstd::encode_all(bincode_payload.as_slice(), zstd::DEFAULT_COMPRESSION_LEVEL)?)
-    }
+/// The compressed form of [`StateCommitmentInfos`].
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CompressedStateCommitmentInfos(pub Vec<u8>);
 
+#[cfg(feature = "os_input")]
+impl CompressedStateCommitmentInfos {
     /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
-    #[cfg(feature = "os_input")]
-    pub fn decompress(data: &[u8]) -> Result<Self, StateCommitmentInfosCodecError> {
-        let bincode_payload = zstd::decode_all(data)?;
+    pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
+        let bincode_payload = zstd::decode_all(self.0.as_slice())?;
         Ok(bincode::deserialize(&bincode_payload)?)
+    }
+}
+
+impl StateCommitmentInfos {
+    /// Bincode-serializes and zstd-compresses the commitment infos.
+    #[cfg(feature = "os_input")]
+    pub fn compress(
+        &self,
+    ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
+        let bincode_payload = bincode::serialize(self)?;
+        Ok(CompressedStateCommitmentInfos(zstd::encode_all(
+            bincode_payload.as_slice(),
+            zstd::DEFAULT_COMPRESSION_LEVEL,
+        )?))
     }
 
     /// Builds the commitment infos directly from the pre- and post-commit state roots and the

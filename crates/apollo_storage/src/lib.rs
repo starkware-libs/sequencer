@@ -189,7 +189,7 @@ use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 #[cfg(feature = "os_input")]
-use crate::state_commitment_infos::StateCommitmentInfos;
+use crate::state_commitment_infos::CompressedStateCommitmentInfos;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -1173,7 +1173,7 @@ struct FileHandlers<Mode: TransactionKind> {
     #[cfg(feature = "os_input")]
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
     #[cfg(feature = "os_input")]
-    state_commitment_infos: FileHandler<VersionZeroWrapper<StateCommitmentInfos>, Mode>,
+    state_commitment_infos: FileHandler<VersionZeroWrapper<CompressedStateCommitmentInfos>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -1219,7 +1219,7 @@ impl FileHandlers<RW> {
     #[cfg(feature = "os_input")]
     fn append_state_commitment_infos(
         &self,
-        state_commitment_infos: &StateCommitmentInfos,
+        state_commitment_infos: &CompressedStateCommitmentInfos,
     ) -> LocationInFile {
         self.clone().state_commitment_infos.append(state_commitment_infos)
     }
@@ -1326,11 +1326,12 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 
     #[cfg(feature = "os_input")]
-    // Returns the commitment infos at the given location or an error in case they don't exist.
+    // Returns the compressed commitment infos at the given location or an error in case they don't
+    // exist.
     pub(crate) fn get_state_commitment_infos_unchecked(
         &self,
         location: LocationInFile,
-    ) -> StorageResult<StateCommitmentInfos> {
+    ) -> StorageResult<CompressedStateCommitmentInfos> {
         self.state_commitment_infos.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("StateCommitmentInfos at location {location:?} not found."),
         })
