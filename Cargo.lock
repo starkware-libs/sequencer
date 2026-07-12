@@ -1319,6 +1319,7 @@ dependencies = [
  "async-trait",
  "enum-as-inner",
  "futures",
+ "indexmap 2.14.0",
  "lazy_static",
  "lru 0.12.5",
  "mockall",
