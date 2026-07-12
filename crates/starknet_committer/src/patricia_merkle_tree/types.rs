@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
@@ -118,19 +118,49 @@ impl From<StateCommitmentInfosCodecError> for SerializationError {
     }
 }
 
-impl StateCommitmentInfos {
-    /// Bincode-serializes and zstd-compresses the commitment infos into a byte vector.
-    #[cfg(feature = "os_input")]
-    pub fn compress(&self) -> Result<Vec<u8>, StateCommitmentInfosCodecError> {
-        let bincode_payload = bincode::serialize(self)?;
-        Ok(zstd::encode_all(bincode_payload.as_slice(), zstd::DEFAULT_COMPRESSION_LEVEL)?)
-    }
+/// The compressed form of [`StateCommitmentInfos`]. Serializes as a base64 string.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompressedStateCommitmentInfos(pub Vec<u8>);
 
+impl Serialize for CompressedStateCommitmentInfos {
+    // Base64 keeps the compressed payload intact as raw bytes while remaining a plain JSON
+    // string, avoiding the per-byte overhead of a JSON byte array.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&base64::encode(&self.0))
+    }
+}
+
+impl<'de> Deserialize<'de> for CompressedStateCommitmentInfos {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let base64_payload = String::deserialize(deserializer)?;
+        base64::decode(&base64_payload).map(Self).map_err(serde::de::Error::custom)
+    }
+}
+
+#[cfg(feature = "os_input")]
+impl CompressedStateCommitmentInfos {
     /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
-    #[cfg(feature = "os_input")]
-    pub fn decompress(data: &[u8]) -> Result<Self, StateCommitmentInfosCodecError> {
-        let bincode_payload = zstd::decode_all(data)?;
+    pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
+        let bincode_payload = zstd::decode_all(self.0.as_slice())?;
         Ok(bincode::deserialize(&bincode_payload)?)
+    }
+}
+
+impl StateCommitmentInfos {
+    /// Bincode-serializes and zstd-compresses the commitment infos.
+    ///
+    /// Bincode encodes each hash-map as an 8-byte length followed by its entries, and each `Felt`
+    /// as an 8-byte length followed by its value, so the payload is dominated by leading zeros
+    /// that zstd compresses efficiently.
+    #[cfg(feature = "os_input")]
+    pub fn compress(
+        &self,
+    ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
+        let bincode_payload = bincode::serialize(self)?;
+        Ok(CompressedStateCommitmentInfos(zstd::encode_all(
+            bincode_payload.as_slice(),
+            zstd::DEFAULT_COMPRESSION_LEVEL,
+        )?))
     }
 
     /// Builds the commitment infos directly from the pre- and post-commit state roots and the

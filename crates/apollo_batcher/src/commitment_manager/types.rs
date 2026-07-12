@@ -14,7 +14,7 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::CommitterRequestLabelValue;
 #[cfg(feature = "os_input")]
-use apollo_storage::state_commitment_infos::StateCommitmentInfos;
+use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
 use tracing::warn;
@@ -76,10 +76,10 @@ impl Display for CommitterTaskInput {
 pub(crate) struct CommitmentTaskOutput {
     pub(crate) response: CommitBlockResponse,
     pub(crate) height: BlockNumber,
-    // The commitment infos derived from the committer output. `None` when the block was committed
-    // via `CommitBlock` (no accessed keys were available to request the Patricia witnesses).
+    // Compressed commitment infos from the committer. `None` when the block was committed via
+    // `CommitBlock` (no accessed keys to request the Patricia witnesses).
     #[cfg(feature = "os_input")]
-    pub(crate) state_commitment_infos: Option<StateCommitmentInfos>,
+    pub(crate) state_commitment_infos: Option<CompressedStateCommitmentInfos>,
 }
 
 #[derive(Clone, Debug)]
@@ -131,10 +131,10 @@ pub(crate) struct FinalBlockCommitment {
     // cannot be finalized.
     pub(crate) block_hash: Option<BlockHash>,
     pub(crate) global_root: GlobalRoot,
-    // The commitment infos derived from the committer output. `None` when the block was committed
-    // via `CommitBlock` (no accessed keys were available to request the Patricia witnesses).
+    // Compressed commitment infos from the committer. `None` when the block was committed via
+    // `CommitBlock` (no accessed keys to request the Patricia witnesses).
     #[cfg(feature = "os_input")]
-    pub(crate) state_commitment_infos: Option<StateCommitmentInfos>,
+    pub(crate) state_commitment_infos: Option<CompressedStateCommitmentInfos>,
 }
 
 pub(crate) struct TaskTimer {

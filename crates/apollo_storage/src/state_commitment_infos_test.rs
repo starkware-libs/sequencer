@@ -1,27 +1,21 @@
-use std::collections::HashMap;
-
 use starknet_api::block::BlockNumber;
-use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 
 use crate::state_commitment_infos::{
+    CompressedStateCommitmentInfos,
     StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
 };
 use crate::test_utils::get_test_storage;
 
-fn sample_state_commitment_infos() -> StateCommitmentInfos {
-    StateCommitmentInfos {
-        contracts_trie_commitment_info: CommitmentInfo::default(),
-        classes_trie_commitment_info: CommitmentInfo::default(),
-        storage_tries_commitment_infos: HashMap::new(),
-    }
+fn dummy_state_commitment_infos() -> CompressedStateCommitmentInfos {
+    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
 }
 
 #[test]
 fn append_and_get_state_commitment_infos() {
     let (reader, mut writer) = get_test_storage().0;
     let height = BlockNumber(5);
-    let state_commitment_infos = sample_state_commitment_infos();
+    let state_commitment_infos = dummy_state_commitment_infos();
 
     // No infos stored for the height yet.
     assert_eq!(reader.begin_ro_txn().unwrap().get_state_commitment_infos(height).unwrap(), None);
@@ -53,7 +47,7 @@ fn revert_state_commitment_infos() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_state_commitment_infos(height, &sample_state_commitment_infos())
+        .append_state_commitment_infos(height, &dummy_state_commitment_infos())
         .unwrap()
         .revert_state_commitment_infos(height)
         .unwrap()

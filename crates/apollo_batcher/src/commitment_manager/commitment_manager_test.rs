@@ -13,6 +13,8 @@ use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockRe
 use apollo_committer_types::communication::MockCommitterClient;
 #[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::AccessedKeys;
+#[cfg(feature = "os_input")]
+use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
@@ -20,8 +22,6 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
@@ -70,7 +70,7 @@ fn mock_dependencies() -> MockDependencies {
         Box::pin(async {
             Ok(ReadPathsAndCommitBlockResponse {
                 global_root: GlobalRoot::default(),
-                state_commitment_infos: StateCommitmentInfos::default(),
+                state_commitment_infos: CompressedStateCommitmentInfos(Vec::new()),
             })
         })
     });
