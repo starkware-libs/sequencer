@@ -209,6 +209,51 @@ fn validation_only_with_mempool_p2p_enabled_fails() {
     assert!(format!("{err:?}").contains("mempool_p2p"), "Unexpected error: {err:?}");
 }
 
+// The config manager is a local infrastructure component; running it remotely would make its
+// consumers (e.g. the mempool) reach it over a network RPC that can fail mid-request. Both
+// remote-capable execution modes must be rejected at validation time so the client is always local.
+#[test]
+fn config_manager_remote_is_rejected() {
+    // `config_manager_config` is None so the per-component "set iff running locally" check passes
+    // (remote is not running locally) and we reach the config_manager-specific validation.
+    let config = SequencerNodeConfig {
+        components: ComponentConfig {
+            config_manager: ReactiveComponentExecutionConfig::remote(VALID_URL.into(), VALID_PORT),
+            ..Default::default()
+        },
+        config_manager_config: None,
+        state_sync_config: Some(state_sync_config_with_full_archive()),
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(
+        format!("{err:?}").contains("config_manager must run locally"),
+        "Unexpected error: {err:?}"
+    );
+}
+
+#[test]
+fn config_manager_local_with_remote_enabled_is_rejected() {
+    // This mode runs locally, so the default (Some) config_manager_config satisfies the
+    // per-component check and we reach the config_manager-specific validation.
+    let config = SequencerNodeConfig {
+        components: ComponentConfig {
+            config_manager: ReactiveComponentExecutionConfig::local_with_remote_enabled(
+                VALID_URL.into(),
+                VALID_PORT,
+            ),
+            ..Default::default()
+        },
+        state_sync_config: Some(state_sync_config_with_full_archive()),
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(
+        format!("{err:?}").contains("config_manager must run locally"),
+        "Unexpected error: {err:?}"
+    );
+}
+
 #[test]
 fn validation_only_with_tx_ingestion_disabled_succeeds() {
     let config = SequencerNodeConfig {
