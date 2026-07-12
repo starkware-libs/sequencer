@@ -926,7 +926,7 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     deps.batcher
         .expect_get_state_commitment_infos()
         .times(1)
-        .return_once(move |_| Ok(returned_infos));
+        .return_once(move |_| Ok(Some(returned_infos)));
 
     deps.setup_deps_for_build(SetupDepsArgs::default());
     deps.batcher
