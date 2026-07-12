@@ -1,4 +1,5 @@
 use apollo_l1_gas_price::metrics::{
+    ETH_TO_STRK_ERROR_COUNT,
     ETH_TO_STRK_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
@@ -11,29 +12,29 @@ use crate::alerts::{
     AlertComparisonOp,
     AlertCondition,
     AlertLogicalOp,
+    AlertSeverity,
     EvaluationRate,
     ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 use crate::query_builder::sum_increase;
 
-/// Alert if we have no successful eth to strk rates data from the last hour.
-///
-/// Uses `sum_increase` instead of bare `increase` to avoid false positives on spot eviction: when
-/// a pod is evicted and rescheduled, the new pod's counter resets to 0, so a bare `increase([1h])`
-/// would return 0 until the first success. `sum` aggregates across all pod series, and the
-/// evicted pod's data points remain in the TSDB for the full 1h window, keeping the sum ≥ 1.
 pub(crate) fn get_eth_to_strk_success_count_alert() -> Alert {
     const ALERT_NAME: &str = "eth_to_strk_success_count";
-    Alert::new(
+    oracle_success_count_alert(
         ALERT_NAME,
         "Eth to Strk success count",
-        EvaluationRate::Default,
-        sum_increase(&ETH_TO_STRK_SUCCESS_COUNT, "1h"),
-        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
+        &ETH_TO_STRK_SUCCESS_COUNT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
-        ObserverApplicability::NotApplicable,
+    )
+}
+
+pub(crate) fn get_eth_to_strk_error_count_alert() -> Alert {
+    oracle_error_count_alert(
+        "eth_to_strk_error_count",
+        "Eth to Strk error count",
+        &ETH_TO_STRK_ERROR_COUNT,
+        AlertSeverity::Informational,
     )
 }
 
@@ -67,6 +68,52 @@ pub(crate) fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Alert if an exchange-rate oracle had no successful query in the last hour.
+///
+/// Uses `sum_increase` instead of bare `increase` to avoid false positives on spot eviction: when
+/// a pod is evicted and rescheduled, the new pod's counter resets to 0, so a bare `increase([1h])`
+/// would return 0 until the first success. `sum` aggregates across all pod series, and the
+/// evicted pod's data points remain in the TSDB for the full 1h window, keeping the sum ≥ 1.
+fn oracle_success_count_alert(
+    name: &str,
+    title: &str,
+    success_count_metric: &dyn MetricQueryName,
+    severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
+    Alert::new(
+        name,
+        title,
+        EvaluationRate::Default,
+        sum_increase(success_count_metric, "1h"),
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        severity,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Alert if an exchange-rate oracle exceeded the failure threshold in the last hour.
+///
+/// `or vector(0)` keeps the query defined (evaluating to 0) when the metric has no samples yet,
+/// so the alert stays silent instead of going to no-data before the first error is recorded.
+fn oracle_error_count_alert(
+    name: &str,
+    title: &str,
+    error_count_metric: &dyn MetricQueryName,
+    severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
+    Alert::new(
+        name,
+        title,
+        EvaluationRate::Default,
+        format!("{} or vector(0)", sum_increase(error_count_metric, "1h")),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
+        "1m",
+        severity,
         ObserverApplicability::NotApplicable,
     )
 }
