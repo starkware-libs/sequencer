@@ -445,6 +445,18 @@ debug = true
 inherits = "release"
 strip = "none"
 
+# Default dev builds emit line-tables-only debuginfo: this preserves panic/backtrace file:line,
+# tracing call-site locations, and profiler/coverage symbols, while dropping the full DWARF
+# variable/type info that dominates codegen time, linker memory, and target/ disk. Debugger
+# variable inspection (stepping/breakpoints still work) is restored on demand by building with the
+# dev-debug profile (`cargo build --profile dev-debug -p <crate>`) or `CARGO_PROFILE_DEV_DEBUG=2`.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev-debug]
+debug = true
+inherits = "dev"
+
 [workspace.lints.clippy]
 as_conversions = "warn"
 await_holding_lock = "warn"
