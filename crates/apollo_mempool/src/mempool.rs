@@ -840,6 +840,17 @@ impl Mempool {
             self.decrement_stuck_txs_if_gap_account(tx_ref.address, 1);
         }
 
+        // Drop gap accounts that expiry left with no pool txs. Their stuck txs are non-queued, so
+        // the queued-tx map returned below never re-evaluates them; without this they
+        // linger in `accounts_with_gap` (accounts_with_gap > 0 while stuck_txs == 0). Runs
+        // after the decrement loop above: removing an account from the set early would make
+        // its per-tx stuck decrements no-op.
+        for tx_ref in &removed_txs {
+            if !self.tx_pool.contains_account(tx_ref.address) {
+                self.remove_from_accounts_with_gap(tx_ref.address);
+            }
+        }
+
         let queued_txs = self.tx_queue.remove_txs(&removed_txs);
 
         self.log_and_count_expired_txs(&removed_txs);
