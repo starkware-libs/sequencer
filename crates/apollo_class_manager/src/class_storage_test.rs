@@ -189,6 +189,64 @@ async fn fs_storage_partial_write_no_atomic_marker() {
     assert_eq!(storage.get_executable(class_id), Ok(None));
 }
 
+/// Reproduces the production sync deadlock: a crash between writing the class files and committing
+/// the existence marker leaves an orphaned, non-empty persistent directory. Re-running `set_class`
+/// must recover and complete the write; previously `std::fs::rename` failed with ENOTEMPTY and
+/// wedged sync on the class forever.
+#[tokio::test]
+async fn set_class_recovers_from_orphaned_class_dir() {
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
+    let mut storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let class_id = ClassHash(felt!("0x1234"));
+    let class = RawClass::try_from(SierraContractClass::default()).unwrap();
+    let executable_class = RawExecutableClass::test_casm_contract_class();
+    let executable_class_hash_v2 = CompiledClassHash(felt!("0x5678"));
+
+    // Simulate a partial write: class files are on disk, but the existence marker was never
+    // committed (the process crashed in between).
+    storage.write_class_atomically(class_id, class.clone(), executable_class.clone()).unwrap();
+    assert_eq!(storage.get_executable_class_hash_v2(class_id), Ok(None));
+    assert!(storage.get_persistent_dir(class_id).join("sierra").exists());
+
+    // `set_class` must recover the orphaned directory and complete the write.
+    storage
+        .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
+        .unwrap();
+
+    // The class is now fully readable and marked as existent.
+    assert_eq!(storage.get_sierra(class_id).unwrap(), Some(class));
+    assert_eq!(storage.get_executable(class_id).unwrap(), Some(executable_class));
+    assert_eq!(storage.get_executable_class_hash_v2(class_id), Ok(Some(executable_class_hash_v2)));
+}
+
+/// As above, for the deprecated-class write path: an orphaned, non-empty directory at the class's
+/// persistent path must not permanently block `set_deprecated_class` with ENOTEMPTY.
+#[tokio::test]
+async fn set_deprecated_class_recovers_from_orphaned_class_dir() {
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
+    let mut storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let class_id = ClassHash(felt!("0x1234"));
+    let executable_class = RawExecutableClass::test_casm_contract_class();
+
+    // Simulate a leftover, non-empty persistent directory without the deprecated-class file, so the
+    // class is still considered absent.
+    let persistent_dir = storage.get_persistent_dir(class_id);
+    std::fs::create_dir_all(&persistent_dir).unwrap();
+    std::fs::write(persistent_dir.join("stale"), b"leftover").unwrap();
+    assert!(!storage.contains_deprecated_class(class_id));
+
+    // `set_deprecated_class` must recover the orphaned directory and complete the write.
+    storage.set_deprecated_class(class_id, executable_class.clone()).unwrap();
+
+    assert_eq!(storage.get_deprecated_class(class_id).unwrap(), Some(executable_class));
+}
+
 #[tokio::test]
 async fn cached_storage_none_flows_do_not_cache() {
     let persistent_root = tempfile::tempdir().unwrap();
