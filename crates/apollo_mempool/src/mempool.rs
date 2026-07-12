@@ -933,7 +933,7 @@ impl Mempool {
 
     fn decrement_stuck_txs_if_gap_account(&mut self, address: ContractAddress, n: usize) {
         if self.accounts_with_gap.contains(&address) {
-            self.n_stuck_txs -= n;
+            self.n_stuck_txs = self.n_stuck_txs.saturating_sub(n);
         }
     }
 
@@ -941,7 +941,8 @@ impl Mempool {
     // n_stuck_txs. No-op if the address was not tracked.
     fn remove_from_accounts_with_gap(&mut self, address: ContractAddress) {
         if self.accounts_with_gap.swap_remove(&address) {
-            self.n_stuck_txs -= self.tx_pool.n_txs_for_address(address);
+            self.n_stuck_txs =
+                self.n_stuck_txs.saturating_sub(self.tx_pool.n_txs_for_address(address));
         }
     }
 
