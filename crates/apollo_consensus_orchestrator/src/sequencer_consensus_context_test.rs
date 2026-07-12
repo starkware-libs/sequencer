@@ -65,7 +65,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 
 #[cfg(feature = "os_input")]
-use crate::cende::StateCommitmentInfosAndNumber;
+use crate::cende::{CendeAmbassadorError, CendeAmbassadorResult, StateCommitmentInfosAndNumber};
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
@@ -919,8 +919,7 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let (mut deps, _network) = create_test_and_network_deps();
 
     // The batcher serves the compressed witness; the orchestrator forwards it verbatim.
-    let state_commitment_infos =
-        CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec());
+    let state_commitment_infos = default_state_commitment_infos();
 
     let returned_infos = state_commitment_infos.clone();
     deps.batcher
@@ -951,6 +950,127 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let mut context = deps.build_context();
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
+}
+
+#[cfg(feature = "os_input")]
+fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
+    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
+}
+
+/// Returns the block numbers `collect_recent_state_commitment_infos` sends for `height` when the
+/// recorder reports `commitment_infos_height_offset`.
+#[cfg(feature = "os_input")]
+async fn collected_heights_for(
+    height: BlockNumber,
+    commitment_infos_height_offset: CendeAmbassadorResult<Option<BlockNumber>>,
+) -> Vec<u64> {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| Ok(Some(default_state_commitment_infos())));
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(move || commitment_infos_height_offset);
+
+    let context = deps.build_context();
+    context
+        .collect_recent_state_commitment_infos(height)
+        .await
+        .expect("offset query should succeed")
+        .iter()
+        .map(|info| info.block_number.0)
+        .collect()
+}
+
+/// Like [`collected_heights_for`], but the batcher only reports `Some` commitment infos for heights
+/// in `committed_heights` (and `None` otherwise), letting tests exercise gaps in stored infos.
+#[cfg(feature = "os_input")]
+async fn collected_heights_with_committed(
+    height: BlockNumber,
+    offset: Option<BlockNumber>,
+    committed_heights: Vec<u64>,
+) -> Vec<u64> {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher.expect_get_state_commitment_infos().returning(move |block_number| {
+        Ok(committed_heights.contains(&block_number.0).then(default_state_commitment_infos))
+    });
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(move || Ok(offset));
+
+    let context = deps.build_context();
+    context
+        .collect_recent_state_commitment_infos(height)
+        .await
+        .expect("offset query should succeed")
+        .iter()
+        .map(|info| info.block_number.0)
+        .collect()
+}
+
+// `height` is fixed at 100; each case sets the recorder's reported offset (its next produced
+// block) and the block numbers we expect to send.
+#[cfg(feature = "os_input")]
+#[rstest]
+#[case::delta_above_recorder(Some(BlockNumber(98)), vec![98, 99, 100])]
+#[case::single_new_block(Some(BlockNumber(100)), vec![100])]
+#[case::fallback_window_when_recorder_empty(None, (90..=100).collect())]
+#[case::nothing_when_recorder_caught_up(Some(BlockNumber(101)), vec![])]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_sends_expected_delta(
+    #[case] offset: Option<BlockNumber>,
+    #[case] expected: Vec<u64>,
+) {
+    let height = BlockNumber(100);
+    let heights = collected_heights_for(height, Ok(offset)).await;
+    assert_eq!(heights, expected);
+}
+
+// `height` is fixed at 100. Each case controls which heights the batcher has committed commitment
+// infos for; the rest return `None`. Verifies how the collection loop handles those gaps.
+#[cfg(feature = "os_input")]
+#[rstest]
+// Empty recorder: the fallback window is [90, 100]. The leading heights with no stored infos are
+// skipped rather than truncating the result to empty.
+#[case::empty_recorder_skips_leading_gap(None, (93..=100).collect(), (93..=100).collect())]
+// Empty recorder: a None after some infos were collected ends the collection.
+#[case::empty_recorder_stops_at_trailing_gap(None, (90..=95).collect(), (90..=95).collect())]
+// Non-empty recorder: a None at the offset still breaks immediately (behavior unchanged).
+#[case::non_empty_recorder_breaks_on_first_gap(Some(BlockNumber(90)), (93..=100).collect(), vec![])]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_handles_committed_gaps(
+    #[case] offset: Option<BlockNumber>,
+    #[case] committed_heights: Vec<u64>,
+    #[case] expected: Vec<u64>,
+) {
+    let height = BlockNumber(100);
+    let heights = collected_heights_with_committed(height, offset, committed_heights).await;
+    assert_eq!(heights, expected);
+}
+
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() {
+    // A failed offset query must propagate, not silently fall back to genesis.
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| Ok(Some(default_state_commitment_infos())));
+    deps.cende_ambassador.expect_commitment_infos_height_offset().times(1).return_once(|| {
+        Err(CendeAmbassadorError::RecorderRequestFailed {
+            path: "get_witness_height_offset".to_string(),
+            message: "request failed".to_string(),
+        })
+    });
+
+    let context = deps.build_context();
+    let result = context.collect_recent_state_commitment_infos(BlockNumber(100)).await;
+    assert!(
+        matches!(&result, Err(CendeAmbassadorError::RecorderRequestFailed { .. })),
+        "expected the offset query error to propagate, got {result:?}"
+    );
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:
