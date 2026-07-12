@@ -51,7 +51,20 @@ pub fn get_min_gas_price_for_height(
         .unwrap_or(fallback_min_gas_price)
 }
 
+/// The result of [`calculate_next_l2_gas_price_for_fin`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NextL2GasPrice {
+    /// The L2 gas price for the next block.
+    pub price: GasPrice,
+    /// The configured minimum gas price for this height (from `min_l2_gas_price_per_height`, or
+    /// the versioned-constants fallback), regardless of whether an override was applied.
+    pub config_min: GasPrice,
+}
+
 /// Compute the next L2 gas price (for the fin or for updating state). Respects override when set.
+///
+/// Returns the next price alongside the configured minimum for this height, so callers that also
+/// need the configured minimum (e.g. for the "at minimum" gauge) don't have to look it up again.
 pub fn calculate_next_l2_gas_price_for_fin(
     current_l2_gas_price: GasPrice,
     height: BlockNumber,
@@ -59,21 +72,23 @@ pub fn calculate_next_l2_gas_price_for_fin(
     override_l2_gas_price_fri: Option<u128>,
     min_l2_gas_price_per_height: &[PricePerHeight],
     fee_actual: Option<GasPrice>,
-) -> GasPrice {
+) -> NextL2GasPrice {
+    let config_min = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
     if let Some(override_value) = override_l2_gas_price_fri {
         info!(
             "L2 gas price ({}) is not updated, remains on override value of {override_value} fri",
             current_l2_gas_price.0
         );
-        return GasPrice(override_value);
+        return NextL2GasPrice { price: GasPrice(override_value), config_min };
     }
     let gas_target = VersionedConstants::latest_constants().gas_target;
-    let config_min = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
     let effective_min = match fee_actual {
         Some(fa) => GasPrice(max(config_min.0, fa.0)),
         None => config_min,
     };
-    calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, effective_min)
+    let price =
+        calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, effective_min);
+    NextL2GasPrice { price, config_min }
 }
 
 /// Calculate the base gas price for the next block according to EIP-1559.
