@@ -638,14 +638,14 @@ impl Bouncer {
         // rather than the cumulative state attributes.
         let marginal_state_changes_keys =
             tx_state_changes_keys.difference(&self.state_changes_keys);
-        let executed_class_hashes = &self
+        let accumulated_executed_class_hashes = &self
             .accumulated_weights
             .casm_hash_computation_data_sierra_gas
             .class_hash_to_casm_hash_computation_gas;
         let marginal_executed_class_hashes: HashSet<ClassHash> = tx_execution_summary
             .executed_class_hashes
             .iter()
-            .filter(|class_hash| !executed_class_hashes.contains_key(class_hash))
+            .filter(|class_hash| !accumulated_executed_class_hashes.contains_key(class_hash))
             .cloned()
             .collect();
         let n_marginal_visited_storage_entries = tx_execution_summary
