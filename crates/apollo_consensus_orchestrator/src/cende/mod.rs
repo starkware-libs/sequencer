@@ -32,6 +32,7 @@ use central_objects::{
     CentralStateDiff,
     CentralTransactionWritten,
 };
+use const_format::concatcp;
 #[cfg(test)]
 use mockall::automock;
 use reqwest::Response;
@@ -70,6 +71,8 @@ pub enum CendeAmbassadorError {
     ClassNotFound { class_hash: ClassHash },
     #[error(transparent)]
     StarknetApiError(#[from] starknet_api::StarknetApiError),
+    #[error("Recorder request to {path} failed: {message}")]
+    RecorderRequestFailed { path: String, message: String },
 }
 
 /// Number of recent block hashes to include in the blob.
@@ -142,15 +145,17 @@ pub struct CendeAmbassador {
     class_manager: SharedClassManagerClient,
 }
 
+/// The endpoint prefix shared by all recorder paths.
+const RECORDER_PREFIX: &str = "/cende_recorder";
 /// The path to write blob in the Recorder.
-pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
+pub const RECORDER_WRITE_BLOB_PATH: &str = concatcp!(RECORDER_PREFIX, "/write_blob");
 /// The path to get the latest received block from the Recorder (the next block that will be written
 /// to DB. returns null when no blocks exist).
 pub const RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH: &str =
-    "/cende_recorder/get_latest_received_block";
+    concatcp!(RECORDER_PREFIX, "/get_latest_received_block");
 
 #[derive(Debug, Deserialize)]
-struct GetLatestReceivedBlockResponse {
+struct BlockNumberResponse {
     block_number: Option<u64>,
 }
 
@@ -202,7 +207,14 @@ async fn previous_height_exists_at_cende_recorder(
         return true;
     }
 
-    let latest_received_block = fetch_latest_received_block(&client, &url).await;
+    let latest_received_block =
+        match fetch_block_number(&client, &url, RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH).await {
+            Ok(block_number) => block_number,
+            Err(e) => {
+                warn!("Failed to fetch latest received block from recorder: {e}");
+                None
+            }
+        };
 
     // No latest received block, so no previous block.
     let Some(latest) = latest_received_block else {
@@ -236,33 +248,34 @@ async fn previous_height_exists_at_cende_recorder(
     false
 }
 
-async fn fetch_latest_received_block(
+/// Sends a GET request to a recorder endpoint that responds with a nullable block number.
+async fn fetch_block_number(
     client: &ClientWithMiddleware,
     url: &Url,
-) -> Option<BlockNumber> {
-    match client.get(url.as_str()).send().await {
-        Ok(response) if response.status().is_success() => {
-            match response.json::<GetLatestReceivedBlockResponse>().await {
-                Ok(resp) => resp.block_number.map(BlockNumber),
-                Err(e) => {
-                    warn!("Failed to parse recorder get_latest_received_block response: {e}");
-                    None
-                }
-            }
-        }
-        Ok(response) => {
-            warn!(
-                "Recorder get_latest_received_block returned error status {}: {}",
-                response.status(),
-                response.text().await.unwrap_or_else(|_| "unparseable".to_string())
-            );
-            None
-        }
-        Err(e) => {
-            warn!("Failed to request recorder get_latest_received_block: {e}");
-            None
-        }
+    path: &str,
+) -> CendeAmbassadorResult<Option<BlockNumber>> {
+    let recorder_error = |message: String| CendeAmbassadorError::RecorderRequestFailed {
+        path: path.to_string(),
+        message,
+    };
+
+    let response = client
+        .get(url.as_str())
+        .send()
+        .await
+        .map_err(|e| recorder_error(format!("request failed: {e}")))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_else(|_| "unparseable".to_string());
+        return Err(recorder_error(format!("returned error status {status}: {body}")));
     }
+
+    let parsed = response
+        .json::<BlockNumberResponse>()
+        .await
+        .map_err(|e| recorder_error(format!("failed to parse response: {e}")))?;
+    Ok(parsed.block_number.map(BlockNumber))
 }
 
 #[async_trait]

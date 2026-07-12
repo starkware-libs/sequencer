@@ -30,6 +30,7 @@ async-trait.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
+const_format.workspace = true
 ethnum.workspace = true
 futures.workspace = true
 indexmap.workspace = true
