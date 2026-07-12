@@ -96,7 +96,11 @@ impl Epoch {
 
     fn within_next_epoch_min_bounds(&self, height: BlockNumber) -> bool {
         let next_epoch_start_block = BlockNumber(self.start_block.0 + self.epoch_length);
-        range_contains(height, next_epoch_start_block, MIN_EPOCH_LENGTH)
+        // Only heights guaranteed to fall within the next epoch may resolve to `epoch_id + 1`.
+        // The next epoch's length is unknown until it starts, so bound the window by the
+        // smallest known lower bound on epoch length.
+        let next_epoch_min_length = MIN_EPOCH_LENGTH.min(self.epoch_length);
+        range_contains(height, next_epoch_start_block, next_epoch_min_length)
     }
 }
 
