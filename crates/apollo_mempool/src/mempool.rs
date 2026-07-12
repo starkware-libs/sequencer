@@ -845,8 +845,13 @@ impl Mempool {
         // linger in `accounts_with_gap` (accounts_with_gap > 0 while stuck_txs == 0). Runs
         // after the decrement loop above: removing an account from the set early would make
         // its per-tx stuck decrements no-op.
+        // Check gap-set membership before touching `tx_pool`: non-gap addresses (the common case)
+        // skip the `tx_pool` lookup entirely, and an account with several stuck txs expiring in
+        // the same sweep is probed only once instead of once per tx.
         for tx_ref in &removed_txs {
-            if !self.tx_pool.contains_account(tx_ref.address) {
+            if self.accounts_with_gap.contains(&tx_ref.address)
+                && !self.tx_pool.contains_account(tx_ref.address)
+            {
                 self.remove_from_accounts_with_gap(tx_ref.address);
             }
         }
