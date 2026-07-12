@@ -3951,6 +3951,8 @@ dependencies = [
  "itertools 0.12.1",
  "keccak 0.1.5",
  "log",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockall",
  "num-bigint",
  "num-integer",
