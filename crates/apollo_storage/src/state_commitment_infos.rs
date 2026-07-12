@@ -1,8 +1,9 @@
 //! Storage for the per-block OS-input commitment infos (state-trie commitment data for the OS).
+//!
+//! Persists the already-compressed `CompressedStateCommitmentInfos` the committer produces.
 
 use starknet_api::block::BlockNumber;
-pub use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfosCodecError;
+pub use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 
 #[cfg(test)]
 #[path = "state_commitment_infos_test.rs"]
@@ -13,37 +14,24 @@ use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
 use crate::{OffsetKind, StorageResult, StorageTransaction};
 
-// Encoded with bincode (not serde_json): this is hash/`Felt`-heavy data, where bincode's fixed
-// binary encoding is markedly more compact than JSON's hex-string encoding. The trade-off is that
-// bincode is positional and not schema-evolution tolerant, which is acceptable here.
-impl StorageSerde for StateCommitmentInfos {
+// Stores the raw compressed bytes.
+impl StorageSerde for CompressedStateCommitmentInfos {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        let compressed = self.compress()?;
-        compressed.serialize_into(res)
+        self.0.serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
-        let compressed = Vec::<u8>::deserialize_from(bytes)?;
-        Self::decompress(&compressed).ok()
-    }
-}
-
-impl From<StateCommitmentInfosCodecError> for StorageSerdeError {
-    fn from(error: StateCommitmentInfosCodecError) -> Self {
-        match error {
-            StateCommitmentInfosCodecError::Bincode(error) => StorageSerdeError::Bincode(error),
-            StateCommitmentInfosCodecError::Io(error) => StorageSerdeError::Io(error),
-        }
+        Some(Self(Vec::<u8>::deserialize_from(bytes)?))
     }
 }
 
 /// Interface for reading the OS-input commitment infos from storage.
 pub trait StateCommitmentInfosStorageReader<Mode: TransactionKind> {
-    /// Returns the commitment infos for the given block, or `None` if not stored.
+    /// Returns the compressed commitment infos for the given block, or `None` if not stored.
     fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>>;
+    ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
 }
 
 /// Interface for writing the OS-input commitment infos to storage.
@@ -51,11 +39,11 @@ pub trait StateCommitmentInfosStorageWriter
 where
     Self: Sized,
 {
-    /// Appends the commitment infos for the given block to storage.
+    /// Appends the compressed commitment infos for the given block to storage.
     fn append_state_commitment_infos(
         self,
         block_number: BlockNumber,
-        state_commitment_infos: &StateCommitmentInfos,
+        state_commitment_infos: &CompressedStateCommitmentInfos,
     ) -> StorageResult<Self>;
 
     /// Removes the commitment infos for the given block from storage.
@@ -69,7 +57,7 @@ impl<T: StorageTransaction> StateCommitmentInfosStorageReader<<T as StorageTrans
     fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>> {
+    ) -> StorageResult<Option<CompressedStateCommitmentInfos>> {
         let table = self.open_table(&self.tables().state_commitment_infos)?;
         let Some(location) = table.get(self.txn(), &block_number)? else {
             return Ok(None);
@@ -82,7 +70,7 @@ impl<T: StorageTransaction<Mode = RW>> StateCommitmentInfosStorageWriter for T {
     fn append_state_commitment_infos(
         self,
         block_number: BlockNumber,
-        state_commitment_infos: &StateCommitmentInfos,
+        state_commitment_infos: &CompressedStateCommitmentInfos,
     ) -> StorageResult<Self> {
         let file_offset_table = self.open_table(&self.tables().file_offsets)?;
         let state_commitment_infos_table =

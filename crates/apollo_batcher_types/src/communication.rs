@@ -16,7 +16,7 @@ use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 #[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
@@ -56,11 +56,12 @@ pub trait BatcherClient: Send + Sync {
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
     /// Gets the block hash for a given block number.
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
+    /// Gets the compressed state commitment infos for a block.
     #[cfg(feature = "os_input")]
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<StateCommitmentInfos>;
+    ) -> BatcherClientResult<CompressedStateCommitmentInfos>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -146,7 +147,7 @@ pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
     #[cfg(feature = "os_input")]
-    GetStateCommitmentInfos(BatcherResult<StateCommitmentInfos>),
+    GetStateCommitmentInfos(BatcherResult<CompressedStateCommitmentInfos>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -205,7 +206,7 @@ where
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<StateCommitmentInfos> {
+    ) -> BatcherClientResult<CompressedStateCommitmentInfos> {
         let request = BatcherRequest::GetStateCommitmentInfos(block_number);
         handle_all_response_variants!(
             self,

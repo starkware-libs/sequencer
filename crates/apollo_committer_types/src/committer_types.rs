@@ -5,7 +5,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::state::ThinStateDiff;
 #[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
@@ -50,5 +50,5 @@ pub struct ReadPathsAndCommitBlockRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReadPathsAndCommitBlockResponse {
     pub global_root: GlobalRoot,
-    pub state_commitment_infos: StateCommitmentInfos,
+    pub state_commitment_infos: CompressedStateCommitmentInfos,
 }
