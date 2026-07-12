@@ -56,12 +56,13 @@ pub trait BatcherClient: Send + Sync {
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
     /// Gets the block hash for a given block number.
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
-    /// Gets the compressed state commitment infos for a block.
+    /// Gets the compressed state commitment infos for a block. Returns `Ok(None)` when the block
+    /// is not committed yet.
     #[cfg(feature = "os_input")]
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<CompressedStateCommitmentInfos>;
+    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -147,7 +148,7 @@ pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
     #[cfg(feature = "os_input")]
-    GetStateCommitmentInfos(BatcherResult<CompressedStateCommitmentInfos>),
+    GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -206,7 +207,7 @@ where
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<CompressedStateCommitmentInfos> {
+    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
         let request = BatcherRequest::GetStateCommitmentInfos(block_number);
         handle_all_response_variants!(
             self,

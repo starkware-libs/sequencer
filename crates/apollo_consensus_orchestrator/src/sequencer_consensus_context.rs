@@ -706,18 +706,12 @@ impl SequencerConsensusContext {
         for height in lowest_height..=height.0 {
             let block_number = BlockNumber(height);
             match self.deps.batcher.get_state_commitment_infos(block_number).await {
-                Ok(state_commitment_infos) => recent_state_commitment_infos
+                Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+                // We passed the latest block with state commitment infos.
+                Ok(None) => break,
                 Err(err) => {
-                    // This error is expected if the block is not yet committed.
-                    if !matches!(
-                        err,
-                        BatcherClientError::BatcherError(
-                            BatcherError::StateCommitmentInfosNotFound(_)
-                        )
-                    ) {
-                        warn!("Failed to get state commitment infos from batcher: {err:?}");
-                    }
+                    warn!("Failed to get state commitment infos from batcher: {err:?}");
                     break;
                 }
             }
