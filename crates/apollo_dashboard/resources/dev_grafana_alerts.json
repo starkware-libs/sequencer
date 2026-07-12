@@ -613,6 +613,32 @@
       "severity": "p5"
     },
     {
+      "name": "consensus_l2_gas_price_at_minimum",
+      "title": "L2 gas price at configured minimum",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(max(consensus_l2_gas_price_at_minimum{cluster=~\"$cluster\", namespace=~\"$namespace\"})) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "2m",
+      "severity": "p3"
+    },
+    {
       "name": "consensus_p2p_disconnections",
       "title": "Consensus p2p disconnections",
       "ruleGroup": "evaluation_rate_default",

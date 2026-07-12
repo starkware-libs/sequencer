@@ -101,6 +101,7 @@ use crate::metrics::{
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     SNIP35_FEE_ACTUAL_FRI,
     SNIP35_FEE_PROPOSAL_FRI,
     SNIP35_FEE_TARGET_ATTO_USD,
@@ -495,6 +496,11 @@ impl SequencerConsensusContext {
         self.l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
+        let config_min = get_min_gas_price_for_height(
+            height,
+            &self.config.dynamic_config.min_l2_gas_price_per_height,
+        );
+        CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.set_lossy(u64::from(self.l2_gas_price <= config_min));
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1056,6 +1062,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.l2_gas_price = max(self.l2_gas_price, min_gas_price_for_height);
                 let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
                 CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
+                CONSENSUS_L2_GAS_PRICE_AT_MINIMUM
+                    .set_lossy(u64::from(self.l2_gas_price <= min_gas_price_for_height));
             }
             self.current_height = Some(height);
             self.current_round = round;
