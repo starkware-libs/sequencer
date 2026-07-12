@@ -9,7 +9,7 @@
 #[path = "manager_test.rs"]
 mod manager_test;
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -218,8 +218,9 @@ const NUM_VOTE_TYPES: usize = 2;
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
 struct ConsensusCache<ContextT: ConsensusContext> {
-    // Mapping: { Height : Vec<Vote> }
-    future_votes: BTreeMap<BlockNumber, Vec<Vote>>,
+    // Mapping: { Height : { (VoteType, Round, Voter) : Vote } }, keyed for O(1) duplicate lookup
+    // in `cache_future_vote` instead of an O(cache size) scan.
+    future_votes: BTreeMap<BlockNumber, HashMap<(VoteType, Round, ValidatorId), Vote>>,
     // Mapping: { Height : { Round : (BlockInfo, Receiver)}}
     future_proposals_cache:
         BTreeMap<BlockNumber, BTreeMap<Round, ProposalReceiverTuple<ContextT::ProposalPart>>>,
@@ -252,7 +253,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
             };
             match entry.key().cmp(&height) {
                 std::cmp::Ordering::Greater => return Vec::new(),
-                std::cmp::Ordering::Equal => return entry.remove(),
+                std::cmp::Ordering::Equal => return entry.remove().into_values().collect(),
                 std::cmp::Ordering::Less => {
                     entry.remove();
                 }
@@ -306,12 +307,9 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     fn cache_future_vote(&mut self, vote: Vote) -> Result<(), Box<EquivocationVoteReport>> {
         let cap = self.future_votes_cap();
         let votes = self.future_votes.entry(vote.height).or_default();
-        // Find a vote in the list with the same type, round, and voter. If found, do not add it to
-        // list.
-        let duplicate_vote = votes.iter().find(|v| {
-            v.vote_type == vote.vote_type && v.round == vote.round && v.voter == vote.voter
-        });
-        if let Some(duplicate_vote) = duplicate_vote {
+        // Look up a vote with the same type, round, and voter. If found, do not add it to the map.
+        let vote_key = (vote.vote_type, vote.round, vote.voter);
+        if let Some(duplicate_vote) = votes.get(&vote_key) {
             // If the two votes are identical, we just ignore this.
             if duplicate_vote == &vote {
                 Ok(())
@@ -327,7 +325,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
             // not yet verified, a peer can forge votes with arbitrary voter addresses; without this
             // cap that would grow `future_votes` without bound and exhaust memory.
             if votes.len() < cap {
-                votes.push(vote);
+                votes.insert(vote_key, vote);
             } else {
                 // TODO(Matan): once the network expands beyond the current trusted set, rate-limit
                 // this log (e.g. `trace_every_n_ms!`) so that dropping votes can't itself be used
