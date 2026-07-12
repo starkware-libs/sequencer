@@ -24,6 +24,7 @@ use crate::server::request_log::{
     extract_or_generate_request_id,
     new_request_id,
     request_id_header_value,
+    RequestId,
     REQUEST_ID_HEADER,
 };
 
@@ -69,11 +70,16 @@ where
             request.headers_mut().insert(REQUEST_ID_HEADER, request_id_header_value(&fresh_id));
             fresh_id
         } else {
-            // Re-derives, via the shared validator, the exact id
-            // `RequestLogLayer` already assigned — the header is left
-            // untouched. This also keeps the layer correct standalone,
-            // e.g. in unit tests without `RequestLogLayer` upstream.
-            extract_or_generate_request_id(&request)
+            // Reuses the id `RequestLogLayer` already validated/generated via
+            // its request extension, avoiding a second header parse and
+            // validation pass per request. Falls back to re-deriving it (the
+            // header is left untouched either way) so the layer stays correct
+            // standalone, e.g. in unit tests without `RequestLogLayer`
+            // upstream.
+            request.extensions().get::<RequestId>().map_or_else(
+                || extract_or_generate_request_id(&request),
+                |request_id| request_id.0.clone(),
+            )
         };
         self.inner.call(request).instrument(info_span!("http_request", request_id = %request_id))
     }
