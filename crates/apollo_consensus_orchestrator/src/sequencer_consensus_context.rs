@@ -78,14 +78,14 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-#[cfg(feature = "os_input")]
-use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{
     BlobParameters,
     CendeContext,
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
+#[cfg(feature = "os_input")]
+use crate::cende::{CendeAmbassadorResult, StateCommitmentInfosAndNumber};
 use crate::dynamic_gas_price::{
     compute_fee_actual,
     compute_fee_proposal,
@@ -593,6 +593,15 @@ impl SequencerConsensusContext {
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
 
+        #[cfg(feature = "os_input")]
+        let recent_state_commitment_infos =
+            self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
+                // `finalize_decision` must not fail, so continue with an empty vector.
+                error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
+                Vec::new()
+            });
+        // TODO(Yoav): Add metrics for most recent state commitment infos sent.
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -624,9 +633,7 @@ impl SequencerConsensusContext {
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
                 #[cfg(feature = "os_input")]
-                recent_state_commitment_infos: self
-                    .collect_recent_state_commitment_infos(height)
-                    .await,
+                recent_state_commitment_infos,
                 #[cfg(feature = "os_input")]
                 initial_reads: central_objects.initial_reads,
             })
@@ -701,27 +708,48 @@ impl SequencerConsensusContext {
     async fn collect_recent_state_commitment_infos(
         &self,
         height: BlockNumber,
-    ) -> Vec<StateCommitmentInfosAndNumber> {
+    ) -> CendeAmbassadorResult<Vec<StateCommitmentInfosAndNumber>> {
+        // Send only the commitment infos the cende recorder has not stored yet, bounding the
+        // lower end by the cende recorder's commitment infos height offset.
+        let (lowest_height, cende_recorder_is_empty) =
+            match self.deps.cende_ambassador.commitment_infos_height_offset().await? {
+                Some(commitment_infos_height_offset) => (commitment_infos_height_offset.0, false),
+                // The cende recorder has stored nothing yet: fall back to block hashes window
+                // size.
+                None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
+            };
         let mut recent_state_commitment_infos = Vec::with_capacity(
-            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
-                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
-                + 1,
+            usize::try_from(height.0.saturating_sub(lowest_height) + 1)
+                .expect("Commitment infos count should fit in usize."),
         );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        for height in lowest_height..=height.0 {
-            let block_number = BlockNumber(height);
+        for block_height in lowest_height..=height.0 {
+            let block_number = BlockNumber(block_height);
             match self.deps.batcher.get_state_commitment_infos(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+                // In the empty-cende-recorder case, the earliest heights in the window may
+                // predate the batcher's stored commitment infos; skip that leading gap. Once at
+                // least one has been collected a None marks the end of commitment infos, so
+                // break.
+                Ok(None) if cende_recorder_is_empty && recent_state_commitment_infos.is_empty() => {
+                    debug!(
+                        "The cende recorder has no commitment infos offset and the batcher has no \
+                         state commitment infos for block {block_number} to send to it; skipping."
+                    );
+                    continue;
+                }
                 // We passed the latest block with state commitment infos.
                 Ok(None) => break,
                 Err(err) => {
-                    warn!("Failed to get state commitment infos from batcher: {err:?}");
+                    error!(
+                        "Failed to get state commitment infos from batcher for block \
+                         {block_number}: {err:?}"
+                    );
                     break;
                 }
             }
         }
-        recent_state_commitment_infos
+        Ok(recent_state_commitment_infos)
     }
 }
 

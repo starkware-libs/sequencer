@@ -318,6 +318,10 @@ impl TestDeps {
         self.cende_ambassador
             .expect_write_prev_height_blob()
             .return_once(|_height| tokio::spawn(ready(true)));
+        // Default: cende recorder reports nothing stored → send from genesis. Delta tests
+        // override this.
+        #[cfg(feature = "os_input")]
+        self.cende_ambassador.expect_commitment_infos_height_offset().returning(|| Ok(None));
     }
 
     pub(crate) fn setup_default_gas_price_provider(&mut self) {
