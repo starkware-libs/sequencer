@@ -5,6 +5,11 @@ name = "apollo_gateway"
 repository.workspace = true
 version.workspace = true
 description = "Gateway component for receiving and validating transactions submitted to the Starknet sequencer."
+# The sole bench target is the explicit [[bench]] below (benches/main.rs, gated on the `testing`
+# feature). Disabling bench auto-discovery keeps benches/utils.rs — a helper module included by
+# benches/main.rs — from also being picked up as a standalone, feature-less bench target, which
+# breaks `cargo bench`/`cargo clippy --benches` when `testing` is not enabled.
+autobenches = false
 
 [lints]
 workspace = true
