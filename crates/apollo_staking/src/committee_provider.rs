@@ -12,6 +12,11 @@ use thiserror::Error;
 
 use crate::staking_contract::StakingContractError;
 
+/// A generous upper bound on the committee size, used by consumers that need a static bound on
+/// committee-derived quantities (e.g. sizing caches) without fetching the live committee. The
+/// configured committee size is operationally ~100; this leaves ample headroom.
+pub const MAX_COMMITTEE_SIZE: usize = 1000;
+
 pub type StakerSet = Vec<Staker>;
 
 #[cfg_attr(test, derive(Clone))]
