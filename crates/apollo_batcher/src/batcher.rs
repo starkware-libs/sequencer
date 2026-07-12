@@ -1538,14 +1538,11 @@ impl Batcher {
     pub fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherResult<CompressedStateCommitmentInfos> {
-        self.storage_reader
-            .get_state_commitment_infos(block_number)
-            .map_err(|err| {
-                error!("Failed to get state commitment infos from storage: {err}");
-                BatcherError::InternalError
-            })?
-            .ok_or(BatcherError::StateCommitmentInfosNotFound(block_number))
+    ) -> BatcherResult<Option<CompressedStateCommitmentInfos>> {
+        self.storage_reader.get_state_commitment_infos(block_number).map_err(|err| {
+            error!("Failed to get state commitment infos from storage: {err}");
+            BatcherError::InternalError
+        })
     }
 
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
