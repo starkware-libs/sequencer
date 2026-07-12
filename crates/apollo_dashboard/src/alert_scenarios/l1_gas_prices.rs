@@ -3,6 +3,8 @@ use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
+    SNIP35_STRK_USD_ERROR_COUNT,
+    SNIP35_STRK_USD_SUCCESS_COUNT,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
@@ -34,6 +36,25 @@ pub(crate) fn get_eth_to_strk_error_count_alert() -> Alert {
         "eth_to_strk_error_count",
         "Eth to Strk error count",
         &ETH_TO_STRK_ERROR_COUNT,
+        AlertSeverity::Informational,
+    )
+}
+
+pub(crate) fn get_strk_to_usd_success_count_alert() -> Alert {
+    const ALERT_NAME: &str = "strk_to_usd_success_count";
+    oracle_success_count_alert(
+        ALERT_NAME,
+        "Strk to Usd success count",
+        &SNIP35_STRK_USD_SUCCESS_COUNT,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+    )
+}
+
+pub(crate) fn get_strk_to_usd_error_count_alert() -> Alert {
+    oracle_error_count_alert(
+        "strk_to_usd_error_count",
+        "Strk to Usd error count",
+        &SNIP35_STRK_USD_ERROR_COUNT,
         AlertSeverity::Informational,
     )
 }
