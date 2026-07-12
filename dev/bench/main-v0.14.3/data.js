@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783852181776,
+  "lastUpdate": 1783865411576,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -781,6 +781,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1258.573368,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4cc3b997cf0e643f2cde0797e80d5802a1c765b2",
+          "message": "blockifier: record blocks-full-by-resource metric once per block, not per rejected tx (#14776)\n\nThe bouncer is created once per block but shared across every per-chunk\nWorkerExecutor, while each chunk gets a fresh scheduler. Once the block is\nfull, the first candidate of every subsequent chunk / executor invocation\nre-hits BlockFull in `try_update` and re-recorded blockifier_blocks_full_by_resource,\nturning a per-block metric into a per-rejected-tx count (~7.6x inflation observed\non mainnet: 5,872 increments vs 769 full-block closures per 24h).\n\nGate the recording on a per-block `block_full_recorded` flag so the counter is\nincremented at most once per block, matching its documented semantics. Add a\nregression test asserting the metric is recorded once across multiple rejected txs.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-12T13:38:54Z",
+          "tree_id": "73a762bfc39378cd6cdeb6efd1009667ef62f3b3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4cc3b997cf0e643f2cde0797e80d5802a1c765b2"
+        },
+        "date": 1783865411170,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 840.98602939,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1421.85620086,
             "unit": "ms"
           }
         ]
