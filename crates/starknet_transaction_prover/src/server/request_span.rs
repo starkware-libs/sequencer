@@ -72,14 +72,17 @@ where
         } else {
             // Reuses the id `RequestLogLayer` already validated/generated via
             // its request extension, avoiding a second header parse and
-            // validation pass per request. Falls back to re-deriving it (the
-            // header is left untouched either way) so the layer stays correct
+            // validation pass per request. Removed rather than cloned: no
+            // downstream reader needs the extension past this point, so
+            // taking ownership skips a `String` allocation on every
+            // plaintext request. Falls back to re-deriving it (the header is
+            // left untouched either way) so the layer stays correct
             // standalone, e.g. in unit tests without `RequestLogLayer`
             // upstream.
-            request.extensions().get::<RequestId>().map_or_else(
-                || extract_or_generate_request_id(&request),
-                |request_id| request_id.0.clone(),
-            )
+            request
+                .extensions_mut()
+                .remove::<RequestId>()
+                .map_or_else(|| extract_or_generate_request_id(&request), |request_id| request_id.0)
         };
         self.inner.call(request).instrument(info_span!("http_request", request_id = %request_id))
     }
