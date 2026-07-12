@@ -140,6 +140,17 @@ class BlockRangeDefaults:
 
 
 @dataclass(frozen=True, slots=True)
+class ResyncConfig:
+    """Behavior of the resync revert-and-restore flow."""
+
+    # When True, the revert step rewinds only to `max(start_block, next_start_block -
+    # revert_lookback_blocks)` instead of all the way back to the previous start block,
+    # bounding how many blocks must be re-synced from the feeder gateway.
+    bounded_revert_enabled: bool = False
+    revert_lookback_blocks: int = 100
+
+
+@dataclass(frozen=True, slots=True)
 class SleepConfig:
     """Sleep/delay settings for block streaming and special transaction pacing."""
 
@@ -228,6 +239,7 @@ class EchonetConfig:
     feeder: FeederGatewayConfig
     sequencer: SequencerGatewayConfig
     blocks: BlockRangeDefaults
+    resync: ResyncConfig
     sleep: SleepConfig
     tx_sender: TxSenderTuning
     block_store: BlockStoreTuning
@@ -280,6 +292,10 @@ class EchonetConfig:
             blocks=BlockRangeDefaults(
                 start_block=start_block,
                 end_block=int(keys.get("end_block_default", MAX_BLOCK_NUMBER)),
+            ),
+            resync=ResyncConfig(
+                bounded_revert_enabled=bool(keys.get("resync_bounded_revert_enabled", False)),
+                revert_lookback_blocks=int(keys.get("resync_revert_lookback_blocks", 100)),
             ),
             sleep=SleepConfig(),
             tx_sender=TxSenderTuning(
