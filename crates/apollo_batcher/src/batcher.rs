@@ -831,8 +831,12 @@ impl Batcher {
         })
     }
 
-    #[instrument(skip(self, sync_block), err)]
-    pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+    #[instrument(skip(self, sync_block, accessed_keys), err)]
+    pub async fn add_sync_block(
+        &mut self,
+        sync_block: SyncBlock,
+        accessed_keys: Option<AccessedKeys>,
+    ) -> BatcherResult<()> {
         trace!("Received sync block: {:?}", sync_block);
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
@@ -913,8 +917,6 @@ impl Batcher {
             }) => Some(header_commitments.state_diff_commitment),
         };
 
-        // Synced blocks are not executed locally, so no accessed keys are available; the block is
-        // committed via `CommitBlock`.
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -922,7 +924,7 @@ impl Batcher {
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
             storage_commitment_block_hash,
-            None,
+            accessed_keys.clone(),
         )
         .await?;
 
@@ -930,7 +932,7 @@ impl Batcher {
             height,
             state_diff,
             optional_state_diff_commitment,
-            None,
+            accessed_keys,
         )
         .await?;
 
