@@ -21,18 +21,21 @@ NIGHTLY_FEATURES_PACKAGES: Set[str] = {"starknet_transaction_prover"}
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"
 
-# List of sequencer node integration test binary names. Stored as a list to maintain order.
-SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
-    "integration_test_restart_flow",
-    "integration_test_positive_flow",
-    "integration_test_restart_service_multiple_nodes_flow",
-    "integration_test_revert_flow",
-    "integration_test_proof_flow",
+# Binary that runs a sequencer integration-test flow given the flow name as its argument.
+RUNNER_BINARY_NAME: str = "integration_test_runner"
+
+# List of sequencer node integration test flow names. Stored as a list to maintain order.
+SEQUENCER_INTEGRATION_TEST_FLOWS: List[str] = [
+    "restart",
+    "positive",
+    "restart_multiple_nodes",
+    "revert",
+    "proof",
 ]
-NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
+NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_FLOWS: List[str] = [
     # TODO(AndrewL): Try adding these tests to CI as well
-    "integration_test_restart_service_single_node_flow",
-    "integration_test_central_and_p2p_sync_flow",
+    "restart_single_node",
+    "sync",
 ]
 # Timeout per single integration test
 INTEGRATION_TEST_TIMEOUT: str = "10m"
@@ -86,8 +89,8 @@ class BaseCommand(Enum):
                 print(f"Skipping sequencer integration tests.")
                 return []
 
-            integration_test_names_to_run = SEQUENCER_INTEGRATION_TEST_NAMES + (
-                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES if is_nightly else []
+            integration_test_flows_to_run = SEQUENCER_INTEGRATION_TEST_FLOWS + (
+                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_FLOWS if is_nightly else []
             )
 
             print(f"Composing sequencer integration test commands.")
@@ -97,25 +100,22 @@ class BaseCommand(Enum):
                 # Commands to build the node and all the test binaries.
                 build_cmds = [
                     ["cargo", "build", "--bin", binary_name] + feature_flag
-                    for binary_name in [SEQUENCER_BINARY_NAME] + integration_test_names_to_run
+                    for binary_name in [SEQUENCER_BINARY_NAME, RUNNER_BINARY_NAME]
                 ]
                 return build_cmds
 
-            def make_silent_test_cmd(test_binary_name: str) -> List[str]:
-                """Runs a test binary, only showing output on failure or timeout."""
+            def make_silent_test_cmd(flow_name: str) -> List[str]:
+                """Runs one integration-test flow, only showing output on failure or timeout."""
                 return [
                     "sh",
                     "-c",
-                    f"timeout {INTEGRATION_TEST_TIMEOUT} ./target/debug/{test_binary_name} "
-                    f"> /tmp/{test_binary_name}_output.txt 2>&1 || "
-                    f"(cat /tmp/{test_binary_name}_output.txt; exit 1)",
+                    f"timeout {INTEGRATION_TEST_TIMEOUT} ./target/debug/{RUNNER_BINARY_NAME} {flow_name} "
+                    f"> /tmp/integration_test_{flow_name}_output.txt 2>&1 || "
+                    f"(cat /tmp/integration_test_{flow_name}_output.txt; exit 1)",
                 ]
 
             # Commands to run the test binaries.
-            run_cmds = [
-                make_silent_test_cmd(test_binary_name)
-                for test_binary_name in integration_test_names_to_run
-            ]
+            run_cmds = [make_silent_test_cmd(flow_name) for flow_name in integration_test_flows_to_run]
 
             cmds_no_feat = build_cmds(with_feature=False) + run_cmds
 
