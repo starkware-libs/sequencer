@@ -70,6 +70,7 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::{
+    validate_casm_builtins,
     StatelessTransactionValidator,
     StatelessTransactionValidatorTrait,
 };
@@ -253,6 +254,15 @@ impl<
         let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
         drop(compilation_permit);
+
+        // Validate the compiled class builtins (only available post-compilation).
+        if let AccountTransaction::Declare(declare_tx) = &executable_tx {
+            validate_casm_builtins(declare_tx.casm_contract_class()).map_err(|e| {
+                let error = StarknetError::from(e);
+                metric_counters.record_add_tx_failure(&error);
+                error
+            })?;
+        }
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory

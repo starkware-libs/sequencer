@@ -91,6 +91,11 @@ pub enum StatelessTransactionValidatorError {
         "Client-side proof is too large: size {proof_size} (maximum allowed: {max_proof_size})."
     )]
     ProofTooLarge { proof_size: usize, max_proof_size: usize },
+    #[error(
+        "The compiled contract class uses unsupported builtins or an invalid builtin order: \
+         {builtins:?}. Builtins must be an ordered subsequence of {supported_builtins:?}."
+    )]
+    UnsupportedBuiltins { builtins: Vec<String>, supported_builtins: Vec<String> },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -115,7 +120,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. }
             | StatelessTransactionValidatorError::ClientSideProvingNotAllowed
             | StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. }
-            | StatelessTransactionValidatorError::ProofTooLarge { .. } => {
+            | StatelessTransactionValidatorError::ProofTooLarge { .. }
+            | StatelessTransactionValidatorError::UnsupportedBuiltins { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -201,6 +207,11 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
             }
             StatelessTransactionValidatorError::ProofTooLarge { .. } => {
                 StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.PROOF_TOO_LARGE".to_string())
+            }
+            StatelessTransactionValidatorError::UnsupportedBuiltins { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.INVALID_CONTRACT_CLASS".to_string(),
+                )
             }
         };
         StarknetError { code, message }

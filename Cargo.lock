@@ -1559,6 +1559,8 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-sierra-to-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-vm",
  "clap",
  "criterion",
  "google-cloud-storage",

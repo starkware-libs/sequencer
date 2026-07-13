@@ -1,5 +1,7 @@
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_vm::utils::is_subsequence;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
@@ -17,6 +19,20 @@ use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionVali
 #[cfg(test)]
 #[path = "stateless_transaction_validator_test.rs"]
 mod stateless_transaction_validator_test;
+
+/// The builtins supported for Cairo 1 (Sierra) contracts, in their canonical order.
+const CAIRO1_SUPPORTED_BUILTINS: [&str; 10] = [
+    "pedersen",
+    "range_check",
+    "ecdsa",
+    "bitwise",
+    "ec_op",
+    "poseidon",
+    "segment_arena",
+    "range_check96",
+    "add_mod",
+    "mul_mod",
+];
 
 #[cfg_attr(test, mockall::automock)]
 pub trait StatelessTransactionValidatorTrait: Send + Sync {
@@ -359,4 +375,39 @@ impl StatelessTransactionValidatorTrait for StatelessTransactionValidator {
     fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         Self::validate(self, tx)
     }
+}
+
+/// Validates the builtins of a compiled (CASM) contract class. Each entry point's builtins must be
+/// an ordered subsequence of [`CAIRO1_SUPPORTED_BUILTINS`]. This runs on the output of the
+/// Sierra-to-CASM compilation, so it must be called by the gateway after the class is compiled.
+pub(crate) fn validate_casm_builtins(
+    casm_contract_class: &CasmContractClass,
+) -> StatelessTransactionValidatorResult<()> {
+    let entry_points_by_type = &casm_contract_class.entry_points_by_type;
+    for entry_point in entry_points_by_type
+        .constructor
+        .iter()
+        .chain(entry_points_by_type.external.iter())
+        .chain(entry_points_by_type.l1_handler.iter())
+    {
+        validate_entry_point_builtins(entry_point)?;
+    }
+
+    Ok(())
+}
+
+fn validate_entry_point_builtins(
+    entry_point: &CasmContractEntryPoint,
+) -> StatelessTransactionValidatorResult<()> {
+    // The builtins must be supported and appear in the canonical order, i.e. form an ordered
+    // subsequence of `CAIRO1_SUPPORTED_BUILTINS`.
+    let builtins: Vec<&str> = entry_point.builtins.iter().map(String::as_str).collect();
+    if is_subsequence(&builtins, &CAIRO1_SUPPORTED_BUILTINS) {
+        return Ok(());
+    }
+
+    Err(StatelessTransactionValidatorError::UnsupportedBuiltins {
+        builtins: entry_point.builtins.clone(),
+        supported_builtins: CAIRO1_SUPPORTED_BUILTINS.iter().map(|b| b.to_string()).collect(),
+    })
 }
