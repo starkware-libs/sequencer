@@ -18,6 +18,9 @@ use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};
 
+// This is the gateway's copy of the compiler's validation error, not the cairo crate's enum.
+use crate::sierra_entry_point_validation::StarknetSierraCompilationError;
+
 pub type GatewayResult<T> = Result<T, StarknetError>;
 
 #[derive(Debug, Error)]
@@ -96,6 +99,8 @@ pub enum StatelessTransactionValidatorError {
          {builtins:?}. Builtins must be an ordered subsequence of {supported_builtins:?}."
     )]
     UnsupportedBuiltins { builtins: Vec<String>, supported_builtins: Vec<String> },
+    #[error(transparent)]
+    SierraValidationError(#[from] StarknetSierraCompilationError),
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -121,7 +126,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::ClientSideProvingNotAllowed
             | StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. }
             | StatelessTransactionValidatorError::ProofTooLarge { .. }
-            | StatelessTransactionValidatorError::UnsupportedBuiltins { .. } => {
+            | StatelessTransactionValidatorError::UnsupportedBuiltins { .. }
+            | StatelessTransactionValidatorError::SierraValidationError(..) => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -208,7 +214,8 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
             StatelessTransactionValidatorError::ProofTooLarge { .. } => {
                 StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.PROOF_TOO_LARGE".to_string())
             }
-            StatelessTransactionValidatorError::UnsupportedBuiltins { .. } => {
+            StatelessTransactionValidatorError::UnsupportedBuiltins { .. }
+            | StatelessTransactionValidatorError::SierraValidationError(..) => {
                 StarknetErrorCode::UnknownErrorCode(
                     "StarknetErrorCode.INVALID_CONTRACT_CLASS".to_string(),
                 )

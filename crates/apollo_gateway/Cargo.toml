@@ -23,6 +23,7 @@ testing = [
 
 [dependencies]
 apollo_class_manager_types.workspace = true
+apollo_compilation_utils.workspace = true
 apollo_config.workspace = true
 apollo_gateway_config.workspace = true
 apollo_gateway_types.workspace = true
@@ -37,7 +38,9 @@ apollo_transaction_converter.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
+cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 clap.workspace = true
 google-cloud-storage.workspace = true

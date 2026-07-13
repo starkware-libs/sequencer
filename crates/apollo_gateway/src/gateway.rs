@@ -49,6 +49,7 @@ use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
+    StatelessTransactionValidatorError,
 };
 use crate::metrics::{
     register_metrics,
@@ -63,6 +64,7 @@ use crate::proof_archive_writer::{
     ProofArchiveError,
     ProofArchiveWriterTrait,
 };
+use crate::sierra_entry_point_validation::validate_entry_point_return_types;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
@@ -251,6 +253,15 @@ impl<
             None
         };
 
+        // The Sierra class is kept for post-compilation validation, as the executable tx holds
+        // only the compiled class.
+        let sierra_contract_class = match &tx {
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx)) => {
+                Some(declare_tx.contract_class.clone())
+            }
+            RpcTransaction::DeployAccount(_) | RpcTransaction::Invoke(_) => None,
+        };
+
         let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
         drop(compilation_permit);
@@ -262,6 +273,16 @@ impl<
                 metric_counters.record_add_tx_failure(&error);
                 error
             })?;
+
+            // Validate the entry point return types of the Sierra class. Done post-compilation so
+            // that the program is known to deserialize successfully.
+            if let Some(sierra_contract_class) = &sierra_contract_class {
+                validate_entry_point_return_types(sierra_contract_class).map_err(|e| {
+                    let error = StarknetError::from(StatelessTransactionValidatorError::from(e));
+                    metric_counters.record_add_tx_failure(&error);
+                    error
+                })?;
+            }
         }
 
         let mut stateful_transaction_validator = self

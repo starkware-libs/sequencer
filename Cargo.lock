@@ -1541,6 +1541,7 @@ name = "apollo_gateway"
 version = "0.19.0-rc.2"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_compilation_utils",
  "apollo_config",
  "apollo_gateway_config",
  "apollo_gateway_types",
@@ -1558,8 +1559,10 @@ dependencies = [
  "async-trait",
  "blockifier",
  "blockifier_test_utils",
+ "cairo-lang-sierra",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
  "cairo-vm",
  "clap",
  "criterion",

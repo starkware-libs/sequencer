@@ -4,6 +4,7 @@ pub mod gateway;
 pub mod gateway_fixed_block_state_reader;
 pub mod metrics;
 pub mod proof_archive_writer;
+mod sierra_entry_point_validation;
 mod state_reader;
 #[cfg(any(feature = "testing", test))]
 mod state_reader_test_utils;
