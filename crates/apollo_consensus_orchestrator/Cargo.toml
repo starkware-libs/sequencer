@@ -90,5 +90,9 @@ starknet_committer = { workspace = true, features = ["testing"] }
 workspace = true
 
 [features]
-os_input = ["apollo_batcher/os_input", "dep:starknet_committer"]
+os_input = [
+  "apollo_batcher/os_input",
+  "dep:starknet_committer",
+  "shared_execution_objects/deserialize",
+]
 testing = ["shared_execution_objects/deserialize", "shared_execution_objects/testing"]

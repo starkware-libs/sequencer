@@ -39,6 +39,7 @@ use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, RequestBuilder};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
@@ -131,6 +132,27 @@ pub trait CendeContext: Send + Sync {
         &self,
         blob_parameters: BlobParameters,
     ) -> CendeAmbassadorResult<()>;
+
+    /// Fetches the raw per-block data, from which the caller computes the block's accessed keys.
+    /// Returns `None` when the recorder does not have the block.
+    #[cfg(feature = "os_input")]
+    async fn get_accessed_keys_input(
+        &self,
+        block_number: BlockNumber,
+    ) -> CendeAmbassadorResult<Option<BlockAccessedKeysData>>;
+}
+
+/// The raw per-block data the recorder returns from `get_accessed_keys_input`. The caller computes
+/// the block's [`AccessedKeys`] from this, with data it already holds for a synced block.
+///
+/// `transactions` and `execution_infos` are aligned by index and ordered as in the block.
+#[cfg(feature = "os_input")]
+#[derive(Debug, Deserialize)]
+pub struct BlockAccessedKeysData {
+    /// One entry per transaction, in the same central format as the blob's `transactions` field.
+    pub(crate) transactions: Vec<CentralTransactionWritten>,
+    /// One execution info per transaction.
+    pub(crate) execution_infos: Vec<CentralTransactionExecutionInfo>,
 }
 
 #[derive(Clone)]
@@ -141,6 +163,8 @@ pub struct CendeAmbassador {
     prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
     write_blob_url: Url,
     get_latest_received_block_url: Url,
+    #[cfg(feature = "os_input")]
+    get_accessed_keys_input_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -153,6 +177,10 @@ pub const RECORDER_WRITE_BLOB_PATH: &str = concatcp!(RECORDER_PREFIX, "/write_bl
 /// to DB. returns null when no blocks exist).
 pub const RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH: &str =
     concatcp!(RECORDER_PREFIX, "/get_latest_received_block");
+/// The path to fetch accessed keys from the Recorder.
+#[cfg(feature = "os_input")]
+pub const RECORDER_GET_ACCESSED_KEYS_INPUT_PATH: &str =
+    concatcp!(RECORDER_PREFIX, "/get_accessed_keys_input");
 
 #[derive(Debug, Deserialize)]
 struct BlockNumberResponse {
@@ -176,6 +204,11 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
                 .expect("Failed to construct get latest received block URL"),
+            #[cfg(feature = "os_input")]
+            get_accessed_keys_input_url: cende_config
+                .recorder_url
+                .join(RECORDER_GET_ACCESSED_KEYS_INPUT_PATH)
+                .expect("Failed to construct get accessed keys URL"),
             // Bound each attempt by the max retry interval. Without a per-attempt timeout
             // `RetryTransientMiddleware` only retries attempts that *return* a transient error, so
             // a request that hangs against a slow recorder would block until the build deadline
@@ -256,16 +289,24 @@ async fn fetch_block_number(
     url: &Url,
     path: &str,
 ) -> CendeAmbassadorResult<Option<BlockNumber>> {
+    let parsed: BlockNumberResponse = send_recorder_get(client.get(url.as_str()), path).await?;
+    Ok(parsed.block_number.map(BlockNumber))
+}
+
+/// Sends `request` to a recorder GET endpoint and deserializes the JSON body into `T`, mapping
+/// transport, non-success status, and parse failures to `RecorderRequestFailed`. `path` is used
+/// only for diagnostics.
+async fn send_recorder_get<T: DeserializeOwned>(
+    request: RequestBuilder,
+    path: &str,
+) -> CendeAmbassadorResult<T> {
     let recorder_error = |message: String| CendeAmbassadorError::RecorderRequestFailed {
         path: path.to_string(),
         message,
     };
 
-    let response = client
-        .get(url.as_str())
-        .send()
-        .await
-        .map_err(|e| recorder_error(format!("request failed: {e}")))?;
+    let response =
+        request.send().await.map_err(|e| recorder_error(format!("request failed: {e}")))?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -273,11 +314,7 @@ async fn fetch_block_number(
         return Err(recorder_error(format!("returned error status {status}: {body}")));
     }
 
-    let parsed = response
-        .json::<BlockNumberResponse>()
-        .await
-        .map_err(|e| recorder_error(format!("failed to parse response: {e}")))?;
-    Ok(parsed.block_number.map(BlockNumber))
+    response.json::<T>().await.map_err(|e| recorder_error(format!("failed to parse response: {e}")))
 }
 
 #[async_trait]
@@ -349,6 +386,21 @@ impl CendeContext for CendeAmbassador {
         info!("Blob for block number {block_number} is ready.");
         CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn get_accessed_keys_input(
+        &self,
+        block_number: BlockNumber,
+    ) -> CendeAmbassadorResult<Option<BlockAccessedKeysData>> {
+        // The recorder responds with `null` when it has no data stored for the block.
+        send_recorder_get(
+            self.client
+                .get(self.get_accessed_keys_input_url.as_str())
+                .query(&[("block_number", block_number.0)]),
+            RECORDER_GET_ACCESSED_KEYS_INPUT_PATH,
+        )
+        .await
     }
 }
 
