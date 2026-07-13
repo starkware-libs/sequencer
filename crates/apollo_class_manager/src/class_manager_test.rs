@@ -257,11 +257,12 @@ fn validate_casm_builtins_accepts_supported_ordered_builtins() {
 #[test]
 fn validate_casm_builtins_rejects_bad_builtins() {
     // Each case is a builtin list that is not an ordered subsequence of the supported builtins:
-    // wrong order, an unknown builtin, and a duplicate.
+    // wrong order, an unknown builtin, a duplicate, and an unsupported (Cairo 0) builtin.
     for bad_builtins in [
         vec!["range_check", "pedersen"],
         vec!["range_check", "keccak"],
         vec!["range_check", "range_check"],
+        vec!["ecdsa"],
     ] {
         let expected_builtins: Vec<String> =
             bad_builtins.iter().map(|builtin| builtin.to_string()).collect();

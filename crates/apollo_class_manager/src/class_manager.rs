@@ -34,10 +34,9 @@ use tracing::{debug, instrument};
 
 /// The builtins supported for Cairo 1 (Sierra) contracts, in their canonical order. The builtins
 /// declared by a compiled entry point must form an ordered subsequence of this list.
-const CAIRO1_SUPPORTED_BUILTINS: [BuiltinName; 10] = [
+const CAIRO1_SUPPORTED_BUILTINS: [BuiltinName; 9] = [
     BuiltinName::pedersen,
     BuiltinName::range_check,
-    BuiltinName::ecdsa,
     BuiltinName::bitwise,
     BuiltinName::ec_op,
     BuiltinName::poseidon,
