@@ -100,31 +100,3 @@ metrics.workspace = true
 mockall.workspace = true
 rstest.workspace = true
 starknet_proof_verifier.workspace = true
-
-[[bin]]
-name = "integration_test_proof_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_proof_flow.rs"
-
-[[bin]]
-name = "integration_test_positive_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_positive_flow.rs"
-
-[[bin]]
-name = "integration_test_restart_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_flow.rs"
-
-[[bin]]
-name = "integration_test_restart_service_multiple_nodes_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_multiple_nodes_flow.rs"
-
-[[bin]]
-name = "integration_test_restart_service_single_node_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_single_node_flow.rs"
-
-[[bin]]
-name = "integration_test_revert_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_revert_flow.rs"
-
-[[bin]]
-name = "integration_test_central_and_p2p_sync_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_central_and_p2p_sync_flow.rs"
