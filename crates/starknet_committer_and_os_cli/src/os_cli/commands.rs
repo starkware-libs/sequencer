@@ -14,6 +14,7 @@ use rand_distr::num_traits::Zero;
 use serde::Deserialize;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
+use starknet_api::versioned_constants_logic::set_effective_latest_version;
 use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
@@ -92,6 +93,16 @@ pub(crate) fn parse_and_run_os(
     log_filter_handle
         .modify(|filter| *filter = os_hints.os_hints_config.log_level())
         .expect("Failed to set the log level.");
+
+    // ECHONET-REPLAY: pin the effective Starknet version to the block's actual version before
+    // running the OS. The sequencer that produced this input's `tx_execution_infos` selected gas
+    // costs via `effective_starknet_version()`, so the OS must use the same or its "Predicted gas
+    // costs are inconsistent with the actual execution" assertion fires.
+    if let Some(block_input) = os_hints.os_input.os_block_inputs.first() {
+        let version = block_input.block_info.starknet_version;
+        info!("Setting effective Starknet version from block_info: {version}");
+        set_effective_latest_version(version);
+    }
 
     validate_os_input(&os_hints.os_input);
 
