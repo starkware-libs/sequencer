@@ -177,6 +177,9 @@ pub struct ContextStaticConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub behavior_mode: BehaviorMode,
+    /// When adding a synced block, fetch its accessed keys from the recorder so the node can build
+    /// the state commitment infos locally. Only has an effect in `os_input` builds.
+    pub fetch_accessed_keys_from_centralized: bool,
 }
 
 impl SerializeConfig for ContextStaticConfig {
@@ -241,6 +244,13 @@ impl SerializeConfig for ContextStaticConfig {
             "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
             ParamPrivacyInput::Public,
         )]);
+        dump.extend([ser_param(
+            "fetch_accessed_keys_from_centralized",
+            &self.fetch_accessed_keys_from_centralized,
+            "Fetch accessed keys from the centralized recorder for synced blocks, enabling local \
+             state commitment infos construction. Only has an effect in `os_input` builds.",
+            ParamPrivacyInput::Public,
+        )]);
         dump
     }
 }
@@ -257,6 +267,7 @@ impl Default for ContextStaticConfig {
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
             behavior_mode: BehaviorMode::default(),
+            fetch_accessed_keys_from_centralized: false,
         }
     }
 }
