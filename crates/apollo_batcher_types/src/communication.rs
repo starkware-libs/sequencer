@@ -11,6 +11,7 @@ use apollo_infra::{
 use apollo_metrics::generate_permutation_labels;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
+use blockifier::state::accessed_keys::AccessedKeys;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
@@ -81,8 +82,13 @@ pub trait BatcherClient: Send + Sync {
     /// with this height.
     async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()>;
     /// Adds a block from the state sync. Updates the batcher's state and commits the
-    /// transactions to the mempool.
-    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
+    /// transactions to the mempool.  If `accessed_keys` are present, the batcher builds the state
+    /// commitment infos.
+    async fn add_sync_block(
+        &self,
+        sync_block: SyncBlock,
+        accessed_keys: Option<AccessedKeys>,
+    ) -> BatcherClientResult<()>;
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
     async fn decision_reached(
@@ -133,7 +139,7 @@ pub enum BatcherRequest {
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
-    AddSyncBlock(SyncBlock),
+    AddSyncBlock(SyncBlock, Option<AccessedKeys>),
     RevertBlock(RevertBlockInput),
     StartRound,
     CallContract(CallContractInput),
@@ -342,8 +348,12 @@ where
         )
     }
 
-    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
-        let request = BatcherRequest::AddSyncBlock(sync_block);
+    async fn add_sync_block(
+        &self,
+        sync_block: SyncBlock,
+        accessed_keys: Option<AccessedKeys>,
+    ) -> BatcherClientResult<()> {
+        let request = BatcherRequest::AddSyncBlock(sync_block, accessed_keys);
         handle_all_response_variants!(
             self,
             request,

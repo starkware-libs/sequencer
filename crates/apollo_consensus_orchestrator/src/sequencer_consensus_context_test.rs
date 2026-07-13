@@ -1839,7 +1839,7 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
         Ok(sync_block)
     });
     deps.setup_default_expectations();
-    deps.batcher.expect_add_sync_block().times(1).return_once(|_| Ok(()));
+    deps.batcher.expect_add_sync_block().times(1).return_once(|_, _| Ok(()));
     deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
 
     let mut context = deps.build_context();
