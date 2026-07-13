@@ -828,12 +828,12 @@ fn fee_escalation_queue_removal() {
     let mut mempool = MempoolTestContentBuilder::new()
         .with_priority_queue([queued_tx_reference])
         .with_pool([queued_tx.clone(), tx_to_be_replaced])
-        .with_fee_escalation_percentage(0) // Always replace.
+        .with_fee_escalation_percentage(10)
         .build_full_mempool();
 
     // Test and assert: replacement doesn't affect queue.
 
-    let valid_replacement_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 0, max_l2_gas_price: min_gas_price);
+    let valid_replacement_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 1, max_l2_gas_price: min_gas_price + 1);
     add_tx(&mut mempool, &valid_replacement_input);
     let expected_mempool_content = MempoolTestContentBuilder::new()
         .with_pool([queued_tx, valid_replacement_input.tx])
@@ -849,12 +849,12 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
     let tx = tx!(tx_hash: 0, tip: 0, max_l2_gas_price: min_gas_price);
     let mempool = MempoolTestContentBuilder::new()
         .with_pool([tx])
-        .with_fee_escalation_percentage(0) // Always replace.
+        .with_fee_escalation_percentage(10)
         .build_full_mempool();
 
-    // Test and assert: replacement with maximum values.
+    // Test and assert: smallest replacement that clears the minimum bump on both bounds.
     let valid_replacement_input =
-        add_tx_input!(tx_hash: 1, tip: 0, max_l2_gas_price: min_gas_price);
+        add_tx_input!(tx_hash: 1, tip: 1, max_l2_gas_price: min_gas_price + 1);
     validate_and_add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
@@ -920,6 +920,32 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
         existing_tx,
         [invalid_replacement_input],
     );
+}
+
+#[rstest]
+fn test_fee_escalation_rounds_up_required_bump() {
+    // 10% of 5 is 0.5, which rounds up to a required increase of 1: an equal fee is rejected and a
+    // +1 replacement is accepted.
+    let existing_tx = tx!(tx_hash: 0, tip: 5, max_l2_gas_price: 5);
+
+    let equal_fee_replacement = add_tx_input!(tx_hash: 1, tip: 5, max_l2_gas_price: 5);
+    let mempool = MempoolTestContentBuilder::new()
+        .with_pool([existing_tx.clone()])
+        .with_fee_escalation_percentage(10)
+        .build_full_mempool();
+    validate_and_add_txs_and_verify_no_replacement_in_pool(
+        mempool,
+        existing_tx,
+        [equal_fee_replacement],
+    );
+
+    let existing_tx = tx!(tx_hash: 0, tip: 5, max_l2_gas_price: 5);
+    let plus_one_replacement = add_tx_input!(tx_hash: 2, tip: 6, max_l2_gas_price: 6);
+    let mempool = MempoolTestContentBuilder::new()
+        .with_pool([existing_tx])
+        .with_fee_escalation_percentage(10)
+        .build_full_mempool();
+    validate_and_add_tx_and_verify_replacement_in_pool(mempool, plus_one_replacement);
 }
 
 // `update_gas_price_threshold` tests.
