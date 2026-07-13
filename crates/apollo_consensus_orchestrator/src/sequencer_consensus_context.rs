@@ -1138,7 +1138,7 @@ impl ConsensusContext for SequencerConsensusContext {
             "Adding sync block to Batcher for height {}",
             sync_block.block_header_without_hash.block_number,
         );
-        if let Err(e) = self.deps.batcher.add_sync_block(sync_block).await {
+        if let Err(e) = self.deps.batcher.add_sync_block(sync_block, None).await {
             error!("Failed to add sync block to Batcher: {e:?}");
             return false;
         }
