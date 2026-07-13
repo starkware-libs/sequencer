@@ -5,6 +5,11 @@ use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use assert_matches::assert_matches;
 use blockifier::test_utils::create_valid_proof_facts_for_testing;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
@@ -35,6 +40,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::StatelessTransactionValidatorResult;
 use crate::stateless_transaction_validator::{
+    validate_casm_builtins,
     StatelessTransactionValidator,
     StatelessTransactionValidatorError,
 };
@@ -719,4 +725,82 @@ fn test_proof_facts_and_proof_consistency(
             }) if has_proof_facts == expected_has_proof_facts && has_proof == expected_has_proof
         );
     }
+}
+
+fn casm_entry_points(builtins_per_entry_point: Vec<Vec<&str>>) -> Vec<CasmContractEntryPoint> {
+    builtins_per_entry_point
+        .into_iter()
+        .map(|builtins| CasmContractEntryPoint {
+            builtins: builtins.into_iter().map(String::from).collect(),
+            ..Default::default()
+        })
+        .collect()
+}
+
+fn casm_contract_class_with_builtins(
+    constructor: Vec<Vec<&str>>,
+    external: Vec<Vec<&str>>,
+    l1_handler: Vec<Vec<&str>>,
+) -> CasmContractClass {
+    CasmContractClass {
+        prime: Default::default(),
+        compiler_version: String::new(),
+        bytecode: vec![],
+        bytecode_segment_lengths: None,
+        hints: vec![],
+        pythonic_hints: None,
+        entry_points_by_type: CasmContractEntryPoints {
+            constructor: casm_entry_points(constructor),
+            external: casm_entry_points(external),
+            l1_handler: casm_entry_points(l1_handler),
+        },
+    }
+}
+
+// Tests that a compiled class whose every entry point uses supported builtins in the canonical
+// order passes validation.
+#[rstest]
+#[case::no_builtins(vec![])]
+#[case::single_builtin(vec!["range_check"])]
+#[case::strict_subsequence(vec!["pedersen", "range_check", "poseidon"])]
+#[case::all_supported_builtins(vec![
+    "pedersen",
+    "range_check",
+    "ecdsa",
+    "bitwise",
+    "ec_op",
+    "poseidon",
+    "segment_arena",
+    "range_check96",
+    "add_mod",
+    "mul_mod",
+])]
+fn test_validate_casm_builtins_valid(#[case] builtins: Vec<&str>) {
+    // Place the builtins in an l1_handler entry point to also cover non-first entry-point kinds.
+    let casm_contract_class =
+        casm_contract_class_with_builtins(vec![vec!["range_check"]], vec![], vec![builtins]);
+
+    assert_matches!(validate_casm_builtins(&casm_contract_class), Ok(()));
+}
+
+// Tests that a compiled class with an unsupported or wrongly-ordered builtin list is rejected, and
+// that the offending builtins are reported.
+#[rstest]
+#[case::wrong_order(vec!["range_check", "pedersen"])]
+#[case::unknown_builtin(vec!["range_check", "keccak"])]
+#[case::duplicate_builtin(vec!["range_check", "range_check"])]
+fn test_validate_casm_builtins_invalid(#[case] builtins: Vec<&str>) {
+    let expected_builtins: Vec<String> = builtins.iter().map(|b| b.to_string()).collect();
+    // Put the offending entry point last (l1_handler) to ensure all entry-point kinds are scanned.
+    let casm_contract_class = casm_contract_class_with_builtins(
+        vec![vec!["pedersen"]],
+        vec![vec!["range_check"]],
+        vec![builtins],
+    );
+
+    assert_matches!(
+        validate_casm_builtins(&casm_contract_class),
+        Err(StatelessTransactionValidatorError::UnsupportedBuiltins { builtins, .. })
+            if builtins == expected_builtins
+    );
 }
