@@ -24,8 +24,28 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
 };
 use async_trait::async_trait;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractEntryPoint;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::utils::is_subsequence;
+use starknet_api::contract_class::ContractClass;
+use starknet_api::core::ClassHash;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::{debug, instrument};
+
+/// The builtins supported for Cairo 1 (Sierra) contracts, in their canonical order. The builtins
+/// declared by a compiled entry point must form an ordered subsequence of this list.
+const CAIRO1_SUPPORTED_BUILTINS: [BuiltinName; 10] = [
+    BuiltinName::pedersen,
+    BuiltinName::range_check,
+    BuiltinName::ecdsa,
+    BuiltinName::bitwise,
+    BuiltinName::ec_op,
+    BuiltinName::poseidon,
+    BuiltinName::segment_arena,
+    BuiltinName::range_check96,
+    BuiltinName::add_mod,
+    BuiltinName::mul_mod,
+];
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::metrics::register_metrics;
@@ -101,6 +121,7 @@ where
 
         self.validate_class_length(&raw_executable_class)?;
         Self::validate_class_version(&sierra_class)?;
+        validate_casm_builtins(class_hash, &ContractClass::try_from(&raw_executable_class)?)?;
         self.classes.set_class(
             class_hash,
             class,
@@ -186,6 +207,46 @@ where
             ));
         }
         Ok(())
+    }
+}
+
+/// Validates the builtins of a compiled contract class. Each entry point's builtins must be an
+/// ordered subsequence of [`CAIRO1_SUPPORTED_BUILTINS`]. Deprecated (Cairo 0) classes have no such
+/// builtins and are left unvalidated.
+fn validate_casm_builtins(
+    class_hash: ClassHash,
+    contract_class: &ContractClass,
+) -> ClassManagerResult<()> {
+    let ContractClass::V1((casm, _sierra_version)) = contract_class else {
+        return Ok(());
+    };
+
+    let entry_points_by_type = &casm.entry_points_by_type;
+    for entry_point in entry_points_by_type
+        .constructor
+        .iter()
+        .chain(entry_points_by_type.external.iter())
+        .chain(entry_points_by_type.l1_handler.iter())
+    {
+        validate_entry_point_builtins(class_hash, entry_point)?;
+    }
+
+    Ok(())
+}
+
+fn validate_entry_point_builtins(
+    class_hash: ClassHash,
+    entry_point: &CasmContractEntryPoint,
+) -> ClassManagerResult<()> {
+    // Parse the builtin names; an unknown name is `None` and fails parsing for the whole list.
+    let builtins: Option<Vec<BuiltinName>> =
+        entry_point.builtins.iter().map(|builtin| BuiltinName::from_str(builtin)).collect();
+    match builtins {
+        Some(builtins) if is_subsequence(&builtins, &CAIRO1_SUPPORTED_BUILTINS) => Ok(()),
+        _ => Err(ClassManagerError::InvalidBuiltins {
+            class_hash,
+            builtins: entry_point.builtins.clone(),
+        }),
     }
 }
 

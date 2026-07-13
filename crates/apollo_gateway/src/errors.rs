@@ -395,6 +395,12 @@ fn convert_class_manager_error(
             ),
             message: err.to_string(),
         },
+        ClassManagerError::InvalidBuiltins { .. } => StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode(
+                "StarknetErrorCode.INVALID_CONTRACT_CLASS".to_string(),
+            ),
+            message: err.to_string(),
+        },
         ClassManagerError::ClassSerde(_)
         | ClassManagerError::ClassStorage(_)
         | ClassManagerError::Client(_) => {

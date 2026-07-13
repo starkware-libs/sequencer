@@ -12,14 +12,21 @@ use apollo_class_manager_types::{ClassHashes, ClassManagerError};
 use apollo_compile_to_casm_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use mockall::predicate::eq;
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
-use crate::class_manager::ClassManager;
+use crate::class_manager::{validate_casm_builtins, ClassManager};
 use crate::class_storage::FsClassStorage;
 
 impl ClassManager<FsClassStorage> {
@@ -183,5 +190,123 @@ async fn class_manager_class_length_validation() {
     assert_matches!(
         class_manager.add_class(class).await,
         Err(ClassManagerError::ContractClassObjectSizeTooLarge { .. })
+    );
+}
+
+fn casm_entry_points(builtins_per_entry_point: Vec<Vec<&str>>) -> Vec<CasmContractEntryPoint> {
+    builtins_per_entry_point
+        .into_iter()
+        .map(|builtins| CasmContractEntryPoint {
+            builtins: builtins.into_iter().map(String::from).collect(),
+            ..Default::default()
+        })
+        .collect()
+}
+
+fn contract_class_with_builtins(
+    external: Vec<Vec<&str>>,
+    l1_handler: Vec<Vec<&str>>,
+) -> ContractClass {
+    let casm = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: String::new(),
+        bytecode: vec![],
+        bytecode_segment_lengths: None,
+        hints: vec![],
+        pythonic_hints: None,
+        entry_points_by_type: CasmContractEntryPoints {
+            constructor: vec![],
+            external: casm_entry_points(external),
+            l1_handler: casm_entry_points(l1_handler),
+        },
+    };
+    ContractClass::V1((casm, SierraVersion::new(0, 0, 0)))
+}
+
+// Loads the compiled (CASM) class of the Cairo 1 test contract (compiled on demand).
+fn test_contract_class() -> ContractClass {
+    let raw_casm =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_raw_class();
+    let casm: CasmContractClass =
+        serde_json::from_str(&raw_casm).expect("Failed to deserialize the test contract CASM.");
+    ContractClass::V1((casm, SierraVersion::new(0, 0, 0)))
+}
+
+fn declares_builtins(contract_class: &ContractClass) -> bool {
+    let ContractClass::V1((casm, _)) = contract_class else {
+        return false;
+    };
+    let entry_points = &casm.entry_points_by_type;
+    entry_points
+        .constructor
+        .iter()
+        .chain(entry_points.external.iter())
+        .chain(entry_points.l1_handler.iter())
+        .any(|entry_point| !entry_point.builtins.is_empty())
+}
+
+#[test]
+fn validate_casm_builtins_accepts_supported_ordered_builtins() {
+    let contract_class = contract_class_with_builtins(
+        vec![vec!["pedersen", "range_check", "poseidon"], vec![]],
+        vec![vec!["range_check", "add_mod", "mul_mod"]],
+    );
+    assert_matches!(validate_casm_builtins(ClassHash::default(), &contract_class), Ok(()));
+}
+
+#[test]
+fn validate_casm_builtins_rejects_bad_builtins() {
+    // Each case is a builtin list that is not an ordered subsequence of the supported builtins:
+    // wrong order, an unknown builtin, and a duplicate.
+    for bad_builtins in [
+        vec!["range_check", "pedersen"],
+        vec!["range_check", "keccak"],
+        vec!["range_check", "range_check"],
+    ] {
+        let expected_builtins: Vec<String> =
+            bad_builtins.iter().map(|builtin| builtin.to_string()).collect();
+        let contract_class =
+            contract_class_with_builtins(vec![vec!["pedersen"]], vec![bad_builtins]);
+
+        assert_matches!(
+            validate_casm_builtins(ClassHash::default(), &contract_class),
+            Err(ClassManagerError::InvalidBuiltins { builtins, .. }) if builtins == expected_builtins
+        );
+    }
+}
+
+// A concrete compiled contract (the test contract) passes, and it actually exercises the check.
+#[test]
+fn validate_casm_builtins_accepts_real_contract() {
+    let contract_class = test_contract_class();
+    assert!(
+        declares_builtins(&contract_class),
+        "Expected the test contract to declare builtins in some entry point."
+    );
+
+    assert_matches!(validate_casm_builtins(ClassHash::default(), &contract_class), Ok(()));
+}
+
+// Negative flow: injecting noise (an unsupported builtin) into the real contract's builtin lists is
+// rejected.
+#[test]
+fn validate_casm_builtins_rejects_real_contract_with_noise() {
+    let mut contract_class = test_contract_class();
+    let ContractClass::V1((casm, _)) = &mut contract_class else {
+        panic!("Expected a Cairo 1 contract class.");
+    };
+    let entry_points = &mut casm.entry_points_by_type;
+    for entry_point in entry_points
+        .constructor
+        .iter_mut()
+        .chain(entry_points.external.iter_mut())
+        .chain(entry_points.l1_handler.iter_mut())
+    {
+        entry_point.builtins.insert(0, "keccak".to_string());
+    }
+
+    assert_matches!(
+        validate_casm_builtins(ClassHash::default(), &contract_class),
+        Err(ClassManagerError::InvalidBuiltins { .. })
     );
 }

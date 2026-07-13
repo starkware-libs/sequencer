@@ -115,6 +115,11 @@ pub enum ClassManagerError {
     },
     #[error("Unsupported contract class version: {0}.")]
     UnsupportedContractClassVersion(String),
+    #[error(
+        "Compiled class hash {class_hash} uses unsupported builtins or an invalid builtin order: \
+         {builtins:?}."
+    )]
+    InvalidBuiltins { class_hash: ClassHash, builtins: Vec<String> },
 }
 
 impl<E: Error> From<CachedClassStorageError<E>> for ClassManagerError {

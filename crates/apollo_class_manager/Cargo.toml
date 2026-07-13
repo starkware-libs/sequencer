@@ -21,6 +21,8 @@ apollo_infra.workspace = true
 apollo_metrics.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
+cairo-lang-starknet-classes.workspace = true
+cairo-vm.workspace = true
 hex.workspace = true
 starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
@@ -33,6 +35,9 @@ tracing.workspace = true
 apollo_compile_to_casm_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+blockifier_test_utils.workspace = true
+cairo-lang-starknet-classes.workspace = true
 mockall.workspace = true
+serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true

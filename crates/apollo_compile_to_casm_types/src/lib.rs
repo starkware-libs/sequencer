@@ -176,6 +176,15 @@ impl TryFrom<RawExecutableClass> for ContractClass {
     }
 }
 
+impl TryFrom<&RawExecutableClass> for ContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: &RawExecutableClass) -> Result<Self, Self::Error> {
+        // Deserialize from the underlying JSON value without cloning the wrapper.
+        serde_json::from_value((*class.0).clone())
+    }
+}
+
 /// Serves as the Sierra compilation unit's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
