@@ -1,5 +1,6 @@
 pub mod executable_setup;
 pub mod flow_test_setup;
+pub mod flows;
 pub mod integration_test_manager;
 pub mod integration_test_utils;
 pub mod monitoring_utils;
