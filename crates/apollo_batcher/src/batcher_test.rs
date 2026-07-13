@@ -1239,7 +1239,7 @@ async fn add_sync_block(
         block_header_commitments,
         ..Default::default()
     };
-    batcher.add_sync_block(sync_block).await.unwrap();
+    batcher.add_sync_block(sync_block, None).await.unwrap();
     let metrics = recorder.handle().render();
     assert_eq!(
         BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics),
@@ -1269,7 +1269,7 @@ async fn add_sync_block_mismatch_block_number() {
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    let result = batcher.add_sync_block(sync_block).await;
+    let result = batcher.add_sync_block(sync_block, None).await;
     assert_eq!(
         result,
         Err(BatcherError::StorageHeightMarkerMismatch {
@@ -1299,7 +1299,7 @@ async fn add_sync_block_missing_block_header_commitments() {
         l1_transaction_hashes: Default::default(),
         block_header_commitments: None,
     };
-    let result = batcher.add_sync_block(sync_block).await;
+    let result = batcher.add_sync_block(sync_block, None).await;
     assert_eq!(result, Err(BatcherError::MissingHeaderCommitments { block_number: INITIAL_HEIGHT }))
 }
 
@@ -1329,7 +1329,7 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
         l1_transaction_hashes: Default::default(),
         block_header_commitments: None,
     };
-    let _ = batcher.add_sync_block(sync_block).await;
+    let _ = batcher.add_sync_block(sync_block, None).await;
 }
 
 #[rstest]
@@ -1389,7 +1389,7 @@ async fn add_sync_block_for_first_new_block() {
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    batcher.add_sync_block(sync_block).await.unwrap();
+    batcher.add_sync_block(sync_block, None).await.unwrap();
 }
 
 #[rstest]
@@ -1419,7 +1419,7 @@ async fn add_sync_block_parent_hash_mismatch() {
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    let _ = batcher.add_sync_block(sync_block).await;
+    let _ = batcher.add_sync_block(sync_block, None).await;
 }
 
 #[rstest]
@@ -1446,7 +1446,7 @@ async fn add_sync_block_with_partial_block_hash_but_older_than_configured_first_
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    let _ = batcher.add_sync_block(sync_block).await;
+    let _ = batcher.add_sync_block(sync_block, None).await;
 }
 
 #[tokio::test]
