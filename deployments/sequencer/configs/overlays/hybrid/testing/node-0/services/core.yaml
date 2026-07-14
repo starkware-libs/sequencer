@@ -6,9 +6,6 @@ name: core
 
 replicas: 1
 
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_core.json
-
 service:
   enabled: true
   type: ClusterIP

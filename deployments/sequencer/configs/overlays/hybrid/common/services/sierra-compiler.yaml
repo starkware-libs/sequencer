@@ -1,7 +1,4 @@
 name: sierracompiler
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
-
 service:
   enabled: true
   type: ClusterIP

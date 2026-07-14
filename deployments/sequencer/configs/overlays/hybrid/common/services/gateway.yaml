@@ -1,7 +1,4 @@
 name: gateway
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_gateway.json
-
 service:
   enabled: true
   type: ClusterIP

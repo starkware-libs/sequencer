@@ -1,7 +1,4 @@
 name: committer
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_committer.json
-
 service:
   enabled: true
   type: ClusterIP
