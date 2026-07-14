@@ -35,10 +35,6 @@ class ConfigMapConstruct(BaseConstruct):
             raise ValueError(
                 f"config is required for service '{self.service_config.name}' but was not provided"
             )
-        if not self.service_config.config.configList:
-            raise ValueError(
-                f"config.configList is required for service '{self.service_config.name}' but was not provided"
-            )
 
         node_config = self._build_native_node_config()
 
