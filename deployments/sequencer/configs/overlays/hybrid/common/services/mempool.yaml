@@ -1,6 +1,4 @@
 name: mempool
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_mempool.json
 service:
   ports:
   - name: mempool
