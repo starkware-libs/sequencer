@@ -26,7 +26,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
-use crate::class_manager::{validate_casm_builtins, ClassManager};
+use crate::class_manager::{all_entry_points, validate_casm_builtins, ClassManager};
 use crate::class_storage::FsClassStorage;
 
 impl ClassManager<FsClassStorage> {
@@ -193,6 +193,30 @@ async fn class_manager_class_length_validation() {
     );
 }
 
+#[tokio::test]
+async fn class_manager_builtins_validation() {
+    // Setup: the compiler returns a CASM whose entry point declares builtins that are not an
+    // ordered subsequence of the supported builtins, so `add_class` must reject it.
+    let mut compiler = MockSierraCompilerClient::new();
+    let class = RawClass::try_from(SierraContractClass::default()).unwrap();
+    let bad_casm = contract_class_with_builtins(vec![vec!["range_check", "pedersen"]], vec![]);
+    let raw_executable_class = RawExecutableClass::try_from(bad_casm).unwrap();
+    compiler
+        .expect_compile()
+        .with(eq(class.clone()))
+        .times(1)
+        .return_once(move |_| Ok((raw_executable_class, CompiledClassHash(felt!("0x5678")))));
+
+    let mut class_manager =
+        ClassManager::new_for_testing(compiler, ClassManagerConfig::default());
+
+    // Test.
+    assert_matches!(
+        class_manager.add_class(class).await,
+        Err(ClassManagerError::InvalidBuiltins { .. })
+    );
+}
+
 fn casm_entry_points(builtins_per_entry_point: Vec<Vec<&str>>) -> Vec<CasmContractEntryPoint> {
     builtins_per_entry_point
         .into_iter()
@@ -236,12 +260,7 @@ fn declares_builtins(contract_class: &ContractClass) -> bool {
     let ContractClass::V1((casm, _)) = contract_class else {
         return false;
     };
-    let entry_points = &casm.entry_points_by_type;
-    entry_points
-        .constructor
-        .iter()
-        .chain(entry_points.external.iter())
-        .chain(entry_points.l1_handler.iter())
+    all_entry_points(&casm.entry_points_by_type)
         .any(|entry_point| !entry_point.builtins.is_empty())
 }
 
@@ -257,12 +276,14 @@ fn validate_casm_builtins_accepts_supported_ordered_builtins() {
 #[test]
 fn validate_casm_builtins_rejects_bad_builtins() {
     // Each case is a builtin list that is not an ordered subsequence of the supported builtins:
-    // wrong order, an unknown builtin, a duplicate, and an unsupported (Cairo 0) builtin.
+    // wrong order, a valid builtin that is unsupported here, a duplicate, an unsupported (Cairo 0)
+    // builtin, and an unparsable builtin name (exercises the failed-parse arm).
     for bad_builtins in [
         vec!["range_check", "pedersen"],
         vec!["range_check", "keccak"],
         vec!["range_check", "range_check"],
         vec!["ecdsa"],
+        vec!["foobar"],
     ] {
         let expected_builtins: Vec<String> =
             bad_builtins.iter().map(|builtin| builtin.to_string()).collect();

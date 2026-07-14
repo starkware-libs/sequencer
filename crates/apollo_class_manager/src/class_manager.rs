@@ -24,7 +24,10 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
 };
 use async_trait::async_trait;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractEntryPoint;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::utils::is_subsequence;
 use starknet_api::contract_class::ContractClass;
@@ -32,8 +35,17 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::{debug, instrument};
 
-/// The builtins supported for Cairo 1 (Sierra) contracts, in their canonical order. The builtins
-/// declared by a compiled entry point must form an ordered subsequence of this list.
+use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
+use crate::metrics::register_metrics;
+use crate::FsClassManager;
+
+/// The builtins supported for Cairo 1 (Sierra) contracts, in the canonical order in which they
+/// appear in a compiled entry point. This mirrors the OS `SelectableBuiltins` struct (see
+/// `execute_transactions.cairo`), excluding `ecdsa` (a Cairo 0 builtin not emitted for Cairo 1).
+/// A compiled entry point's builtins must form an ordered subsequence of this list.
+///
+/// NOTE: The OS is the source of truth for both the set and the ordering; keep this in sync with
+/// `SelectableBuiltins` (e.g. when a new builtin is added, or when bumping the OS/compiler).
 const CAIRO1_SUPPORTED_BUILTINS: [BuiltinName; 9] = [
     BuiltinName::pedersen,
     BuiltinName::range_check,
@@ -45,10 +57,6 @@ const CAIRO1_SUPPORTED_BUILTINS: [BuiltinName; 9] = [
     BuiltinName::add_mod,
     BuiltinName::mul_mod,
 ];
-
-use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
-use crate::metrics::register_metrics;
-use crate::FsClassManager;
 
 #[cfg(test)]
 #[path = "class_manager_test.rs"]
@@ -209,6 +217,17 @@ where
     }
 }
 
+/// Returns an iterator over all of a compiled class's entry points, across every entry point type.
+fn all_entry_points(
+    entry_points_by_type: &CasmContractEntryPoints,
+) -> impl Iterator<Item = &CasmContractEntryPoint> {
+    entry_points_by_type
+        .constructor
+        .iter()
+        .chain(entry_points_by_type.external.iter())
+        .chain(entry_points_by_type.l1_handler.iter())
+}
+
 /// Validates the builtins of a compiled contract class. Each entry point's builtins must be an
 /// ordered subsequence of [`CAIRO1_SUPPORTED_BUILTINS`]. Deprecated (Cairo 0) classes have no such
 /// builtins and are left unvalidated.
@@ -220,17 +239,8 @@ fn validate_casm_builtins(
         return Ok(());
     };
 
-    let entry_points_by_type = &casm.entry_points_by_type;
-    for entry_point in entry_points_by_type
-        .constructor
-        .iter()
-        .chain(entry_points_by_type.external.iter())
-        .chain(entry_points_by_type.l1_handler.iter())
-    {
-        validate_entry_point_builtins(class_hash, entry_point)?;
-    }
-
-    Ok(())
+    all_entry_points(&casm.entry_points_by_type)
+        .try_for_each(|entry_point| validate_entry_point_builtins(class_hash, entry_point))
 }
 
 fn validate_entry_point_builtins(
