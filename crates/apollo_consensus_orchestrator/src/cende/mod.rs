@@ -12,8 +12,6 @@ use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
-#[cfg(feature = "os_input")]
-use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::CommitmentStateDiff;
 #[cfg(feature = "os_input")]
 use blockifier::state::cached_state::StateMaps;
@@ -108,8 +106,6 @@ pub struct AerospikeBlob {
     recent_block_hashes: Vec<BlockHashAndNumber>,
     #[cfg(feature = "os_input")]
     recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
-    #[cfg(feature = "os_input")]
-    accessed_keys: AccessedKeys,
     #[cfg(feature = "os_input")]
     initial_reads: StateMaps,
 }
@@ -410,8 +406,6 @@ pub struct BlobParameters {
     #[cfg(feature = "os_input")]
     pub recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
     #[cfg(feature = "os_input")]
-    pub accessed_keys: AccessedKeys,
-    #[cfg(feature = "os_input")]
     pub initial_reads: StateMaps,
 }
 
@@ -470,8 +464,6 @@ impl AerospikeBlob {
             recent_block_hashes: blob_parameters.recent_block_hashes,
             #[cfg(feature = "os_input")]
             recent_state_commitment_infos: blob_parameters.recent_state_commitment_infos,
-            #[cfg(feature = "os_input")]
-            accessed_keys: blob_parameters.accessed_keys,
             #[cfg(feature = "os_input")]
             initial_reads: blob_parameters.initial_reads,
         })

@@ -46,8 +46,6 @@ use blockifier::fee::resources::{
     TransactionResources,
 };
 #[cfg(feature = "os_input")]
-use blockifier::state::accessed_keys::AccessedKeys;
-#[cfg(feature = "os_input")]
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::cached_state::{
     CommitmentStateDiff,
@@ -787,8 +785,6 @@ fn central_blob() -> AerospikeBlob {
         #[cfg(feature = "os_input")]
         recent_state_commitment_infos: recent_state_commitment_infos(),
         #[cfg(feature = "os_input")]
-        accessed_keys: AccessedKeys::default(),
-        #[cfg(feature = "os_input")]
         initial_reads: StateMaps::default(),
     };
 
@@ -822,8 +818,6 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         recent_block_hashes: vec![],
         #[cfg(feature = "os_input")]
         recent_state_commitment_infos: vec![],
-        #[cfg(feature = "os_input")]
-        accessed_keys: AccessedKeys::default(),
         #[cfg(feature = "os_input")]
         initial_reads: StateMaps::default(),
     };
@@ -1181,15 +1175,14 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
     let python_json: serde_json::Value = read_json_file(python_json_path);
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
-    // `recent_state_commitment_infos`, `accessed_keys` and `initial_reads` are os_input-only and
-    // absent from the central (python) blob, so strip them before comparing.
+    // `recent_state_commitment_infos` and `initial_reads` are os_input-only and absent from the
+    // central (python) blob, so strip them before comparing.
     // TODO(Itamar): Remove this stripping once the python blob includes the fields.
     #[cfg(feature = "os_input")]
     let rust_json = {
         let mut rust_json = rust_json;
         if let Some(object) = rust_json.as_object_mut() {
             object.remove("recent_state_commitment_infos");
-            object.remove("accessed_keys");
             object.remove("initial_reads");
         }
         rust_json
