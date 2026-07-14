@@ -229,14 +229,19 @@ fn all_entry_points(
 }
 
 /// Validates the builtins of a compiled contract class. Each entry point's builtins must be an
-/// ordered subsequence of [`CAIRO1_SUPPORTED_BUILTINS`]. Deprecated (Cairo 0) classes have no such
-/// builtins and are left unvalidated.
+/// ordered subsequence of [`CAIRO1_SUPPORTED_BUILTINS`].
+///
+/// `add_class` only accepts Sierra (Cairo 1) classes, which always compile to a V1 CASM class, so a
+/// deprecated (Cairo 0 / V0) class is unreachable here.
 fn validate_casm_builtins(
     class_hash: ClassHash,
     contract_class: &ContractClass,
 ) -> ClassManagerResult<()> {
     let ContractClass::V1((casm, _sierra_version)) = contract_class else {
-        return Ok(());
+        unreachable!(
+            "validate_casm_builtins expects a Cairo 1 (V1) compiled class; add_class cannot \
+             produce a deprecated (V0) class."
+        );
     };
 
     all_entry_points(&casm.entry_points_by_type)
