@@ -24,6 +24,7 @@ on:
       - "crates/apollo_proc_macros/**"
       - "crates/apollo_test_utils/**"
       - "crates/blockifier/**"
+      - "crates/central_systest_blobs/**"
       - "crates/starknet_api/**"
       - "crates/starknet_committer/**"
 
@@ -72,3 +73,6 @@ jobs:
       - run: cargo test -p apollo_consensus_orchestrator --features os_input,testing
       - run: cargo test -p apollo_reverts --features os_input
       - run: cargo test -p apollo_storage --features os_input
+      # Check that the crate is compilable with the os_input feature. Not running the tests to
+      # avoid the time-consuming GCS access.
+      - run: cargo check -p central_systest_blobs --features os_input --tests
