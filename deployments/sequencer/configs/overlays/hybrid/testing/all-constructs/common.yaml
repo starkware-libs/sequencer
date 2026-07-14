@@ -13,9 +13,6 @@ image:
   digest: ''
   imagePullPolicy: IfNotPresent
 
-config:
-  configList: deployments/sequencer/test/app_configs/sequencer/replacer_deployment_common.json
-
 service:
   enabled: true
   type: "ClusterIP"
