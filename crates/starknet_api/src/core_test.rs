@@ -9,6 +9,7 @@ use crate::core::{
     ascii_as_felt,
     calculate_contract_address,
     felt_to_u128,
+    is_pedersen_reachable_address,
     AddressDerivationHash,
     ChainId,
     ContractAddress,
@@ -83,6 +84,47 @@ fn test_calculate_contract_address() {
     let expected_address = ContractAddress::try_from(mod_address).unwrap();
 
     assert_eq!(actual_address, expected_address);
+}
+
+#[rstest]
+#[case::block_hash_table_address(felt!("0x1"), true)]
+#[case::two(felt!("0x2"), true)]
+#[case::five(felt!("0x5"), false)]
+#[case::large(felt!("0x1234567890abcdef"), true)]
+fn test_is_pedersen_reachable_address(#[case] address: Felt, #[case] expected_reachable: bool) {
+    assert_eq!(is_pedersen_reachable_address(&address), expected_reachable);
+}
+
+// Frozen vectors for the Blake2 derivation with the escape rule, verified against an independent
+// python implementation (hashlib.blake2s + starkware.crypto curve parameters). Deployer = 0,
+// class_hash = 0x4242, constructor_calldata = [42, 2^63, 1337] (the SNIP worked example); the
+// cases span 0 to 7 escape increments over the raw Blake output.
+#[rstest]
+#[case::zero_increments(777, "0x781e95f4b806dfe5b550756620c77a108d974a5b5d1198b1d45901ac1f89e9f")]
+#[case::one_increment(771, "0x566c3e328f3fd5a311267250cadc3c1c4de799db54180fcf862fe90b622571d")]
+#[case::two_increments(776, "0x1cd7f5c31ef1b147b816048b025a6cc345e7e023aa8ed97222a883e31dc8435")]
+#[case::three_increments(775, "0x4f7ba32369d7f68c42a7619242a52a5be9e803459f5afae1772d9377b161c4c")]
+#[case::seven_increments(774, "0x47d0c1ff356a1d540cd9f2efa122b60168b1007ef0603af0857bc6100e4b8e8")]
+fn test_blake_contract_address_escapes_pedersen_image(
+    #[case] salt: u16,
+    #[case] expected_address: &str,
+) {
+    let constructor_calldata =
+        Calldata(vec![Felt::from(42_u8), Felt::from(1_u64 << 63), Felt::from(1337_u16)].into());
+
+    let actual_address = calculate_contract_address(
+        ContractAddressSalt(Felt::from(salt)),
+        class_hash!("0x4242"),
+        &constructor_calldata,
+        ContractAddress::default(),
+        AddressDerivationHash::Blake2,
+    )
+    .unwrap();
+
+    let expected_address =
+        ContractAddress::try_from(Felt::from_hex_unchecked(expected_address)).unwrap();
+    assert_eq!(actual_address, expected_address);
+    assert!(!is_pedersen_reachable_address(actual_address.0.key()));
 }
 
 #[test]
