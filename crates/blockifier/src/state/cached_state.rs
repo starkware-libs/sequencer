@@ -766,6 +766,17 @@ impl From<CommitmentStateDiff> for ThinStateDiff {
     }
 }
 
+impl From<ThinStateDiff> for CommitmentStateDiff {
+    fn from(thin_state_diff: ThinStateDiff) -> Self {
+        Self {
+            address_to_class_hash: thin_state_diff.deployed_contracts,
+            address_to_nonce: thin_state_diff.nonces,
+            storage_updates: thin_state_diff.storage_diffs,
+            class_hash_to_compiled_class_hash: thin_state_diff.class_hash_to_compiled_class_hash,
+        }
+    }
+}
+
 /// Used to track the state diff size, which is determined by the number of new keys.
 /// Also, can be used to accuratly measure the contribution of a single (say, transactional)
 /// state to a cumulative state diff - provides set-like functionallities for this porpuse.
