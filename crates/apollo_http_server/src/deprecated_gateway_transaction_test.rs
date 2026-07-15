@@ -20,6 +20,8 @@ const DEPRECATED_GATEWAY_INVOKE_TX_CLIENT_SIDE_PROVING_JSON_PATH: &str =
     "deprecated_gateway/invoke_tx_client_side_proving.json";
 const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH: &str =
     "deprecated_gateway/deploy_account_tx.json";
+const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_V4_TX_JSON_PATH: &str =
+    "deprecated_gateway/deploy_account_v4_tx.json";
 const DEPRECATED_GATEWAY_DECLARE_TX_JSON_PATH: &str = "deprecated_gateway/declare_tx.json";
 
 fn deprecated_gateway_declare_tx() -> DeprecatedGatewayDeclareTransaction {
@@ -37,8 +39,16 @@ fn deprecated_gateway_invoke_tx_deserialization(#[case] json_path: &str) {
 
 #[test]
 fn deprecated_gateway_deploy_account_tx_deserialization() {
-    let _: DeprecatedGatewayDeployAccountTransaction =
+    let deploy_account_tx: DeprecatedGatewayDeployAccountTransaction =
         read_json_file(DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH);
+    assert_matches!(deploy_account_tx, DeprecatedGatewayDeployAccountTransaction::V3(_));
+}
+
+#[test]
+fn deprecated_gateway_deploy_account_v4_tx_deserialization() {
+    let deploy_account_tx: DeprecatedGatewayDeployAccountTransaction =
+        read_json_file(DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_V4_TX_JSON_PATH);
+    assert_matches!(deploy_account_tx, DeprecatedGatewayDeployAccountTransaction::V4(_));
 }
 
 #[test]
