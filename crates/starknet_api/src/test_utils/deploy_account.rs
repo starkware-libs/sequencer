@@ -1,7 +1,7 @@
 use starknet_crypto::Felt;
 
 use super::{NonceManager, TestingTxArgs};
-use crate::core::{AddressDerivationHash, ClassHash, Nonce};
+use crate::core::{ClassHash, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
     AccountTransaction,
@@ -13,6 +13,7 @@ use crate::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcDeployAccountTransactionV4,
     RpcTransaction,
 };
 use crate::transaction::fields::{
@@ -161,39 +162,56 @@ pub fn create_executable_deploy_account_tx_and_update_nonce(
 }
 
 pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
-    if deploy_tx_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
-    }
-
     let ValidResourceBounds::AllResources(resource_bounds) = deploy_tx_args.resource_bounds else {
         panic!("Unsupported resource bounds type: {:?}.", deploy_tx_args.resource_bounds)
     };
 
-    RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
-        resource_bounds,
-        tip: deploy_tx_args.tip,
-        contract_address_salt: deploy_tx_args.contract_address_salt,
-        class_hash: deploy_tx_args.class_hash,
-        constructor_calldata: deploy_tx_args.constructor_calldata,
-        nonce: deploy_tx_args.nonce,
-        signature: deploy_tx_args.signature,
-        nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
-        fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
-        paymaster_data: deploy_tx_args.paymaster_data,
-    }))
+    if deploy_tx_args.version == TransactionVersion::THREE {
+        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
+            RpcDeployAccountTransactionV3 {
+                resource_bounds,
+                tip: deploy_tx_args.tip,
+                contract_address_salt: deploy_tx_args.contract_address_salt,
+                class_hash: deploy_tx_args.class_hash,
+                constructor_calldata: deploy_tx_args.constructor_calldata,
+                nonce: deploy_tx_args.nonce,
+                signature: deploy_tx_args.signature,
+                nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
+                fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
+                paymaster_data: deploy_tx_args.paymaster_data,
+            },
+        ))
+    } else if deploy_tx_args.version == TransactionVersion::FOUR {
+        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(
+            RpcDeployAccountTransactionV4 {
+                resource_bounds,
+                tip: deploy_tx_args.tip,
+                contract_address_salt: deploy_tx_args.contract_address_salt,
+                class_hash: deploy_tx_args.class_hash,
+                constructor_calldata: deploy_tx_args.constructor_calldata,
+                nonce: deploy_tx_args.nonce,
+                signature: deploy_tx_args.signature,
+                nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
+                fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
+                paymaster_data: deploy_tx_args.paymaster_data,
+            },
+        ))
+    } else {
+        panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
+    }
 }
 
 pub fn internal_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> InternalRpcTransaction {
     let tx_hash = deploy_tx_args.tx_hash;
     let rpc_tx = rpc_deploy_account_tx(deploy_tx_args);
-    let RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) = rpc_tx else {
+    let contract_address = rpc_tx.calculate_sender_address().unwrap();
+    let RpcTransaction::DeployAccount(tx) = rpc_tx else {
         unreachable!();
     };
 
-    let contract_address = tx.calculate_contract_address(AddressDerivationHash::Pedersen).unwrap();
     let tx_without_hash =
         InternalRpcTransactionWithoutTxHash::DeployAccount(InternalRpcDeployAccountTransaction {
-            tx: RpcDeployAccountTransaction::V3(tx),
+            tx,
             contract_address,
         });
     InternalRpcTransaction { tx: tx_without_hash, tx_hash }
