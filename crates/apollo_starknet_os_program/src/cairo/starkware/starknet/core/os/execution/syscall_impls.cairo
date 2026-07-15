@@ -89,6 +89,8 @@ from starkware.starknet.core.os.constants import (
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DEPLOY_CALLDATA_FACTOR_GAS_COST,
     DEPLOY_GAS_COST,
+    DEPLOY_V2_CALLDATA_FACTOR_GAS_COST,
+    DEPLOY_V2_GAS_COST,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ERROR_BLOCK_NUMBER_OUT_OF_RANGE,
@@ -124,7 +126,10 @@ from starkware.starknet.core.os.constants import (
     STORED_BLOCK_HASH_BUFFER,
     SYSCALL_BASE_GAS_COST,
 )
-from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
+from starkware.starknet.core.os.contract_address.contract_address import (
+    get_contract_address,
+    get_contract_address_blake_escaped,
+)
 from starkware.starknet.core.os.execution.account_backward_compatibility import (
     check_tip_for_v1_bound_accounts,
     exclude_data_gas_of_resource_bounds,
@@ -541,6 +546,93 @@ func execute_deploy{
 
     // Write the response header.
     // TODO(Yoni, 1/1/2026): support failures.
+    assert [response_header] = ResponseHeader(gas=remaining_gas, failure_flag=0);
+
+    let response = cast(syscall_ptr, DeployResponse*);
+    // Advance syscall pointer to the next syscall.
+    let syscall_ptr = syscall_ptr + DeployResponse.SIZE;
+
+    %{ CheckNewDeployResponse %}
+
+    // Write the response.
+    relocate_segment(src_ptr=response.constructor_retdata_start, dest_ptr=retdata);
+    assert [response] = DeployResponse(
+        contract_address=contract_address,
+        constructor_retdata_start=retdata,
+        constructor_retdata_end=retdata + retdata_size,
+    );
+
+    return ();
+}
+
+// Same as `execute_deploy`, but derives the contract address with Blake2 plus the
+// Pedersen-image escape (see `get_contract_address_blake_escaped`) instead of Pedersen.
+func execute_deploy_v2{
+    range_check_ptr,
+    syscall_ptr: felt*,
+    builtin_ptrs: BuiltinPointers*,
+    contract_state_changes: DictAccess*,
+    contract_class_changes: DictAccess*,
+    revert_log: RevertLogEntry*,
+    outputs: OsCarriedOutputs*,
+}(block_context: BlockContext*, caller_execution_context: ExecutionContext*) {
+    alloc_locals;
+    let request = cast(syscall_ptr + RequestHeader.SIZE, DeployRequest*);
+    local constructor_calldata_start: felt* = request.constructor_calldata_start;
+    local constructor_calldata_size = request.constructor_calldata_end - constructor_calldata_start;
+
+    let specific_base_gas_cost = DEPLOY_V2_GAS_COST + DEPLOY_V2_CALLDATA_FACTOR_GAS_COST *
+        constructor_calldata_size;
+    let (success, remaining_gas) = reduce_syscall_base_gas(
+        specific_base_gas_cost=specific_base_gas_cost, request_struct_size=DeployRequest.SIZE
+    );
+    if (success == FALSE) {
+        // Not enough gas to execute the syscall.
+        return ();
+    }
+
+    local caller_execution_info: ExecutionInfo* = caller_execution_context.execution_info;
+    local caller_address = caller_execution_info.contract_address;
+
+    // Verify deploy_from_zero is either 0 (FALSE) or 1 (TRUE).
+    tempvar deploy_from_zero = request.deploy_from_zero;
+    assert deploy_from_zero * (deploy_from_zero - 1) = 0;
+    // Set deployer_address to 0 if request.deploy_from_zero is TRUE.
+    let deployer_address = (1 - deploy_from_zero) * caller_address;
+
+    let (contract_address) = get_contract_address_blake_escaped(
+        salt=request.contract_address_salt,
+        class_hash=request.class_hash,
+        constructor_calldata_size=constructor_calldata_size,
+        constructor_calldata=constructor_calldata_start,
+        deployer_address=deployer_address,
+    );
+
+    tempvar constructor_execution_context = new ExecutionContext(
+        entry_point_type=ENTRY_POINT_TYPE_CONSTRUCTOR,
+        class_hash=request.class_hash,
+        calldata_size=constructor_calldata_size,
+        calldata=constructor_calldata_start,
+        execution_info=new ExecutionInfo(
+            block_info=caller_execution_info.block_info,
+            tx_info=caller_execution_info.tx_info,
+            caller_address=caller_address,
+            contract_address=contract_address,
+            selector=CONSTRUCTOR_ENTRY_POINT_SELECTOR,
+        ),
+        deprecated_tx_info=caller_execution_context.deprecated_tx_info,
+    );
+
+    with remaining_gas {
+        let (retdata_size, retdata) = deploy_contract(
+            block_context=block_context, constructor_execution_context=constructor_execution_context
+        );
+    }
+
+    let response_header = cast(syscall_ptr, ResponseHeader*);
+    let syscall_ptr = syscall_ptr + ResponseHeader.SIZE;
+
+    // Write the response header.
     assert [response_header] = ResponseHeader(gas=remaining_gas, failure_flag=0);
 
     let response = cast(syscall_ptr, DeployResponse*);

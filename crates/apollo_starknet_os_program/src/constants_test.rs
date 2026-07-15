@@ -150,6 +150,9 @@ fn generate_constants_file() -> String {
         DEPLOY_GAS_COST = os_constants.gas_costs.syscalls.deploy.get_syscall_cost(0),
         DEPLOY_CALLDATA_FACTOR_GAS_COST =
             os_constants.gas_costs.syscalls.deploy.linear_syscall_cost(),
+        DEPLOY_V2_GAS_COST = os_constants.gas_costs.syscalls.deploy_v2.get_syscall_cost(0),
+        DEPLOY_V2_CALLDATA_FACTOR_GAS_COST =
+            os_constants.gas_costs.syscalls.deploy_v2.linear_syscall_cost(),
         GET_BLOCK_HASH_GAS_COST =
             base_only_syscall_cost(SyscallSelector::GetBlockHash, os_constants),
         GET_CLASS_HASH_AT_GAS_COST =
