@@ -464,27 +464,47 @@ impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
                 deploy_account_transaction,
             ) => {
                 let version = deploy_account_transaction.version();
-                let InternalRpcDeployAccountTransaction {
-                    tx: RpcDeployAccountTransaction::V3(tx),
-                    contract_address,
-                } = deploy_account_transaction;
-                CendePreconfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
-                    resource_bounds: Some(tx.resource_bounds.into()),
-                    tip: Some(tx.tip),
-                    signature: tx.signature,
-                    nonce: tx.nonce,
-                    class_hash: tx.class_hash,
-                    contract_address_salt: tx.contract_address_salt,
-                    constructor_calldata: tx.constructor_calldata,
-                    nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
-                    fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
-                    paymaster_data: Some(tx.paymaster_data),
-                    sender_address: contract_address,
-                    transaction_hash: tx_hash,
-                    version,
-                    // Irrelevant for V3 deploy account transactions.
-                    max_fee: None,
-                })
+                let InternalRpcDeployAccountTransaction { tx, contract_address } =
+                    deploy_account_transaction;
+                // V3 and V4 share a field set; only the version and the derivation of
+                // `contract_address` differ.
+                let intermediate_deploy_account_transaction = match tx {
+                    RpcDeployAccountTransaction::V3(tx) => IntermediateDeployAccountTransaction {
+                        resource_bounds: Some(tx.resource_bounds.into()),
+                        tip: Some(tx.tip),
+                        signature: tx.signature,
+                        nonce: tx.nonce,
+                        class_hash: tx.class_hash,
+                        contract_address_salt: tx.contract_address_salt,
+                        constructor_calldata: tx.constructor_calldata,
+                        nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
+                        fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
+                        paymaster_data: Some(tx.paymaster_data),
+                        sender_address: contract_address,
+                        transaction_hash: tx_hash,
+                        version,
+                        // Irrelevant for V3 deploy account transactions.
+                        max_fee: None,
+                    },
+                    RpcDeployAccountTransaction::V4(tx) => IntermediateDeployAccountTransaction {
+                        resource_bounds: Some(tx.resource_bounds.into()),
+                        tip: Some(tx.tip),
+                        signature: tx.signature,
+                        nonce: tx.nonce,
+                        class_hash: tx.class_hash,
+                        contract_address_salt: tx.contract_address_salt,
+                        constructor_calldata: tx.constructor_calldata,
+                        nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
+                        fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
+                        paymaster_data: Some(tx.paymaster_data),
+                        sender_address: contract_address,
+                        transaction_hash: tx_hash,
+                        version,
+                        // Irrelevant for V4 deploy account transactions.
+                        max_fee: None,
+                    },
+                };
+                CendePreconfirmedTransaction::DeployAccount(intermediate_deploy_account_transaction)
             }
             starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash::Invoke(
                 invoke_transaction,

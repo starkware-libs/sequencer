@@ -2323,6 +2323,7 @@ fn test_deploy_account_tx(
         match tx {
             starknet_api::transaction::DeployAccountTransaction::V1(ref mut tx) => tx.nonce = nonce,
             starknet_api::transaction::DeployAccountTransaction::V3(ref mut tx) => tx.nonce = nonce,
+            starknet_api::transaction::DeployAccountTransaction::V4(ref mut tx) => tx.nonce = nonce,
         }
     }
     let deploy_account = AccountTransaction::new_with_default_flags(tx);

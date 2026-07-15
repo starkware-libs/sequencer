@@ -407,6 +407,19 @@ impl TransactionConverter {
                     None,
                 )
             }
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(tx)) => {
+                let contract_address =
+                    tx.calculate_contract_address(AddressDerivationHash::Blake2)?;
+                (
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(
+                        InternalRpcDeployAccountTransaction {
+                            tx: RpcDeployAccountTransaction::V4(tx),
+                            contract_address,
+                        },
+                    ),
+                    None,
+                )
+            }
         };
         let tx_hash = tx_without_hash.calculate_transaction_hash(&self.chain_id)?;
         Ok((InternalRpcTransaction { tx: tx_without_hash, tx_hash }, proof_data))

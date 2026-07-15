@@ -84,6 +84,11 @@ impl From<RpcTransaction> for DeprecatedGatewayTransactionV3 {
                     DeprecatedGatewayDeployAccountTransaction::V3(deploy_account_tx.into()),
                 )
             }
+            // TODO(Ron): add a V4 variant to the deprecated gateway dialect when v4 ingestion is
+            // enabled.
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(_)) => {
+                panic!("Deploy account v4 is not supported by the deprecated gateway dialect.")
+            }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
                 DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
                     invoke_tx.into(),

@@ -101,7 +101,9 @@ fn test_rpc_transactions(#[case] tx: RpcTransaction) {
 fn test_deploy_account_tx_size_of() {
     let tx = create_deploy_account_tx();
     if let RpcTransaction::DeployAccount(deploy_tx) = tx {
-        let RpcDeployAccountTransaction::V3(tx_v3) = deploy_tx;
+        let RpcDeployAccountTransaction::V3(tx_v3) = deploy_tx else {
+            panic!("Expected a V3 deploy account transaction.")
+        };
 
         // hardcoded number was generated using:
         //
