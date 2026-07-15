@@ -2804,6 +2804,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.static_config.fetch_accessed_keys_from_centralized": {
+    "description": "Fetch accessed keys from the centralized recorder for synced blocks, enabling local state commitment infos construction. Only has an effect in `os_input` builds.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.context_config.static_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
