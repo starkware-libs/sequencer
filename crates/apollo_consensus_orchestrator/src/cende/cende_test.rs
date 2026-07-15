@@ -1,23 +1,35 @@
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::execution::call_info::{CallInfo, StorageAccessTracker};
+use blockifier::execution::entry_point::CallEntryPoint;
+use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::stateful_compression::ALIAS_COUNTER_STORAGE_KEY;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::StatusCode;
 use rstest::rstest;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::core::{ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::state::StorageKey;
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, ProofFacts};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_types_core::felt::Felt;
 use url::Url;
 
+use super::central_objects::CentralTransactionWritten;
 use super::{
     CendeAmbassador,
     RECORDER_GET_ACCESSED_KEYS_INPUT_PATH,
     RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
     RECORDER_WRITE_BLOB_PATH,
 };
-use crate::cende::{BlobParameters, CendeConfig, CendeContext};
+use crate::cende::{BlobParameters, BlockAccessedKeysData, CendeConfig, CendeContext};
 use crate::metrics::{
     register_metrics,
     CendeWriteFailureReason,
@@ -313,8 +325,89 @@ async fn get_accessed_keys_input(
         let block_data = result.unwrap().expect("expected block data");
         assert_eq!(block_data.transactions.len(), 1);
         assert_eq!(block_data.execution_infos.len(), 1);
+        assert!(
+            block_data.transactions[0]
+                .proof_facts()
+                .is_some_and(|proof_facts| proof_facts.is_empty())
+        );
     } else {
         assert!(result.unwrap().is_none());
     }
     mock.assert();
+}
+
+#[test]
+fn compute_accessed_keys() {
+    // A transaction carrying proof facts of a client-side proof; the block number the proof is
+    // verified against must map to a block hash table entry.
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
+    let proof_facts_block_number = snos_block_number_from_proof_facts(&proof_facts)
+        .expect("the test proof facts must carry a block number");
+    let mut tx_json: serde_json::Value = read_json_file("central_invoke_tx.json");
+    tx_json["tx"]["proof_facts"] = serde_json::to_value(&proof_facts).unwrap();
+    let transaction: CentralTransactionWritten = serde_json::from_value(tx_json).unwrap();
+
+    // An execution info whose call info read a storage key.
+    let read_address = ContractAddress::from(0x300_u16);
+    let read_key = StorageKey::from(0x400_u16);
+    let execution_info = CentralTransactionExecutionInfo::from(TransactionExecutionInfo {
+        execute_call_info: Some(CallInfo {
+            call: CallEntryPoint { storage_address: read_address, ..Default::default() },
+            storage_access_tracker: StorageAccessTracker {
+                accessed_storage_keys: [read_key].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+
+    // A state diff writing to a storage key of another contract.
+    let written_address = ContractAddress::from(0x500_u16);
+    let written_key = StorageKey::from(0x600_u16);
+    let mut state_diff = CommitmentStateDiff::default();
+    state_diff.storage_updates.entry(written_address).or_default().insert(written_key, Felt::ONE);
+
+    let block_accessed_keys_data = BlockAccessedKeysData {
+        transactions: vec![transaction],
+        execution_infos: vec![execution_info],
+    };
+    let accessed_keys = block_accessed_keys_data.compute_accessed_keys(&state_diff);
+
+    // The latest versioned constants enable stateful compression, so the alias contract entries
+    // predicted from the state diff are also included: the alias counter, the written address and
+    // the written key.
+    let alias_contract_address = VersionedConstants::latest_constants()
+        .os_constants
+        .os_contract_addresses
+        .alias_contract_address();
+    // 6 storage keys and 4 accessed contracts, all asserted below.
+    assert_eq!(accessed_keys.len(), 10);
+    assert!(accessed_keys.storage_keys.contains(&(read_address, read_key)));
+    assert!(accessed_keys.storage_keys.contains(&(written_address, written_key)));
+    assert!(
+        accessed_keys
+            .storage_keys
+            .contains(&(BLOCK_HASH_TABLE_ADDRESS, StorageKey::from(proof_facts_block_number.0)))
+    );
+    assert!(
+        accessed_keys.storage_keys.contains(&(alias_contract_address, ALIAS_COUNTER_STORAGE_KEY))
+    );
+    assert!(
+        accessed_keys
+            .storage_keys
+            .contains(&(alias_contract_address, StorageKey(written_address.0)))
+    );
+    assert!(accessed_keys.storage_keys.contains(&(alias_contract_address, written_key)));
+    // Assert all the contracts are present.
+    assert_eq!(
+        accessed_keys.accessed_contracts,
+        BTreeSet::from([
+            read_address,
+            written_address,
+            BLOCK_HASH_TABLE_ADDRESS,
+            alias_contract_address
+        ])
+    );
+    assert!(accessed_keys.accessed_class_hashes.is_empty());
 }
