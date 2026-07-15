@@ -143,6 +143,7 @@ pub trait CendeContext: Send + Sync {
 
 /// The raw per-block data the recorder returns from `get_accessed_keys_input`. The caller computes
 /// the block's [`AccessedKeys`] from this, with data it already holds for a synced block.
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 #[derive(Debug, Deserialize)]
 pub struct BlockAccessedKeysData {
     /// One entry per transaction, in the same central format as the blob's `transactions` field.

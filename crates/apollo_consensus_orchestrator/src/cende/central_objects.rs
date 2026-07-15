@@ -432,8 +432,8 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for C
 #[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 pub(crate) struct CentralTransactionWritten {
     tx: CentralTransaction,
-    // The timestamp is required for monitoring data, we use the block timestamp for this. The
-    // accessed-keys-input payload the recorder returns omits it, so it defaults to 0 there.
+    // The timestamp is required for monitoring data, we use the block timestamp for this.
+    // Defaulted for robustness when deserializing recorder payloads.
     #[serde(default)]
     time_created: u64,
 }
