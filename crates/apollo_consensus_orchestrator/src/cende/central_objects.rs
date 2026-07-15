@@ -265,28 +265,62 @@ struct CentralDeployAccountTransactionV3 {
     hash_value: TransactionHash,
 }
 
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
+struct CentralDeployAccountTransactionV4 {
+    resource_bounds: CentralResourceBounds,
+    tip: Tip,
+    signature: TransactionSignature,
+    nonce: Nonce,
+    class_hash: ClassHash,
+    contract_address_salt: ContractAddressSalt,
+    sender_address: ContractAddress,
+    constructor_calldata: Calldata,
+    nonce_data_availability_mode: u32,
+    fee_data_availability_mode: u32,
+    paymaster_data: PaymasterData,
+    hash_value: TransactionHash,
+}
+
 impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
-    for CentralDeployAccountTransactionV3
+    for CentralDeployAccountTransaction
 {
     fn from(
         (tx, hash_value): (InternalRpcDeployAccountTransaction, TransactionHash),
-    ) -> CentralDeployAccountTransactionV3 {
+    ) -> CentralDeployAccountTransaction {
         let sender_address = tx.contract_address;
-        let RpcDeployAccountTransaction::V3(tx) = tx.tx;
-
-        CentralDeployAccountTransactionV3 {
-            resource_bounds: tx.resource_bounds.into(),
-            tip: tx.tip,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            class_hash: tx.class_hash,
-            contract_address_salt: tx.contract_address_salt,
-            constructor_calldata: tx.constructor_calldata,
-            nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
-            fee_data_availability_mode: tx.fee_data_availability_mode.into(),
-            paymaster_data: tx.paymaster_data,
-            hash_value,
-            sender_address,
+        match tx.tx {
+            RpcDeployAccountTransaction::V3(tx) => {
+                CentralDeployAccountTransaction::V3(CentralDeployAccountTransactionV3 {
+                    resource_bounds: tx.resource_bounds.into(),
+                    tip: tx.tip,
+                    signature: tx.signature,
+                    nonce: tx.nonce,
+                    class_hash: tx.class_hash,
+                    contract_address_salt: tx.contract_address_salt,
+                    constructor_calldata: tx.constructor_calldata,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
+                    fee_data_availability_mode: tx.fee_data_availability_mode.into(),
+                    paymaster_data: tx.paymaster_data,
+                    hash_value,
+                    sender_address,
+                })
+            }
+            RpcDeployAccountTransaction::V4(tx) => {
+                CentralDeployAccountTransaction::V4(CentralDeployAccountTransactionV4 {
+                    resource_bounds: tx.resource_bounds.into(),
+                    tip: tx.tip,
+                    signature: tx.signature,
+                    nonce: tx.nonce,
+                    class_hash: tx.class_hash,
+                    contract_address_salt: tx.contract_address_salt,
+                    constructor_calldata: tx.constructor_calldata,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
+                    fee_data_availability_mode: tx.fee_data_availability_mode.into(),
+                    paymaster_data: tx.paymaster_data,
+                    hash_value,
+                    sender_address,
+                })
+            }
         }
     }
 }
@@ -296,6 +330,8 @@ impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
 enum CentralDeployAccountTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeployAccountTransactionV3),
+    #[serde(rename = "0x4")]
+    V4(CentralDeployAccountTransactionV4),
 }
 
 fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
@@ -413,9 +449,9 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for C
                         )))
                     }
                     InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_tx) => {
-                        Ok(CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
+                        Ok(CentralTransaction::DeployAccount(
                             (deploy_tx, rpc_transaction.tx_hash).into(),
-                        )))
+                        ))
                     }
                     InternalRpcTransactionWithoutTxHash::Declare(declare_tx) => {
                         let sierra = sierra

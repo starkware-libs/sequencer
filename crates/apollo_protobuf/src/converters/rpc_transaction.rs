@@ -10,13 +10,18 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcDeployAccountTransactionV4,
     RpcInvokeTransaction,
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{AllResourceBounds, Proof, ValidResourceBounds};
-use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3};
+use starknet_api::transaction::{
+    DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
+    InvokeTransactionV3,
+};
 
 use super::common::missing;
 use super::ProtobufConversionError;
@@ -40,6 +45,9 @@ impl TryFrom<protobuf::MempoolTransaction> for RpcTransaction {
             protobuf::mempool_transaction::Txn::DeployAccountV3(txn) => {
                 RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(txn.try_into()?))
             }
+            protobuf::mempool_transaction::Txn::DeployAccountV4(txn) => {
+                RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(txn.try_into()?))
+            }
             protobuf::mempool_transaction::Txn::InvokeV3(txn) => {
                 RpcTransaction::Invoke(RpcInvokeTransaction::V3(txn.try_into()?))
             }
@@ -60,6 +68,13 @@ impl From<RpcTransaction> for protobuf::MempoolTransaction {
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(txn)) => {
                 protobuf::MempoolTransaction {
                     txn: Some(protobuf::mempool_transaction::Txn::DeployAccountV3(txn.into())),
+                    // TODO(alonl): Consider removing transaction hash from protobuf
+                    transaction_hash: None,
+                }
+            }
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(txn)) => {
+                protobuf::MempoolTransaction {
+                    txn: Some(protobuf::mempool_transaction::Txn::DeployAccountV4(txn.into())),
                     // TODO(alonl): Consider removing transaction hash from protobuf
                     transaction_hash: None,
                 }
@@ -108,6 +123,22 @@ impl TryFrom<protobuf::DeployAccountV3> for RpcDeployAccountTransactionV3 {
 impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
     fn from(value: RpcDeployAccountTransactionV3) -> Self {
         let snapi_deploy_account: DeployAccountTransactionV3 = value.into();
+        snapi_deploy_account.into()
+    }
+}
+
+impl TryFrom<protobuf::DeployAccountV4> for RpcDeployAccountTransactionV4 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::DeployAccountV4) -> Result<Self, Self::Error> {
+        let snapi_deploy_account: DeployAccountTransactionV4 = value.try_into()?;
+        // This conversion can fail only if the resource_bounds are not AllResources.
+        snapi_deploy_account.try_into().map_err(|_| DEPRECATED_RESOURCE_BOUNDS_ERROR)
+    }
+}
+
+impl From<RpcDeployAccountTransactionV4> for protobuf::DeployAccountV4 {
+    fn from(value: RpcDeployAccountTransactionV4) -> Self {
+        let snapi_deploy_account: DeployAccountTransactionV4 = value.into();
         snapi_deploy_account.into()
     }
 }

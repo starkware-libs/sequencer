@@ -155,7 +155,6 @@ use super::{
     CentralCompiledClassHashesForMigration,
     CentralCompressedStateDiff,
     CentralDeclareTransaction,
-    CentralDeployAccountTransaction,
     CentralFeeMarketInfo,
     CentralFeeProposalInfo,
     CentralInvokeTransaction,
@@ -357,9 +356,7 @@ fn central_deploy_account_tx() -> CentralTransactionWritten {
         TransactionHash(felt!("0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"));
 
     CentralTransactionWritten {
-        tx: CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
-            (deploy_account_tx, tx_hash).into(),
-        )),
+        tx: CentralTransaction::DeployAccount((deploy_account_tx, tx_hash).into()),
         time_created: 1734601616,
     }
 }
@@ -1233,7 +1230,7 @@ fn test_deploy_account_tx_size_of() {
     // + internal_deploy_account_tx.tip.dynamic_size()
     // + deploy_account_tx.contract_address.dynamic_size();
 
-    assert_eq!(deploy_account_tx.size_bytes(), 528);
+    assert_eq!(deploy_account_tx.size_bytes(), 544);
 }
 
 #[test]
