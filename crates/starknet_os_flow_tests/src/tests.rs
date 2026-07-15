@@ -21,6 +21,7 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     calculate_contract_address,
+    is_pedersen_reachable_address,
     AddressDerivationHash,
     ClassHash,
     ContractAddress,
@@ -3287,6 +3288,67 @@ async fn test_proof_facts_versions_and_program_hashes() {
         test_builder
             .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
     }
+
+    test_builder.build_and_run().await.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_deploy_account_v4_flow() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+    let chain_id = &test_builder.chain_id();
+
+    let account_class_hash =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_sierra()
+            .calculate_class_hash();
+
+    // Precompute the v4 address (Blake2 with the Pedersen-image escape) and fund it.
+    let salt = ContractAddressSalt(Felt::from(771_u16));
+    let v4_account_address = calculate_contract_address(
+        salt,
+        account_class_hash,
+        &calldata![],
+        ContractAddress::default(),
+        AddressDerivationHash::Blake2,
+    )
+    .unwrap();
+    assert!(!is_pedersen_reachable_address(v4_account_address.0.key()));
+    test_builder.add_fund_address_tx_with_default_amount(v4_account_address);
+
+    // Deploy the account with a v4 transaction.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash: account_class_hash,
+        version: TransactionVersion::FOUR,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: salt,
+    };
+    let v4_deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(v4_account_address)),
+        chain_id,
+    )
+    .unwrap();
+    assert_eq!(v4_deploy_account_tx.contract_address, v4_account_address);
+    test_builder.add_deploy_account_tx(v4_deploy_account_tx);
+
+    // Invoke from the newly deployed v4 account to prove it is functional.
+    let invoke_args = invoke_tx_args! {
+        sender_address: v4_account_address,
+        nonce: test_builder.next_nonce(v4_account_address),
+        calldata: create_calldata(
+            test_contract_address,
+            "test_storage_read_write",
+            &[Felt::from(21_u8), Felt::from(42_u8)],
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let invoke = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
+    test_builder.add_invoke_tx(invoke, None, None);
 
     test_builder.build_and_run().await.perform_default_validations();
 }
