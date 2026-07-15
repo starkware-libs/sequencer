@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use blockifier::execution::casm_hash_estimation::expected::{
     BASE_STEPS_FULL_MSG_EXPECT,
@@ -18,6 +19,14 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
+use starknet_api::core::{
+    calculate_contract_address,
+    is_pedersen_reachable_address,
+    AddressDerivationHash,
+    ClassHash,
+    ContractAddress,
+};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
@@ -204,4 +213,81 @@ fn test_calc_naive_blake_hash(#[case] test_data: Vec<Felt>) {
         panic!("Expected a single felt return value");
     };
     assert_eq!(calc_blake_hash(&test_data), *cairo_hash);
+}
+
+/// The Cairo<->Rust parity guarantee for the v4 / deploy_v2 address derivation: the OS
+/// `get_contract_address_blake_escaped` must match the Rust `Blake2` arm, escape included.
+#[rstest]
+#[case::no_calldata(Felt::from(1234), Felt::from(0x110), vec![], Felt::from(0x1111))]
+#[case::zero_escape_steps(
+    Felt::from(777),
+    Felt::from(0x4242),
+    vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)],
+    Felt::ZERO
+)]
+#[case::one_escape_step(
+    Felt::from(771),
+    Felt::from(0x4242),
+    vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)],
+    Felt::ZERO
+)]
+#[case::seven_escape_steps(
+    Felt::from(774),
+    Felt::from(0x4242),
+    vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)],
+    Felt::ZERO
+)]
+fn test_cairo_vs_rust_get_contract_address_blake(
+    #[case] salt: Felt,
+    #[case] class_hash: Felt,
+    #[case] constructor_calldata: Vec<Felt>,
+    #[case] deployer_address: Felt,
+) {
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::all_cairo,
+        trace_enabled: false,
+        verify_secure: false,
+        proof_mode: false,
+        add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
+    };
+
+    let (_, return_values, _) = initialize_and_run_cairo_0_entry_point(
+        &runner_config,
+        apollo_starknet_os_program::OS_PROGRAM_BYTES,
+        "starkware.starknet.core.os.contract_address.contract_address.\
+         get_contract_address_blake_escaped",
+        &[
+            EndpointArg::from(salt),
+            EndpointArg::from(class_hash),
+            EndpointArg::from(Felt::from(constructor_calldata.len())),
+            EndpointArg::Pointer(PointerArg::Array(
+                constructor_calldata.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
+            )),
+            EndpointArg::from(deployer_address),
+        ],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &[EndpointArg::from(Felt::ZERO)],
+        HashMap::new(),
+        None,
+    )
+    .unwrap();
+
+    let [EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_address)))] =
+        return_values.as_slice()
+    else {
+        panic!("Expected a single felt return value");
+    };
+
+    let rust_address = calculate_contract_address(
+        ContractAddressSalt(salt),
+        ClassHash(class_hash),
+        &Calldata(Arc::new(constructor_calldata)),
+        ContractAddress::try_from(deployer_address).unwrap(),
+        AddressDerivationHash::Blake2,
+    )
+    .unwrap();
+
+    assert_eq!(*cairo_address, *rust_address.0.key());
+    assert!(!is_pedersen_reachable_address(cairo_address));
 }

@@ -18,6 +18,7 @@ pub fn expect_hint_coverage(unused_hints: &HashSet<AllHints>, test_name: &str) {
 const UNCOVERED_HINTS: expect_test::Expect = expect_test::expect![[r#"
     [
         "DeprecatedSyscallHint(Deploy)",
+        "OsHint(EscapePedersenImageWitness)",
         "OsHint(GetClassHashAndCompiledClassFact)",
         "StatelessHint(SetApToSegmentHashPoseidon)",
     ]
