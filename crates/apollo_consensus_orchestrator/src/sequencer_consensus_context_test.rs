@@ -1,6 +1,4 @@
 use std::collections::BTreeMap;
-#[cfg(feature = "os_input")]
-use std::collections::HashMap;
 use std::future::ready;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -63,8 +61,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 
 #[cfg(feature = "os_input")]
 use crate::cende::StateCommitmentInfosAndNumber;
@@ -920,11 +916,8 @@ async fn blob_parent_proposal_commitment_binds_parent_fee_proposal() {
 async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let (mut deps, _network) = create_test_and_network_deps();
 
-    let state_commitment_infos = StateCommitmentInfos {
-        contracts_trie_commitment_info: CommitmentInfo::default(),
-        classes_trie_commitment_info: CommitmentInfo::default(),
-        storage_tries_commitment_infos: HashMap::new(),
-    };
+    // The batcher serves the compressed witness string; the orchestrator forwards it verbatim.
+    let state_commitment_infos = "compressed-state-commitment-infos".to_string();
 
     let returned_infos = state_commitment_infos.clone();
     deps.batcher
@@ -932,6 +925,8 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
         .times(1)
         .return_once(move |_| Ok(returned_infos));
 
+    // setup_deps_for_build's default cende ambassador reports nothing stored, so the full window
+    // (just block 0 at this height) is sent.
     deps.setup_deps_for_build(SetupDepsArgs::default());
     deps.batcher
         .expect_decision_reached()
@@ -955,6 +950,84 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let mut context = deps.build_context();
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
+}
+
+#[cfg(feature = "os_input")]
+fn default_state_commitment_infos() -> String {
+    "compressed-state-commitment-infos".to_string()
+}
+
+/// Builds a context whose batcher serves a commitment info for any height and whose recorder
+/// reports `last_stored_height`, then returns the block numbers
+/// `collect_recent_state_commitment_infos` chose to send for `height`.
+#[cfg(feature = "os_input")]
+async fn collected_heights_for(
+    height: BlockNumber,
+    last_stored_height: Option<BlockNumber>,
+) -> Vec<u64> {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| Ok(default_state_commitment_infos()));
+    deps.cende_ambassador
+        .expect_query_last_stored_commitment_height()
+        .times(1)
+        .return_once(move || last_stored_height);
+
+    let context = deps.build_context();
+    context
+        .collect_recent_state_commitment_infos(height)
+        .await
+        .iter()
+        .map(|info| info.block_number.0)
+        .collect()
+}
+
+/// When the recorder is behind, only the missing delta `(last_stored, height]` is sent.
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_sends_only_delta_above_recorder() {
+    let height = BlockNumber(100);
+    let heights = collected_heights_for(height, Some(BlockNumber(97))).await;
+    assert_eq!(heights, vec![98, 99, 100]);
+}
+
+/// When the recorder is caught up to the previous block, only the current block is sent.
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_sends_single_block_when_recorder_caught_up() {
+    let height = BlockNumber(100);
+    let heights = collected_heights_for(height, Some(BlockNumber(99))).await;
+    assert_eq!(heights, vec![100]);
+}
+
+/// The fixed window caps the delta: a recorder further behind than the window only gets the window.
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_caps_delta_at_fixed_window() {
+    let height = BlockNumber(100);
+    let heights = collected_heights_for(height, Some(BlockNumber(50))).await;
+    let expected: Vec<u64> = (100 - N_BLOCK_HASHES_BACK_IN_BLOB..=100).collect();
+    assert_eq!(heights, expected);
+}
+
+/// A failed/empty query falls back to the full fixed window (safe degradation).
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_falls_back_to_full_window_on_query_failure() {
+    let height = BlockNumber(100);
+    let heights = collected_heights_for(height, None).await;
+    let expected: Vec<u64> = (100 - N_BLOCK_HASHES_BACK_IN_BLOB..=100).collect();
+    assert_eq!(heights, expected);
+}
+
+/// If the recorder is at or ahead of the proposed height, nothing is sent (empty delta).
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_sends_nothing_when_recorder_at_height() {
+    let height = BlockNumber(100);
+    let heights = collected_heights_for(height, Some(BlockNumber(100))).await;
+    assert!(heights.is_empty(), "expected empty delta, got {heights:?}");
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:

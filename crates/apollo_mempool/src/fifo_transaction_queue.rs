@@ -8,7 +8,7 @@ use starknet_api::transaction::TransactionHash;
 use tracing::debug;
 
 use crate::mempool::TransactionReference;
-use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
+use crate::transaction_queue_trait::{BlockMetadata, RewindData, TransactionQueueTrait};
 
 /// A FIFO (First-In-First-Out) transaction queue that orders transactions by arrival time.
 /// Used in Echonet mode to preserve the original transaction order from the source chain.
@@ -46,7 +46,15 @@ impl CurrentProposalState {
             .expected_block_number
             .next()
             .expect("Block number overflow while advancing expected block after pop.");
-        self.emit_empty_block = false;
+        // Gate further pops within the current proposer round. Without this, the outer loop
+        // in `Mempool::get_txs` would keep calling `pop_ready_chunk` and — when the next
+        // mainnet block shares this block's wall-clock timestamp (which has happened in
+        // production: blocks 9188909 and 9188910 both at 1777228096) — `matches_tx` would
+        // pass on the new front and the proposer would silently drain the next block's tx
+        // into this block. The flag is cleared on the next round's `resolve_metadata` via
+        // `sync_proposal_state_from_queue_front_tx`'s "head matches the expected block"
+        // branch (or the "skip" branch if there's a real gap).
+        self.emit_empty_block = true;
     }
 }
 
@@ -73,9 +81,7 @@ pub struct FifoTransactionQueue {
     // Temporary map from transaction hash to metadata before the transaction is inserted to
     // queue.
     pending_metadata: HashMap<TransactionHash, TxBlockMetadata>,
-    // Tracks current proposal metadata in FIFO mode:
-    // - timestamp returned by resolve_timestamp()
-    // - expected block number for get_txs()
+    // Proposal state set by resolve_metadata(); gates which txs pop_ready_chunk() may return.
     current_proposal_state: Option<CurrentProposalState>,
 }
 
@@ -157,20 +163,25 @@ impl FifoTransactionQueue {
             .collect()
     }
 
-    /// Returns that head transaction's timestamp.
-    fn sync_proposal_state_from_queue_front_tx(&mut self) -> UnixTimestamp {
+    /// Syncs current_proposal_state from the head of the queue and returns
+    /// the resulting (timestamp, block_number).
+    fn sync_proposal_state_from_queue_front_tx(&mut self) -> BlockMetadata {
         let &front_tx = self
             .queue
             .front()
             .expect("FIFO sync_proposal_state_from_queue_front: queue must be non-empty");
 
         let Some(prev_state) = self.current_proposal_state else {
-            self.current_proposal_state = Some(CurrentProposalState {
+            let state = CurrentProposalState {
                 timestamp: front_tx.timestamp,
                 expected_block_number: front_tx.block_number,
                 emit_empty_block: false,
-            });
-            return front_tx.timestamp;
+            };
+            self.current_proposal_state = Some(state);
+            return BlockMetadata {
+                timestamp: state.timestamp,
+                block_number: Some(state.expected_block_number),
+            };
         };
 
         let (expected_block_number, emit_empty_block) =
@@ -191,12 +202,21 @@ impl FifoTransactionQueue {
                 (prev_state.expected_block_number, false)
             };
 
-        self.current_proposal_state = Some(CurrentProposalState {
+        let state = CurrentProposalState {
             timestamp: front_tx.timestamp,
             expected_block_number,
             emit_empty_block,
-        });
-        front_tx.timestamp
+        };
+        self.current_proposal_state = Some(state);
+        // When emitting an empty block, `expected_block_number` has already been advanced to the
+        // next position (so subsequent calls don't re-detect the gap), but the block being built
+        // RIGHT NOW is `prev_state.expected_block_number` — one less.
+        let current_block_number = if emit_empty_block {
+            prev_state.expected_block_number
+        } else {
+            state.expected_block_number
+        };
+        BlockMetadata { timestamp: state.timestamp, block_number: Some(current_block_number) }
     }
 }
 
@@ -226,7 +246,7 @@ impl TransactionQueueTrait for FifoTransactionQueue {
 
         let Some(current_state) = self.current_proposal_state.as_mut() else {
             panic!(
-                "FIFO pop_ready_chunk: missing proposal state; resolve_timestamp must run before \
+                "FIFO pop_ready_chunk: missing proposal state; resolve_metadata must run before \
                  get_txs for this queue"
             );
         };
@@ -354,6 +374,15 @@ impl TransactionQueueTrait for FifoTransactionQueue {
 
         self.staged_txs.clear();
 
+        // If any txs were rewound, the queue head may now reference an earlier block than
+        // current_proposal_state expects (the previous proposal's pop drained the current block
+        // and advance_block_if_drained bumped expected_block_number forward). Realign so the
+        // next pop_ready_chunk() sees a matching head — otherwise a retried proposer round can
+        // see an empty mempool and commit an empty block.
+        if !rewound_hashes.is_empty() {
+            let _ = self.sync_proposal_state_from_queue_front_tx();
+        }
+
         rewound_hashes
     }
 
@@ -365,23 +394,26 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         0
     }
 
-    fn resolve_timestamp(&mut self) -> UnixTimestamp {
+    fn resolve_metadata(&mut self) -> BlockMetadata {
         if self.queue.front().is_some() {
             return self.sync_proposal_state_from_queue_front_tx();
         }
-        // Queue is empty: reuse previous timestamp if it exists, otherwise return 0.
+        // Queue is empty: reuse previous timestamp and block number if they exist.
         match self.current_proposal_state {
             Some(state) => {
                 debug!(
-                    "FIFO resolve_timestamp: queue empty, reusing last_timestamp={:?}, \
+                    "FIFO resolve_metadata: queue empty, reusing last_timestamp={:?}, \
                      expected_block={:?}",
                     state.timestamp, state.expected_block_number
                 );
-                state.timestamp
+                BlockMetadata {
+                    timestamp: state.timestamp,
+                    block_number: Some(state.expected_block_number),
+                }
             }
             None => {
-                debug!("FIFO resolve_timestamp: queue empty, no previous proposal state");
-                0
+                debug!("FIFO resolve_metadata: queue empty, no previous proposal state");
+                BlockMetadata { timestamp: 0, block_number: None }
             }
         }
     }

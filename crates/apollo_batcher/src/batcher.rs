@@ -66,10 +66,8 @@ use apollo_storage::partial_block_hash::{
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 #[cfg(feature = "os_input")]
-use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageReader;
-#[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::{
-    StateCommitmentInfos,
+    StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
 };
 use apollo_storage::storage_reader_server::{
@@ -115,7 +113,7 @@ use starknet_api::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
-    UnixTimestamp,
+    ReplayMetadata,
 };
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
@@ -724,13 +722,32 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_batch_timestamp(&self) -> BatcherResult<UnixTimestamp> {
+    pub async fn get_block_metadata(&mut self) -> BatcherResult<ReplayMetadata> {
+        // Abort any stale active proposal BEFORE mutating the mempool below. The proposer
+        // side of consensus has no other path that calls `abort_proposal` on round
+        // transitions (unlike the validator side in validate_proposal.rs), so the previous
+        // round's block builder is otherwise still alive and polling the mempool. The
+        // `commit_block(default)` below would then feed it the rewound staged txs, it would
+        // re-execute them, and (in FIFO mode) a second pop of the same txs trips the
+        // duplicate-rejection assert in block_builder.rs:695. The abort signal causes that
+        // block builder to exit at its next loop iteration, bounding any further polling to
+        // a single iteration — not enough for the duplicate to materialize.
+        self.abort_active_proposal().await;
+
         let mempool_client = self.mempool_client.as_ref().expect(
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",
         );
-        mempool_client.resolve_batch_timestamp().await.map_err(|err| {
-            error!("Failed to get timestamp from mempool: {err}");
+        // Round-start signal: rewinds any staged txs left behind by an aborted prior round so
+        // resolve_block_metadata below reflects the block we're actually about to build. In
+        // normal flow staged_txs is empty here and this is a no-op. propose_block will issue
+        // the same call again; with the FIFO queue's state-realignment invariant it's idempotent.
+        mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+            error!("Mempool not ready for round start in get_block_metadata: {err}");
+            BatcherError::NotReady
+        })?;
+        mempool_client.resolve_block_metadata().await.map_err(|err| {
+            error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
         })
     }
@@ -1526,10 +1543,7 @@ impl Batcher {
     }
 
     #[cfg(feature = "os_input")]
-    pub fn get_state_commitment_infos(
-        &self,
-        block_number: BlockNumber,
-    ) -> BatcherResult<StateCommitmentInfos> {
+    pub fn get_state_commitment_infos(&self, block_number: BlockNumber) -> BatcherResult<String> {
         self.storage_reader
             .get_state_commitment_infos(block_number)
             .map_err(|err| {
@@ -1739,10 +1753,7 @@ pub trait BatcherStorageReader: Send + Sync {
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 
     #[cfg(feature = "os_input")]
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>>;
+    fn get_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<Option<String>>;
 
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
@@ -1839,10 +1850,7 @@ impl BatcherStorageReader for StorageReader {
     }
 
     #[cfg(feature = "os_input")]
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<StateCommitmentInfos>> {
+    fn get_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<Option<String>> {
         self.begin_ro_txn()?.get_state_commitment_infos(height)
     }
 
@@ -1908,7 +1916,7 @@ pub trait BatcherStorageWriter: Send + Sync {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        state_commitment_infos: Option<StateCommitmentInfos>,
+        state_commitment_infos: Option<String>,
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
@@ -1954,7 +1962,7 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        #[cfg(feature = "os_input")] state_commitment_infos: Option<StateCommitmentInfos>,
+        #[cfg(feature = "os_input")] state_commitment_infos: Option<String>,
     ) -> StorageResult<()> {
         #[cfg(not(feature = "os_input"))]
         info!(
@@ -1964,10 +1972,10 @@ impl BatcherStorageWriter for StorageWriter {
         #[cfg(feature = "os_input")]
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
-             hash: {block_hash:?}, number of storage-trie commitment infos: {:?}.",
-            state_commitment_infos.as_ref().map(|state_commitment_infos| state_commitment_infos
-                .storage_tries_commitment_infos
-                .len())
+             hash: {block_hash:?}, compressed commitment infos byte length: {:?}.",
+            state_commitment_infos
+                .as_ref()
+                .map(|state_commitment_infos| state_commitment_infos.len())
         );
         let mut txn = self
             .begin_rw_txn()?

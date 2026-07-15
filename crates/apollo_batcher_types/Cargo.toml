@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Type definitions and interfaces for the Apollo batcher component."
 
 [features]
-os_input = ["dep:starknet_committer"]
+os_input = []
 testing = ["mockall"]
 
 [lints]
@@ -26,7 +26,6 @@ mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_committer = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 

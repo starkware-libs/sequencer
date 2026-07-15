@@ -35,7 +35,7 @@ RUN BUILD_FLAGS=""; \
     elif [ "$BUILD_MODE" = "profiling" ]; then \
         BUILD_FLAGS="--profile profiling"; \
     fi; \
-    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
+    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native,os_input
 
 # Install compiler binaries used for Sierra compilation at runtime.
 # Binaries land under $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the

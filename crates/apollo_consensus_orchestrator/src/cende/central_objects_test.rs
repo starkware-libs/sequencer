@@ -133,8 +133,6 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -744,11 +742,7 @@ fn recent_state_commitment_infos() -> Vec<StateCommitmentInfosAndNumber> {
     [BlockNumber(1), BlockNumber(2)]
         .into_iter()
         .map(|block_number| StateCommitmentInfosAndNumber {
-            state_commitment_infos: StateCommitmentInfos {
-                contracts_trie_commitment_info: CommitmentInfo::default(),
-                classes_trie_commitment_info: CommitmentInfo::default(),
-                storage_tries_commitment_infos: HashMap::new(),
-            },
+            state_commitment_infos: format!("compressed-state-commitment-infos-{block_number}"),
             block_number,
         })
         .collect()
@@ -768,6 +762,7 @@ fn central_blob() -> AerospikeBlob {
 
     let blob_parameters = BlobParameters {
         block_info: block_info(),
+        starknet_version: StarknetVersion::LATEST,
         state_diff: thin_state_diff(),
         compressed_state_diff: Some(commitment_state_diff()),
         transactions_with_execution_infos,
@@ -806,6 +801,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
     let mock_class_manager = MockClassManagerClient::new();
     let blob_parameters = BlobParameters {
         block_info: block_info(),
+        starknet_version: StarknetVersion::LATEST,
         state_diff: thin_state_diff(),
         compressed_state_diff: None,
         transactions_with_execution_infos: vec![],
