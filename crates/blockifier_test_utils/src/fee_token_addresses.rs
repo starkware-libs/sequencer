@@ -8,4 +8,4 @@ use expect_test::{expect, Expect};
 /// `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
 pub const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect =
-    expect!["0x55c0f8041b34244db9305768d49a75fb604db74fa19357894a55d3cf8bfe0c"];
+    expect!["0x2c40e7a519f54788f9d8c156f67ca459fe203711ca1b1465303ce3dd226c4c"];
