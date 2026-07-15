@@ -190,6 +190,13 @@
                 "syscall_base_gas_cost": 1,
                 "memory_hole_gas_cost": 0
             },
+            "DeployV2": {
+                "step_gas_cost": 0,
+                "range_check": 0,
+                "bitwise": 0,
+                "syscall_base_gas_cost": 0,
+                "memory_hole_gas_cost": 0
+            },
             "EmitEvent": {
                 "step_gas_cost": 10,
                 "range_check": 0,
@@ -408,6 +415,11 @@
                     "range_check_builtin": 18,
                     "pedersen_builtin": 7
                 }
+            },
+            "DeployV2": {
+                "n_steps": 0,
+                "n_memory_holes": 0,
+                "builtin_instance_counter": {}
             },
             "EmitEvent": {
                 "n_steps": 61,

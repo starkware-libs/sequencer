@@ -21,7 +21,13 @@ use cairo_native::starknet::{
 use num_bigint::BigUint;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, L1Address};
+use starknet_api::core::{
+    AddressDerivationHash,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    L1Address,
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
@@ -388,6 +394,9 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
                 Calldata(Arc::new(calldata.to_vec())),
                 deploy_from_zero,
                 remaining_gas,
+                // The deploy_v2 syscall (Blake2 derivation) has no cairo-native handler until the
+                // upstream `StarknetSyscallHandler` trait exposes it.
+                AddressDerivationHash::Pedersen,
             )
             .map_err(|err| self.handle_error(remaining_gas, err))?;
 

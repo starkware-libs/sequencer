@@ -45,6 +45,7 @@ pub enum DeprecatedSyscallSelector {
     DelegateCall,
     DelegateL1Handler,
     Deploy,
+    DeployV2,
     EmitEvent,
     GetBlockHash,
     GetBlockNumber,
@@ -89,6 +90,7 @@ impl DeprecatedSyscallSelector {
                 | Self::DelegateCall
                 | Self::DelegateL1Handler
                 | Self::Deploy
+                | Self::DeployV2
                 | Self::LibraryCall
                 | Self::LibraryCallL1Handler
                 | Self::MetaTxV0
@@ -108,6 +110,7 @@ impl TryFrom<Felt> for DeprecatedSyscallSelector {
             b"DelegateCall" => Ok(Self::DelegateCall),
             b"DelegateL1Handler" => Ok(Self::DelegateL1Handler),
             b"Deploy" => Ok(Self::Deploy),
+            b"DeployV2" => Ok(Self::DeployV2),
             b"EmitEvent" => Ok(Self::EmitEvent),
             b"GetBlockHash" => Ok(Self::GetBlockHash),
             b"GetBlockNumber" => Ok(Self::GetBlockNumber),
