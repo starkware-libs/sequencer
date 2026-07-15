@@ -11,6 +11,8 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
+#[cfg(feature = "os_input")]
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 #[cfg(feature = "os_input")]
 use blockifier::state::accessed_keys::AccessedKeys;
@@ -46,6 +48,10 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
+#[cfg(feature = "os_input")]
+use starknet_api::transaction::fields::snos_block_number_from_proof_facts;
+#[cfg(feature = "os_input")]
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 #[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
@@ -153,6 +159,29 @@ pub struct BlockAccessedKeysData {
     pub(crate) transactions: Vec<CentralTransactionWritten>,
     /// One execution info per transaction.
     pub(crate) execution_infos: Vec<CentralTransactionExecutionInfo>,
+}
+
+#[cfg(feature = "os_input")]
+impl BlockAccessedKeysData {
+    /// Computes the block's [`AccessedKeys`] from the recorder-supplied transactions and execution
+    /// infos, the synced block's `state_diff`, and the latest versioned constants. Mirrors
+    /// [`AccessedKeys::new`], but sources the call infos from the central execution infos and the
+    /// proof-facts block numbers from the transactions.
+    pub fn compute_accessed_keys(&self, state_diff: CommitmentStateDiff) -> AccessedKeys {
+        let proof_facts_block_numbers: Vec<BlockNumber> = self
+            .transactions
+            .iter()
+            .filter_map(|transaction| {
+                transaction.proof_facts().and_then(snos_block_number_from_proof_facts)
+            })
+            .collect();
+        AccessedKeys::from_call_infos(
+            self.execution_infos.iter().flat_map(|execution_info| execution_info.call_info_iter()),
+            &proof_facts_block_numbers,
+            &state_diff,
+            VersionedConstants::latest_constants(),
+        )
+    }
 }
 
 #[derive(Clone)]
