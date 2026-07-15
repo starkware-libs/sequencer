@@ -16,7 +16,7 @@ use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{AddressDerivationHash, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     valid_resource_bounds_as_felts,
@@ -575,6 +575,28 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
             request.constructor_calldata,
             request.deploy_from_zero,
             remaining_gas,
+            AddressDerivationHash::Pedersen,
+        )?;
+        let constructor_retdata =
+            create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
+        syscall_handler.base.inner_calls.push(call_info);
+
+        Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })
+    }
+
+    fn deploy_v2(
+        request: DeployRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> Result<DeployResponse, Self::Error> {
+        let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
+            request.class_hash,
+            request.contract_address_salt,
+            request.constructor_calldata,
+            request.deploy_from_zero,
+            remaining_gas,
+            AddressDerivationHash::Blake2,
         )?;
         let constructor_retdata =
             create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;

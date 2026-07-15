@@ -213,6 +213,17 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
+    // The derivation scheme only affects the address computation, which the OS performs in Cairo;
+    // the executor consumes the tracked address either way.
+    fn deploy_v2(
+        request: DeployRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> Result<DeployResponse, Self::Error> {
+        Self::deploy(request, vm, syscall_handler, remaining_gas)
+    }
+
     fn emit_event(
         _request: EmitEventRequest,
         _vm: &mut VirtualMachine,
