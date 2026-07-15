@@ -27,6 +27,7 @@ from starkware.cairo.common.secp256r1.ec import (
 )
 from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.sha256_state import Sha256Input, Sha256ProcessBlock, Sha256State
+from starkware.cairo.common.sha512_state import Sha512Input, Sha512ProcessBlock, Sha512State
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_lt, uint256_lt
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import (
@@ -68,6 +69,8 @@ from starkware.starknet.common.new_syscalls import (
     SendMessageToL1Request,
     Sha256ProcessBlockRequest,
     Sha256ProcessBlockResponse,
+    Sha512ProcessBlockRequest,
+    Sha512ProcessBlockResponse,
     StorageReadRequest,
     StorageReadResponse,
     StorageWriteRequest,
@@ -113,6 +116,7 @@ from starkware.starknet.core.os.constants import (
     SECP256R1_NEW_GAS_COST,
     SEND_MESSAGE_TO_L1_GAS_COST,
     SHA256_PROCESS_BLOCK_GAS_COST,
+    SHA512_PROCESS_BLOCK_GAS_COST,
     SIERRA_ARRAY_LEN_BOUND,
     STORAGE_READ_GAS_COST,
     STORAGE_WRITE_GAS_COST,
@@ -975,7 +979,9 @@ func execute_keccak{
             mul_mod=selectable_builtins.mul_mod,
         ),
         non_selectable=NonSelectableBuiltins(
-            keccak=keccak_ptr, sha256=non_selectable_builtins.sha256
+            keccak=keccak_ptr,
+            sha256=non_selectable_builtins.sha256,
+            sha512=non_selectable_builtins.sha512,
         ),
     );
     return ();
@@ -1022,7 +1028,56 @@ func execute_sha256_process_block{
     tempvar builtin_ptrs = new BuiltinPointers(
         selectable=builtin_ptrs.selectable,
         non_selectable=NonSelectableBuiltins(
-            keccak=builtin_ptrs.non_selectable.keccak, sha256=sha256_ptr
+            keccak=builtin_ptrs.non_selectable.keccak,
+            sha256=sha256_ptr,
+            sha512=builtin_ptrs.non_selectable.sha512,
+        ),
+    );
+    return ();
+}
+
+// Executes the sha512_process_block system call.
+func execute_sha512_process_block{
+    range_check_ptr, builtin_ptrs: BuiltinPointers*, syscall_ptr: felt*, outputs: OsCarriedOutputs*
+}() {
+    alloc_locals;
+
+    let request = cast(syscall_ptr + RequestHeader.SIZE, Sha512ProcessBlockRequest*);
+
+    // Reduce gas.
+    let success = reduce_syscall_gas_and_write_response_header(
+        total_gas_cost=SHA512_PROCESS_BLOCK_GAS_COST,
+        request_struct_size=Sha512ProcessBlockRequest.SIZE,
+    );
+    if (success == 0) {
+        // Not enough gas to execute the syscall.
+        return ();
+    }
+
+    local sha512_ptr: Sha512ProcessBlock* = builtin_ptrs.non_selectable.sha512;
+    let response = cast(syscall_ptr, Sha512ProcessBlockResponse*);
+    let actual_out_state: Sha512State* = &sha512_ptr.out_state;
+
+    let input: Sha512Input* = &sha512_ptr.input;
+    assert [input] = [request.input_start];
+
+    let state: Sha512State* = &sha512_ptr.in_state;
+    assert [state] = [request.state_ptr];
+
+    // Relocate response.state_ptr (a temporary segment) to actual_out_state in the sha512
+    // segment, and copy the state so finalize_sha512 can read it.
+    %{ RelocateSha512Segment %}
+
+    assert [response] = Sha512ProcessBlockResponse(state_ptr=actual_out_state);
+    let syscall_ptr = syscall_ptr + Sha512ProcessBlockResponse.SIZE;
+    let sha512_ptr = &sha512_ptr[1];
+
+    tempvar builtin_ptrs = new BuiltinPointers(
+        selectable=builtin_ptrs.selectable,
+        non_selectable=NonSelectableBuiltins(
+            keccak=builtin_ptrs.non_selectable.keccak,
+            sha256=builtin_ptrs.non_selectable.sha256,
+            sha512=sha512_ptr,
         ),
     );
     return ();

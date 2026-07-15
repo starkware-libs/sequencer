@@ -10,7 +10,7 @@ from starkware.starknet.core.os.constants import (
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
 from starkware.starknet.core.os.virtual_os_output import (
-    PROOF_VERSION,
+    PROOF_VERSION_V1,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
     ProofHeader,
@@ -24,7 +24,7 @@ func check_is_reverted(is_reverted: felt) {
 // Returns TRUE if the given virtual OS program hash is allowed, FALSE otherwise.
 func is_program_hash_allowed(program_hash: felt) -> felt {
     static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 1;
-    if (program_hash == ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) {
+    if (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 == 0) {
         return TRUE;
     }
     return FALSE;
@@ -44,14 +44,14 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     assert_le(ProofHeader.SIZE + VirtualOsOutputHeader.SIZE, proof_facts_size);
 
     // Validate the proof header.
+    static_assert ProofHeader.SIZE == 3;
     let proof_header = cast(proof_facts, ProofHeader*);
+    assert proof_header.proof_variant = VIRTUAL_SNOS;
     assert is_program_hash_allowed(proof_header.program_hash) = TRUE;
-    // Proof version and variant are for future compatibility.
-    assert [proof_header] = ProofHeader(
-        proof_version=PROOF_VERSION,
-        proof_variant=VIRTUAL_SNOS,
-        program_hash=proof_header.program_hash,
-    );
+    // Proof version may be V0 (legacy) or V1 (current).
+    with_attr error_message("Unsupported proof version") {
+        assert proof_header.proof_version = PROOF_VERSION_V1;
+    }
 
     // Validate the virtual OS output header.
     let os_output_header = cast(&proof_facts[ProofHeader.SIZE], VirtualOsOutputHeader*);
