@@ -240,6 +240,7 @@ pub fn execute_deprecated_syscall_from_selector<T: DeprecatedSyscallExecutor>(
         // Explicitly list unsupported syscalls, so compiler can catch if a syscall is missing.
         DeprecatedSyscallSelector::GetBlockHash
         | DeprecatedSyscallSelector::GetClassHashAt
+        | DeprecatedSyscallSelector::DeployV2
         | DeprecatedSyscallSelector::GetExecutionInfo
         | DeprecatedSyscallSelector::Keccak
         | DeprecatedSyscallSelector::KeccakRound

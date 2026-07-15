@@ -133,6 +133,15 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> Result<DeployResponse, Self::Error>;
 
+    /// Same as `deploy`, but derives the contract address with Blake2 (plus the Pedersen-image
+    /// escape) instead of Pedersen. The request and response layouts are identical to `deploy`.
+    fn deploy_v2(
+        request: DeployRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> Result<DeployResponse, Self::Error>;
+
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
