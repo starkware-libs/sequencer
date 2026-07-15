@@ -7,6 +7,7 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.new_syscalls import (
     CALL_CONTRACT_SELECTOR,
     DEPLOY_SELECTOR,
+    DEPLOY_V2_SELECTOR,
     EMIT_EVENT_SELECTOR,
     GET_BLOCK_HASH_SELECTOR,
     GET_CLASS_HASH_AT_SELECTOR,
@@ -44,6 +45,7 @@ from starkware.starknet.core.os.execution.revert import RevertLogEntry
 from starkware.starknet.core.os.execution.syscall_impls import (
     execute_call_contract,
     execute_deploy,
+    execute_deploy_v2,
     execute_get_block_hash,
     execute_get_class_hash_at,
     execute_get_execution_info,
@@ -344,6 +346,18 @@ func execute_syscalls{
         execute_send_message_to_l1(
             contract_address=execution_context.execution_info.contract_address
         );
+        %{ OsLoggerExitSyscall %}
+        return execute_syscalls(
+            block_context=block_context,
+            execution_context=execution_context,
+            syscall_ptr_end=syscall_ptr_end,
+        );
+    }
+
+    // Placed last (before the meta_tx fallthrough) so adding this arm doesn't add a comparison to
+    // any pre-existing syscall's dispatch path.
+    if (selector == DEPLOY_V2_SELECTOR) {
+        execute_deploy_v2(block_context=block_context, caller_execution_context=execution_context);
         %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
