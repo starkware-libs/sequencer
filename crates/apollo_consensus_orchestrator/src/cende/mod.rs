@@ -11,7 +11,9 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
@@ -42,6 +44,8 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::fields::snos_block_number_from_proof_facts;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -138,16 +142,35 @@ pub trait CendeContext: Send + Sync {
 }
 
 /// The raw per-block data the recorder returns from `get_accessed_keys_input`. The caller computes
-/// the block's [`AccessedKeys`](blockifier::state::accessed_keys::AccessedKeys) from this, with
-/// data it already holds for a synced block.
-// TODO(Yoav): Remove the expect once the accessed-keys computation lands and reads these fields.
-#[cfg_attr(not(test), expect(dead_code))]
+/// the block's [`AccessedKeys`] from this, with data it already holds for a synced block.
 #[derive(Debug, Deserialize)]
 pub struct BlockAccessedKeysData {
     /// One entry per transaction, in the same central format as the blob's `transactions` field.
     pub(crate) transactions: Vec<CentralTransactionWritten>,
     /// One execution info per transaction.
     pub(crate) execution_infos: Vec<CentralTransactionExecutionInfo>,
+}
+
+impl BlockAccessedKeysData {
+    /// Computes the block's [`AccessedKeys`] from the recorder-supplied transactions and execution
+    /// infos, the synced block's `state_diff`, and the latest versioned constants. Mirrors
+    /// [`AccessedKeys::new`], but sources the call infos from the central execution infos and the
+    /// proof-facts block numbers from the transactions.
+    pub fn compute_accessed_keys(&self, state_diff: CommitmentStateDiff) -> AccessedKeys {
+        let proof_facts_block_numbers: Vec<BlockNumber> = self
+            .transactions
+            .iter()
+            .filter_map(|transaction| {
+                transaction.proof_facts().and_then(snos_block_number_from_proof_facts)
+            })
+            .collect();
+        AccessedKeys::from_call_infos(
+            self.execution_infos.iter().flat_map(|execution_info| execution_info.call_info_iter()),
+            &proof_facts_block_numbers,
+            &state_diff,
+            VersionedConstants::latest_constants(),
+        )
+    }
 }
 
 #[derive(Clone)]

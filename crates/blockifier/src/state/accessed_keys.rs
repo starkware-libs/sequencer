@@ -10,6 +10,7 @@ use starknet_api::state::StorageKey;
 use super::cached_state::{CommitmentStateDiff, StateChangesKeys, StorageEntry};
 use super::stateful_compression::predicted_alias_storage_entries;
 use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::execution::call_info::CallInfo;
 use crate::transaction::objects::TransactionExecutionInfo;
 
 #[cfg(test)]
@@ -75,21 +76,42 @@ impl AccessedKeys {
         state_diff: &CommitmentStateDiff,
         versioned_constants: &VersionedConstants,
     ) -> Self {
+        Self::from_call_infos(
+            execution_infos
+                .into_iter()
+                .flat_map(|execution_info| execution_info.non_optional_call_infos())
+                .flat_map(|call_info| call_info.iter()),
+            proof_facts_block_numbers,
+            state_diff,
+            versioned_constants,
+        )
+    }
+
+    /// Like [`Self::new`], but takes the transactions' call infos directly, already flattened over
+    /// the call trees (each `&CallInfo` and all its descendants). Lets callers that only have the
+    /// call infos — e.g. reconstructed from the recorder's central execution infos — reuse the
+    /// exact same computation without owning blockifier `TransactionExecutionInfo`s.
+    pub fn from_call_infos<'a>(
+        call_infos: impl IntoIterator<Item = &'a CallInfo>,
+        proof_facts_block_numbers: impl IntoIterator<Item = &'a BlockNumber>,
+        state_diff: &CommitmentStateDiff,
+        versioned_constants: &VersionedConstants,
+    ) -> Self {
         let mut storage_keys: BTreeSet<StorageEntry> = BTreeSet::new();
         let mut accessed_contracts: BTreeSet<ContractAddress> = BTreeSet::new();
         let mut accessed_class_hashes: BTreeSet<ClassHash> = BTreeSet::new();
 
         // Scan the call infos.
-        for execution_info in execution_infos {
-            for call_info in execution_info.non_optional_call_infos().flat_map(|ci| ci.iter()) {
-                storage_keys.extend(call_info.get_visited_storage_entries());
-                storage_keys.extend(call_info.storage_access_tracker.accessed_blocks.iter().map(
-                    |block_number| (BLOCK_HASH_TABLE_ADDRESS, StorageKey::from(block_number.0)),
-                ));
-                accessed_contracts.extend(call_info.get_visited_contract_addresses());
-                if let Some(class_hash) = call_info.call.class_hash {
-                    accessed_class_hashes.insert(class_hash);
-                }
+        for call_info in call_infos {
+            storage_keys.extend(call_info.get_visited_storage_entries());
+            storage_keys.extend(
+                call_info.storage_access_tracker.accessed_blocks.iter().map(|block_number| {
+                    (BLOCK_HASH_TABLE_ADDRESS, StorageKey::from(block_number.0))
+                }),
+            );
+            accessed_contracts.extend(call_info.get_visited_contract_addresses());
+            if let Some(class_hash) = call_info.call.class_hash {
+                accessed_class_hashes.insert(class_hash);
             }
         }
 

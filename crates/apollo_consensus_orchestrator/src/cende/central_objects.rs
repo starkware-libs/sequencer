@@ -438,6 +438,19 @@ pub(crate) struct CentralTransactionWritten {
     time_created: u64,
 }
 
+impl CentralTransactionWritten {
+    /// The transaction's SNOS proof facts, if any (only invoke transactions carry them). Read by
+    /// the accessed-keys computation for the proof-facts block-hash-table entries.
+    pub(crate) fn proof_facts(&self) -> Option<&ProofFacts> {
+        match &self.tx {
+            CentralTransaction::Invoke(CentralInvokeTransaction::V3(invoke)) => {
+                Some(&invoke.proof_facts)
+            }
+            _ => None,
+        }
+    }
+}
+
 // This function gets SierraContractClass only for declare_tx, otherwise use None.
 impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>, u64)>
     for CentralTransactionWritten
