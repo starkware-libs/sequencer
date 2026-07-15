@@ -30,7 +30,9 @@ pub trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     /// Does the skeleton represents an empty-tree (i.e. all leaves are empty).
     fn is_empty(&self) -> bool;
 
-    /// Returns an iterator over all (node index, node) pairs in the tree.
+    /// Returns an iterator over all (node index, node) pairs in the tree. Callers rely on an
+    /// exact `size_hint` (lower bound equal to the true count) to pre-allocate; implementations
+    /// must not wrap this in an adapter (e.g. `filter`) that only yields a lower bound of `0`.
     fn get_nodes(&self) -> impl Iterator<Item = (&NodeIndex, &UpdatedSkeletonNode)>;
 
     /// Returns the node with the given index.
