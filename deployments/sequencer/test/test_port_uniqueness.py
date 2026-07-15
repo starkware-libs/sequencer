@@ -123,7 +123,9 @@ def node0_flat_configs() -> dict[str, dict]:
     `sequencerConfig` reads. Public overlay only — no devops checkout needed.
     """
     node_file = (
-        DEPLOYMENTS_SEQUENCER.joinpath("configs", "overlays", *NODE0_OVERLAYS[-1].split("."))
+        DEPLOYMENTS_SEQUENCER.joinpath(
+            "configs", "jsonnet", "overlays", *NODE0_OVERLAYS[-1].split(".")
+        )
         / "node.jsonnet"
     )
     return {

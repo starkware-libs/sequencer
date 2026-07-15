@@ -1,5 +1,4 @@
 use std::collections::{BTreeSet, HashSet};
-use std::env;
 use std::fs::File;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -21,27 +20,18 @@ const SECRETS_FOR_TESTING_ENV_PATH: &str =
 /// Verifies build('consolidated', params) deserializes into SequencerNodeConfig per service.
 #[test]
 fn build_consolidated_deserializes_into_node_config() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
     assert_build_deserializes::<ConsolidatedNodeServiceName>();
 }
 
 /// Verifies build('hybrid', params) deserializes into SequencerNodeConfig per service.
 #[test]
 fn build_hybrid_deserializes_into_node_config() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
     assert_build_deserializes::<HybridNodeServiceName>();
 }
 
 /// Verifies build('distributed', params) deserializes into SequencerNodeConfig per service.
 #[test]
 fn build_distributed_deserializes_into_node_config() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
     assert_build_deserializes::<DistributedNodeServiceName>();
 }
 

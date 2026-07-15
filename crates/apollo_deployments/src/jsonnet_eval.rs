@@ -4,9 +4,9 @@
 //! sibling `jsonnet_tests` module (compiled only under `test`).
 
 use std::collections::{BTreeSet, HashMap};
-use std::path::PathBuf;
 use std::str::FromStr;
 
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::component_config::ComponentConfig;
 use jrsonnet_evaluator::trace::PathResolver;
 use jrsonnet_evaluator::{FileImportResolver, State};
@@ -17,7 +17,7 @@ use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::service::{NodeService, NodeType};
 
-const JSONNET_DIR: &str = "crates/apollo_deployments/jsonnet";
+const JSONNET_DIR: &str = "deployments/sequencer/configs/jsonnet";
 const TOPOLOGY_PARAMS: &str = "{ chain_params: import 'testing/chain_params.libsonnet', \
                                node_params: import 'testing/node_params.libsonnet' }";
 
@@ -121,6 +121,8 @@ pub(crate) fn eval_jsonnet(context: &str, snippet: String) -> Value {
 fn jsonnet_state() -> State {
     let mut builder = State::builder();
     builder.context_initializer(jrsonnet_stdlib::ContextInitializer::new(PathResolver::Absolute));
-    builder.import_resolver(FileImportResolver::new(vec![PathBuf::from(JSONNET_DIR)]));
+    let jsonnet_dir = resolve_project_relative_path(JSONNET_DIR)
+        .expect("jsonnet dir must exist under the repo root");
+    builder.import_resolver(FileImportResolver::new(vec![jsonnet_dir]));
     builder.build()
 }

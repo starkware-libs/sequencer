@@ -4,6 +4,9 @@ from pathlib import Path
 from imports import k8s
 from src.config.native import build_native_config
 from src.constructs.base import BaseConstruct
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class ConfigMapConstruct(BaseConstruct):
@@ -36,6 +39,15 @@ class ConfigMapConstruct(BaseConstruct):
                 f"config is required for service '{self.service_config.name}' but was not provided"
             )
 
+        ignored_overrides = self.service_config.config.sequencerConfig or {}
+        if ignored_overrides:
+            logger.warning(
+                "service '%s': config.sequencerConfig is ignored, the ConfigMap comes from "
+                "node.jsonnet; move these keys to chain_params: %s",
+                self.service_config.name,
+                sorted(ignored_overrides),
+            )
+
         node_config = self._build_native_node_config()
 
         config_data = json.dumps(node_config, indent=2)
@@ -60,8 +72,10 @@ class ConfigMapConstruct(BaseConstruct):
                 "(the leaf overlay's node.jsonnet is the config source)."
             )
         base_dir = Path(__file__).resolve().parents[2]
-        # The leaf `-o` overlay's dir (its dotted path under configs/overlays) holds node.jsonnet.
+        # The leaf `-o` overlay's dir (its dotted path under configs/jsonnet/overlays) holds
+        # node.jsonnet.
         node_file = (
-            base_dir.joinpath("configs", "overlays", *self.overlays[-1].split(".")) / "node.jsonnet"
+            base_dir.joinpath("configs", "jsonnet", "overlays", *self.overlays[-1].split("."))
+            / "node.jsonnet"
         )
         return build_native_config(self.service_config.name, node_file)
