@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783588650600,
+  "lastUpdate": 1784102713245,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6663,6 +6663,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1288.21441628,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39151790+gkaempfer@users.noreply.github.com",
+            "name": "gkaempfer",
+            "username": "gkaempfer"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c99d4c9f8690478277437c661dd6e153eb4bac0",
+          "message": "starknet_patricia: build filled-tree placeholder map functionally without cloning (#14638)\n\nConstruct the filled-tree output map with a single\n`get_nodes().filter_map(..).collect()` chain instead of a\n`HashMap::new()` + entry-by-entry loop.\n\nAlso change `UpdatedSkeletonTree::get_nodes` to borrow rather than clone:\nit now yields `(&NodeIndex, &UpdatedSkeletonNode)` (just `HashMap::iter()`).\nThe sole caller only inspects each node's variant to drop\n`UnmodifiedSubTree`, and copies the `Copy` index only for the surviving\nnodes, so on the block-finalization hot path neither the node nor the\nindex of a filtered-out node is copied.\n\nCo-authored-by: Yoav Gross <yoav@starkware.co>\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-15T07:37:46Z",
+          "tree_id": "034aa6cdaf13d2a330c806fb86ee3bc67dab7a2c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0c99d4c9f8690478277437c661dd6e153eb4bac0"
+        },
+        "date": 1784102712833,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 819.37729679,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1317.9005713,
             "unit": "ms"
           }
         ]
