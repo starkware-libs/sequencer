@@ -326,7 +326,49 @@ impl TryFrom<StarkHash> for ContractAddress {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AddressDerivationHash {
     Pedersen,
+    /// Blake2, escaped out of the Pedersen image; see [escape_pedersen_image].
     Blake2,
+}
+
+/// The STARK curve is `y^2 = x^3 + STARK_CURVE_ALPHA * x + STARK_CURVE_BETA`.
+const STARK_CURVE_ALPHA: Felt = Felt::ONE;
+const STARK_CURVE_BETA: Felt =
+    Felt::from_hex_unchecked("0x6f21413efbe40de150e596d72f7a8c5609ad26c15c915c1f4cdfcb99cee9e89");
+/// Addresses below this bound (the field prime minus L2_ADDRESS_UPPER_BOUND) have a second lift
+/// into the field: both `address` and `address + L2_ADDRESS_UPPER_BOUND` are below the prime.
+const ADDRESS_SECOND_LIFT_BOUND: Felt =
+    Felt::from_hex_unchecked("0x11000000000000000000000000000000000000000000000101");
+
+/// Returns whether `value` is the x-coordinate of a STARK curve point, i.e. whether
+/// `value^3 + STARK_CURVE_ALPHA * value + STARK_CURVE_BETA` is a square in the field.
+pub fn is_stark_curve_x_coordinate(value: &Felt) -> bool {
+    let value = *value;
+    (value * value * value + STARK_CURVE_ALPHA * value + STARK_CURVE_BETA).sqrt().is_some()
+}
+
+/// Returns whether some Pedersen hash output reduces (mod L2_ADDRESS_UPPER_BOUND) to `address`.
+/// A Pedersen output is the x-coordinate of a STARK curve point, so `address` is reachable iff
+/// one of its lifts into the field is a curve x-coordinate.
+pub fn is_pedersen_reachable_address(address: &Felt) -> bool {
+    is_stark_curve_x_coordinate(address)
+        || (*address < ADDRESS_SECOND_LIFT_BOUND
+            && is_stark_curve_x_coordinate(&(address + Felt::from(&*L2_ADDRESS_UPPER_BOUND))))
+}
+
+/// Increments `raw_address` (wrapping mod L2_ADDRESS_UPPER_BOUND, skipping the reserved 0x0/0x1)
+/// until no Pedersen derivation can reach it, so a funded-but-undeployed Blake2 address cannot be
+/// front-run through the Pedersen deploy paths. Expected ~1 increment; each step is a square-root
+/// check, never a re-hash.
+fn escape_pedersen_image(raw_address: Felt) -> Felt {
+    let address_upper_bound = Felt::from(&*L2_ADDRESS_UPPER_BOUND);
+    let mut address = raw_address;
+    while address < Felt::TWO || is_pedersen_reachable_address(&address) {
+        address += Felt::ONE;
+        if address == address_upper_bound {
+            address = Felt::ZERO;
+        }
+    }
+    address
 }
 
 pub fn calculate_contract_address(
@@ -336,20 +378,23 @@ pub fn calculate_contract_address(
     deployer_address: ContractAddress,
     address_derivation_hash: AddressDerivationHash,
 ) -> Result<ContractAddress, StarknetApiError> {
-    match address_derivation_hash {
+    let address = match address_derivation_hash {
         AddressDerivationHash::Pedersen => calculate_contract_address_inner::<Pedersen>(
             salt,
             class_hash,
             constructor_calldata,
             deployer_address,
-        ),
-        AddressDerivationHash::Blake2 => calculate_contract_address_inner::<Blake2Felt252>(
-            salt,
-            class_hash,
-            constructor_calldata,
-            deployer_address,
-        ),
-    }
+        )?,
+        AddressDerivationHash::Blake2 => {
+            escape_pedersen_image(calculate_contract_address_inner::<Blake2Felt252>(
+                salt,
+                class_hash,
+                constructor_calldata,
+                deployer_address,
+            )?)
+        }
+    };
+    ContractAddress::try_from(address)
 }
 
 fn calculate_contract_address_inner<H: CoreStarkHash>(
@@ -357,7 +402,7 @@ fn calculate_contract_address_inner<H: CoreStarkHash>(
     class_hash: ClassHash,
     constructor_calldata: &Calldata,
     deployer_address: ContractAddress,
-) -> Result<ContractAddress, StarknetApiError> {
+) -> Result<Felt, StarknetApiError> {
     let constructor_calldata_hash = H::hash_array(&constructor_calldata.0);
     let contract_address_prefix = format!("0x{}", hex::encode(CONTRACT_ADDRESS_PREFIX));
     let address = H::hash_array(&[
@@ -371,7 +416,7 @@ fn calculate_contract_address_inner<H: CoreStarkHash>(
     ]);
     let (_, address) = address.div_rem(&L2_ADDRESS_UPPER_BOUND);
 
-    ContractAddress::try_from(address)
+    Ok(address)
 }
 
 /// The hash of a ContractClass.
