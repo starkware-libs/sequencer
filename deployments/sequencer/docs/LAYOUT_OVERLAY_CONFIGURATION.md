@@ -202,7 +202,7 @@ configs/overlays/hybrid/mainnet/
 ├── apollo-mainnet-0/
 │   ├── common.yaml          # Only: externalSecret.data[].remoteRef.key
 │   └── services/
-│       ├── core.yaml        # Only: advertised_multiaddr, hostname, PV size
+│       ├── core.yaml        # Only: hostname, PV size (multiaddrs come from node.jsonnet)
 │       └── gateway.yaml     # Only: ingress hostnames
 └── apollo-mainnet-1/
     └── ...
@@ -413,13 +413,10 @@ service:
       port: 8082
       targetPort: 8082
       protocol: TCP
-
-# Sequencer config (deep merged with service-specific config)
-config:
-  sequencerConfig:
-    chain_id: "SN_MAIN"
-    monitoring_endpoint_config_port: 8082
 ```
+
+Sequencer config values are not set in YAML: the ConfigMap comes from the overlay's `node.jsonnet` (see
+[CONFIGMAP_CONFIGURATION.md](CONFIGMAP_CONFIGURATION.md)).
 
 ### Overlay Common (`configs/overlays/<layout>/<overlay>/common.yaml`)
 
@@ -436,11 +433,6 @@ env:
     value: debug
   - name: RUST_BACKTRACE
     value: full
-
-# Override sequencer config for integration
-config:
-  sequencerConfig:
-    chain_id: "SN_INTEGRATION_SEPOLIA"
 ```
 
 ### How Common Config Merges with Service Config

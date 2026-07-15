@@ -16,7 +16,7 @@ This directory contains comprehensive documentation for all Kubernetes manifest 
 - **[INGRESS_CONFIGURATION.md](INGRESS_CONFIGURATION.md)** - Ingress configuration for various controllers (NGINX, Traefik, Istio)
 - **[STATEFULSET_CONFIGURATION.md](STATEFULSET_CONFIGURATION.md)** - StatefulSet configuration with advanced scheduling and security options
 - **[DEPLOYMENT_CONFIGURATION.md](DEPLOYMENT_CONFIGURATION.md)** - Deployment configuration with scaling and update strategies
-- **[CONFIGMAP_CONFIGURATION.md](CONFIGMAP_CONFIGURATION.md)** - ConfigMap configuration for JSON file loading and merging
+- **[CONFIGMAP_CONFIGURATION.md](CONFIGMAP_CONFIGURATION.md)** - ConfigMap generated from the overlay's `node.jsonnet`
 - **[SERVICE_CONFIGURATION.md](SERVICE_CONFIGURATION.md)** - Service configuration for different types and cloud load balancers
 - **[VOLUME_CONFIGURATION.md](VOLUME_CONFIGURATION.md)** - PersistentVolume configuration for various storage classes
 - **[POD_DISRUPTION_BUDGET_CONFIGURATION.md](POD_DISRUPTION_BUDGET_CONFIGURATION.md)** - PodDisruptionBudget configuration for pod availability during disruptions
@@ -60,7 +60,7 @@ Common configuration fields that are typically set in `common.yaml`:
 - **`securityContext`**: Security context (applied to all services)
 - **`externalSecret`**: External secret configuration (applied to all services)
 - **`service.ports`**: Common service ports (merged by name with service-specific ports)
-- **`config.sequencerConfig`**: Sequencer configuration (deep merged with service-specific config)
+- **`config`**: ConfigMap mount options (`mountPath`, `readOnly`); the content comes from jsonnet, see [CONFIGMAP_CONFIGURATION.md](CONFIGMAP_CONFIGURATION.md)
 
 For detailed information on how common config merges with service configs, see [LAYOUT_OVERLAY_CONFIGURATION.md](LAYOUT_OVERLAY_CONFIGURATION.md).
 
@@ -70,29 +70,30 @@ For detailed information on how common config merges with service configs, see [
 
 The following resources are automatically mounted in pods when enabled:
 
-- **ConfigMap**: Automatically mounted at `/config/sequencer/presets/` (or custom `mountPath`)
+- **ConfigMap**: Automatically mounted at `/config/sequencer/presets/` (or custom `mountPath`); the file is named `config`
 - **Secret**: Automatically mounted as `/etc/secrets/secret.json` (or custom path) using `subPath`
-- **ExternalSecret**: Automatically mounted as `/etc/secrets/external-secret.json` (or custom path) using `subPath`
+- **ExternalSecret**: Automatically mounted as `/etc/secrets/secrets.json` (or custom path)
 
 ### Automatic Container Arguments
 
 Container arguments are automatically generated based on enabled resources:
 
-1. **ConfigMap**: Always adds `--config_file {mountPath}` (default: `--config_file /config/sequencer/presets/`)
+1. **ConfigMap**: Always adds `--config_file {mountPath}config` (default: `--config_file /config/sequencer/presets/config`)
 2. **Secret**: Adds `--config_file {mountPath}/secret.json` (default: `--config_file /etc/secrets/secret.json`)
-3. **ExternalSecret**: Adds `--config_file {mountPath}/external-secret.json` (default: `--config_file /etc/secrets/external-secret.json`)
+3. **ExternalSecret**: Adds `--config_file {mountPath}/secrets.json` (default: `--config_file /etc/secrets/secrets.json`)
 4. **Custom Args**: Any additional args from `node.yaml` are appended after the automatic args
+
+The node accepts exactly two `--config_file` arguments (base + secrets), so enable exactly one of `secret` /
+`externalSecret` per service.
 
 **Example generated args:**
 ```yaml
 args:
   - --config_file
-  - /config/sequencer/presets/      # From ConfigMap
+  - /config/sequencer/presets/config   # From ConfigMap
   - --config_file
-  - /etc/secrets/secret.json       # From Secret (if enabled)
-  - --config_file
-  - /etc/secrets/external-secret.json  # From ExternalSecret (if enabled)
-  - --custom-arg                    # From node.yaml args section
+  - /etc/secrets/secrets.json          # From ExternalSecret (or /etc/secrets/secret.json from Secret)
+  - --custom-arg                       # From node.yaml args section
   - value
 ```
 
@@ -109,14 +110,11 @@ serviceAccount:
 
 ### Config (ConfigMap)
 ```yaml
-config:
-  configPaths:
-    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+config: {}
   # mountPath: /config/sequencer/presets/  # Optional: defaults to "/config/sequencer/presets/"
 ```
 
-**Note**: The ConfigMap is automatically mounted and a `--config_file {mountPath}` argument is automatically added to container args.
+**Note**: The content is the service's nested `SequencerNodeConfig`, evaluated from the last overlay's `node.jsonnet`; the ConfigMap is automatically mounted and a `--config_file {mountPath}config` argument is automatically added to container args.
 
 ### Secret
 ```yaml
@@ -144,12 +142,12 @@ externalSecret:
     name: "gcp-secret-store"
     kind: "ClusterSecretStore"
   data:
-    - secretKey: "external-secret.json"  # Key must be "external-secret.json" for auto-mounting
+    - secretKey: "secrets.json"
       remoteKey: "sequencer/secrets"
   # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
 ```
 
-**Note**: The ExternalSecret is automatically mounted as `{mountPath}/external-secret.json` and a `--config_file {mountPath}/external-secret.json` argument is automatically added to container args. The target secret must contain a key named `external-secret.json`.
+**Note**: The first `data[].secretKey` of the target secret is mounted as `{mountPath}/secrets.json` and a `--config_file {mountPath}/secrets.json` argument is automatically added to container args.
 
 ### Ingress
 ```yaml
