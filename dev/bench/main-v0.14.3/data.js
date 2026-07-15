@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783865411576,
+  "lastUpdate": 1784113531711,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -815,6 +815,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1421.85620086,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "499878ef14e771488bf91b913f1354bd32f6d461",
+          "message": "workspace: upgrade cairo compiler to v2.19.3 (#14805)\n\nBumps the Rust cairo-lang-* crates and the Sierra compiler binary\nversion from 2.19.2 to 2.19.3. The bump moves the Sierra version\nfrom 1.9.1 to 1.9.2, cascading into Cairo1 class hashes and their\ndownstream fixtures: starknet_os_flow_tests hint-coverage/fuzz\nfixtures, the cende blob regression (operator/fee-token addresses,\nGCS blob generation), and the apollo_integration_tests proof-flow\nfixtures.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-15T10:37:42Z",
+          "tree_id": "85be1355c63ac5fccc56069791347ad108394739",
+          "url": "https://github.com/starkware-libs/sequencer/commit/499878ef14e771488bf91b913f1354bd32f6d461"
+        },
+        "date": 1784113531329,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.09371219,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1283.50364521,
             "unit": "ms"
           }
         ]
