@@ -9,6 +9,7 @@ from starkware.starknet.common.new_syscalls import (
     EMIT_EVENT_SELECTOR,
     GET_CLASS_HASH_AT_SELECTOR,
     GET_EXECUTION_INFO_SELECTOR,
+    KECCAK_SELECTOR,
     LIBRARY_CALL_SELECTOR,
     SECP256K1_ADD_SELECTOR,
     SECP256K1_GET_POINT_FROM_X_SELECTOR,
@@ -22,6 +23,7 @@ from starkware.starknet.common.new_syscalls import (
     SECP256R1_NEW_SELECTOR,
     SEND_MESSAGE_TO_L1_SELECTOR,
     SHA256_PROCESS_BLOCK_SELECTOR,
+    SHA512_PROCESS_BLOCK_SELECTOR,
     STORAGE_READ_SELECTOR,
     STORAGE_WRITE_SELECTOR,
     EmitEventRequest,
@@ -39,6 +41,7 @@ from starkware.starknet.core.os.execution.syscall_impls import (
     execute_call_contract,
     execute_get_class_hash_at,
     execute_get_execution_info,
+    execute_keccak,
     execute_library_call,
     execute_secp256k1_add,
     execute_secp256k1_get_point_from_x,
@@ -51,6 +54,7 @@ from starkware.starknet.core.os.execution.syscall_impls import (
     execute_secp_get_xy,
     execute_send_message_to_l1,
     execute_sha256_process_block,
+    execute_sha512_process_block,
     execute_storage_read,
     execute_storage_write,
     reduce_syscall_gas_and_write_response_header,
@@ -59,6 +63,9 @@ from starkware.starknet.core.os.output import OsCarriedOutputs
 
 // Virtual OS version of execute_syscalls.
 // Executes a subset of the system calls that are allowed in virtual OS mode.
+//
+// The set of allowed syscalls is part of the VIRTUAL_SNOS0 version contract.
+// Changes must trigger a version bump.
 func execute_syscalls{
     range_check_ptr,
     syscall_ptr: felt*,
@@ -154,8 +161,28 @@ func execute_syscalls{
         );
     }
 
+    if (selector == KECCAK_SELECTOR) {
+        execute_keccak();
+        %{ OsLoggerExitSyscall %}
+        return execute_syscalls(
+            block_context=block_context,
+            execution_context=execution_context,
+            syscall_ptr_end=syscall_ptr_end,
+        );
+    }
+
     if (selector == SHA256_PROCESS_BLOCK_SELECTOR) {
         execute_sha256_process_block();
+        %{ OsLoggerExitSyscall %}
+        return execute_syscalls(
+            block_context=block_context,
+            execution_context=execution_context,
+            syscall_ptr_end=syscall_ptr_end,
+        );
+    }
+
+    if (selector == SHA512_PROCESS_BLOCK_SELECTOR) {
+        execute_sha512_process_block();
         %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
