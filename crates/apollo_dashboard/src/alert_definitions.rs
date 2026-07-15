@@ -106,7 +106,6 @@ use crate::alert_scenarios::transaction_delays::{
 };
 use crate::alert_scenarios::transaction_failures::{
     get_http_server_high_deprecated_transaction_failure_ratio,
-    get_http_server_high_transaction_failure_ratio,
     get_http_server_internal_error_once,
     get_http_server_internal_error_ratio,
     get_mempool_transaction_drop_ratio,
@@ -617,7 +616,6 @@ pub fn get_apollo_alerts() -> Alerts {
         get_general_pod_state_crashloopbackoff(),
         get_general_pod_high_cpu_utilization(),
         get_http_server_high_deprecated_transaction_failure_ratio(),
-        get_http_server_high_transaction_failure_ratio(),
         get_http_server_internal_error_once(),
         get_http_server_no_successful_transactions(),
         get_l1_events_provider_errors_alert(),
