@@ -6,6 +6,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcDeployAccountTransactionV4,
     RpcInvokeTransaction,
     RpcInvokeTransactionV3,
     RpcTransaction,
@@ -39,6 +40,9 @@ fn add_gas_values_to_transaction(transactions: &mut [ConsensusTransaction]) {
             }))
             | RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
                 RpcDeployAccountTransactionV3 { resource_bounds, .. },
+            ))
+            | RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(
+                RpcDeployAccountTransactionV4 { resource_bounds, .. },
             )) => {
                 resource_bounds.l2_gas.max_amount = GasAmount(1);
             }

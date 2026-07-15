@@ -29,6 +29,7 @@ use crate::transaction::{
     DeployAccountTransaction,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
     TransactionHash,
     TransactionVersion,
 };
@@ -114,6 +115,19 @@ pub fn deploy_account_tx(
             contract_address_salt: deploy_tx_args.contract_address_salt,
             constructor_calldata: deploy_tx_args.constructor_calldata,
         })
+    } else if deploy_tx_args.version == TransactionVersion::FOUR {
+        DeployAccountTransaction::V4(DeployAccountTransactionV4 {
+            signature: deploy_tx_args.signature,
+            resource_bounds: deploy_tx_args.resource_bounds,
+            tip: deploy_tx_args.tip,
+            nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
+            fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
+            paymaster_data: deploy_tx_args.paymaster_data,
+            nonce,
+            class_hash: deploy_tx_args.class_hash,
+            contract_address_salt: deploy_tx_args.contract_address_salt,
+            constructor_calldata: deploy_tx_args.constructor_calldata,
+        })
     } else {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version)
     }
@@ -125,7 +139,7 @@ pub fn executable_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> Acco
     let tx_hash = deploy_tx_args.tx_hash;
     let tx_nonce = deploy_tx_args.nonce;
     let tx = deploy_account_tx(deploy_tx_args, tx_nonce);
-    let contract_address = tx.calculate_contract_address(AddressDerivationHash::Pedersen).unwrap();
+    let contract_address = tx.calculate_contract_address(tx.address_derivation_hash()).unwrap();
     let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
 
     AccountTransaction::DeployAccount(deploy_account_tx)

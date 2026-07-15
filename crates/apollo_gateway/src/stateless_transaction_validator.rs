@@ -126,6 +126,9 @@ impl StatelessTransactionValidator {
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
                 &tx.paymaster_data
             }
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(tx)) => {
+                &tx.paymaster_data
+            }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => &tx.paymaster_data,
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.paymaster_data,
         };
@@ -159,6 +162,10 @@ impl StatelessTransactionValidator {
             RpcTransaction::Declare(_) => return Ok(()),
 
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
+                tx.constructor_calldata.0.len()
+            }
+
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(tx)) => {
                 tx.constructor_calldata.0.len()
             }
 

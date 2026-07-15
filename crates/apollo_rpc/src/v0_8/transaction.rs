@@ -300,6 +300,13 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
         tx: starknet_api::transaction::DeployAccountTransaction,
     ) -> Result<Self, Self::Error> {
         match tx {
+            // TODO(Ron): serve v4 once the JSON-RPC spec adds it (requires a new spec version
+            // module; v0_8 predates deploy account v4).
+            starknet_api::transaction::DeployAccountTransaction::V4(_) => {
+                Err(internal_server_error(
+                    "Deploy account v4 transactions are not supported in JSON-RPC v0.8.",
+                ))
+            }
             starknet_api::transaction::DeployAccountTransaction::V1(
                 starknet_api::transaction::DeployAccountTransactionV1 {
                     max_fee,

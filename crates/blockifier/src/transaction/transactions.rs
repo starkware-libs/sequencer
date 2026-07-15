@@ -291,6 +291,18 @@ impl TransactionInfoCreatorInner for DeployAccountTransaction {
                     proof_facts: ProofFacts::default(),
                 })
             }
+            starknet_api::transaction::DeployAccountTransaction::V4(tx) => {
+                TransactionInfo::Current(CurrentTransactionInfo {
+                    common_fields,
+                    resource_bounds: tx.resource_bounds,
+                    tip: tx.tip,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                    fee_data_availability_mode: tx.fee_data_availability_mode,
+                    paymaster_data: tx.paymaster_data.clone(),
+                    account_deployment_data: AccountDeploymentData::default(),
+                    proof_facts: ProofFacts::default(),
+                })
+            }
         }
     }
 }

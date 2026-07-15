@@ -102,6 +102,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionOutput,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
     DeployTransaction,
     DeployTransactionOutput,
     Event,
@@ -252,6 +253,7 @@ auto_storage_serde! {
     pub enum DeployAccountTransaction {
         V1(DeployAccountTransactionV1) = 0,
         V3(DeployAccountTransactionV3) = 1,
+        V4(DeployAccountTransactionV4) = 2,
     }
     pub struct DeprecatedEntryPoint {
         pub selector: EntryPointSelector,
@@ -1252,6 +1254,19 @@ auto_storage_serde_conditionally_compressed! {
     }
 
     pub struct DeployAccountTransactionV3 {
+        pub resource_bounds: ValidResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub contract_address_salt: ContractAddressSalt,
+        pub constructor_calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+    }
+
+    pub struct DeployAccountTransactionV4 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,

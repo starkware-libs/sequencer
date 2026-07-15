@@ -41,6 +41,7 @@ use crate::transaction_hash::{
     get_declare_transaction_v3_hash,
     get_deploy_account_transaction_v1_hash,
     get_deploy_account_transaction_v3_hash,
+    get_deploy_account_transaction_v4_hash,
     get_deploy_transaction_hash,
     get_invoke_transaction_v0_hash,
     get_invoke_transaction_v1_hash,
@@ -160,7 +161,7 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
         match tx {
             Transaction::DeployAccount(tx) => {
                 let contract_address =
-                    tx.calculate_contract_address(AddressDerivationHash::Pedersen)?;
+                    tx.calculate_contract_address(tx.address_derivation_hash())?;
                 Ok(executable_transaction::Transaction::Account(
                     executable_transaction::AccountTransaction::DeployAccount(
                         executable_transaction::DeployAccountTransaction {
@@ -544,12 +545,47 @@ impl TransactionHasher for DeployAccountTransactionV3 {
 
 impl_deploy_transaction_trait!(DeployAccountTransactionV3);
 
+/// A deploy account V4 transaction: the fields of V3, with the contract address derived using
+/// Blake2 instead of Pedersen.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+pub struct DeployAccountTransactionV4 {
+    pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub constructor_calldata: Calldata,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+}
+
+impl TransactionHasher for DeployAccountTransactionV4 {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        let contract_address = self.calculate_contract_address(AddressDerivationHash::Blake2)?;
+        get_deploy_account_transaction_v4_hash(
+            self,
+            chain_id,
+            transaction_version,
+            contract_address,
+        )
+    }
+}
+
+impl_deploy_transaction_trait!(DeployAccountTransactionV4);
+
 #[derive(
     Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
 )]
 pub enum DeployAccountTransaction {
     V1(DeployAccountTransactionV1),
     V3(DeployAccountTransactionV3),
+    V4(DeployAccountTransactionV4),
 }
 
 impl CalculateContractAddress for DeployAccountTransaction {
@@ -564,6 +600,9 @@ impl CalculateContractAddress for DeployAccountTransaction {
             DeployAccountTransaction::V3(tx) => {
                 tx.calculate_contract_address(address_derivation_hash)
             }
+            DeployAccountTransaction::V4(tx) => {
+                tx.calculate_contract_address(address_derivation_hash)
+            }
         }
     }
 }
@@ -575,9 +614,27 @@ macro_rules! implement_deploy_account_tx_getters {
                 match self {
                     Self::V1(tx) => tx.$field.clone(),
                     Self::V3(tx) => tx.$field.clone(),
+                    Self::V4(tx) => tx.$field.clone(),
                 }
             }
         )*
+    };
+}
+
+macro_rules! implement_deploy_account_v3_v4_tx_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                Self::V4(tx) => tx.$field.clone(),
+                _ => panic!(
+                    "{:?} does not support the field {}; it is only available for V3/V4 \
+                     transactions.",
+                    self.version(),
+                    stringify!($field)
+                ),
+            }
+        })*
     };
 }
 
@@ -591,7 +648,7 @@ impl DeployAccountTransaction {
         (signature, TransactionSignature)
     );
 
-    implement_v3_tx_getters!(
+    implement_deploy_account_v3_v4_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
         (nonce_data_availability_mode, DataAvailabilityMode),
@@ -603,6 +660,19 @@ impl DeployAccountTransaction {
         match self {
             DeployAccountTransaction::V1(_) => TransactionVersion::ONE,
             DeployAccountTransaction::V3(_) => TransactionVersion::THREE,
+            DeployAccountTransaction::V4(_) => TransactionVersion::FOUR,
+        }
+    }
+
+    /// The contract-address derivation hash implied by the transaction version: Pedersen for
+    /// V1/V3, Blake2 for V4. The derived address is embedded in the (signed) transaction hash, so
+    /// deriving with any other hash produces an address the signature does not cover.
+    pub fn address_derivation_hash(&self) -> AddressDerivationHash {
+        match self {
+            DeployAccountTransaction::V1(_) | DeployAccountTransaction::V3(_) => {
+                AddressDerivationHash::Pedersen
+            }
+            DeployAccountTransaction::V4(_) => AddressDerivationHash::Blake2,
         }
     }
 }
@@ -618,6 +688,9 @@ impl TransactionHasher for DeployAccountTransaction {
                 tx.calculate_transaction_hash(chain_id, transaction_version)
             }
             DeployAccountTransaction::V3(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+            DeployAccountTransaction::V4(tx) => {
                 tx.calculate_transaction_hash(chain_id, transaction_version)
             }
         }
@@ -983,6 +1056,9 @@ impl TransactionVersion {
 
     /// [TransactionVersion] constant that's equal to 3.
     pub const THREE: Self = { Self(Felt::THREE) };
+
+    /// [TransactionVersion] constant that's equal to 4.
+    pub const FOUR: Self = { Self(Felt::from_hex_unchecked("0x4")) };
 }
 
 // TODO(Dori): TransactionVersion and SignedTransactionVersion should probably be separate types.

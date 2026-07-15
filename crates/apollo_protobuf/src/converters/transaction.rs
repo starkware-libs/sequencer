@@ -35,6 +35,7 @@ use starknet_api::transaction::{
     DeployAccountTransaction,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
     DeployTransaction,
     FullTransaction,
     InvokeTransaction,
@@ -167,6 +168,11 @@ impl TryFrom<protobuf::TransactionInBlock> for (Transaction, TransactionHash) {
                     DeployAccountTransactionV3::try_from(deploy_account_v3)?,
                 ))
             }
+            protobuf::transaction_in_block::Txn::DeployAccountV4(deploy_account_v4) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V4(
+                    DeployAccountTransactionV4::try_from(deploy_account_v4)?,
+                ))
+            }
             protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
                 InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
             ),
@@ -226,6 +232,12 @@ impl From<(Transaction, TransactionHash)> for protobuf::TransactionInBlock {
                 DeployAccountTransaction::V3(deploy_account_v3) => protobuf::TransactionInBlock {
                     txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV3(
                         deploy_account_v3.into(),
+                    )),
+                    transaction_hash: tx_hash,
+                },
+                DeployAccountTransaction::V4(deploy_account_v4) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV4(
+                        deploy_account_v4.into(),
                     )),
                     transaction_hash: tx_hash,
                 },
@@ -383,6 +395,98 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
 
 impl From<DeployAccountTransactionV3> for protobuf::DeployAccountV3 {
     fn from(value: DeployAccountTransactionV3) -> Self {
+        Self {
+            resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
+            tip: value.tip.0,
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            class_hash: Some(value.class_hash.0.into()),
+            address_salt: Some(value.contract_address_salt.0.into()),
+            calldata: value
+                .constructor_calldata
+                .0
+                .iter()
+                .map(|calldata| (*calldata).into())
+                .collect(),
+            nonce_data_availability_mode: volition_domain_to_enum_int(
+                value.nonce_data_availability_mode,
+            ),
+            fee_data_availability_mode: volition_domain_to_enum_int(
+                value.fee_data_availability_mode,
+            ),
+            paymaster_data: value
+                .paymaster_data
+                .0
+                .iter()
+                .map(|paymaster_data| (*paymaster_data).into())
+                .collect(),
+        }
+    }
+}
+
+impl TryFrom<protobuf::DeployAccountV4> for DeployAccountTransactionV4 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::DeployAccountV4) -> Result<Self, Self::Error> {
+        let resource_bounds = ValidResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("DeployAccountV4::resource_bounds"))?,
+        )?;
+
+        let tip = Tip(value.tip);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(missing("DeployAccountV4::signature"))?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
+
+        let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV4::nonce"))?.try_into()?);
+
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeployAccountV4::class_hash"))?.try_into()?);
+
+        let contract_address_salt = ContractAddressSalt(
+            value.address_salt.ok_or(missing("DeployAccountV4::address_salt"))?.try_into()?,
+        );
+
+        let constructor_calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let constructor_calldata = Calldata(constructor_calldata.into());
+
+        let nonce_data_availability_mode =
+            enum_int_to_volition_domain(value.nonce_data_availability_mode)?;
+
+        let fee_data_availability_mode =
+            enum_int_to_volition_domain(value.fee_data_availability_mode)?;
+
+        let paymaster_data = PaymasterData(
+            value.paymaster_data.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
+        );
+
+        Ok(Self {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            class_hash,
+            contract_address_salt,
+            constructor_calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+        })
+    }
+}
+
+impl From<DeployAccountTransactionV4> for protobuf::DeployAccountV4 {
+    fn from(value: DeployAccountTransactionV4) -> Self {
         Self {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
@@ -1010,6 +1114,12 @@ impl From<ConsensusTransaction> for protobuf::ConsensusTransaction {
                 txn: Some(protobuf::consensus_transaction::Txn::DeployAccountV3(txn.into())),
                 transaction_hash: None,
             },
+            ConsensusTransaction::RpcTransaction(RpcTransaction::DeployAccount(
+                RpcDeployAccountTransaction::V4(txn),
+            )) => protobuf::ConsensusTransaction {
+                txn: Some(protobuf::consensus_transaction::Txn::DeployAccountV4(txn.into())),
+                transaction_hash: None,
+            },
             ConsensusTransaction::RpcTransaction(RpcTransaction::Invoke(
                 RpcInvokeTransaction::V3(txn),
             )) => protobuf::ConsensusTransaction {
@@ -1037,6 +1147,11 @@ impl TryFrom<protobuf::ConsensusTransaction> for ConsensusTransaction {
             protobuf::consensus_transaction::Txn::DeployAccountV3(txn) => {
                 ConsensusTransaction::RpcTransaction(RpcTransaction::DeployAccount(
                     RpcDeployAccountTransaction::V3(txn.try_into()?),
+                ))
+            }
+            protobuf::consensus_transaction::Txn::DeployAccountV4(txn) => {
+                ConsensusTransaction::RpcTransaction(RpcTransaction::DeployAccount(
+                    RpcDeployAccountTransaction::V4(txn.try_into()?),
                 ))
             }
             protobuf::consensus_transaction::Txn::InvokeV3(txn) => {
@@ -1093,6 +1208,7 @@ pub fn set_price_unit_based_on_transaction(
         Some(protobuf::transaction_in_block::Txn::Deploy(_)) => protobuf::PriceUnit::Wei,
         Some(protobuf::transaction_in_block::Txn::DeployAccountV1(_)) => protobuf::PriceUnit::Wei,
         Some(protobuf::transaction_in_block::Txn::DeployAccountV3(_)) => protobuf::PriceUnit::Fri,
+        Some(protobuf::transaction_in_block::Txn::DeployAccountV4(_)) => protobuf::PriceUnit::Fri,
         Some(protobuf::transaction_in_block::Txn::InvokeV1(_)) => protobuf::PriceUnit::Wei,
         Some(protobuf::transaction_in_block::Txn::InvokeV3(_)) => protobuf::PriceUnit::Fri,
         Some(protobuf::transaction_in_block::Txn::L1Handler(_)) => protobuf::PriceUnit::Wei,
