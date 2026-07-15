@@ -313,6 +313,11 @@ async fn get_accessed_keys_input(
         let block_data = result.unwrap().expect("expected block data");
         assert_eq!(block_data.transactions.len(), 1);
         assert_eq!(block_data.execution_infos.len(), 1);
+        assert!(
+            block_data.transactions[0]
+                .proof_facts()
+                .is_some_and(|proof_facts| proof_facts.is_empty())
+        );
     } else {
         assert!(result.unwrap().is_none());
     }
