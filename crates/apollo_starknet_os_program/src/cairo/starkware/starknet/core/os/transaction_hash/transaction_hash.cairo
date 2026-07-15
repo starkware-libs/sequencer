@@ -243,8 +243,11 @@ func compute_deploy_account_transaction_hash{range_check_ptr, poseidon_ptr: Pose
 ) -> felt {
     alloc_locals;
 
+    // v3 and v4 share the same preimage layout; the chained version felt (and the derived
+    // contract address) distinguish the hashes. v4 derives its address with Blake2 plus the
+    // Pedersen-image escape.
     with_attr error_message("Invalid transaction version: {version}.") {
-        assert common_fields.version = 3;
+        assert (common_fields.version - 3) * (common_fields.version - 4) = 0;
     }
 
     let hash_state: PoseidonHashState = poseidon_hash_init();
