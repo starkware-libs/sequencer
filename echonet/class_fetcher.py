@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -28,6 +29,7 @@ _DEPRECATED_CACHE_SUBDIR = "cairo0"
 _FETCH_PARALLELISM = 8
 _FETCH_TIMEOUT_SECONDS = 30
 _ZERO_CLASS_HASH = "0x0"
+_HEX_FELT_RE = re.compile(r"^(0x)?[0-9a-fA-F]+$")
 
 
 def _is_sierra_shape(class_json: JsonObject) -> bool:
@@ -41,6 +43,20 @@ def _is_zero_felt(felt_hex: str) -> bool:
 
 class ClassFetchError(RuntimeError):
     """Raised when a required class cannot be fetched from the feeder."""
+
+
+def _validate_cache_key(key: str) -> str:
+    """
+    Reject any key that isn't a plain hex felt.
+
+    `class_hash`/`compiled_class_hash` values come from the replayed block's
+    `initial_reads` and are used as `_read_cache`/`_write_cache` filename
+    components; without this check a key containing `/` or `..` segments
+    escapes `cache_dir` and reads or writes an arbitrary file.
+    """
+    if not _HEX_FELT_RE.fullmatch(key):
+        raise ClassFetchError(f"refusing to use non-hex-felt cache key: {key!r}")
+    return key
 
 
 def resolve_classes_for_os(
@@ -149,6 +165,7 @@ def resolve_classes_for_os(
 
 
 def _read_cache(cache_dir: Path, key: str) -> JsonObject | None:
+    _validate_cache_key(key)
     path = cache_dir / f"{key}.json"
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -159,6 +176,7 @@ def _read_cache(cache_dir: Path, key: str) -> JsonObject | None:
 
 
 def _write_cache(cache_dir: Path, key: str, value: JsonObject) -> None:
+    _validate_cache_key(key)
     path = cache_dir / f"{key}.json"
     tmp_path = cache_dir / f".{key}.json.{os.getpid()}.tmp"
     try:
