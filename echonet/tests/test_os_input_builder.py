@@ -1,4 +1,5 @@
 import base64
+import inspect
 import json
 import os
 import sys
@@ -10,7 +11,11 @@ import unittest
 
 import zstandard
 
-from echonet.os_input_builder import OsInputBuildError, decompress_state_commitment_infos
+from echonet.os_input_builder import (
+    _MAX_STATE_COMMITMENT_INFOS_DECOMPRESSED_BYTES,
+    OsInputBuildError,
+    decompress_state_commitment_infos,
+)
 
 
 def _compress_without_content_size(payload: bytes) -> bytes:
@@ -58,6 +63,22 @@ class TestDecompressStateCommitmentInfos(unittest.TestCase):
     def test_raises_os_input_build_error_on_invalid_base64(self):
         with self.assertRaisesRegex(OsInputBuildError, "failed to decode"):
             decompress_state_commitment_infos("not valid base64!!!")
+
+    def test_default_cap_is_wired_to_the_module_constant(self):
+        """
+        Production call sites (`pick_state_commitment_infos`,
+        `SharedContext.record_commits_from_blob`) rely on the default
+        `max_decompressed_bytes`; the bomb/within-cap tests above only
+        exercise the cap via an explicit override, so pin the default to the
+        constant they're written against.
+        """
+        default = (
+            inspect.signature(decompress_state_commitment_infos)
+            .parameters["max_decompressed_bytes"]
+            .default
+        )
+
+        self.assertEqual(default, _MAX_STATE_COMMITMENT_INFOS_DECOMPRESSED_BYTES)
 
 
 if __name__ == "__main__":

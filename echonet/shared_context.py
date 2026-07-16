@@ -525,6 +525,12 @@ class SharedContext:
     # are unreachable for OS runs anyway.
     _COMMITS_RETENTION: int = 10
 
+    # Defensive cap on entries decompressed per WRITE_BLOB call: a legitimate
+    # blob's vector is ~_COMMITS_RETENTION long, but the vector length comes
+    # straight from an external request body, so an oversized one must not
+    # force unbounded decompression work before per-call trimming can run.
+    _MAX_COMMIT_ENTRIES_PER_BLOB: int = 64
+
     def get_last_stored_commitment_height(self) -> Optional[int]:
         with self._lock:
             return self._last_stored_commitment_height
@@ -545,6 +551,13 @@ class SharedContext:
         entries = blob.get("recent_state_commitment_infos", [])
         if not entries:
             return
+        if len(entries) > SharedContext._MAX_COMMIT_ENTRIES_PER_BLOB:
+            logger.warning(
+                f"recent_state_commitment_infos has {len(entries)} entries, exceeding "
+                f"{SharedContext._MAX_COMMIT_ENTRIES_PER_BLOB}; only decompressing the first "
+                f"{SharedContext._MAX_COMMIT_ENTRIES_PER_BLOB}."
+            )
+            entries = entries[: SharedContext._MAX_COMMIT_ENTRIES_PER_BLOB]
         with self._lock:
             # Decompress once at ingest so every consumer sees the raw dict.
             for entry in entries:
