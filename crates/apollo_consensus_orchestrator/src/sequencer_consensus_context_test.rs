@@ -1982,7 +1982,12 @@ fn take_proposal_returns_content_and_removes_entry() {
     let commitment = proposal_commitment_from(PARTIAL_BLOCK_HASH, init.fee_proposal_fri);
 
     let mut built_proposals = BuiltProposals::new();
-    built_proposals.insert_proposal(init.clone(), transactions.clone(), &proposal_id, finished_info);
+    built_proposals.insert_proposal(
+        init.clone(),
+        transactions.clone(),
+        &proposal_id,
+        finished_info,
+    );
 
     let (returned_init, returned_txs, returned_id, _) =
         built_proposals.take_proposal(&height, &round, &commitment);
