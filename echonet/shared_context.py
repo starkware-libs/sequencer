@@ -592,8 +592,8 @@ class SharedContext:
             # Trim below the head only — above it is the live window.
             if len(self._commits_by_block) > SharedContext._COMMITS_RETENTION:
                 cutoff = self._last_stored_commitment_height - SharedContext._COMMITS_RETENTION
-                stale = [bn for bn in self._commits_by_block if bn < cutoff]
-                for bn in stale:
+                stale_heights = [bn for bn in self._commits_by_block if bn < cutoff]
+                for bn in stale_heights:
                     self._commits_by_block.pop(bn, None)
 
     # --- Tx lifecycle ---
