@@ -35,14 +35,13 @@ class TestClassFetcherPathTraversal(unittest.TestCase):
         self._tmp_dir.cleanup()
 
     def test_read_cache_rejects_path_traversal_key(self):
+        # Plant a real secret at the traversal target: unpatched, `_read_cache` returns
+        # its content instead of raising, leaking a file from outside the cache directory.
         planted_secret = self.outside_dir / "leaked.json"
         planted_secret.write_text('{"secret": "leaked"}')
 
-        # Unpatched: `_read_cache` happily returns the traversed file's content instead
-        # of raising, leaking data from outside the cache directory.
         with self.assertRaises(ClassFetchError):
-            leaked = _read_cache(self.cairo0_dir, _TRAVERSAL_KEY)
-            self.assertIsNone(leaked, "path traversal leaked a file outside the cache dir")
+            _read_cache(self.cairo0_dir, _TRAVERSAL_KEY)
 
     def test_write_cache_rejects_path_traversal_key(self):
         with self.assertRaises(ClassFetchError):
@@ -53,6 +52,18 @@ class TestClassFetcherPathTraversal(unittest.TestCase):
             [],
             "cache write escaped the cache directory via path traversal",
         )
+
+    def test_cache_roundtrip_accepts_hex_felt_keys(self):
+        # The guard must not be stricter than the real `0x`-hex felt shape: legitimate
+        # class hashes (full-length and short) must still write and read back unchanged.
+        value = {"program": "not_sierra"}
+        for class_hash in (
+            "0x1b64b1b3b690b43b9b514fb81377518f4039cd3e4f4914d8a6bdf01d679fb19",
+            "0x123",
+            "0x1",
+        ):
+            _write_cache(self.cairo0_dir, class_hash, value)
+            self.assertEqual(_read_cache(self.cairo0_dir, class_hash), value)
 
     def test_resolve_classes_for_os_rejects_path_traversal_class_hash(self):
         # A malicious/corrupt replayed block smuggles a traversal payload as a
