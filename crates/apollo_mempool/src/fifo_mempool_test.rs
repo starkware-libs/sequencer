@@ -337,6 +337,29 @@ fn test_get_txs_pauses_once_on_block_number_gap(mut mempool: Mempool) {
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input4.tx, input5.tx]);
 }
 
+// Consecutive mainnet blocks can share a wall-clock timestamp; a single get_txs call must not
+// drain across the block boundary in that case.
+#[rstest]
+fn test_get_txs_stops_at_block_boundary_on_shared_timestamp(mut mempool: Mempool) {
+    let block_9_tx = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let block_10_tx = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    // Blocks 9 and 10 share the same timestamp.
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 9));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 10));
+
+    add_tx(&mut mempool, &block_9_tx);
+    add_tx(&mut mempool, &block_10_tx);
+
+    // First proposal builds block 9 — it must contain only block 9's tx.
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![block_9_tx.tx]);
+
+    // Second proposal builds block 10 with its tx.
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![block_10_tx.tx]);
+}
+
 #[rstest]
 fn test_get_txs_returns_empty_result_with_gaps(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
