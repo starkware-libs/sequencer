@@ -185,7 +185,7 @@ impl BuiltProposals {
             .data
             .get_mut(height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"));
-        let (stored_commitment, content) = by_round
+        let (stored_commitment, stored_content) = by_round
             .remove(round)
             .unwrap_or_else(|| panic!("No proposal found for height {height} and round {round}"));
         assert_eq!(
@@ -193,7 +193,7 @@ impl BuiltProposals {
             "Proposal commitment mismatch for height {height} round {round}: \
              stored={stored_commitment}, requested={commitment}"
         );
-        content
+        stored_content
     }
 
     fn remove_proposals_below_or_at_height(&mut self, height: &BlockNumber) {
