@@ -57,7 +57,10 @@ def main() -> int:
     blob = payload["blob"]
     state_commitment_infos = payload["state_commitment_infos"]
     block_document = payload["block_document"]
-    block_number = payload["block_number"]
+    # Cast to int (as every other echonet ingestion point does for this field): block_number
+    # is later interpolated into a filesystem path for failed-run dumps, so an unvalidated
+    # string here would let a malformed payload traverse outside the dump directory.
+    block_number = int(payload["block_number"])
     block_hash_commitments_payload = payload["block_hash_commitments_payload"]
 
     cli_path = CONFIG.paths.block_hash_cli_path
