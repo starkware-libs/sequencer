@@ -47,11 +47,7 @@ use apollo_reverts::revert_block;
 use apollo_state_reader::apollo_state::ApolloReader;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 #[cfg(feature = "os_input")]
-use apollo_storage::accessed_keys::{
-    AccessedKeys,
-    AccessedKeysStorageReader,
-    AccessedKeysStorageWriter,
-};
+use apollo_storage::accessed_keys::{AccessedKeysStorageReader, AccessedKeysStorageWriter};
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
@@ -97,6 +93,7 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
 use blockifier::execution::entry_point::call_view_entry_point;
+use blockifier::state::accessed_keys::AccessedKeys;
 #[cfg(feature = "os_input")]
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -818,8 +815,20 @@ impl Batcher {
         })
     }
 
-    #[instrument(skip(self, sync_block), err)]
-    pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+    #[instrument(skip(self, sync_block, accessed_keys), err)]
+    pub async fn add_sync_block(
+        &mut self,
+        sync_block: SyncBlock,
+        accessed_keys: Option<AccessedKeys>,
+    ) -> BatcherResult<()> {
+        // `accessed_keys` (fetched from the centralized recorder by the caller) are only consumed
+        // in `os_input` builds, where they let the commitment task build the block's witness.
+        // Outside `os_input` the caller must not provide them; receiving them signals a wiring bug.
+        #[cfg(not(feature = "os_input"))]
+        assert!(
+            accessed_keys.is_none(),
+            "add_sync_block received accessed_keys in a non-os_input build."
+        );
         trace!("Received sync block: {:?}", sync_block);
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
@@ -910,14 +919,21 @@ impl Batcher {
         )
         .await?;
 
-        // Synced blocks are not executed locally, so no accessed keys are available; the block is
-        // committed via `CommitBlock`.
+        // TODO(Yoav): Write the accessed keys within the same storage transaction as the state
+        // diff.
+        #[cfg(feature = "os_input")]
+        if let Some(accessed_keys) = &accessed_keys {
+            self.storage_writer.write_accessed_keys(height, accessed_keys).map_err(|err| {
+                error!("Failed to write accessed keys for synced block {block_number}: {err}");
+                BatcherError::InternalError
+            })?;
+        }
         self.write_commitment_results_and_add_new_task(
             height,
             state_diff,
             optional_state_diff_commitment,
             #[cfg(feature = "os_input")]
-            None,
+            accessed_keys,
         )
         .await?;
 
