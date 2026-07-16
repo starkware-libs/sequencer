@@ -545,15 +545,29 @@ class SharedContext:
         entries = blob.get("recent_state_commitment_infos", [])
         if not entries:
             return
+
         with self._lock:
-            # Decompress once at ingest so every consumer sees the raw dict.
-            for entry in entries:
-                bn = entry["block_number"]
-                if bn in self._commits_by_block:
-                    continue
-                self._commits_by_block[bn] = decompress_state_commitment_infos(
-                    entry["state_commitment_infos"]
-                )
+            known_heights = set(self._commits_by_block)
+
+        # Decompression (base64 + zstd + JSON) runs outside the lock: it's the
+        # expensive part of ingest, and this lock is shared with every other
+        # SharedContext method (tx tracking, block store, ...), so holding it
+        # here would stall unrelated requests for the duration.
+        decompressed_by_height: Dict[int, JsonObject] = {
+            entry["block_number"]: decompress_state_commitment_infos(
+                entry["state_commitment_infos"]
+            )
+            for entry in entries
+            if entry["block_number"] not in known_heights
+        }
+        if not decompressed_by_height:
+            return
+
+        with self._lock:
+            # setdefault: another thread may have raced in and stored this
+            # height already between the snapshot above and now.
+            for bn, state_commitment_infos in decompressed_by_height.items():
+                self._commits_by_block.setdefault(bn, state_commitment_infos)
 
             # Walk the contiguous head forward. A missing height pauses the
             # walk while the sequencer can still send it; once it falls behind
