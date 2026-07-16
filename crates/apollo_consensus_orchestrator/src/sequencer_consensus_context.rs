@@ -1084,11 +1084,35 @@ impl ConsensusContext for SequencerConsensusContext {
             Some(previous_proposal_init_from_block_header(&sync_block.block_header_without_hash));
         self.interrupt_active_proposal().await;
 
+        // Fetch the block's transactions and execution infos from the centralized recorder and
+        // compute the accessed keys locally, so the batcher can build the block's state commitment
+        // infos. The state diff is taken from the synced block; the versioned constants are the
+        // latest.
+        #[cfg(feature = "os_input")]
+        let accessed_keys = if self.config.static_config.fetch_accessed_keys_from_centralized {
+            match self.deps.cende_ambassador.get_accessed_keys_input(block_number).await {
+                Ok(Some(block_data)) => {
+                    Some(block_data.compute_accessed_keys(sync_block.state_diff.clone().into()))
+                }
+                Ok(None) => None,
+                Err(e) => {
+                    error!(
+                        "Failed to fetch accessed-keys data for synced block {block_number}: {e:?}"
+                    );
+                    return false;
+                }
+            }
+        } else {
+            None
+        };
+        #[cfg(not(feature = "os_input"))]
+        let accessed_keys = None;
+
         info!(
             "Adding sync block to Batcher for height {}",
             sync_block.block_header_without_hash.block_number,
         );
-        if let Err(e) = self.deps.batcher.add_sync_block(sync_block, None).await {
+        if let Err(e) = self.deps.batcher.add_sync_block(sync_block, accessed_keys).await {
             error!("Failed to add sync block to Batcher: {e:?}");
             return false;
         }
