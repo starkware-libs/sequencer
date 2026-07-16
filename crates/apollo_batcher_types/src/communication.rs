@@ -63,6 +63,12 @@ pub trait BatcherClient: Send + Sync {
         &self,
         block_number: BlockNumber,
     ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>>;
+    /// Gets the batcher's commitment infos height offset: one past the latest stored block.
+    /// Returns `Ok(None)` when no commitment infos are stored.
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos_height_offset(
+        &self,
+    ) -> BatcherClientResult<Option<BlockNumber>>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -122,6 +128,8 @@ pub enum BatcherRequest {
     GetBlockHash(BlockNumber),
     #[cfg(feature = "os_input")]
     GetStateCommitmentInfos(BlockNumber),
+    #[cfg(feature = "os_input")]
+    GetStateCommitmentInfosHeightOffset,
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -150,6 +158,8 @@ pub enum BatcherResponse {
     GetBlockHash(BatcherResult<BlockHash>),
     #[cfg(feature = "os_input")]
     GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
+    #[cfg(feature = "os_input")]
+    GetStateCommitmentInfosHeightOffset(BatcherResult<Option<BlockNumber>>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -215,6 +225,22 @@ where
             request,
             BatcherResponse,
             GetStateCommitmentInfos,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos_height_offset(
+        &self,
+    ) -> BatcherClientResult<Option<BlockNumber>> {
+        let request = BatcherRequest::GetStateCommitmentInfosHeightOffset;
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            GetStateCommitmentInfosHeightOffset,
             BatcherClientError,
             BatcherError,
             Direct

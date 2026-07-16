@@ -1553,6 +1553,14 @@ impl Batcher {
         })
     }
 
+    #[cfg(feature = "os_input")]
+    pub fn get_state_commitment_infos_height_offset(&self) -> BatcherResult<Option<BlockNumber>> {
+        self.storage_reader.state_commitment_infos_height_offset().map_err(|err| {
+            error!("Failed to get state commitment infos height offset from storage: {err}");
+            BatcherError::InternalError
+        })
+    }
+
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -1758,6 +1766,10 @@ pub trait BatcherStorageReader: Send + Sync {
         height: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
 
+    /// Returns one past the latest height, or `None` when no commitment infos are stored.
+    #[cfg(feature = "os_input")]
+    fn state_commitment_infos_height_offset(&self) -> StorageResult<Option<BlockNumber>>;
+
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -1858,6 +1870,11 @@ impl BatcherStorageReader for StorageReader {
         height: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>> {
         self.begin_ro_txn()?.get_state_commitment_infos(height)
+    }
+
+    #[cfg(feature = "os_input")]
+    fn state_commitment_infos_height_offset(&self) -> StorageResult<Option<BlockNumber>> {
+        self.begin_ro_txn()?.get_state_commitment_infos_height_offset()
     }
 
     fn get_parent_hash_and_partial_block_hash_components(

@@ -10,7 +10,7 @@ pub use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitme
 mod state_commitment_infos_test;
 
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
-use crate::db::table_types::Table;
+use crate::db::table_types::{DbCursorTrait, Table};
 use crate::db::{TransactionKind, RW};
 use crate::{OffsetKind, StorageResult, StorageTransaction};
 
@@ -32,6 +32,10 @@ pub trait StateCommitmentInfosStorageReader<Mode: TransactionKind> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
+
+    /// Returns the commitment infos height offset: one past the latest stored block.
+    /// Returns `None` when no commitment infos are stored.
+    fn get_state_commitment_infos_height_offset(&self) -> StorageResult<Option<BlockNumber>>;
 }
 
 /// Interface for writing the OS-input commitment infos to storage.
@@ -63,6 +67,18 @@ impl<T: StorageTransaction> StateCommitmentInfosStorageReader<<T as StorageTrans
             return Ok(None);
         };
         Ok(Some(self.file_handlers().get_state_commitment_infos_unchecked(location)?))
+    }
+
+    fn get_state_commitment_infos_height_offset(&self) -> StorageResult<Option<BlockNumber>> {
+        let table = self.open_table(&self.tables().state_commitment_infos)?;
+        let mut cursor = table.cursor(self.txn())?;
+        // Returns the block number one past the latest stored block.
+        let latest_entry = match cursor.lower_bound(&BlockNumber(u32::MAX.into()))? {
+            Some(entry) => Some(entry),
+            None => cursor.prev()?,
+        };
+        Ok(latest_entry
+            .map(|(latest_block_number, _location)| latest_block_number.unchecked_next()))
     }
 }
 
