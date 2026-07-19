@@ -103,6 +103,7 @@ message TransactionInBlock {
         InvokeV1 invoke_v1 = 9;
         InvokeV3 invoke_v3 = 10;
         L1HandlerV0 l1_handler = 11;
+        DeployAccountV4 deploy_account_v4 = 13;
     }
     Hash transaction_hash = 12;
 }

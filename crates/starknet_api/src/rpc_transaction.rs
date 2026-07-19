@@ -39,6 +39,7 @@ use crate::transaction::{
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
     DeployTransactionTrait,
     InvokeTransaction,
     InvokeTransactionV3,
@@ -50,6 +51,7 @@ use crate::transaction::{
 use crate::transaction_hash::{
     get_declare_transaction_v3_hash,
     get_deploy_account_transaction_v3_hash,
+    get_deploy_account_transaction_v4_hash,
     get_invoke_transaction_v3_hash,
     DeclareTransactionV3Trait,
     DeployAccountTransactionV3Trait,
@@ -96,6 +98,9 @@ impl TransactionHasher for InternalRpcDeployAccountTransaction {
     ) -> Result<TransactionHash, StarknetApiError> {
         match &self.tx {
             RpcDeployAccountTransaction::V3(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+            RpcDeployAccountTransaction::V4(tx) => {
                 tx.calculate_transaction_hash(chain_id, transaction_version)
             }
         }
@@ -163,6 +168,9 @@ macro_rules! implement_ref_getters {
                 RpcTransaction::DeployAccount(
                     RpcDeployAccountTransaction::V3(tx)
                 ) => &tx.$member_name,
+                RpcTransaction::DeployAccount(
+                    RpcDeployAccountTransaction::V4(tx)
+                ) => &tx.$member_name,
                 RpcTransaction::Invoke(
                     RpcInvokeTransaction::V3(tx)
                 ) => &tx.$member_name
@@ -185,9 +193,10 @@ impl RpcTransaction {
         match self {
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => Ok(tx.sender_address),
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                // Pedersen-only convenience accessor (no consensus/production caller); the
-                // version-gated deploy-account address is derived during conversion.
                 tx.calculate_contract_address(AddressDerivationHash::Pedersen)
+            }
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(tx)) => {
+                tx.calculate_contract_address(AddressDerivationHash::Blake2)
             }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => Ok(tx.sender_address),
         }
@@ -212,9 +221,9 @@ macro_rules! implement_internal_getters_for_internal_rpc {
             pub fn $field_name(&self) -> $field_ty {
                 match &self.tx {
                     InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.$field_name.clone(),
-                    InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => {
-                        let RpcDeployAccountTransaction::V3(tx) = &tx.tx;
-                        tx.$field_name.clone()
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => match &tx.tx {
+                        RpcDeployAccountTransaction::V3(tx) => tx.$field_name.clone(),
+                        RpcDeployAccountTransaction::V4(tx) => tx.$field_name.clone(),
                     },
                     InternalRpcTransactionWithoutTxHash::Invoke(tx) => tx.$field_name.clone(),
                 }
@@ -282,12 +291,15 @@ impl From<RpcDeclareTransaction> for DeclareTransaction {
 pub enum RpcDeployAccountTransaction {
     #[serde(rename = "0x3")]
     V3(RpcDeployAccountTransactionV3),
+    #[serde(rename = "0x4")]
+    V4(RpcDeployAccountTransactionV4),
 }
 
 impl RpcDeployAccountTransaction {
     fn version(&self) -> TransactionVersion {
         match self {
             RpcDeployAccountTransaction::V3(_) => TransactionVersion::THREE,
+            RpcDeployAccountTransaction::V4(_) => TransactionVersion::FOUR,
         }
     }
 }
@@ -296,6 +308,7 @@ impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
     fn from(rpc_deploy_account_transaction: RpcDeployAccountTransaction) -> Self {
         match rpc_deploy_account_transaction {
             RpcDeployAccountTransaction::V3(tx) => DeployAccountTransaction::V3(tx.into()),
+            RpcDeployAccountTransaction::V4(tx) => DeployAccountTransaction::V4(tx.into()),
         }
     }
 }
@@ -551,13 +564,115 @@ impl TransactionHasher for RpcDeployAccountTransactionV3 {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
-        // The raw (pre-conversion) RPC form derives the address with Pedersen. The version-gated
-        // address (Blake2 from 0.14.4) is applied only at conversion, where the internal form
-        // stores it and InternalRpcDeployAccountTransaction::calculate_transaction_hash reuses it.
-        // Don't "align" these two paths without re-checking the migration -- they intentionally
-        // differ once Blake2 is active.
         let contract_address = self.calculate_contract_address(AddressDerivationHash::Pedersen)?;
         get_deploy_account_transaction_v3_hash(
+            self,
+            chain_id,
+            transaction_version,
+            contract_address,
+        )
+    }
+}
+
+/// A v4 deploy account transaction that can be added to Starknet through the RPC: the fields of
+/// v3, with the contract address derived using Blake2 instead of Pedersen.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
+pub struct RpcDeployAccountTransactionV4 {
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub constructor_calldata: Calldata,
+    pub resource_bounds: AllResourceBounds,
+    pub tip: Tip,
+    pub paymaster_data: PaymasterData,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl_deploy_transaction_trait!(RpcDeployAccountTransactionV4);
+
+impl From<RpcDeployAccountTransactionV4> for DeployAccountTransactionV4 {
+    fn from(tx: RpcDeployAccountTransactionV4) -> Self {
+        Self {
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            class_hash: tx.class_hash,
+            contract_address_salt: tx.contract_address_salt,
+            constructor_calldata: tx.constructor_calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+        }
+    }
+}
+
+impl TryFrom<DeployAccountTransactionV4> for RpcDeployAccountTransactionV4 {
+    type Error = StarknetApiError;
+
+    fn try_from(value: DeployAccountTransactionV4) -> Result<Self, Self::Error> {
+        Ok(Self {
+            resource_bounds: match value.resource_bounds {
+                ValidResourceBounds::AllResources(bounds) => bounds,
+                _ => {
+                    return Err(StarknetApiError::OutOfRange {
+                        string: "resource_bounds".to_string(),
+                    });
+                }
+            },
+            signature: value.signature,
+            nonce: value.nonce,
+            class_hash: value.class_hash,
+            contract_address_salt: value.contract_address_salt,
+            constructor_calldata: value.constructor_calldata,
+            tip: value.tip,
+            paymaster_data: value.paymaster_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        })
+    }
+}
+
+impl DeployAccountTransactionV3Trait for RpcDeployAccountTransactionV4 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        ValidResourceBounds::AllResources(self.resource_bounds)
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn class_hash(&self) -> &ClassHash {
+        &self.class_hash
+    }
+    fn contract_address_salt(&self) -> &ContractAddressSalt {
+        &self.contract_address_salt
+    }
+}
+
+impl TransactionHasher for RpcDeployAccountTransactionV4 {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        let contract_address = self.calculate_contract_address(AddressDerivationHash::Blake2)?;
+        get_deploy_account_transaction_v4_hash(
             self,
             chain_id,
             transaction_version,

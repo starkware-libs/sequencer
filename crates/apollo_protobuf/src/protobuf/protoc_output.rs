@@ -342,6 +342,32 @@ pub struct DeployAccountV3 {
     #[prost(enumeration = "VolitionDomain", tag = "10")]
     pub fee_data_availability_mode: i32,
 }
+/// A v3-shaped deploy account transaction whose contract address is derived with Blake2 instead of
+/// Pedersen.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeployAccountV4 {
+    #[prost(message, optional, tag = "1")]
+    pub signature: ::core::option::Option<AccountSignature>,
+    #[prost(message, optional, tag = "2")]
+    pub class_hash: ::core::option::Option<Hash>,
+    #[prost(message, optional, tag = "3")]
+    pub nonce: ::core::option::Option<Felt252>,
+    #[prost(message, optional, tag = "4")]
+    pub address_salt: ::core::option::Option<Felt252>,
+    #[prost(message, repeated, tag = "5")]
+    pub calldata: ::prost::alloc::vec::Vec<Felt252>,
+    #[prost(message, optional, tag = "6")]
+    pub resource_bounds: ::core::option::Option<ResourceBounds>,
+    #[prost(uint64, tag = "7")]
+    pub tip: u64,
+    #[prost(message, repeated, tag = "8")]
+    pub paymaster_data: ::prost::alloc::vec::Vec<Felt252>,
+    #[prost(enumeration = "VolitionDomain", tag = "9")]
+    pub nonce_data_availability_mode: i32,
+    #[prost(enumeration = "VolitionDomain", tag = "10")]
+    pub fee_data_availability_mode: i32,
+}
 /// Contains all transaction types that can be in a new block:
 /// - User transactions (same types as MempoolTransaction: Declare, DeployAccount, Invoke)
 /// - L1Handler transactions (messages from L1, not propagated via mempool)
@@ -350,7 +376,7 @@ pub struct DeployAccountV3 {
 pub struct ConsensusTransaction {
     #[prost(message, optional, tag = "5")]
     pub transaction_hash: ::core::option::Option<Hash>,
-    #[prost(oneof = "consensus_transaction::Txn", tags = "1, 2, 3, 4")]
+    #[prost(oneof = "consensus_transaction::Txn", tags = "1, 2, 3, 4, 6")]
     pub txn: ::core::option::Option<consensus_transaction::Txn>,
 }
 /// Nested message and enum types in `ConsensusTransaction`.
@@ -366,6 +392,8 @@ pub mod consensus_transaction {
         InvokeV3(super::InvokeV3WithProof),
         #[prost(message, tag = "4")]
         L1Handler(super::L1HandlerV0),
+        #[prost(message, tag = "6")]
+        DeployAccountV4(super::DeployAccountV4),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -865,7 +893,7 @@ pub struct TransactionInBlock {
     pub transaction_hash: ::core::option::Option<Hash>,
     #[prost(
         oneof = "transaction_in_block::Txn",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13"
     )]
     pub txn: ::core::option::Option<transaction_in_block::Txn>,
 }
@@ -1003,6 +1031,8 @@ pub mod transaction_in_block {
         InvokeV3(super::InvokeV3),
         #[prost(message, tag = "11")]
         L1Handler(super::L1HandlerV0),
+        #[prost(message, tag = "13")]
+        DeployAccountV4(super::DeployAccountV4),
     }
 }
 /// Doesn't contain L1Handler, as those don't need to be propagated and can be downloaded from L1.
@@ -1011,7 +1041,7 @@ pub mod transaction_in_block {
 pub struct MempoolTransaction {
     #[prost(message, optional, tag = "4")]
     pub transaction_hash: ::core::option::Option<Hash>,
-    #[prost(oneof = "mempool_transaction::Txn", tags = "1, 2, 3")]
+    #[prost(oneof = "mempool_transaction::Txn", tags = "1, 2, 3, 5")]
     pub txn: ::core::option::Option<mempool_transaction::Txn>,
 }
 /// Nested message and enum types in `MempoolTransaction`.
@@ -1025,6 +1055,8 @@ pub mod mempool_transaction {
         DeployAccountV3(super::DeployAccountV3),
         #[prost(message, tag = "3")]
         InvokeV3(super::InvokeV3WithProof),
+        #[prost(message, tag = "5")]
+        DeployAccountV4(super::DeployAccountV4),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

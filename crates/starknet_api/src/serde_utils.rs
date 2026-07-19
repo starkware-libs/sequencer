@@ -220,6 +220,9 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
                 raw_transaction,
             )?)))
         }
+        ("DEPLOY_ACCOUNT", "0x4") => Ok(Transaction::DeployAccount(DeployAccountTransaction::V4(
+            serde_json::from_value(raw_transaction)?,
+        ))),
         ("DECLARE", "0x0") => Ok(Transaction::Declare(DeclareTransaction::V0(
             serde_json::from_value(raw_transaction)?,
         ))),

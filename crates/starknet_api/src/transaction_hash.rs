@@ -34,6 +34,7 @@ use crate::transaction::{
     DeployAccountTransaction,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
     DeployTransaction,
     InvokeTransaction,
     InvokeTransactionV0,
@@ -117,6 +118,14 @@ pub fn get_transaction_hash(
                     transaction_version,
                     deploy_account_v3
                         .calculate_contract_address(AddressDerivationHash::Pedersen)?,
+                )
+            }
+            DeployAccountTransaction::V4(deploy_account_v4) => {
+                get_deploy_account_transaction_v4_hash(
+                    deploy_account_v4,
+                    chain_id,
+                    transaction_version,
+                    deploy_account_v4.calculate_contract_address(AddressDerivationHash::Blake2)?,
                 )
             }
         },
@@ -771,6 +780,52 @@ pub(crate) fn get_deploy_account_transaction_v3_hash<T: DeployAccountTransaction
             .chain(&transaction.contract_address_salt().0)
             .get_poseidon_hash(),
     ))
+}
+
+/// The v4 preimage layout is identical to v3's; the hashes differ through the chained version
+/// felt (4) and the Blake2-derived contract address.
+pub(crate) fn get_deploy_account_transaction_v4_hash<T: DeployAccountTransactionV3Trait>(
+    transaction: &T,
+    chain_id: &ChainId,
+    transaction_version: &TransactionVersion,
+    contract_address: ContractAddress,
+) -> Result<TransactionHash, StarknetApiError> {
+    get_deploy_account_transaction_v3_hash(
+        transaction,
+        chain_id,
+        transaction_version,
+        contract_address,
+    )
+}
+
+impl DeployAccountTransactionV3Trait for DeployAccountTransactionV4 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        self.resource_bounds
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn class_hash(&self) -> &ClassHash {
+        &self.class_hash
+    }
+    fn contract_address_salt(&self) -> &ContractAddressSalt {
+        &self.contract_address_salt
+    }
 }
 
 impl DeployAccountTransactionV3Trait for DeployAccountTransactionV3 {
