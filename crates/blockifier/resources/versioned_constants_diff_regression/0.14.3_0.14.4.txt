@@ -1,6 +1,11 @@
 ~ /os_constants/allowed_virtual_os_program_hashes/0: "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324"
 + /os_constants/allowed_virtual_os_program_hashes/1: "0xfedbf2b6504b9217026ba2bf9b2a33e8e28ed38e5b0f84eef59075b02174b8"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
++ /os_resources/execute_syscalls/DeployV2/calldata_factor: {"builtin_instance_counter":{"pedersen_builtin":1},"n_memory_holes":0,"n_steps":8}
++ /os_resources/execute_syscalls/DeployV2/constant: {"builtin_instance_counter":{"pedersen_builtin":7,"range_check_builtin":21},"n_memory_holes":0,"n_steps":1173}
+- /os_resources/execute_syscalls/DeployV2/builtin_instance_counter
+- /os_resources/execute_syscalls/DeployV2/n_memory_holes
+- /os_resources/execute_syscalls/DeployV2/n_steps
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
 ~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
 ~ /os_resources/execute_syscalls/GetBlockHash/n_steps: 106

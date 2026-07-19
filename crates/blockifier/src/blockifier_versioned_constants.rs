@@ -904,6 +904,7 @@ impl SyscallGasCost {
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
     pub deploy: SyscallGasCost,
+    pub deploy_v2: SyscallGasCost,
     pub get_block_hash: SyscallGasCost,
     pub get_execution_info: SyscallGasCost,
     pub library_call: SyscallGasCost,
@@ -938,6 +939,7 @@ impl SyscallGasCosts {
         let gas_cost = match *selector {
             SyscallSelector::CallContract => self.call_contract,
             SyscallSelector::Deploy => self.deploy,
+            SyscallSelector::DeployV2 => self.deploy_v2,
             SyscallSelector::EmitEvent => self.emit_event,
             SyscallSelector::GetBlockHash => self.get_block_hash,
             SyscallSelector::GetExecutionInfo => self.get_execution_info,
@@ -1108,6 +1110,7 @@ impl GasCosts {
         let syscalls = SyscallGasCosts {
             call_contract: summarize(SyscallSelector::CallContract),
             deploy: summarize(SyscallSelector::Deploy),
+            deploy_v2: summarize(SyscallSelector::DeployV2),
             get_block_hash: summarize(SyscallSelector::GetBlockHash),
             get_execution_info: summarize(SyscallSelector::GetExecutionInfo),
             library_call: summarize(SyscallSelector::LibraryCall),

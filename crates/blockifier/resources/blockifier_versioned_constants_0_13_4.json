@@ -231,6 +231,11 @@
                     "pedersen_builtin": 7
                 }
             },
+            "DeployV2": {
+                "n_steps": 0,
+                "n_memory_holes": 0,
+                "builtin_instance_counter": {}
+            },
             "EmitEvent": {
                 "n_steps": 61,
                 "n_memory_holes": 0,
