@@ -33,7 +33,6 @@ const PROOF_VERSION_V1 = 'PROOF1';
 //      - Deploy
 //      - GetBlockHash
 //      - ReplaceClass
-//      - Keccak
 //      - MetaTxV0
 //
 // 4. Cairo 1 only:
