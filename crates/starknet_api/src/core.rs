@@ -338,11 +338,53 @@ const STARK_CURVE_BETA: Felt =
 const ADDRESS_SECOND_LIFT_BOUND: Felt =
     Felt::from_hex_unchecked("0x11000000000000000000000000000000000000000000000101");
 
-/// Returns whether `value` is the x-coordinate of a STARK curve point, i.e. whether
-/// `value^3 + STARK_CURVE_ALPHA * value + STARK_CURVE_BETA` is a square in the field.
-pub fn is_stark_curve_x_coordinate(value: &Felt) -> bool {
+/// Returns `value^3 + STARK_CURVE_ALPHA * value + STARK_CURVE_BETA` — a square in the field iff
+/// `value` is the x-coordinate of a STARK curve point.
+fn stark_curve_cubic(value: &Felt) -> Felt {
     let value = *value;
-    (value * value * value + STARK_CURVE_ALPHA * value + STARK_CURVE_BETA).sqrt().is_some()
+    value * value * value + STARK_CURVE_ALPHA * value + STARK_CURVE_BETA
+}
+
+/// Returns whether `value` is the x-coordinate of a STARK curve point.
+pub fn is_stark_curve_x_coordinate(value: &Felt) -> bool {
+    stark_curve_cubic(value).sqrt().is_some()
+}
+
+/// A witness for one step of the Pedersen-image escape, consumed by the Starknet OS hint: either
+/// a square root showing a lift of the candidate is on the STARK curve (the candidate is
+/// reachable by Pedersen and is skipped), or square roots of `cubic / 3` for every lift of the
+/// candidate (3 is a fixed non-residue, so these prove the candidate escapes).
+pub enum PedersenImageEscapeWitness {
+    Reachable { second_lift: bool, sqrt_witness: Felt },
+    Unreachable { first_lift_witness: Felt, second_lift_witness: Option<Felt> },
+}
+
+/// Computes the escape-step witness for `candidate` (see [PedersenImageEscapeWitness]).
+pub fn pedersen_image_escape_witness(candidate: &Felt) -> PedersenImageEscapeWitness {
+    let non_residue_sqrt = |cubic: Felt| {
+        (cubic * Felt::THREE.inverse().expect("3 is invertible"))
+            .sqrt()
+            .expect("cubic / 3 must be a square when cubic is a non-residue")
+    };
+
+    let cubic = stark_curve_cubic(candidate);
+    if let Some(sqrt_witness) = cubic.sqrt() {
+        return PedersenImageEscapeWitness::Reachable { second_lift: false, sqrt_witness };
+    }
+    if *candidate < ADDRESS_SECOND_LIFT_BOUND {
+        let lift_cubic = stark_curve_cubic(&(candidate + Felt::from(&*L2_ADDRESS_UPPER_BOUND)));
+        if let Some(sqrt_witness) = lift_cubic.sqrt() {
+            return PedersenImageEscapeWitness::Reachable { second_lift: true, sqrt_witness };
+        }
+        return PedersenImageEscapeWitness::Unreachable {
+            first_lift_witness: non_residue_sqrt(cubic),
+            second_lift_witness: Some(non_residue_sqrt(lift_cubic)),
+        };
+    }
+    PedersenImageEscapeWitness::Unreachable {
+        first_lift_witness: non_residue_sqrt(cubic),
+        second_lift_witness: None,
+    }
 }
 
 /// Returns whether some Pedersen hash output reduces (mod L2_ADDRESS_UPPER_BOUND) to `address`.

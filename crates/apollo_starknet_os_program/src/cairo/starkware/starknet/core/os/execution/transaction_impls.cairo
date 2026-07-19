@@ -34,7 +34,10 @@ from starkware.starknet.core.os.constants import (
     VALIDATE_MAX_SIERRA_GAS,
     VALIDATED,
 )
-from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
+from starkware.starknet.core.os.contract_address.contract_address import (
+    get_contract_address,
+    get_contract_address_blake_escaped,
+)
 from starkware.starknet.core.os.contract_class.contract_class import (
     ContractClassComponentHashes,
     finalize_class_hash,
@@ -88,8 +91,9 @@ func compute_max_possible_fee(tx_info: TxInfo*) -> felt {
     tempvar resource_bounds: ResourceBounds* = tx_info.resource_bounds_start;
     let n_resource_bounds = (tx_info.resource_bounds_end - resource_bounds) / ResourceBounds.SIZE;
 
-    // Only V3 transactions with all resource bounds are supported.
-    assert tx_info.version = 3;
+    // Only V3-shaped transactions (V3, and deploy-account V4) with all resource bounds are
+    // supported.
+    assert (tx_info.version - 3) * (tx_info.version - 4) = 0;
     assert n_resource_bounds = 3;
 
     tempvar l1_gas_bounds: ResourceBounds = resource_bounds[L1_GAS_INDEX];
@@ -168,7 +172,7 @@ func charge_fee{
 //
 // The account transaction should be passed in the hint variable 'tx'.
 func get_account_tx_common_fields(
-    block_context: BlockContext*, tx_hash_prefix: felt, sender_address: felt
+    block_context: BlockContext*, tx_hash_prefix: felt, sender_address: felt, version: felt
 ) -> CommonTxFields* {
     alloc_locals;
     local resource_bounds: ResourceBounds*;
@@ -182,7 +186,7 @@ func get_account_tx_common_fields(
     %{ LoadTxNonceAccount %}
     tempvar common_tx_fields = new CommonTxFields(
         tx_hash_prefix=tx_hash_prefix,
-        version=3,
+        version=version,
         sender_address=sender_address,
         chain_id=block_context.os_global_context.starknet_os_config.chain_id,
         nonce=nonce,
@@ -272,6 +276,7 @@ func execute_invoke_function_transaction{
         block_context=block_context,
         tx_hash_prefix=INVOKE_HASH_PREFIX,
         sender_address=sender_address,
+        version=3,
     );
     local account_deployment_data_size;
     local account_deployment_data: felt*;
@@ -518,25 +523,33 @@ func consume_l1_to_l2_message{outputs: OsCarriedOutputs*}(
     return ();
 }
 
-// Prepares a constructor execution context based on the 'tx' hint variable.
-// Leaves 'execution_info.tx_info' and 'deprecated_tx_info' empty - should be filled later on.
-// TODO(Yoni, 1/1/2026): consider removing this function (used only once).
-func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: BuiltinPointers*}(
-    block_info: BlockInfo*
-) -> (constructor_execution_context: ExecutionContext*, salt: felt) {
+// Derives the deploy-account contract address for the given transaction version: Pedersen for
+// v1/v3, Blake2 with the Pedersen-image escape for v4. The deployer address is always zero for
+// deploy-account transactions. The Pedersen path advances the pedersen builtin pointer; the
+// Blake path leaves it unchanged.
+func get_contract_address_for_version{range_check_ptr, builtin_ptrs: BuiltinPointers*}(
+    tx_version: felt,
+    salt: felt,
+    class_hash: felt,
+    constructor_calldata_size: felt,
+    constructor_calldata: felt*,
+) -> (contract_address: felt) {
     alloc_locals;
-
-    local contract_address_salt;
-    local class_hash;
-    local constructor_calldata_size;
-    local constructor_calldata: felt*;
-    %{ PrepareConstructorExecution %}
-    assert_nn_le(constructor_calldata_size, SIERRA_ARRAY_LEN_BOUND - 1);
+    if (tx_version == 4) {
+        let (contract_address) = get_contract_address_blake_escaped(
+            salt=salt,
+            class_hash=class_hash,
+            constructor_calldata_size=constructor_calldata_size,
+            constructor_calldata=constructor_calldata,
+            deployer_address=0,
+        );
+        return (contract_address=contract_address);
+    }
 
     let hash_ptr = builtin_ptrs.selectable.pedersen;
     with hash_ptr {
         let (contract_address) = get_contract_address(
-            salt=contract_address_salt,
+            salt=salt,
             class_hash=class_hash,
             constructor_calldata_size=constructor_calldata_size,
             constructor_calldata=constructor_calldata,
@@ -544,6 +557,35 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
         );
     }
     update_pedersen_in_builtin_ptrs(pedersen_ptr=hash_ptr);
+    return (contract_address=contract_address);
+}
+
+// Prepares a constructor execution context based on the 'tx' hint variable.
+// Leaves 'execution_info.tx_info' and 'deprecated_tx_info' empty - should be filled later on.
+// TODO(Yoni, 1/1/2026): consider removing this function (used only once).
+func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: BuiltinPointers*}(
+    block_info: BlockInfo*
+) -> (constructor_execution_context: ExecutionContext*, salt: felt, tx_version: felt) {
+    alloc_locals;
+
+    local contract_address_salt;
+    local class_hash;
+    local constructor_calldata_size;
+    local constructor_calldata: felt*;
+    local tx_version;
+    %{ PrepareConstructorExecution %}
+    assert_nn_le(constructor_calldata_size, SIERRA_ARRAY_LEN_BOUND - 1);
+
+    // The hinted version is bound by the transaction-hash assertion performed by the caller:
+    // both the version felt and the derived contract address are part of the committed hash
+    // preimage, so lying about either fails the proof.
+    let (contract_address) = get_contract_address_for_version(
+        tx_version=tx_version,
+        salt=contract_address_salt,
+        class_hash=class_hash,
+        constructor_calldata_size=constructor_calldata_size,
+        constructor_calldata=constructor_calldata,
+    );
 
     let (tx_info_ptr: TxInfo*) = alloc();
     let (deprecated_tx_info_ptr: DeprecatedTxInfo*) = alloc();
@@ -563,7 +605,9 @@ func prepare_constructor_execution_context{range_check_ptr, builtin_ptrs: Builti
     );
 
     return (
-        constructor_execution_context=constructor_execution_context, salt=contract_address_salt
+        constructor_execution_context=constructor_execution_context,
+        salt=contract_address_salt,
+        tx_version=tx_version,
     );
 }
 
@@ -578,7 +622,7 @@ func execute_deploy_account_transaction{
 
     // Calculate address and prepare constructor execution context.
     let (
-        local constructor_execution_context: ExecutionContext*, local salt
+        local constructor_execution_context: ExecutionContext*, local salt, local tx_version
     ) = prepare_constructor_execution_context(block_info=block_context.block_info_for_validate);
     local constructor_execution_info: ExecutionInfo* = constructor_execution_context.execution_info;
     local sender_address = constructor_execution_info.contract_address;
@@ -596,11 +640,14 @@ func execute_deploy_account_transaction{
 
     // Guess transaction fields.
     // Compute transaction hash and prepare transaction info.
-    // The version validation is done in `compute_deploy_account_transaction_hash()`.
+    // The version validation is done in `compute_deploy_account_transaction_hash()`; the hinted
+    // version also selected the address derivation above, and both are bound by the
+    // transaction-hash assertion below.
     let common_tx_fields = get_account_tx_common_fields(
         block_context=block_context,
         tx_hash_prefix=DEPLOY_ACCOUNT_HASH_PREFIX,
         sender_address=sender_address,
+        version=tx_version,
     );
     let poseidon_ptr = builtin_ptrs.selectable.poseidon;
     with poseidon_ptr {
@@ -717,6 +764,7 @@ func execute_declare_transaction{
         block_context=block_context,
         tx_hash_prefix=DECLARE_HASH_PREFIX,
         sender_address=sender_address,
+        version=3,
     );
 
     let poseidon_ptr = builtin_ptrs.selectable.poseidon;

@@ -35,7 +35,7 @@ func fill_deprecated_tx_info(tx_info: TxInfo*, dst: DeprecatedTxInfo*) {
 
 // Verifies that the given (non-deprecated) `TxInfo` object is consistent with its version, in the
 // sense that deprecated transactions (version < 3) have all new fields set to zero and
-// non-deprecated transactions (version = 3) have old fields set to zero.
+// non-deprecated transactions (version >= 3) have old fields set to zero.
 func assert_deprecated_tx_fields_consistency(tx_info: TxInfo*) {
     tempvar version = tx_info.version;
     if (version * (version - 1) * (version - 2) == 0) {
@@ -50,8 +50,10 @@ func assert_deprecated_tx_fields_consistency(tx_info: TxInfo*) {
         assert tx_info.account_deployment_data_start = nullptr;
         assert tx_info.account_deployment_data_end = nullptr;
     } else {
+        // Version 4 exists only for deploy-account transactions (Blake2 address derivation);
+        // the version itself is validated by the per-type transaction-hash functions.
         with_attr error_message("Invalid transaction version: {version}.") {
-            assert version = 3;
+            assert (version - 3) * (version - 4) = 0;
         }
         assert tx_info.max_fee = 0;
     }

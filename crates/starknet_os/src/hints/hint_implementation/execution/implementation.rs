@@ -8,7 +8,14 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{
+    pedersen_image_escape_witness,
+    ClassHash,
+    ContractAddress,
+    Nonce,
+    PatriciaKey,
+    PedersenImageEscapeWitness,
+};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -125,17 +132,15 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
 
     ctx.insert_value(Ids::ContractAddressSalt, deploy_account_tx.contract_address_salt().0)?;
     ctx.insert_value(Ids::ClassHash, deploy_account_tx.class_hash().0)?;
+    // The version selects the address-derivation hash (v4 = Blake2 with the Pedersen-image
+    // escape). The hinted value is bound by the transaction-hash assertion: both the version felt
+    // and the derived address are part of the committed hash preimage.
+    ctx.insert_value(Ids::TxVersion, deploy_account_tx.version().0)?;
 
     let constructor_calldata = match &deploy_account_tx.tx {
         DeployAccountTransaction::V1(v1_tx) => &v1_tx.constructor_calldata,
         DeployAccountTransaction::V3(v3_tx) => &v3_tx.constructor_calldata,
-        // TODO(Ron): support v4 in the OS (Blake2 address derivation) before enabling v4
-        // ingestion at the gateway.
-        DeployAccountTransaction::V4(_) => {
-            return Err(OsHintError::AssertionFailed {
-                message: "Deploy account v4 is not yet supported by the OS.".to_string(),
-            });
-        }
+        DeployAccountTransaction::V4(v4_tx) => &v4_tx.constructor_calldata,
     };
     ctx.insert_value(Ids::ConstructorCalldataSize, constructor_calldata.0.len())?;
     let constructor_calldata_base = ctx.vm.add_memory_segment();
@@ -143,6 +148,28 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
         constructor_calldata.0.iter().map(MaybeRelocatable::from).collect();
     ctx.vm.load_data(constructor_calldata_base, &constructor_calldata_as_relocatable)?;
     ctx.insert_value(Ids::ConstructorCalldata, constructor_calldata_base)?;
+    Ok(())
+}
+
+pub(crate) fn escape_pedersen_image_witness<S: StateReader>(
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    mut ctx: HintContext<'_>,
+) -> OsHintResult {
+    let candidate = ctx.get_integer(Ids::Candidate)?;
+    match pedersen_image_escape_witness(&candidate) {
+        PedersenImageEscapeWitness::Reachable { second_lift, sqrt_witness } => {
+            ctx.insert_value(Ids::IsReachable, Felt::ONE)?;
+            ctx.insert_value(Ids::ReachableLift, Felt::from(second_lift))?;
+            ctx.insert_value(Ids::Witness, sqrt_witness)?;
+            ctx.insert_value(Ids::SecondWitness, Felt::ZERO)?;
+        }
+        PedersenImageEscapeWitness::Unreachable { first_lift_witness, second_lift_witness } => {
+            ctx.insert_value(Ids::IsReachable, Felt::ZERO)?;
+            ctx.insert_value(Ids::ReachableLift, Felt::ZERO)?;
+            ctx.insert_value(Ids::Witness, first_lift_witness)?;
+            ctx.insert_value(Ids::SecondWitness, second_lift_witness.unwrap_or(Felt::ZERO))?;
+        }
+    }
     Ok(())
 }
 
