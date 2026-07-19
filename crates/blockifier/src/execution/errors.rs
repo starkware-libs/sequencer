@@ -34,6 +34,8 @@ pub enum PreExecutionError {
     FraudAttempt,
     #[error("Invalid builtin {0}.")]
     InvalidBuiltin(BuiltinName),
+    #[error("Entry point uses unsupported builtins or an invalid builtin order: {0:?}.")]
+    InvalidBuiltins(Vec<BuiltinName>),
     #[error("The constructor entry point must be named 'constructor'.")]
     InvalidConstructorEntryPointName,
     #[error(transparent)]
