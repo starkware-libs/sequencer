@@ -222,7 +222,7 @@ impl AccountTransaction {
                 ]
             }
             Transaction::DeployAccount(_) => {
-                vec![TransactionVersion::ONE, TransactionVersion::THREE]
+                vec![TransactionVersion::ONE, TransactionVersion::THREE, TransactionVersion::FOUR]
             }
             Transaction::Invoke(_) => {
                 vec![TransactionVersion::ZERO, TransactionVersion::ONE, TransactionVersion::THREE]

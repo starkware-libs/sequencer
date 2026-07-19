@@ -26,6 +26,7 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
+    is_pedersen_reachable_address,
     AddressDerivationHash,
     ClassHash,
     CompiledClassHash,
@@ -1591,6 +1592,61 @@ fn test_insufficient_max_fee_reverts(
         }
     }
     assert_eq!(tx_execution_info3.receipt.da_gas, tx_execution_info1.receipt.da_gas);
+}
+
+#[rstest]
+fn test_deploy_account_v4_blake_address(
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let class_hash = account.get_class_hash();
+    let chain_info = &block_context.chain_info;
+    let mut state = test_state(chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
+    let mut nonce_manager = NonceManager::default();
+
+    let (deploy_account_tx, account_address) = deploy_and_fund_account(
+        &mut state,
+        &mut nonce_manager,
+        chain_info,
+        deploy_account_tx_args! {
+            class_hash,
+            resource_bounds: default_all_resource_bounds,
+            version: TransactionVersion::FOUR,
+        },
+    );
+
+    // The v4 address derives with Blake2 and escapes the Pedersen image, so it differs from the
+    // Pedersen (v3) address of the same deployment arguments.
+    assert!(!is_pedersen_reachable_address(account_address.0.key()));
+    let pedersen_address = calculate_contract_address(
+        ContractAddressSalt::default(),
+        class_hash,
+        &Calldata::default(),
+        ContractAddress::default(),
+        AddressDerivationHash::Pedersen,
+    )
+    .unwrap();
+    assert_ne!(account_address, pedersen_address);
+
+    let execution_info = deploy_account_tx.execute(&mut state, &block_context).unwrap();
+    assert!(!execution_info.is_reverted());
+    assert_eq!(state.get_class_hash_at(account_address).unwrap(), class_hash);
+
+    // The deployed account is functional: an invoke sent from it succeeds.
+    run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            sender_address: account_address,
+            calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+            resource_bounds: default_all_resource_bounds,
+            nonce: nonce_manager.next(account_address),
+        },
+    )
+    .unwrap();
 }
 
 #[rstest]
