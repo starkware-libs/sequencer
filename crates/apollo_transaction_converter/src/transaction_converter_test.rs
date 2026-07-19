@@ -12,12 +12,20 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
+use starknet_api::core::{is_pedersen_reachable_address, ContractAddress};
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
-use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_api::rpc_transaction::{
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
+    RpcTransaction,
+};
+use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Proof, ProofFacts};
+use starknet_api::transaction::TransactionVersion;
+use starknet_api::{class_hash, compiled_class_hash, deploy_account_tx_args};
+use starknet_types_core::felt::Felt;
 
 use crate::transaction_converter::{
     TransactionConverter,
@@ -230,4 +238,40 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
 
     assert_eq!(rpc_tx, rpc_tx_from_internal);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_convert_rpc_deploy_account_v4_to_internal() {
+    let transaction_converter = create_transaction_converter(MockProofManagerClient::new());
+
+    // A frozen vector for the v4 (Blake2 + Pedersen-image escape) derivation, verified against an
+    // independent python implementation: deployer = 0, salt = 771, class_hash = 0x4242,
+    // constructor_calldata = [42, 2^63, 1337]; the raw Blake output is Pedersen-reachable and
+    // escapes after one increment.
+    let rpc_tx = rpc_deploy_account_tx(deploy_account_tx_args! {
+        version: TransactionVersion::FOUR,
+        class_hash: class_hash!("0x4242"),
+        contract_address_salt: ContractAddressSalt(Felt::from(771_u16)),
+        constructor_calldata: Calldata(Arc::new(vec![
+            Felt::from(42_u8),
+            Felt::from(1_u64 << 63),
+            Felt::from(1337_u16),
+        ])),
+    });
+
+    let (internal_tx, _verification_handle) =
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap();
+    let InternalRpcTransactionWithoutTxHash::DeployAccount(internal_deploy_account) =
+        &internal_tx.tx
+    else {
+        panic!("Expected a deploy account transaction.");
+    };
+
+    let expected_address = ContractAddress::try_from(Felt::from_hex_unchecked(
+        "0x566c3e328f3fd5a311267250cadc3c1c4de799db54180fcf862fe90b622571d",
+    ))
+    .unwrap();
+    assert_eq!(internal_deploy_account.contract_address, expected_address);
+    assert!(!is_pedersen_reachable_address(internal_deploy_account.contract_address.0.key()));
 }

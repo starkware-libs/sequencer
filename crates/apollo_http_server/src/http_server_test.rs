@@ -308,17 +308,17 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         code: StarknetErrorCode::KnownErrorCode(
             KnownStarknetErrorCode::InvalidTransactionVersion,
         ),
-        message: "Transaction version 1 is not supported. Supported versions: [3].".to_string(),
+        message: "Transaction version 1 is not supported. Supported versions: [3, 4].".to_string(),
     },
 )]
 #[case::newer_version(
     unique_u16!(),
-    Some("0x4"),
+    Some("0x5"),
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(
             KnownStarknetErrorCode::InvalidTransactionVersion,
         ),
-        message: "Transaction version 4 is not supported. Supported versions: [3].".to_string(),
+        message: "Transaction version 5 is not supported. Supported versions: [3, 4].".to_string(),
     }
 )]
 #[tokio::test]
