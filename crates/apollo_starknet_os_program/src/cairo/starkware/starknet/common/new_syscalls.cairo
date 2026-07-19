@@ -7,6 +7,9 @@ from starkware.cairo.common.uint256 import Uint256
 
 const CALL_CONTRACT_SELECTOR = 'CallContract';
 const DEPLOY_SELECTOR = 'Deploy';
+// Same request/response layout as `Deploy`; the contract address is derived with Blake2 (plus
+// the Pedersen-image escape) instead of Pedersen.
+const DEPLOY_V2_SELECTOR = 'DeployV2';
 const EMIT_EVENT_SELECTOR = 'EmitEvent';
 const GET_BLOCK_HASH_SELECTOR = 'GetBlockHash';
 const GET_EXECUTION_INFO_SELECTOR = 'GetExecutionInfo';
