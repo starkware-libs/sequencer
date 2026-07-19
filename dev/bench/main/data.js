@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784102713245,
+  "lastUpdate": 1784475607964,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6697,6 +6697,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1317.9005713,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c729420040e28d11a61fb48a20797d62df96e525",
+          "message": "starknet_patricia_storage: delete dead code (unsure, review carefully) (#14838)\n\nRemove the unused public function `try_extract_suffix_from_db_key` from\n`starknet_patricia_storage::storage_trait`.\n\nIt has zero references anywhere in the sequencer workspace (whole-word grep\nacross crates/, including tests and benches, matches only its definition) and\nzero references in either sibling repo (sequencer-devops, starkware). It is the\nnever-wired-up inverse of the used `create_db_key`: DB keys are only ever\nconstructed, never parsed back, so the extractor has been dead since it was\nadded (predates the file's available git history).\n\nNo imports are orphaned: DbKey, DbKeyPrefix, and DbKeyPrefix::to_bytes remain\nused by create_db_key and other items in the module. Verified with zero\ndead_code/unused warnings on both `cargo build -p starknet_patricia_storage`\nand `--tests`.\n\n\nClaude-Session: https://claude.ai/code/session_01E9cNc2b5LZ4kegPJY7zNRn\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-07-19T15:26:21Z",
+          "tree_id": "5443ef33f3e4260d8d02e717a131b2b413dee7b0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c729420040e28d11a61fb48a20797d62df96e525"
+        },
+        "date": 1784475607601,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 816.2713493099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1254.7667602899999,
             "unit": "ms"
           }
         ]
