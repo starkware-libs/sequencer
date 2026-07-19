@@ -63,12 +63,9 @@ use crate::test_manager::{
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 13] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 12] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
-    // TODO(Ron): measure deploy_v2 once the Cairo compiler exposes it (its versioned-constants
-    // profile is a provisional copy of Deploy's until then).
-    Selector::DeployV2,
     Selector::GetBlockNumber,
     Selector::GetBlockTimestamp,
     Selector::GetCallerAddress,
@@ -101,6 +98,7 @@ const UNMEASURABLE_SYSCALLS: [Selector; 13] = [
 static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> = LazyLock::new(|| {
     HashMap::from([
         (Selector::Deploy, 1),
+        (Selector::DeployV2, 1),
         (Selector::Keccak, 0),
         (Selector::MetaTxV0, 1),
         (Selector::SendMessageToL1, 0),
