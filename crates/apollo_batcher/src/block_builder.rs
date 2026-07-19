@@ -116,6 +116,8 @@ pub enum FailOnErrorCause {
     TransactionFailed(BlockifierTransactionExecutorError),
     #[error("L1 Handler transaction validation failed: {0}")]
     L1HandlerTransactionValidationFailed(TransactionProviderError),
+    #[error("Duplicate transaction hash in proposal: {0}")]
+    DuplicateTransaction(TransactionHash),
 }
 
 enum AddTxsToExecutorResult {
@@ -635,9 +637,19 @@ async fn collect_execution_results_and_stream_txs(
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
         if let InternalConsensusTransaction::L1Handler(_) = input_tx {
             let is_new_entry = execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
-            // Even though this doesn't get past the set insertion, this indicates a major, possibly
-            // reorg-producing bug, either in some batcher cache or the l1 provider.
+            // Unlike the duplicate account/RPC hashes handled below, a duplicate L1 handler hash is
+            // never valid input: it signals a batcher-cache or l1-provider fault, possibly
+            // reorg-producing. Keep it a hard invariant.
             assert!(is_new_entry, "Duplicate L1 handler transaction hash: {tx_hash}.");
+        }
+
+        // Check for duplicates in both the executed and rejected collections.
+        if execution_data.execution_infos_and_signatures.contains_key(&tx_hash)
+            || execution_data.rejected_tx_hashes.contains(&tx_hash)
+        {
+            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(
+                tx_hash,
+            )));
         }
 
         match result {
@@ -650,12 +662,10 @@ async fn collect_execution_results_and_stream_txs(
                         revert_error,
                     );
                 }
-                let (tx_index, duplicate_tx_hash) =
-                    execution_data.execution_infos_and_signatures.insert_full(
-                        tx_hash,
-                        (tx_execution_info, input_tx.tx_signature_for_commitment()),
-                    );
-                assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
+                let (tx_index, _) = execution_data.execution_infos_and_signatures.insert_full(
+                    tx_hash,
+                    (tx_execution_info, input_tx.tx_signature_for_commitment()),
+                );
 
                 if let Some(block_number) = proof_facts_block_number(input_tx) {
                     execution_data.proof_facts_block_numbers.insert(tx_hash, block_number);
@@ -703,8 +713,7 @@ async fn collect_execution_results_and_stream_txs(
                     tx_hash,
                     err.log_compatible_to_string()
                 );
-                let is_new_entry = execution_data.rejected_tx_hashes.insert(tx_hash);
-                assert!(is_new_entry, "Duplicate rejected transaction hash: {tx_hash}.");
+                execution_data.rejected_tx_hashes.insert(tx_hash);
             }
         }
     }

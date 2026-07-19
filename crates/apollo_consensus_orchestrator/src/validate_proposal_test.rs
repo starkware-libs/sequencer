@@ -248,6 +248,36 @@ async fn fin_with_inflated_executed_tx_count_is_rejected() {
 }
 
 #[tokio::test]
+async fn duplicate_transaction_hash_in_proposal_is_rejected_before_batcher() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args.deps.batcher.expect_send_txs_for_proposal().times(0);
+    proposal_args.deps.batcher.expect_finish_proposal().times(0);
+    proposal_args.deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
+
+    let duplicate_tx = TX_BATCH[0].clone();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![duplicate_tx.clone(), duplicate_tx],
+        }))
+        .await
+        .unwrap();
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(
+        res,
+        Err(ValidateProposalError::ProposalPartFailed(reason, _))
+        if reason.contains("Duplicate transaction hash")
+    );
+}
+
+#[tokio::test]
 async fn interrupt_proposal() {
     let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Interrupted proposals call validate_block and send Abort

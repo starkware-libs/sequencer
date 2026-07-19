@@ -1305,3 +1305,110 @@ async fn proof_facts_block_numbers_collected_from_snos_invokes() {
         IndexMap::from([(tx_hash!(0), proof_block_number)]),
     );
 }
+
+#[tokio::test]
+async fn validate_block_rejects_duplicate_rejected_account_tx() {
+    let mut input_txs = test_txs(0..2);
+    input_txs.push(input_txs[0].clone());
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_get_new_results_with_results(
+        input_txs
+            .iter()
+            .map(|_| {
+                Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress))
+            })
+            .collect(),
+    );
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        helper.mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(tx_hash)))
+        if tx_hash == tx_hash!(0)
+    );
+}
+
+#[tokio::test]
+async fn validate_block_rejects_duplicate_successful_account_tx() {
+    let mut input_txs = test_txs(0..2);
+    input_txs.push(input_txs[0].clone());
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_successful_get_new_results(input_txs.len());
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        helper.mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(tx_hash)))
+        if tx_hash == tx_hash!(0)
+    );
+}
+
+#[tokio::test]
+async fn validate_block_rejects_duplicate_account_tx_executed_then_rejected() {
+    let mut input_txs = test_txs(0..2);
+    input_txs.push(input_txs[0].clone());
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_get_new_results_with_results(vec![
+        Ok((execution_info(), StateMaps::default())),
+        Ok((execution_info(), StateMaps::default())),
+        Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
+    ]);
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        helper.mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(tx_hash)))
+        if tx_hash == tx_hash!(0)
+    );
+}
