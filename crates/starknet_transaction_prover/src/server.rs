@@ -76,6 +76,8 @@ pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+#[cfg(test)]
+pub mod test_utils;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};

@@ -18,18 +18,23 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::server::config::{TransportMode, DEFAULT_MAX_REQUEST_BODY_SIZE};
-use crate::server::mock_rpc::MockProvingRpc;
-use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::start_server;
+use crate::server::test_utils::{loopback_addr, mock_rpc_module, TEST_MAX_CONNECTIONS};
 
 const NUM_CALLDATA_FELTS: usize = 5_000;
 
 async fn start_test_http_server(max_request_body_size: u32) -> (SocketAddr, ServerHandle) {
-    let methods = MockProvingRpc::from_expected_json().into_rpc();
-    let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
-    start_server(addr, &TransportMode::Http, methods.into(), 10, max_request_body_size, None, None)
-        .await
-        .expect("Failed to start HTTP server")
+    start_server(
+        loopback_addr(),
+        &TransportMode::Http,
+        mock_rpc_module().into(),
+        TEST_MAX_CONNECTIONS,
+        max_request_body_size,
+        None,
+        None,
+    )
+    .await
+    .expect("Failed to start HTTP server")
 }
 
 /// A `starknet_proveTransaction` request whose invoke transaction carries `num_felts`
