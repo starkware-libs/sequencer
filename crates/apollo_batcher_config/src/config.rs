@@ -331,6 +331,9 @@ pub struct BatcherDynamicConfig {
     /// order is already fixed by the proposer, so a short interval is safe and simply reduces the
     /// delay before streamed txs are executed.
     pub validate_tx_polling_interval_millis: u64,
+    /// Time to wait (in milliseconds) between polls for completed execution results, applied while
+    /// previously added transactions are still executing.
+    pub results_polling_interval_millis: u64,
     /// Minimum time (in milliseconds) that must pass since block creation started before checking
     /// for idle state. If this delay has passed AND no transactions are currently being executed,
     /// the proposer will finish building the current block.
@@ -349,6 +352,7 @@ impl Default for BatcherDynamicConfig {
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
             validate_tx_polling_interval_millis: 10,
+            results_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
         }
     }
@@ -380,6 +384,13 @@ impl SerializeConfig for BatcherDynamicConfig {
                  request returned no transactions. Applies when validating a proposal, where the \
                  tx order is already fixed; a short interval reduces the delay before streamed \
                  txs are executed.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "results_polling_interval_millis",
+                &self.results_polling_interval_millis,
+                "Time to wait (in milliseconds) between polls for completed execution results, \
+                 applied while previously added transactions are still executing.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

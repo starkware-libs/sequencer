@@ -59,6 +59,11 @@
     "privacy": "Public",
     "value": 1500
   },
+  "batcher_config.dynamic_config.results_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between polls for completed execution results, applied while previously added transactions are still executing.",
+    "privacy": "Public",
+    "value": 10
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",

@@ -258,6 +258,7 @@ pub struct BlockBuilderExecutionParams {
     pub proposer_idle_detection_delay: Duration,
     pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
+    pub results_polling_interval_millis: u64,
 }
 
 pub struct BlockBuilder {
@@ -588,10 +589,12 @@ impl BlockBuilder {
     }
 
     async fn sleep(&mut self) {
-        tokio::time::sleep(tokio::time::Duration::from_millis(
-            self.execution_params.tx_polling_interval_millis,
-        ))
-        .await;
+        let interval_millis = if self.n_txs_in_progress() > 0 {
+            self.execution_params.results_polling_interval_millis
+        } else {
+            self.execution_params.tx_polling_interval_millis
+        };
+        tokio::time::sleep(tokio::time::Duration::from_millis(interval_millis)).await;
     }
 }
 
