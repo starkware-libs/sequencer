@@ -10,7 +10,11 @@
       bpo2_start_block_number: 9504747,
       fusaka_no_bpo_start_block_number: 9408577,
     },
-    staking_default_committee: '0,100:',
+    staking_default_committee: {
+      start_epoch: 0,
+      committee_size: 100,
+      stakers: [],
+    },
     proof_archive_bucket_name: 'test-bucket',
     nodes_at_same_cluster: true,
   },
