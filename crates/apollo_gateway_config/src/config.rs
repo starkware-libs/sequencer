@@ -1,18 +1,7 @@
-use std::collections::BTreeMap;
-
 use apollo_config::converters::{
     deserialize_comma_separated_str,
-    serialize_optional_comma_separated,
     serialize_optional_comma_separated_str,
 };
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
@@ -80,66 +69,12 @@ impl Default for GatewayStaticConfig {
     }
 }
 
-impl SerializeConfig for GatewayStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([ser_param(
-            "block_declare",
-            &self.block_declare,
-            "If true, the gateway will block declare transactions.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.extend(prepend_sub_config_name(
-            self.stateless_tx_validator_config.dump(),
-            "stateless_tx_validator_config",
-        ));
-        dump.extend(prepend_sub_config_name(
-            self.stateful_tx_validator_config.dump(),
-            "stateful_tx_validator_config",
-        ));
-        dump.extend(prepend_sub_config_name(
-            self.contract_class_manager_config.dump(),
-            "contract_class_manager_config",
-        ));
-        dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
-        dump.extend(ser_optional_param(
-            &serialize_optional_comma_separated(&self.authorized_declarer_accounts),
-            "".to_string(),
-            "authorized_declarer_accounts",
-            "Authorized declarer accounts. If set, only these accounts can declare new contracts. \
-             Addresses are in hex format and separated by a comma with no space.",
-            ParamPrivacyInput::Public,
-        ));
-        dump.extend([ser_param(
-            "max_concurrent_declare_compilations",
-            &self.max_concurrent_declare_compilations,
-            "Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) \
-             allowed to run concurrently. Declares arriving while this limit is reached are \
-             rejected immediately.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.extend(prepend_sub_config_name(
-            self.proof_archive_writer_config.dump(),
-            "proof_archive_writer_config",
-        ));
-        dump
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayConfig {
     #[validate(nested)]
     pub dynamic_config: GatewayDynamicConfig,
     #[validate(nested)]
     pub static_config: GatewayStaticConfig,
-}
-
-impl SerializeConfig for GatewayConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::new();
-        dump.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
-        dump.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
-        dump
-    }
 }
 
 impl GatewayConfig {
@@ -159,12 +94,6 @@ pub struct GatewayDynamicConfig {
 impl Default for GatewayDynamicConfig {
     fn default() -> Self {
         Self { native_classes_whitelist: NativeClassesWhitelist::All }
-    }
-}
-
-impl SerializeConfig for GatewayDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([self.native_classes_whitelist.ser_param()])
     }
 }
 
@@ -208,76 +137,6 @@ impl Default for StatelessTransactionValidatorConfig {
     }
 }
 
-impl SerializeConfig for StatelessTransactionValidatorConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([
-            ser_param(
-                "validate_resource_bounds",
-                &self.validate_resource_bounds,
-                "If true, ensures that at least one resource bound (L1, L2, or L1 data) is \
-                 greater than zero.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_signature_length",
-                &self.max_signature_length,
-                "Limitation of signature length.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_calldata_length",
-                &self.max_calldata_length,
-                "Limitation of calldata length.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_contract_bytecode_size",
-                &self.max_contract_bytecode_size,
-                "Limitation of contract class bytecode size.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_contract_class_object_size",
-                &self.max_contract_class_object_size,
-                "Limitation of contract class object size.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_gas_price",
-                &self.min_gas_price,
-                "Minimum gas price for transactions.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_l2_gas_amount",
-                &self.max_l2_gas_amount,
-                "Maximum allowed L2 gas amount for transactions.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "allow_client_side_proving",
-                &self.allow_client_side_proving,
-                "If true, allows transactions with non-empty proof_facts or proof fields.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_proof_size",
-                &self.max_proof_size,
-                "Limitation of proof size.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        vec![
-            members,
-            prepend_sub_config_name(self.min_sierra_version.dump(), "min_sierra_version"),
-            prepend_sub_config_name(self.max_sierra_version.dump(), "max_sierra_version"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
     // If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas
@@ -304,49 +163,6 @@ impl Default for StatefulTransactionValidatorConfig {
     }
 }
 
-impl SerializeConfig for StatefulTransactionValidatorConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "validate_resource_bounds",
-                &self.validate_resource_bounds,
-                "If true, ensures the max L2 gas price exceeds (a configurable percentage of) the \
-                 base gas price of the previous block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_nonce_for_validation_skip",
-                &self.max_nonce_for_validation_skip,
-                "Maximum nonce for which the validation is skipped.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_allowed_nonce_gap",
-                &self.max_allowed_nonce_gap,
-                "The maximum allowed gap between the account nonce and the transaction nonce.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "reject_future_declare_txs",
-                &self.reject_future_declare_txs,
-                "If true, rejects declare transactions with future nonces.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_gas_price_percentage",
-                &self.min_gas_price_percentage,
-                "Minimum gas price as percentage of threshold to accept transactions.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.append(&mut ser_optional_sub_config(
-            &self.versioned_constants_overrides,
-            "versioned_constants_overrides",
-        ));
-        dump
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProofArchiveWriterConfig {
     pub bucket_name: String,
@@ -363,17 +179,5 @@ impl ProofArchiveWriterConfig {
     pub fn create_for_testing() -> Self {
         // Use empty bucket name for tests to trigger mock proof writer.
         Self { bucket_name: String::new() }
-    }
-}
-
-impl SerializeConfig for ProofArchiveWriterConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "bucket_name",
-            &self.bucket_name,
-            "The name of the bucket to write proofs to. An empty string indicates a test \
-             environment that does not connect to GCS.",
-            ParamPrivacyInput::Public,
-        )])
     }
 }

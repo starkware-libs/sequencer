@@ -12,7 +12,6 @@ testing = ["apollo_test_utils", "rand_chacha"]
 [dependencies]
 anyhow.workspace = true
 apollo_class_manager_types.workspace = true
-apollo_config.workspace = true
 apollo_storage.workspace = true
 apollo_test_utils = { workspace = true, optional = true }
 blockifier.workspace = true

@@ -10,6 +10,5 @@ description = "Types and configuration for Cairo native compilation."
 workspace = true
 
 [dependencies]
-apollo_config.workspace = true
 serde.workspace = true
 validator.workspace = true

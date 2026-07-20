@@ -1,8 +1,5 @@
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
 use starknet_patricia_storage::map_storage::CachedStorage;
@@ -20,28 +17,6 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub db_path: PathBuf,
     pub storage_config: C,
     pub verify_state_diff_hash: bool,
-}
-
-impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "verify_state_diff_hash",
-                &self.verify_state_diff_hash,
-                "If true, the committer will verify the state diff hash.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "db_path",
-                &self.db_path,
-                "Path to the committer storage directory.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend(prepend_sub_config_name(self.reader_config.dump(), "reader_config"));
-        dump.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
-        dump
-    }
 }
 
 impl<C: StorageConfigTrait> Default for CommitterConfig<C> {

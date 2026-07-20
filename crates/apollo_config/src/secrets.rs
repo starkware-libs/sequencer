@@ -17,7 +17,10 @@ use serde::{Deserialize, Serialize, Serializer};
 #[path = "secrets_test.rs"]
 mod secrets_test;
 
-const DEFAULT_REDACTION_OUTPUT: &str = "<<redacted>>";
+/// The string a `Sensitive<T>` with no custom redactor serializes/displays to. Exposed so callers
+/// (e.g. the secrets-schema safety guard) can detect default-redacted fields in a serialized
+/// config.
+pub const DEFAULT_REDACTION_OUTPUT: &str = "<<redacted>>";
 
 type Redactor<T> = Arc<dyn Fn(&T) -> String + Send + Sync + 'static>;
 
