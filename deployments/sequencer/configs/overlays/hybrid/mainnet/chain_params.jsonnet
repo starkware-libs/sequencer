@@ -1,16 +1,13 @@
 // chain_params for `mainnet` environment.
 // The env-shared P2P multiaddrs and per-node validator_id are in the devops repo.
+local constants = import 'lib/base_layer_constants.libsonnet';
 {
   mandatory: {
     chain_id: 'SN_MAIN',
     starknet_url: 'https://feeder.alpha-mainnet.starknet.io/',
     recorder_url: 'http://starknet-mainnet.cende-recorder-proxy.starknet.io/',
     starknet_contract_address: '0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4',
-    base_layer: {
-      bpo1_start_block_number: 23973546,
-      bpo2_start_block_number: 24168146,
-      fusaka_no_bpo_start_block_number: 23934586,
-    },
+    base_layer: constants.ETH_MAINNET_BASE_LAYER,
     staking_default_committee: '0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true',
     proof_archive_bucket_name: 'starkware-starknet-mainnet',
     nodes_at_same_cluster: false,
