@@ -154,8 +154,8 @@ fn mempool_p2p_config_round_trips() {
 #[test]
 fn gateway_config_round_trips() {
     // Covers apollo_gateway_config: GatewayStaticConfig::authorized_declarer_accounts
-    // (comma-separated list). Use a populated list so the comma-separated serializer is exercised;
-    // a `None` would round-trip even with a mispaired serializer.
+    // (native JSON array). Use a populated list so the array serialization is exercised;
+    // a `None` would round-trip trivially.
     use starknet_api::contract_address;
 
     let mut config = GatewayConfig::default();
