@@ -8,7 +8,17 @@ local constants = import 'lib/base_layer_constants.libsonnet';
     recorder_url: 'http://starknet-sepolia-alpha.cende-recorder-proxy.starknet.io/',
     starknet_contract_address: '0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057',
     base_layer: constants.ETH_TESTNET_BASE_LAYER,
-    staking_default_committee: '0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true',
+    staking_default_committee: {
+      start_epoch: 0,
+      committee_size: 10,
+      stakers: [
+        { address: '0x64', weight: 1, public_key: '0x1', can_propose: true },
+        { address: '0x65', weight: 1, public_key: '0x1', can_propose: true },
+        { address: '0x66', weight: 1, public_key: '0x1', can_propose: true },
+        { address: '0x67', weight: 1, public_key: '0x1', can_propose: true },
+        { address: '0x68', weight: 1, public_key: '0x1', can_propose: true },
+      ],
+    },
     proof_archive_bucket_name: 'starkware-starknet-alpha',
     nodes_at_same_cluster: false,
     topology: import 'lib/layouts/hybrid.libsonnet',
