@@ -156,7 +156,7 @@ jobs:
           pipenv install
           for overlay_prefix in mainnet sepolia-alpha sepolia-integration; do
             echo "Synthesizing hybrid.${overlay_prefix}..."
-            cdk8s synth --app "pipenv run python -m main --namespace test -l hybrid -o hybrid.${overlay_prefix} -o hybrid.common.dummy_for_testing" --output dist
+            cdk8s synth --app "pipenv run python -m main --namespace test -l hybrid -o hybrid.${overlay_prefix}" --output dist
           done
 
   prepare-dummy-services:
