@@ -1,8 +1,4 @@
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config::converters::{
-    deserialize_comma_separated_str,
-    serialize_optional_comma_separated_str,
-};
 use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
@@ -39,11 +35,6 @@ pub struct GatewayStaticConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
-    #[serde(
-        default,
-        deserialize_with = "deserialize_comma_separated_str",
-        serialize_with = "serialize_optional_comma_separated_str"
-    )]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
     /// Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) allowed
     /// to run concurrently. Declares that arrive while this limit is reached are rejected
