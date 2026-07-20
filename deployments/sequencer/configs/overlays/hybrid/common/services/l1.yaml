@@ -1,7 +1,4 @@
 name: l1
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_l1.json
-
 service:
   enabled: true
   type: ClusterIP
