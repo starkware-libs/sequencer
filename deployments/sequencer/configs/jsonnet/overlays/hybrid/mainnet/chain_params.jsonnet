@@ -23,7 +23,10 @@ local constants = import 'lib/base_layer_constants.libsonnet';
     parent_block_hash: '0x1e68b0d22b14688dc97afa3006a53cf4e62ebcb02102e80f55e8b48f9a28b97',
   },
   committer_cache_size: 50000000,
-  min_l2_gas_price_per_height: '8269292:27400000000,8742344:30100000000',
+  min_l2_gas_price_per_height: [
+    { height: 8269292, price: 27400000000 },
+    { height: 8742344, price: 30100000000 },
+  ],
   central_sync_client_config: {
     sync_config: {
       store_sierras_and_casms_block_threshold: 103129,

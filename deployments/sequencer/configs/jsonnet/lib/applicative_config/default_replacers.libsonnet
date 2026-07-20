@@ -19,13 +19,13 @@ local defaults = import '../defaults.libsonnet';
   committer_inner_storage_cache_size: 8589934592,
 
   proposal_timeout_base: 9.1,
-  proposal_timeout_max: 15.0,
-  min_l2_gas_price_per_height: '',
+  proposal_timeout_max: 9.1,
+  min_l2_gas_price_per_height: [],
   override_eth_to_fri_rate: null,
   override_l1_data_gas_price_fri: null,
   override_l1_gas_price_fri: null,
   override_l2_gas_price_fri: null,
-  compare_retrospective_block_hash: false,
+  compare_retrospective_block_hash: true,
 
   authorized_declarer_accounts: null,
   max_allowed_nonce_gap: 200,

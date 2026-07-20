@@ -8,8 +8,6 @@ use apollo_config::converters::{
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
 };
-use serde::de::{Deserializer, Error};
-use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
@@ -60,47 +58,12 @@ pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
 const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
 
 /// Represents a minimum gas price that applies starting from a specific block height.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PricePerHeight {
     /// The block height at which this price becomes active.
     pub height: u64,
     /// The minimum gas price in fri.
     pub price: u128,
-}
-
-/// Serializes `Vec<PricePerHeight>` into the format: "height1:price1,height2:price2,height3:price3"
-pub fn serialize_price_per_height(entries: &[PricePerHeight]) -> String {
-    entries.iter().map(|e| format!("{}:{}", e.height, e.price)).collect::<Vec<_>>().join(",")
-}
-
-/// Parses `Vec<PricePerHeight>` from the format: "height1:price1,height2:price2,height3:price3"
-pub fn parse_price_per_height(s: &str) -> Result<Vec<PricePerHeight>, String> {
-    let trimmed = s.trim();
-
-    if trimmed.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    trimmed
-        .split(',')
-        .map(|entry| {
-            let entry = entry.trim();
-            let parts: Vec<&str> = entry.split(':').map(|p| p.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!(
-                    "Invalid price_per_height entry format: '{}'. Expected 'height:price'",
-                    entry
-                ));
-            }
-            let height = parts[0]
-                .parse::<u64>()
-                .map_err(|e| format!("Invalid height '{}': {}", parts[0], e))?;
-            let price = parts[1]
-                .parse::<u128>()
-                .map_err(|e| format!("Invalid price '{}': {}", parts[1], e))?;
-            Ok(PricePerHeight { height, price })
-        })
-        .collect()
 }
 
 /// Configuration for the Context struct.
@@ -209,12 +172,7 @@ pub struct ContextDynamicConfig {
     // TODO(guyn): remove this after we completely remove wei prices from block info.
     /// If given, will override the conversion rate.
     pub override_eth_to_fri_rate: Option<u128>,
-    // List of minimum L2 gas prices per block height.
-    // Format: "height1:price1,height2:price2,height3:price3"
-    #[serde(
-        deserialize_with = "deserialize_price_per_height_from_string",
-        serialize_with = "serialize_price_per_height_as_string"
-    )]
+    /// List of minimum L2 gas prices per block height, as `{ height, price }` entries.
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
 }
@@ -238,29 +196,6 @@ impl Default for ContextDynamicConfig {
             compare_retrospective_block_hash: true,
         }
     }
-}
-
-/// Deserializes `Vec<PricePerHeight>` from string format "height1:price1,height2:price2,...".
-pub fn deserialize_price_per_height_from_string<'de, D>(
-    de: D,
-) -> Result<Vec<PricePerHeight>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw: String = Deserialize::deserialize(de)?;
-    parse_price_per_height(&raw).map_err(Error::custom)
-}
-
-/// Serializes `Vec<PricePerHeight>` as string format "height1:price1,height2:price2,...".
-pub fn serialize_price_per_height_as_string<S>(
-    entries: &[PricePerHeight],
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let s = serialize_price_per_height(entries);
-    serializer.serialize_str(&s)
 }
 
 fn validate_dynamic_config(
