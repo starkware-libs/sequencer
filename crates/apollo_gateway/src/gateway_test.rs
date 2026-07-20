@@ -839,8 +839,8 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     };
 
     // The native loader takes a nested base config and a flat secret-overrides file. Serialize the
-    // config to the nested base file; serde is symmetric for `authorized_declarer_accounts` (its
-    // `serialize_with` emits the same comma-separated string its `deserialize_with` reads back).
+    // config to the nested base file; `authorized_declarer_accounts` uses native serde, so it
+    // round-trips as a JSON array of contract addresses.
     let base_value = serde_json::to_value(&original_config).unwrap();
 
     let dir = TempDir::new().unwrap();
