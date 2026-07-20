@@ -1,16 +1,20 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use super::{
-    deserialize_comma_separated_str,
     deserialize_float_seconds_to_duration,
     deserialize_milliseconds_to_duration,
+    deserialize_optional_list_with_url_and_headers,
+    deserialize_optional_map,
+    deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
     serialize_duration_as_float_seconds,
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
-    serialize_optional_comma_separated_str,
+    UrlAndHeaders,
 };
 
 // These wrappers mirror the `#[serde(deserialize_with = ..., serialize_with = ...)]` pairings used
@@ -45,17 +49,6 @@ struct FloatSecondsWrapper {
     duration: Duration,
 }
 
-// `deserialize_comma_separated_str`/`serialize_optional_comma_separated_str` are generic over any
-// `T: FromStr + ToString`; `u64` exercises the same code path without pulling in `starknet_api`.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct CommaSeparatedWrapper {
-    #[serde(
-        deserialize_with = "deserialize_comma_separated_str",
-        serialize_with = "serialize_optional_comma_separated_str"
-    )]
-    list: Option<Vec<u64>>,
-}
-
 fn assert_round_trips<T>(value: T)
 where
     T: Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
@@ -86,9 +79,42 @@ fn float_seconds_duration_round_trips() {
     assert_round_trips(FloatSecondsWrapper { duration: Duration::from_secs_f64(1.5) });
 }
 
+#[derive(Debug, PartialEq, Deserialize)]
+struct OptionalStringEncodedWrapper {
+    #[serde(deserialize_with = "deserialize_optional_map")]
+    map: Option<HashMap<String, String>>,
+    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
+    bytes: Option<Vec<u8>>,
+    #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
+    urls: Option<Vec<UrlAndHeaders>>,
+}
+
+/// A `None` field serialized by derived `Serialize` (`null`) loads back as `None`, like the empty
+/// string the secrets files use.
 #[test]
-fn comma_separated_list_round_trips() {
-    // `None` (the default) and a populated list.
-    assert_round_trips(CommaSeparatedWrapper { list: None });
-    assert_round_trips(CommaSeparatedWrapper { list: Some(vec![1, 22, 333]) });
+fn optional_string_encoded_fields_accept_null_and_empty() {
+    for none_form in [json!(null), json!("")] {
+        let wrapper: OptionalStringEncodedWrapper = serde_json::from_value(json!({
+            "map": none_form,
+            "bytes": none_form,
+            "urls": none_form,
+        }))
+        .unwrap();
+        assert_eq!(
+            wrapper,
+            OptionalStringEncodedWrapper { map: None, bytes: None, urls: None },
+            "none form {none_form:?}"
+        );
+    }
+    let wrapper: OptionalStringEncodedWrapper = serde_json::from_value(json!({
+        "map": "a:1 b:2",
+        "bytes": "0x0a0b",
+        "urls": null,
+    }))
+    .unwrap();
+    assert_eq!(
+        wrapper.map,
+        Some(HashMap::from([("a".to_owned(), "1".to_owned()), ("b".to_owned(), "2".to_owned())]))
+    );
+    assert_eq!(wrapper.bytes, Some(vec![0x0a, 0x0b]));
 }

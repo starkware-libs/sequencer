@@ -122,6 +122,10 @@ services:
           jq --argjson v ${ETH_STRK_ORACLE_LAG_SECONDS:-60} '.l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds = $$v' "$$cfg" | sponge "$$cfg"
           jq --arg v "${STRK_USD_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}" '.l1_gas_price_provider_config.strk_to_usd_oracle_config.url_header_list = $$v' "$$cfg" | sponge "$$cfg"
           jq --argjson v ${STRK_USD_ORACLE_LAG_SECONDS:-60} '.l1_gas_price_provider_config.strk_to_usd_oracle_config.lag_interval_seconds = $$v' "$$cfg" | sponge "$$cfg"
+          # The secrets file is applied on top of the base at node start, so its oracle URLs must match.
+          sec=/config/node_$$i/node_integration_test_secrets.json
+          jq --arg v "${ETH_STRK_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}" '.["l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list"] = $$v' "$$sec" | sponge "$$sec"
+          jq --arg v "${STRK_USD_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}" '.["l1_gas_price_provider_config.strk_to_usd_oracle_config.url_header_list"] = $$v' "$$sec" | sponge "$$sec"
           jq '.http_server_config.static_config.ip = "0.0.0.0"' "$$cfg" | sponge "$$cfg"
           jq '.http_server_config.static_config.port = ${SEQUENCER_HTTP_PORT}' "$$cfg" | sponge "$$cfg"
           jq '.monitoring_endpoint_config.port = ${SEQUENCER_MONITORING_PORT}' "$$cfg" | sponge "$$cfg"
@@ -130,7 +134,7 @@ services:
           jq '.components.l1_gas_price_scraper.execution_mode = "Disabled"' "$$cfg" | sponge "$$cfg"
           if [ "$$N_NODES" -gt 1 ]; then
             for key in consensus_manager_config.network_config.bootstrap_peer_multiaddr mempool_p2p_config.network_config.bootstrap_peer_multiaddr state_sync_config.static_config.network_config.bootstrap_peer_multiaddr; do
-              jq --arg k "$$key" '($$k / ".") as $$p | if getpath($$p) == null then . else setpath($$p; getpath($$p) | split(",") | to_entries | map(.key as $$j | .value | sub("/ip4/[0-9.]+/"; "/dns4/sequencer-node-\($$j)/")) | join(",")) end' "$$cfg" | sponge "$$cfg"
+              jq --arg k "$$key" '($$k / ".") as $$p | if getpath($$p) == null then . else setpath($$p; getpath($$p) | to_entries | map(.key as $$j | .value | sub("/ip4/[0-9.]+/"; "/dns4/sequencer-node-\($$j)/"))) end' "$$cfg" | sponge "$$cfg"
             done
           fi
         done

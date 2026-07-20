@@ -101,15 +101,24 @@ pub fn serialize_optional_map(optional_map: &Option<HashMap<String, String>>) ->
     }
 }
 
+/// `None` for JSON `null` (what serde emits for a `None` field) and for the empty string (the
+/// string-encoded `None` of the secrets files); `Some` otherwise.
+fn deserialize_optional_non_empty_string<'de, D>(de: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw_str: Option<String> = Deserialize::deserialize(de)?;
+    Ok(raw_str.filter(|raw_str| !raw_str.trim().is_empty()))
+}
+
 /// Deserializes a map from "k1:v1 k2:v2" string structure.
 pub fn deserialize_optional_map<'de, D>(de: D) -> Result<Option<HashMap<String, String>>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let raw_str: String = Deserialize::deserialize(de)?;
-    if raw_str.is_empty() {
+    let Some(raw_str) = deserialize_optional_non_empty_string(de)? else {
         return Ok(None);
-    }
+    };
 
     let mut map = HashMap::new();
     for raw_pair in raw_str.split(' ') {
@@ -232,10 +241,9 @@ pub fn deserialize_optional_list_with_url_and_headers<'de, D>(
 where
     D: Deserializer<'de>,
 {
-    let raw: String = Deserialize::deserialize(de)?;
-    if raw.trim().is_empty() {
+    let Some(raw) = deserialize_optional_non_empty_string(de)? else {
         return Ok(None);
-    }
+    };
     let items = raw.split('|');
     let number_of_items = items.clone().count();
     let mut output = Vec::with_capacity(number_of_items);
@@ -278,10 +286,9 @@ pub fn deserialize_optional_vec_u8<'de, D>(de: D) -> Result<Option<Vec<u8>>, D::
 where
     D: Deserializer<'de>,
 {
-    let raw_str: String = Deserialize::deserialize(de)?;
-    if raw_str.is_empty() {
+    let Some(raw_str) = deserialize_optional_non_empty_string(de)? else {
         return Ok(None);
-    }
+    };
 
     if !raw_str.starts_with("0x") {
         return Err(D::Error::custom(
@@ -326,58 +333,6 @@ where
     raw.split_whitespace()
         .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
-}
-
-/// Serializes an optional list into a comma-separated string.
-/// Returns `None` if the input is `None`.
-pub fn serialize_optional_comma_separated<T>(list: &Option<Vec<T>>) -> Option<String>
-where
-    T: ToString,
-{
-    match list {
-        None => None,
-        Some(list) => Some(list.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(",")),
-    }
-}
-
-/// Serializes an optional list into a comma-separated string, for use as
-/// `#[serde(serialize_with)]`. Counterpart of `deserialize_comma_separated_str`: `None` and
-/// `Some(empty)` both serialize to the empty string, which that deserializer reads back as `None`.
-pub fn serialize_optional_comma_separated_str<S, T>(
-    list: &Option<Vec<T>>,
-    se: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-    T: ToString,
-{
-    se.serialize_str(&serialize_optional_comma_separated(list).unwrap_or_default())
-}
-
-/// Deserializes an optional comma-separated list of values implementing `FromStr` into
-/// `Option<Vec<T>>`. Returns `None` for empty or missing strings.
-pub fn deserialize_comma_separated_str<'de, D, T>(de: D) -> Result<Option<Vec<T>>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Display,
-{
-    let raw = String::deserialize(de).unwrap_or_default();
-    if raw.trim().is_empty() {
-        return Ok(None);
-    }
-
-    let mut output: Vec<T> = Vec::new();
-    for part in raw.split(',').filter(|s| !s.is_empty()) {
-        let value = T::from_str(part)
-            .map_err(|e| D::Error::custom(format!("Invalid value '{part}': {e}")))?;
-        output.push(value);
-    }
-
-    if output.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(output))
 }
 
 /// Deserializes a sensitive `Vec<u8>` from hex string structure.

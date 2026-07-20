@@ -130,7 +130,7 @@ fn consensus_manager_config_round_trips() {
 fn network_config_round_trips() {
     // Covers apollo_network directly: NetworkConfig::{session_timeout, idle_connection_timeout,
     // prune_dead_connections_ping_interval, prune_dead_connections_ping_timeout (seconds),
-    // bootstrap_peer_multiaddr (comma-separated list)}, and (via sub-structs)
+    // bootstrap_peer_multiaddr (native JSON array)}, and (via sub-structs)
     // DiscoveryConfig::heartbeat_interval, RetryConfig::{max_delay_seconds,
     // new_connection_stabilization_millis}, PeerManagerConfig::{malicious_timeout_seconds,
     // unstable_timeout_millis}.
