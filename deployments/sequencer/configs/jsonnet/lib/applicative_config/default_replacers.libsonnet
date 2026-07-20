@@ -20,7 +20,7 @@ local defaults = import '../defaults.libsonnet';
 
   proposal_timeout_base: 9.1,
   proposal_timeout_max: 15.0,
-  min_l2_gas_price_per_height: '',
+  min_l2_gas_price_per_height: [],
   override_eth_to_fri_rate: null,
   override_l1_data_gas_price_fri: null,
   override_l1_gas_price_fri: null,
