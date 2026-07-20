@@ -13,7 +13,13 @@
       bpo2_start_block_number: 13410304,
       fusaka_no_bpo_start_block_number: 13164544,
     },
-    staking_default_committee: '0,100:0x64,1,0x1,true',
+    staking_default_committee: {
+      start_epoch: 0,
+      committee_size: 100,
+      stakers: [
+        { address: '0x64', weight: 1, public_key: '0x1', can_propose: true },
+      ],
+    },
     proof_archive_bucket_name: '',
     nodes_at_same_cluster: true,
     topology: import 'lib/layouts/hybrid.libsonnet',
