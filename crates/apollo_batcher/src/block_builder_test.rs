@@ -70,6 +70,7 @@ const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const N_CONCURRENT_TXS: usize = 3;
 const TX_POLLING_INTERVAL: u64 = 100;
+const RESULTS_POLLING_INTERVAL: u64 = 100;
 const DEFAULT_IDLE_TIMEOUT_MS: Duration = Duration::from_millis(2000);
 
 struct TestExpectations {
@@ -727,6 +728,7 @@ async fn run_build_block(
             proposer_idle_detection_delay: idle_timeout_duration,
             n_concurrent_txs: N_CONCURRENT_TXS,
             tx_polling_interval_millis: TX_POLLING_INTERVAL,
+            results_polling_interval_millis: RESULTS_POLLING_INTERVAL,
         },
     );
 
