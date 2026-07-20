@@ -247,6 +247,7 @@ pub struct BlockBuilderExecutionParams {
     pub proposer_idle_detection_delay: Duration,
     pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
+    pub results_polling_interval_millis: u64,
 }
 
 pub struct BlockBuilder {
@@ -320,6 +321,11 @@ impl BlockBuilderTrait for BlockBuilder {
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut final_n_executed_txs: Option<usize> = None;
+        // Poll the mempool at most every `tx_polling_interval`, independently of the faster
+        // results-collection wake-ups (see `sleep`).
+        let tx_polling_interval =
+            Duration::from_millis(self.execution_params.tx_polling_interval_millis);
+        let mut next_mempool_poll_at = tokio::time::Instant::now();
         while !self.finished_block_txs(final_n_executed_txs) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
@@ -370,10 +376,17 @@ impl BlockBuilder {
                 break;
             }
 
-            match self.add_txs_to_executor().await? {
-                AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
-                AddTxsToExecutorResult::NewTxs => {}
+            let now = tokio::time::Instant::now();
+            if now >= next_mempool_poll_at {
+                match self.add_txs_to_executor().await? {
+                    // Keep draining while txs are flowing: re-poll next iteration without sleeping.
+                    AddTxsToExecutorResult::NewTxs => continue,
+                    AddTxsToExecutorResult::NoNewTxs => {
+                        next_mempool_poll_at = now + tx_polling_interval;
+                    }
+                }
             }
+            self.sleep(next_mempool_poll_at).await;
         }
 
         // The final number of transactions to consider for the block.
@@ -575,11 +588,18 @@ impl BlockBuilder {
         time_since_start >= self.execution_params.proposer_idle_detection_delay
     }
 
-    async fn sleep(&mut self) {
-        tokio::time::sleep(tokio::time::Duration::from_millis(
-            self.execution_params.tx_polling_interval_millis,
-        ))
-        .await;
+    async fn sleep(&mut self, next_mempool_poll_at: tokio::time::Instant) {
+        let interval_millis = if self.n_txs_in_progress() > 0 {
+            self.execution_params.results_polling_interval_millis
+        } else {
+            self.execution_params.tx_polling_interval_millis
+        };
+        // Never sleep past the mempool-poll deadline: if the last in-flight tx finishes early we
+        // switch to the long idle interval, which would otherwise overshoot the deadline.
+        let wake_at = (tokio::time::Instant::now()
+            + tokio::time::Duration::from_millis(interval_millis))
+        .min(next_mempool_poll_at);
+        tokio::time::sleep_until(wake_at).await;
     }
 }
 
