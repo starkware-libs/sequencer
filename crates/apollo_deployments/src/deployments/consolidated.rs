@@ -1,17 +1,10 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
-use apollo_infra::component_client::remote_component_client::DEFAULT_RETRIES;
-use apollo_node_config::component_config::ComponentConfig;
-use apollo_node_config::component_execution_config::{
-    ActiveComponentExecutionConfig,
-    ReactiveComponentExecutionConfig,
-};
 use serde::Serialize;
 use strum::{AsRefStr, Display, EnumIter, EnumString, IntoEnumIterator};
 
 use crate::deployment_definitions::ComponentConfigInService;
-use crate::scale_policy::ScalePolicy;
-use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::service::{NodeService, ServiceNameInner};
 
 #[derive(
     Clone, Copy, Debug, Display, EnumString, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter,
@@ -27,56 +20,10 @@ impl From<ConsolidatedNodeServiceName> for NodeService {
     }
 }
 
-impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(_ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
-        let mut component_config_map = HashMap::new();
-        component_config_map
-            .insert(NodeService::Consolidated(Self::Node), get_consolidated_config());
-        component_config_map
-    }
-}
-
 impl ServiceNameInner for ConsolidatedNodeServiceName {
-    fn get_scale_policy(&self) -> ScalePolicy {
-        match self {
-            Self::Node => ScalePolicy::StaticallyScaled,
-        }
-    }
-
-    fn get_retries(&self) -> usize {
-        match self {
-            Self::Node => DEFAULT_RETRIES,
-        }
-    }
-
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         match self {
             Self::Node => ComponentConfigInService::iter().collect(),
         }
-    }
-}
-
-fn get_consolidated_config() -> ComponentConfig {
-    let base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
-
-    ComponentConfig {
-        batcher: base.clone(),
-        class_manager: base.clone(),
-        committer: base.clone(),
-        config_manager: base.clone(),
-        consensus_manager: ActiveComponentExecutionConfig::enabled(),
-        gateway: base.clone(),
-        http_server: ActiveComponentExecutionConfig::enabled(),
-        l1_events_provider: base.clone(),
-        l1_events_scraper: ActiveComponentExecutionConfig::enabled(),
-        l1_gas_price_provider: base.clone(),
-        l1_gas_price_scraper: ActiveComponentExecutionConfig::enabled(),
-        mempool: base.clone(),
-        mempool_p2p: base.clone(),
-        monitoring_endpoint: ActiveComponentExecutionConfig::enabled(),
-        proof_manager: base.clone(),
-        sierra_compiler: base.clone(),
-        signature_manager: base.clone(),
-        state_sync: base.clone(),
     }
 }
