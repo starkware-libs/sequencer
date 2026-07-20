@@ -103,7 +103,7 @@ function(chain_params)
       },
       storage_reader_server_static_config: {
         ip: '0.0.0.0',
-        port: 8091,
+        port: 55011,
       },
       validation_only: chain_params.validation_only,
     },
