@@ -331,7 +331,7 @@ impl TestDeps {
             .return_const(Ok(DEFAULT_STRK_TO_USD_RATE));
     }
 
-    fn setup_default_state_sync_get_block(&mut self) {
+    pub(crate) fn setup_default_state_sync_get_block(&mut self) {
         self.state_sync_client.expect_get_block().returning(|_| Ok(SyncBlock::default()));
     }
 

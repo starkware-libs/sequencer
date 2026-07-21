@@ -39,12 +39,15 @@ use crate::sequencer_consensus_context::BuiltProposals;
 fn fee_proposal_margin_ppt() -> u128 {
     VersionedConstants::latest_constants().fee_proposal_margin_ppt
 }
+use apollo_transaction_converter::TransactionConverterError;
+
 use crate::test_utils::{
     create_test_and_network_deps,
     proposal_init,
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
+    INTERNAL_TX_BATCH,
     TIMEOUT,
     TX_BATCH,
 };
@@ -245,6 +248,86 @@ async fn fin_with_inflated_executed_tx_count_is_rejected() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert_matches!(res, Err(ValidateProposalError::ProposalPartFailed(_, _)));
+}
+
+// Regression test for the proof-task/`content` truncation mismatch: a proposer may stream more
+// transactions than it executes, and the excluded tail is dropped from `content` on `Fin`. The
+// proof-verification tasks must be truncated in lockstep, otherwise a failing proof on an
+// unexecuted (excluded) transaction would wrongly fail an otherwise-valid proposal.
+#[tokio::test]
+async fn fin_does_not_await_proofs_for_unexecuted_txs() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+
+    // Replace the default deps with a bespoke set: identical defaults except the transaction
+    // converter, which attaches a *failing* proof task to the last (soon-to-be-excluded)
+    // transaction. mockall matches expectations FIFO, so the default converter cannot be
+    // overridden in place — the whole deps set is rebuilt here.
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_cende_ambassador();
+    deps.setup_default_gas_price_provider();
+    deps.setup_default_state_sync_get_block();
+    deps.setup_default_batcher_get_block_hash();
+
+    let n_executed = TX_BATCH.len() - 1;
+    for (index, (tx, internal_tx)) in TX_BATCH.iter().zip(INTERNAL_TX_BATCH.iter()).enumerate() {
+        let tx_matcher = tx.clone();
+        let internal_tx = internal_tx.clone();
+        deps.transaction_converter
+            .expect_convert_consensus_tx_to_internal_consensus_tx()
+            .withf(move |candidate| candidate == &tx_matcher)
+            .times(1)
+            .returning(move |_| {
+                // Only the excluded tail transaction carries a proof task, and it fails.
+                let task = (index >= n_executed).then(|| {
+                    tokio::spawn(async {
+                        Err(TransactionConverterError::ProofNotFound { facts_hash: Felt::ZERO })
+                    })
+                });
+                Ok((internal_tx.clone(), task))
+            });
+    }
+
+    deps.batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    deps.batcher
+        .expect_send_txs_for_proposal()
+        .times(1)
+        .returning(|_| Ok(SendTxsForProposalStatus::Processing));
+    deps.batcher.expect_finish_proposal().times(1).returning(move |input| {
+        assert_eq!(input.final_n_executed_txs, n_executed);
+        Ok(FinishProposalStatus::Finished(FinishedProposalInfo {
+            artifact: FinishedProposalInfoWithoutParent {
+                proposal_commitment: ProposalCommitment::default(),
+                final_n_executed_txs: n_executed,
+                block_header_commitments: BlockHeaderCommitments::default(),
+                l2_gas_used: GasAmount::default(),
+            },
+            parent_proposal_commitment: None,
+        }))
+    });
+    proposal_args.deps = deps;
+
+    // Stream all transactions, then declare that only the first `n_executed` were executed.
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: test_validate_expected_commitment(),
+            executed_transaction_count: n_executed.try_into().unwrap(),
+            fin_payload: None,
+        }))
+        .await
+        .unwrap();
+
+    // The failing proof belongs to an excluded transaction, so it is truncated away and the
+    // proposal validates successfully instead of being rejected.
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(res, Ok(_));
 }
 
 #[tokio::test]
