@@ -1,6 +1,6 @@
 # Sequencer CDK8S Deployment Configuration Guide
 
-CDK8s is an open-source framework for defining Kubernetes applications using programming languages and object-oriented APIs. CDK8s apps synthesize into standard Kubernetes manifests that can be applied to any Kubernetes cluster.
+CDK8s is an open-source framework for defining Kubernetes applications using programming languages and object-oriented APIs. CDK8s apps synthesize into standard Kubernetes manifests you can apply to any Kubernetes cluster.
 
 **Official documentation:** [https://cdk8s.io/docs/latest](https://cdk8s.io/docs/latest)
 
