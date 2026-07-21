@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784475607964,
+  "lastUpdate": 1784632772140,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6731,6 +6731,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1254.7667602899999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39151790+gkaempfer@users.noreply.github.com",
+            "name": "gkaempfer",
+            "username": "gkaempfer"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b360153eb2e4c2b2c0a28243bdc1fbfb062b4d72",
+          "message": "starknet_patricia_storage: remove redundant copy in create_db_key (#14850)\n\n[Slice]::concat() already returns an owned Vec<u8>; the trailing\n.to_vec() cloned it into a second allocation that was immediately\ndiscarded. create_db_key is called via DBObject::get_db_key for every\nPatricia tree node key construction (facts DB, index DB, transaction\nprover), so this removes one heap allocation and one memcpy per key\non a per-block hot path.\n\nFound while reviewing #14838 (dead-code removal in the same file) for\nadjacent performance opportunities.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-07-21T11:00:22Z",
+          "tree_id": "5a329166a68150726369cc16da4493887237b59a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b360153eb2e4c2b2c0a28243bdc1fbfb062b4d72"
+        },
+        "date": 1784632771713,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 862.7084357699999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1253.4151961500002,
             "unit": "ms"
           }
         ]
