@@ -186,6 +186,25 @@ fn create_l1_event_data_rejects_out_of_range_inputs() {
 }
 
 #[test]
+fn create_l1_event_data_to_address_out_of_contract_address_range_is_skippable() {
+    let to_address_out_of_range = U256::from(1_u8) << 251;
+    assert!(!u256_exceeds_felt(to_address_out_of_range));
+
+    let result = create_l1_event_data(
+        Address::ZERO,
+        to_address_out_of_range,
+        U256::from(1_u8),
+        &[U256::from(1_u8)],
+        U256::from(1_u8),
+    );
+
+    assert_eq!(
+        result,
+        Err(EthereumBaseLayerError::CalldataValueOutOfRange(to_address_out_of_range))
+    );
+}
+
+#[test]
 fn test_u256_exceeds_felt_for_extreme_values() {
     // Felt(-1) should map to FIELD_PRIME - 1 and be accepted.
     let felt_neg_one = felt_max_u256();
