@@ -6,7 +6,7 @@ This directory contains Docker configuration to run the CDK8S deployment setup i
 
 ### Using the Wrapper Script (Recommended)
 
-The easiest way to build and run the container is using the provided wrapper script:
+The easiest way to build and run the container is using the wrapper script:
 
 ```bash
 cd deployments/sequencer
