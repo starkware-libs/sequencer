@@ -1,15 +1,15 @@
 # Apollo Network
 
-Apollo Network is a comprehensive peer-to-peer networking crate for Starknet sequencer nodes. It implements the [Starknet P2P specifications](https://github.com/starknet-io/starknet-p2p-specs/) and provides a robust, scalable networking layer built on top of [libp2p](https://libp2p.io/).
+Apollo Network is a peer-to-peer networking crate for Starknet sequencer nodes. It implements the [Starknet P2P specifications](https://github.com/starknet-io/starknet-p2p-specs/) and provides a scalable networking layer built on [libp2p](https://libp2p.io/).
 
 ## Features
 
 - **SQMR Protocol**: Single Query Multiple Response protocol for efficient peer communication
 - **GossipSub Broadcasting**: Reliable message broadcasting across the network
 - **Peer Discovery**: Automatic peer discovery using Kademlia DHT and bootstrapping
-- **Network Management**: Comprehensive connection and session management
-- **Metrics & Monitoring**: Built-in metrics collection and monitoring capabilities
-- **Configurable**: Extensive configuration options for various network parameters
+- **Network Management**: Connection and session management
+- **Metrics & Monitoring**: Built-in metrics collection and monitoring
+- **Configurable**: Extensive configuration options for network parameters
 
 ## Quick Start
 
@@ -259,7 +259,7 @@ fn process_transaction(tx: Transaction) {
 
 ## Configuration
 
-The networking layer can be extensively configured through the `NetworkConfig` struct:
+You can configure the networking layer through the `NetworkConfig` struct:
 
 ```rust
 use apollo_network::{NetworkConfig, discovery::DiscoveryConfig, peer_manager::PeerManagerConfig};
@@ -300,7 +300,7 @@ let config = NetworkConfig {
 
 ## Architecture
 
-The crate is organized into several key modules:
+The crate has several modules:
 
 - **`network_manager`**: Core networking functionality and main entry point
 - **`sqmr`**: Single Query Multiple Response protocol implementation
@@ -311,7 +311,7 @@ The crate is organized into several key modules:
 
 ## Error Handling
 
-The crate provides comprehensive error handling:
+The crate provides error handling:
 
 ```rust
 use apollo_network::{NetworkError, NetworkManager, NetworkConfig};
@@ -357,7 +357,7 @@ let network_manager = NetworkManager::new(
 
 ## Testing
 
-The crate includes comprehensive test utilities. For testing, topics use identity-based hashing for deterministic behavior:
+The crate includes test utilities. For testing, topics use identity-based hashing for deterministic behavior:
 
 ```rust
 #[cfg(test)]
@@ -377,9 +377,9 @@ mod tests {
 
 When contributing to Apollo Network:
 
-1. Ensure all public APIs are properly documented
+1. Document all public APIs
 2. Add examples for new functionality
-3. Include comprehensive tests
+3. Include thorough tests
 4. Update this README for significant changes
 5. Follow the existing code style and patterns
 
