@@ -1,6 +1,6 @@
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
-use starknet_patricia_storage::storage_trait::DbKey;
+use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix};
 
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
@@ -42,10 +42,15 @@ pub trait NodeLayout<'a, L: Leaf> {
     ///
     /// During the construction of a `FilledTree` we compute the hashes and carry `FilledNode<L,
     /// HashOutput>`, hence, the `FilledNode` type is not necessarily what we want to store.
+    ///
+    /// `prefix_hint`, when `Some`, is the db key prefix for `key_context`, precomputed once by
+    /// the caller for the whole tree (see `HasDynamicPrefix::static_prefix_hint`) — implementers
+    /// should prefer it over recomputing the prefix from `key_context` for every node.
     fn get_db_object<LeafBase: Leaf + Into<L>>(
         node_index: NodeIndex,
         key_context: &<L as HasStaticPrefix>::KeyContext,
         filled_node: FilledNode<LeafBase, HashOutput>,
+        prefix_hint: Option<&DbKeyPrefix>,
     ) -> (DbKey, Self::NodeDbObject);
 
     /// A utility function to convert a `FilledNode<LeafBase, HashOutput>` to a `FilledNode<L,

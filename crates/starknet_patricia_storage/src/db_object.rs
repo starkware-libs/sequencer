@@ -10,6 +10,16 @@ pub trait HasDynamicPrefix {
 
     /// Returns the storage key prefix of the DB object.
     fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix;
+
+    /// Returns the storage key prefix without an instance, when it depends only on
+    /// `key_context` and not on the object's data (e.g. node type). Callers that compute the
+    /// prefix for many objects sharing the same `key_context` (such as all the nodes of a single
+    /// contract's storage trie) can call this once and reuse the result, instead of paying the
+    /// prefix's allocation cost per object. Returns `None` when the prefix is data-dependent, in
+    /// which case callers must fall back to per-object `get_prefix`.
+    fn static_prefix_hint(_key_context: &Self::KeyContext) -> Option<DbKeyPrefix> {
+        None
+    }
 }
 
 pub trait HasStaticPrefix {
@@ -27,6 +37,10 @@ impl<T: HasStaticPrefix> HasDynamicPrefix for T {
 
     fn get_prefix(&self, key_context: &Self::KeyContext) -> DbKeyPrefix {
         T::get_static_prefix(key_context)
+    }
+
+    fn static_prefix_hint(key_context: &Self::KeyContext) -> Option<DbKeyPrefix> {
+        Some(T::get_static_prefix(key_context))
     }
 }
 
@@ -52,6 +66,12 @@ pub trait DBObject: Sized + HasDynamicPrefix {
 
     /// Returns a [DbKey] from a prefix and a suffix.
     fn get_db_key(&self, key_context: &Self::KeyContext, suffix: &[u8]) -> DbKey {
-        create_db_key(self.get_prefix(key_context), Self::DB_KEY_SEPARATOR, suffix)
+        create_db_key(&self.get_prefix(key_context), Self::DB_KEY_SEPARATOR, suffix)
+    }
+
+    /// Returns a [DbKey] from a precomputed prefix (see [HasDynamicPrefix::static_prefix_hint])
+    /// and a suffix, without needing an instance.
+    fn db_key_from_prefix(prefix: &DbKeyPrefix, suffix: &[u8]) -> DbKey {
+        create_db_key(prefix, Self::DB_KEY_SEPARATOR, suffix)
     }
 }

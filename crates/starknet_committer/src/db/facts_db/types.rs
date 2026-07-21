@@ -54,7 +54,7 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
             PatriciaPrefix::InnerNode.into()
         };
         let suffix = self.root_hash.0.to_bytes_be();
-        create_db_key(prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &suffix)
+        create_db_key(&prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &suffix)
     }
 }
 /// Used for reading the roots in facts layout case.

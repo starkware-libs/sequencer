@@ -29,6 +29,7 @@ use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
+    DbKeyPrefix,
     DbOperationMap,
     DbValue,
     PatriciaStorageResult,
@@ -65,6 +66,7 @@ use crate::db::index_db::leaves::{
 };
 use crate::db::index_db::types::{
     get_node_index_db_key,
+    get_node_index_db_key_with_prefix,
     EmptyNodeData,
     IndexFilledNode,
     IndexFilledNodeWithHasher,
@@ -192,13 +194,17 @@ where
         node_index: NodeIndex,
         key_context: &<L as HasStaticPrefix>::KeyContext,
         filled_node: FilledNode<LeafBase, HashOutput>,
+        prefix_hint: Option<&DbKeyPrefix>,
     ) -> (DbKey, Self::NodeDbObject) {
         let filled_node = Self::convert_node_data_and_leaf(filled_node);
 
         let db_filled_node = IndexFilledNodeWithHasher::<L, H>::new(filled_node);
 
         let suffix = &node_index.0.to_be_bytes();
-        let key = db_filled_node.get_db_key(key_context, suffix);
+        let key = match prefix_hint {
+            Some(prefix) => IndexFilledNodeWithHasher::<L, H>::db_key_from_prefix(prefix, suffix),
+            None => db_filled_node.get_db_key(key_context, suffix),
+        };
 
         (key, db_filled_node)
     }
@@ -345,9 +351,12 @@ impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
                 get_node_index_db_key::<IndexLayoutContractState>(&EmptyKeyContext, *node_index)
             }))
             .chain(storage_tries.iter().flat_map(|(contract_address, node_indices)| {
+                // All of a contract's node keys share the same address-derived prefix; compute
+                // it once per contract instead of once per node.
+                let prefix = IndexLayoutStarknetStorageValue::get_static_prefix(contract_address);
                 node_indices.iter().map(move |node_index| {
-                    get_node_index_db_key::<IndexLayoutStarknetStorageValue>(
-                        contract_address,
+                    get_node_index_db_key_with_prefix::<IndexLayoutStarknetStorageValue>(
+                        &prefix,
                         *node_index,
                     )
                 })
