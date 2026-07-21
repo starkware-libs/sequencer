@@ -29,7 +29,7 @@ These restrictions ensure the program is safe to run on untrusted clients while 
 
 ### Smaller Footprint
 
-By removing unused functionality, the Virtual OS has a significantly smaller bytecode (~30% smaller), which reduces proving time and costs for clients.
+By removing unused functionality, the Virtual OS has a smaller bytecode (~30% smaller), which reduces proving time and costs for clients.
 
 ## Compilation
 
