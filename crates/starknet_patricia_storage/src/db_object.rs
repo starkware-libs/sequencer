@@ -1,6 +1,10 @@
 use crate::errors::{DeserializationError, SerializationResult};
 use crate::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 
+#[cfg(test)]
+#[path = "db_object_test.rs"]
+mod db_object_test;
+
 pub struct EmptyKeyContext;
 
 pub trait HasDynamicPrefix {
