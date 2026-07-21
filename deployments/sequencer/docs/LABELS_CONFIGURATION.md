@@ -1,6 +1,6 @@
 # Configuration Labels Hierarchy
 
-The sequencer deployment configurations support a powerful, layered labeling system that allows you to inject Kubernetes labels at various scopes. This system merges labels from the most global definitions down to the most specific object level.
+The sequencer deployment configurations support a layered labeling system that allows you to inject Kubernetes labels at various scopes. This system merges labels from the most global definitions down to the most specific object level.
 
 Here are all the possible levels where you can inject labels, ordered from the most global to the most specific:
 
@@ -61,9 +61,9 @@ ingress:
 
 ## Overlays vs Layouts (The Configuration Dimension)
 
-Because the deployment utilizes a base layout + overlay system, you have an additional dimension of environmental control over where labels are injected:
+Because the deployment uses a base layout + overlay system, you have an additional dimension of environmental control over where labels are injected:
 
-- **Layout Level:** If you place `metaLabels` in `configs/layouts/hybrid/common.yaml`, it applies to **all deployments** utilizing the hybrid layout base.
+- **Layout Level:** If you place `metaLabels` in `configs/layouts/hybrid/common.yaml`, it applies to **all deployments** using the hybrid layout base.
 - **Overlay Level:** If you place `metaLabels` in `configs/overlays/hybrid/testing/common.yaml`, it will deep-merge with (and override on conflict) the layout labels, applying strictly to the `testing` environment overlay.
 - **Service-Overlay Level:** If you place `podLabels` in `configs/overlays/hybrid/testing/services/committer.yaml`, it will apply exclusively to the Pods, strictly for the Committer service, and solely when deploying the testing environment!
 
