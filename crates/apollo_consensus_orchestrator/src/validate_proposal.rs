@@ -2,6 +2,7 @@
 #[path = "validate_proposal_test.rs"]
 mod validate_proposal_test;
 
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -26,7 +27,6 @@ use apollo_transaction_converter::{TransactionConverterTrait, VerifyAndStoreProo
 use apollo_versioned_constants::VersionedConstants;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use indexmap::IndexSet;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -144,7 +144,7 @@ pub(crate) async fn validate_proposal(
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
     let mut verify_and_store_proof_tasks: Vec<VerifyAndStoreProofTask> = Vec::new();
-    let mut seen_tx_hashes: IndexSet<TransactionHash> = IndexSet::new();
+    let mut seen_tx_hashes: HashSet<TransactionHash> = HashSet::new();
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -495,7 +495,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    seen_tx_hashes: &mut IndexSet<TransactionHash>,
+    seen_tx_hashes: &mut HashSet<TransactionHash>,
     verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     deadline_params: &ProposalDeadlineParams,
