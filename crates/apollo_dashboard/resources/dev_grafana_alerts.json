@@ -70,12 +70,12 @@
       "name": "batcher_l1_events_provider_errors",
       "title": "Batcher L1 events provider errors",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(batcher_l1_events_provider_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(batcher_l1_events_provider_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              10.0
+              0.0
             ],
             "type": "gt"
           },
@@ -89,8 +89,8 @@
           "type": "query"
         }
       ],
-      "for": "30s",
-      "severity": "p4"
+      "for": "3m",
+      "severity": "p2"
     },
     {
       "name": "batcher_remote_server_number_of_connections",
@@ -564,12 +564,12 @@
       "name": "consensus_l1_gas_price_provider_failure",
       "title": "Consensus L1 gas price provider failure",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              5.0
+              0.0
             ],
             "type": "gt"
           },
@@ -583,7 +583,7 @@
           "type": "query"
         }
       ],
-      "for": "30s",
+      "for": "3m",
       "severity": "p4"
     },
     {

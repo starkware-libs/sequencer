@@ -131,6 +131,14 @@ pub fn get_dev_alerts_json_path() -> String {
 
 // TODO(shahak): Move the remaining alerts here into modules.
 
+/// The batcher and consensus reach their L1-hosted providers (`l1_events`, `l1_gas_price`) over
+/// HTTP; in distributed deployments the L1 service runs on a spot node pool and is periodically
+/// evicted. A normal eviction + reschedule + L1-provider catch-up recovers within a few minutes,
+/// during which these consumers log transient errors. The paging alerts below tolerate that by
+/// requiring the error condition to hold continuously for this duration, so routine spot churn
+/// stays silent and only a genuine sustained L1 outage pages.
+const L1_POD_BOOTUP_TOLERANCE: &str = "3m";
+
 fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
     Alert::new(
         "consensus_decisions_reached_by_consensus_ratio",
@@ -234,16 +242,21 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
 }
 
 fn get_consensus_l1_gas_price_provider_failure() -> Alert {
+    // See `L1_POD_BOOTUP_TOLERANCE`: consensus reaches the l1_gas_price provider in the same L1 pod
+    // as the batcher's l1_events provider, so a spot eviction trips this the same way. Page only on
+    // a sustained outage; the `_once` variant below remains the immediate, non-paging signal.
     Alert::new(
         "consensus_l1_gas_price_provider_failure",
         "Consensus L1 gas price provider failure",
         EvaluationRate::Default,
+        // 1-minute window: reflects whether consensus is *currently* erroring and clears within a
+        // minute of recovery, so the `for` timer resets on a normal eviction.
         format!(
-            "sum(increase({}[1h])) or vector(0)",
+            "sum(increase({}[1m])) or vector(0)",
             CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
         ),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        L1_POD_BOOTUP_TOLERANCE,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -379,18 +392,21 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
 }
 
 fn get_l1_events_provider_errors_alert() -> Alert {
+    // See `L1_POD_BOOTUP_TOLERANCE`. A transient error here is harmless: the propose path falls
+    // back to an empty L1-handler list and still builds the block.
     Alert::new(
         "batcher_l1_events_provider_errors",
         "Batcher L1 events provider errors",
         EvaluationRate::Default,
+        // 1-minute window: reflects whether the batcher is *currently* erroring and clears within
+        // a minute of recovery, so the `for` timer resets on a normal eviction.
         format!(
-            "sum(increase({}[10m])) or vector(0)",
+            "sum(increase({}[1m])) or vector(0)",
             BATCHER_L1_EVENTS_PROVIDER_ERRORS.get_name_with_filter()
         ),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
-        // TODO(Arni): set a configurable severity, similar to `get_high_empty_blocks_ratio_alert`.
-        AlertSeverity::WorkingHours,
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        L1_POD_BOOTUP_TOLERANCE,
+        AlertSeverity::Regular,
         ObserverApplicability::NotApplicable,
     )
 }
