@@ -35,7 +35,7 @@ Note: The hex string is the ASCII encoding of the chain ID name. For example, `0
 Reexecution can be run via CLI in the following modes: 
 
 - **RPC test:**
-Reexecution test where the data required for reexecuting the block, as well as the expected resulting state diff, are retrieved using RPC calls. It is necessary to supply a RPC provider url for these RPC calls. Note that free urls (as, e.g., used by default in the tests) will most likely hit rate limit errors due to the large amount of RPC calls. 
+Reexecution test where the data required for reexecuting the block, as well as the expected resulting state diff, are retrieved using RPC calls. You must supply a RPC provider url for these RPC calls. Note that free urls (as, e.g., used by default in the tests) will most likely hit rate limit errors due to the large amount of RPC calls. 
 ```
 cargo run --bin blockifier_reexecution rpc-test -n <node_url> -b <block_number>
 ```
@@ -72,7 +72,7 @@ cargo run --release -p blockifier_reexecution -- rpc-replay -n <node_url> -c <ch
 ```
 
 - **Offline Reexecution:**
-Reexecution test where the data required for reexecuting the block, as well as the expected resulting state diff, are read from local JSON files. Offline reexecution should be run in release mode, as otherwise these tests can be very long. To run offline reexecution on blocks in the GC bucket, first download the files as explained below. Then run
+Reexecution test where the data required for reexecuting the block, as well as the expected resulting state diff, are read from local JSON files. Run offline reexecution in release mode, as otherwise these tests can be long. To run offline reexecution on blocks in the GC bucket, first download the files as explained below. Then run
 ```
 cargo run --release --bin blockifier_reexecution reexecute -d <directory_path> -b <optional_block_number_1> ... <optional_block_number_n>
 ```
