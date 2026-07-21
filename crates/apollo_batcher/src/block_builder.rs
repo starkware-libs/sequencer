@@ -363,12 +363,12 @@ impl BlockBuilder {
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            let executor = self.executor.clone();
-            if !self.execution_params.is_validator
-                && spawn_blocking(move || lock_executor(&executor).is_done())
-                    .await
-                    .expect("Checking completion should succeed.")
-            {
+            // `is_done` only reads an atomic flag (see `Scheduler::done`), so unlike the other
+            // executor accesses here it is called directly instead of via `spawn_blocking`: this
+            // check now runs on every poll of the tightened `results_polling_interval_millis`
+            // loop, and routing a non-blocking read through the blocking-task pool would add a
+            // full dispatch round-trip for no benefit.
+            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
