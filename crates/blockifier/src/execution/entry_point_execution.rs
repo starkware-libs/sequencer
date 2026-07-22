@@ -5,6 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout::CairoLayoutParams;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::utils::is_subsequence;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
@@ -42,6 +43,21 @@ use crate::utils::usize_from_u32;
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
 mod test;
+
+/// Supported Cairo 1 builtins in canonical order; an entry point's builtins must be an ordered
+/// subsequence of this list. Mirrors the OS `SelectableBuiltins` (source of truth), minus `ecdsa`
+/// (a Cairo 0 builtin). Keep in sync when a builtin is added or the OS/compiler is bumped.
+const CAIRO1_SUPPORTED_BUILTINS: [BuiltinName; 9] = [
+    BuiltinName::pedersen,
+    BuiltinName::range_check,
+    BuiltinName::bitwise,
+    BuiltinName::ec_op,
+    BuiltinName::poseidon,
+    BuiltinName::segment_arena,
+    BuiltinName::range_check96,
+    BuiltinName::add_mod,
+    BuiltinName::mul_mod,
+];
 
 // TODO(spapini): Try to refactor this file into a StarknetRunner struct.
 
@@ -166,6 +182,8 @@ pub fn initialize_execution_context_with_runner_mode<'a>(
         execution_runner_mode.disable_trace_padding(),
     )?;
 
+    // Safety net for the compiler's compile-time guarantee, checked right before use.
+    validate_entry_point_builtins(&entry_point.builtins)?;
     runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;
     let mut read_only_segments = ReadOnlySegments::default();
     let program_extra_data_length = prepare_program_extra_data(
@@ -193,6 +211,16 @@ pub fn initialize_execution_context_with_runner_mode<'a>(
         entry_point,
         program_extra_data_length,
     })
+}
+
+/// Checks that `builtins` is an ordered subsequence of [`CAIRO1_SUPPORTED_BUILTINS`], rejecting
+/// unsupported builtins (e.g. `ecdsa`, `keccak`) and non-canonical ordering.
+fn validate_entry_point_builtins(builtins: &[BuiltinName]) -> Result<(), PreExecutionError> {
+    if is_subsequence(builtins, &CAIRO1_SUPPORTED_BUILTINS) {
+        Ok(())
+    } else {
+        Err(PreExecutionError::UnsupportedCairo1Builtins(builtins.to_vec()))
+    }
 }
 
 pub fn initialize_execution_context<'a>(
