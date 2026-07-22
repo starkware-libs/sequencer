@@ -1101,6 +1101,7 @@ dependencies = [
  "starknet_patricia_storage",
  "tokio",
  "tracing",
+ "tracing-test",
 ]
 
 [[package]]
@@ -1109,6 +1110,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "serde_json",
  "starknet_committer",
  "starknet_patricia_storage",
  "validator",
