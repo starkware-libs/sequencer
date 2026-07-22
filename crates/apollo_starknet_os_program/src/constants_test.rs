@@ -5,6 +5,7 @@ use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use expect_test::expect_file;
+use starknet_api::block::StarknetVersion;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
@@ -79,6 +80,13 @@ where
 
 fn generate_constants_file() -> String {
     let os_constants = &VersionedConstants::latest_constants().os_constants;
+    // ECHONET REPLAY: gas costs (base/builtin/syscall) come from 0.14.3 — the version the
+    // sequencer-dev executes — so the OS's hardcoded costs match the gas it charged. All other
+    // constants stay at LATEST so the OS Cairo code (which imports e.g.
+    // ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) still compiles.
+    let gas_constants = &VersionedConstants::get(&StarknetVersion::V0_14_3)
+        .expect("0.14.3 versioned constants should exist")
+        .os_constants;
 
     // Replace the template with the actual values.
     let unformatted = format!(
@@ -121,82 +129,82 @@ fn generate_constants_file() -> String {
             |felt| felt
         ),
         // Base costs.
-        STEP_GAS_COST = os_constants.gas_costs.base.step_gas_cost,
-        MEMORY_HOLE_GAS_COST = os_constants.gas_costs.base.memory_hole_gas_cost,
+        STEP_GAS_COST = gas_constants.gas_costs.base.step_gas_cost,
+        MEMORY_HOLE_GAS_COST = gas_constants.gas_costs.base.memory_hole_gas_cost,
         // Builtin costs.
-        RANGE_CHECK_GAS_COST = os_constants.gas_costs.builtins.range_check,
-        RANGE_CHECK96_GAS_COST = os_constants.gas_costs.builtins.range_check96,
-        KECCAK_BUILTIN_GAS_COST = os_constants.gas_costs.builtins.keccak,
-        PEDERSEN_GAS_COST = os_constants.gas_costs.builtins.pedersen,
-        BITWISE_BUILTIN_GAS_COST = os_constants.gas_costs.builtins.bitwise,
-        ECOP_GAS_COST = os_constants.gas_costs.builtins.ecop,
-        POSEIDON_GAS_COST = os_constants.gas_costs.builtins.poseidon,
-        ADD_MOD_GAS_COST = os_constants.gas_costs.builtins.add_mod,
-        MUL_MOD_GAS_COST = os_constants.gas_costs.builtins.mul_mod,
-        ECDSA_GAS_COST = os_constants.gas_costs.builtins.ecdsa,
-        BLAKE_GAS_COST = os_constants.gas_costs.builtins.blake,
+        RANGE_CHECK_GAS_COST = gas_constants.gas_costs.builtins.range_check,
+        RANGE_CHECK96_GAS_COST = gas_constants.gas_costs.builtins.range_check96,
+        KECCAK_BUILTIN_GAS_COST = gas_constants.gas_costs.builtins.keccak,
+        PEDERSEN_GAS_COST = gas_constants.gas_costs.builtins.pedersen,
+        BITWISE_BUILTIN_GAS_COST = gas_constants.gas_costs.builtins.bitwise,
+        ECOP_GAS_COST = gas_constants.gas_costs.builtins.ecop,
+        POSEIDON_GAS_COST = gas_constants.gas_costs.builtins.poseidon,
+        ADD_MOD_GAS_COST = gas_constants.gas_costs.builtins.add_mod,
+        MUL_MOD_GAS_COST = gas_constants.gas_costs.builtins.mul_mod,
+        ECDSA_GAS_COST = gas_constants.gas_costs.builtins.ecdsa,
+        BLAKE_GAS_COST = gas_constants.gas_costs.builtins.blake,
         // Initial costs and gas limits.
-        DEFAULT_INITIAL_GAS_COST = os_constants.default_initial_gas_cost,
-        VALIDATE_MAX_SIERRA_GAS = os_constants.validate_max_sierra_gas,
-        EXECUTE_MAX_SIERRA_GAS = os_constants.execute_max_sierra_gas,
-        ENTRY_POINT_INITIAL_BUDGET = os_constants.entry_point_initial_budget,
+        DEFAULT_INITIAL_GAS_COST = gas_constants.default_initial_gas_cost,
+        VALIDATE_MAX_SIERRA_GAS = gas_constants.validate_max_sierra_gas,
+        EXECUTE_MAX_SIERRA_GAS = gas_constants.execute_max_sierra_gas,
+        ENTRY_POINT_INITIAL_BUDGET = gas_constants.entry_point_initial_budget,
         // Syscall costs.
         // Costs without a linear factor use `base_only_syscall_cost`; costs with a linear factor
         // use `get_syscall_cost(0)` for the base cost (0 linear factor), and `linear_syscall_cost`
         // for the linear factor.
-        SYSCALL_BASE_GAS_COST = os_constants.gas_costs.base.syscall_base_gas_cost,
+        SYSCALL_BASE_GAS_COST = gas_constants.gas_costs.base.syscall_base_gas_cost,
         CALL_CONTRACT_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::CallContract, os_constants),
-        DEPLOY_GAS_COST = os_constants.gas_costs.syscalls.deploy.get_syscall_cost(0),
+            base_only_syscall_cost(SyscallSelector::CallContract, gas_constants),
+        DEPLOY_GAS_COST = gas_constants.gas_costs.syscalls.deploy.get_syscall_cost(0),
         DEPLOY_CALLDATA_FACTOR_GAS_COST =
-            os_constants.gas_costs.syscalls.deploy.linear_syscall_cost(),
+            gas_constants.gas_costs.syscalls.deploy.linear_syscall_cost(),
         GET_BLOCK_HASH_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::GetBlockHash, os_constants),
+            base_only_syscall_cost(SyscallSelector::GetBlockHash, gas_constants),
         GET_CLASS_HASH_AT_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::GetClassHashAt, os_constants),
+            base_only_syscall_cost(SyscallSelector::GetClassHashAt, gas_constants),
         GET_EXECUTION_INFO_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::GetExecutionInfo, os_constants),
-        LIBRARY_CALL_GAS_COST = base_only_syscall_cost(SyscallSelector::LibraryCall, os_constants),
+            base_only_syscall_cost(SyscallSelector::GetExecutionInfo, gas_constants),
+        LIBRARY_CALL_GAS_COST = base_only_syscall_cost(SyscallSelector::LibraryCall, gas_constants),
         REPLACE_CLASS_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::ReplaceClass, os_constants),
-        STORAGE_READ_GAS_COST = base_only_syscall_cost(SyscallSelector::StorageRead, os_constants),
+            base_only_syscall_cost(SyscallSelector::ReplaceClass, gas_constants),
+        STORAGE_READ_GAS_COST = base_only_syscall_cost(SyscallSelector::StorageRead, gas_constants),
         STORAGE_WRITE_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::StorageWrite, os_constants),
-        EMIT_EVENT_GAS_COST = base_only_syscall_cost(SyscallSelector::EmitEvent, os_constants),
+            base_only_syscall_cost(SyscallSelector::StorageWrite, gas_constants),
+        EMIT_EVENT_GAS_COST = base_only_syscall_cost(SyscallSelector::EmitEvent, gas_constants),
         SEND_MESSAGE_TO_L1_GAS_COST =
-            os_constants.gas_costs.syscalls.send_message_to_l1.get_syscall_cost(0),
+            gas_constants.gas_costs.syscalls.send_message_to_l1.get_syscall_cost(0),
         SEND_MESSAGE_TO_L1_PAYLOAD_FACTOR_GAS_COST =
-            os_constants.gas_costs.syscalls.send_message_to_l1.linear_syscall_cost(),
-        META_TX_V0_GAS_COST = os_constants.gas_costs.syscalls.meta_tx_v0.get_syscall_cost(0),
+            gas_constants.gas_costs.syscalls.send_message_to_l1.linear_syscall_cost(),
+        META_TX_V0_GAS_COST = gas_constants.gas_costs.syscalls.meta_tx_v0.get_syscall_cost(0),
         META_TX_V0_CALLDATA_FACTOR_GAS_COST =
-            os_constants.gas_costs.syscalls.meta_tx_v0.linear_syscall_cost(),
+            gas_constants.gas_costs.syscalls.meta_tx_v0.linear_syscall_cost(),
         SECP256K1_ADD_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256k1Add, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256k1Add, gas_constants),
         SECP256K1_GET_POINT_FROM_X_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256k1GetPointFromX, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256k1GetPointFromX, gas_constants),
         SECP256K1_GET_XY_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256k1GetXy, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256k1GetXy, gas_constants),
         SECP256K1_MUL_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256k1Mul, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256k1Mul, gas_constants),
         SECP256K1_NEW_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256k1New, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256k1New, gas_constants),
         SECP256R1_ADD_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256r1Add, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256r1Add, gas_constants),
         SECP256R1_GET_POINT_FROM_X_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256r1GetPointFromX, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256r1GetPointFromX, gas_constants),
         SECP256R1_GET_XY_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256r1GetXy, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256r1GetXy, gas_constants),
         SECP256R1_MUL_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256r1Mul, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256r1Mul, gas_constants),
         SECP256R1_NEW_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Secp256r1New, os_constants),
-        KECCAK_GAS_COST = base_only_syscall_cost(SyscallSelector::Keccak, os_constants),
+            base_only_syscall_cost(SyscallSelector::Secp256r1New, gas_constants),
+        KECCAK_GAS_COST = base_only_syscall_cost(SyscallSelector::Keccak, gas_constants),
         KECCAK_ROUND_COST_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::KeccakRound, os_constants),
+            base_only_syscall_cost(SyscallSelector::KeccakRound, gas_constants),
         SHA256_PROCESS_BLOCK_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Sha256ProcessBlock, os_constants),
+            base_only_syscall_cost(SyscallSelector::Sha256ProcessBlock, gas_constants),
         SHA512_PROCESS_BLOCK_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::Sha512ProcessBlock, os_constants),
+            base_only_syscall_cost(SyscallSelector::Sha512ProcessBlock, gas_constants),
         // Short-strings.
         ERROR_BLOCK_NUMBER_OUT_OF_RANGE =
             quote_string(&os_constants.error_block_number_out_of_range),
