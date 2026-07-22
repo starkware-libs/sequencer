@@ -275,6 +275,58 @@
       "severity": "p4"
     },
     {
+      "name": "committer_block_commit_latency_too_high",
+      "title": "Committer block commit latency too high",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "((sum(rate(committer_block_commit_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)) / clamp_min(sum(rate(committer_block_commit_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0), 0.0000001)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              4.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "p4"
+    },
+    {
+      "name": "committer_block_number_lag",
+      "title": "Committer block number lag",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "((max(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) or vector(0)) - (min(committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\"}) or vector(0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "severity": "p2"
+    },
+    {
       "name": "committer_remote_server_number_of_connections",
       "title": "committer - Remote server number of connections exceeds 80",
       "ruleGroup": "evaluation_rate_default",

@@ -1,3 +1,4 @@
+use apollo_committer::metrics::{COMMITTER_BLOCK_COMMIT_LATENCY, COMMITTER_OFFSET};
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
@@ -100,6 +101,58 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Leaves 3 blocks of headroom before the 10-block STORED_BLOCK_HASH_BUFFER gate.
+const COMMITTER_LAG_ALERT_THRESHOLD_BLOCKS: f64 = 7.0;
+
+pub(crate) fn get_committer_block_number_lag() -> Alert {
+    Alert::new(
+        "committer_block_number_lag",
+        "Committer block number lag",
+        EvaluationRate::Default,
+        // max/min collapse mismatched label sets (different pods) so the subtraction is valid.
+        format!(
+            "(max({}) or vector(0)) - (min({}) or vector(0))",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            COMMITTER_OFFSET.get_name_with_filter()
+        ),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            COMMITTER_LAG_ALERT_THRESHOLD_BLOCKS,
+            AlertLogicalOp::And,
+        )],
+        // A catching-up node (e.g. post-restart) legitimately lags; wait longer than the default.
+        "5m",
+        AlertSeverity::Regular,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// First-round block-build deadline is 8.1s; we use half of it as the latency indicator.
+const COMMIT_LATENCY_ALERT_THRESHOLD_SECS: f64 = 4.0;
+
+pub(crate) fn get_committer_block_commit_latency_too_high() -> Alert {
+    Alert::new(
+        "committer_block_commit_latency_too_high",
+        "Committer block commit latency too high",
+        EvaluationRate::Default,
+        // 5m window (shorter than cende's 20m) so a regression is caught before lag accumulates.
+        format!(
+            "(sum(rate({}[5m])) or vector(0)) / clamp_min(sum(rate({}[5m])) or vector(0), \
+             0.0000001)",
+            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_sum_with_filter(),
+            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_count_with_filter(),
+        ),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            COMMIT_LATENCY_ALERT_THRESHOLD_SECS,
+            AlertLogicalOp::And,
+        )],
+        PENDING_DURATION_DEFAULT,
+        AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
 }
