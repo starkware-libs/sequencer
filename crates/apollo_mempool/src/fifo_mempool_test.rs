@@ -462,6 +462,32 @@ fn test_realign_to_earlier_block_after_rewind(mut mempool: Mempool) {
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx]);
 }
 
+// A proposer round that drains a block and aborts must get the rewound txs back on the retried
+// round, even though it pops without resolving the timestamp in between. get_txs is called
+// directly because get_txs_and_assert_expected resolves first, which would mask the bug.
+#[rstest]
+fn test_rewind_realigns_state_so_get_txs_succeeds_without_resolve(mut mempool: Mempool) {
+    let block_1_tx = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let block_2_tx = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 1));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(2000, 2));
+
+    add_tx(&mut mempool, &block_1_tx);
+    add_tx(&mut mempool, &block_2_tx);
+
+    // Round 0 of block 1: resolve the timestamp and drain block 1's tx; expected_block_number
+    // advances to 2.
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![block_1_tx.tx.clone()]);
+
+    // Round 0 aborts before commit; round 1 starts with the round-start commit_block only.
+    commit_block(&mut mempool, [], []);
+
+    // The rewind must have realigned expected_block_number back to 1, so the pop succeeds.
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![block_1_tx.tx]);
+}
+
 #[rstest]
 fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
