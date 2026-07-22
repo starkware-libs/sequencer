@@ -12,12 +12,16 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
-use starknet_api::executable_transaction::ValidateCompiledClassHashError;
+use starknet_api::contract_class::ContractClass;
+use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::executable_transaction::{AccountTransaction, ValidateCompiledClassHashError};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_api::state::SierraContractClass;
+use starknet_api::test_utils::declare::{default_compiled_contract_class, internal_rpc_declare_tx};
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::{compiled_class_hash, declare_tx_args};
 
 use crate::transaction_converter::{
     TransactionConverter,
@@ -230,4 +234,112 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
 
     assert_eq!(rpc_tx, rpc_tx_from_internal);
+}
+
+/// Sets up a mock class manager returning `sierra`/`contract_class` for `class_hash`, and
+/// converts an internal declare tx (with the given `class_hash`/`compiled_class_hash`) to an
+/// executable tx.
+async fn convert_declare_tx_to_executable(
+    class_hash: ClassHash,
+    compiled_class_hash: CompiledClassHash,
+    sierra: SierraContractClass,
+    contract_class: ContractClass,
+) -> Result<AccountTransaction, TransactionConverterError> {
+    let internal_tx =
+        internal_rpc_declare_tx(declare_tx_args!(class_hash: class_hash, compiled_class_hash));
+
+    let mut mock_class_manager_client = MockClassManagerClient::new();
+    mock_class_manager_client
+        .expect_get_sierra()
+        .with(eq(class_hash))
+        .return_once(move |_| Ok(Some(sierra)));
+    mock_class_manager_client
+        .expect_get_executable()
+        .with(eq(class_hash))
+        .return_once(move |_| Ok(Some(contract_class)));
+
+    let transaction_converter = TransactionConverter::new(
+        Arc::new(mock_class_manager_client),
+        Arc::new(MockProofManagerClient::new()),
+        ChainInfo::create_for_testing().chain_id,
+    );
+
+    transaction_converter.convert_internal_rpc_tx_to_executable_tx(internal_tx).await
+}
+
+/// A consistent Sierra/executable pair (both keyed to the same class/compiled-class hash)
+/// converts successfully.
+#[rstest]
+#[tokio::test]
+async fn test_convert_internal_rpc_tx_to_executable_tx_declare_consistent_classes() {
+    let sierra = SierraContractClass::default();
+    let class_hash = sierra.calculate_class_hash();
+    let contract_class = default_compiled_contract_class();
+    let compiled_class_hash = contract_class.compiled_class_hash();
+
+    let account_tx = convert_declare_tx_to_executable(
+        class_hash,
+        compiled_class_hash,
+        sierra.clone(),
+        contract_class.clone(),
+    )
+    .await
+    .unwrap();
+
+    let class_info = assert_matches!(account_tx, AccountTransaction::Declare(tx) => tx.class_info);
+    assert_eq!(class_info.contract_class, contract_class);
+    assert_eq!(class_info.sierra_program_length, sierra.sierra_program.len());
+    assert_eq!(class_info.abi_length, sierra.abi.len());
+}
+
+/// If the class manager returns a Sierra that doesn't hash to the requested class hash (e.g. a
+/// stale cache entry for a different class), the conversion fails instead of silently deriving
+/// billing metadata from the wrong Sierra.
+#[rstest]
+#[tokio::test]
+async fn test_convert_internal_rpc_tx_to_executable_tx_declare_sierra_class_hash_mismatch() {
+    let sierra = SierraContractClass::default();
+    let computed_class_hash = sierra.calculate_class_hash();
+    let class_hash = ClassHash::default();
+    assert_ne!(class_hash, computed_class_hash);
+    let contract_class = default_compiled_contract_class();
+    let compiled_class_hash = contract_class.compiled_class_hash();
+
+    let err =
+        convert_declare_tx_to_executable(class_hash, compiled_class_hash, sierra, contract_class)
+            .await
+            .unwrap_err();
+
+    assert_eq!(
+        err,
+        TransactionConverterError::SierraClassHashMismatch { class_hash, computed_class_hash }
+    );
+}
+
+/// If the class manager returns an executable whose compiled class hash doesn't match the
+/// declare tx's `compiled_class_hash` (e.g. a stale/incorrect compilation for the same class),
+/// the conversion fails instead of pairing it with the fetched Sierra.
+#[rstest]
+#[tokio::test]
+async fn test_convert_internal_rpc_tx_to_executable_tx_declare_compiled_class_hash_mismatch() {
+    let sierra = SierraContractClass::default();
+    let class_hash = sierra.calculate_class_hash();
+    let contract_class = default_compiled_contract_class();
+    let computed_compiled_class_hash = contract_class.compiled_class_hash();
+    let compiled_class_hash = compiled_class_hash!(999_u16);
+    assert_ne!(compiled_class_hash, computed_compiled_class_hash);
+
+    let err =
+        convert_declare_tx_to_executable(class_hash, compiled_class_hash, sierra, contract_class)
+            .await
+            .unwrap_err();
+
+    assert_eq!(
+        err,
+        TransactionConverterError::CompiledClassHashMismatch {
+            class_hash,
+            compiled_class_hash,
+            computed_compiled_class_hash,
+        }
+    );
 }
