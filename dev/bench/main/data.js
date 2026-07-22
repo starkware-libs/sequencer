@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784750091569,
+  "lastUpdate": 1784753188736,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6867,6 +6867,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1485.48354689,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d2deed3d1bab36be73a8531266966c1034c1d15",
+          "message": "apollo_gateway,apollo_gateway_config: fetch the replayed Starknet version from the recorder (#14728)\n\n* apollo_gateway,apollo_gateway_config: fetch the replayed Starknet version from the recorder\n\n* apollo_node_config: require consolidated deployment in echonet mode",
+          "timestamp": "2026-07-22T20:21:38Z",
+          "tree_id": "2d5314d05aeca031338f4e6cc2b2d45c7ab6badb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9d2deed3d1bab36be73a8531266966c1034c1d15"
+        },
+        "date": 1784753188110,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1161.0666335399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 2016.04121487,
             "unit": "ms"
           }
         ]
