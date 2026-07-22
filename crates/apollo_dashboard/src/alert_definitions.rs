@@ -121,6 +121,7 @@ use crate::alerts::{
     ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
+use crate::query_builder::sum_increase;
 
 pub fn get_dev_alerts_json_path() -> String {
     "crates/apollo_dashboard/resources/dev_grafana_alerts.json".to_string()
@@ -250,8 +251,8 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
         "Consensus L1 gas price provider failure",
         EvaluationRate::Default,
         format!(
-            "sum(increase({metric}[{L1_POD_ERROR_WINDOW}])) or vector(0)",
-            metric = CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
+            "{} or vector(0)",
+            sum_increase(&CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, L1_POD_ERROR_WINDOW)
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         L1_POD_BOOTUP_TOLERANCE,
@@ -397,8 +398,8 @@ fn get_l1_events_provider_errors_alert() -> Alert {
         "Batcher L1 events provider errors",
         EvaluationRate::Default,
         format!(
-            "sum(increase({metric}[{L1_POD_ERROR_WINDOW}])) or vector(0)",
-            metric = BATCHER_L1_EVENTS_PROVIDER_ERRORS.get_name_with_filter()
+            "{} or vector(0)",
+            sum_increase(&BATCHER_L1_EVENTS_PROVIDER_ERRORS, L1_POD_ERROR_WINDOW)
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         L1_POD_BOOTUP_TOLERANCE,
