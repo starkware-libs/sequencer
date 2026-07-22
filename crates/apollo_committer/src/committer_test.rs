@@ -10,6 +10,7 @@ use apollo_committer_types::committer_types::{
 use apollo_committer_types::errors::CommitterError;
 use assert_matches::assert_matches;
 use indexmap::indexmap;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
@@ -21,6 +22,7 @@ use tracing_test::traced_test;
 
 use super::Committer;
 use crate::committer::StorageConstructor;
+use crate::metrics::{register_metrics, COMMITTER_BLOCK_COMMIT_LATENCY};
 
 #[cfg(feature = "os_input")]
 #[path = "request_paths_and_commit_block_tests.rs"]
@@ -338,4 +340,20 @@ async fn no_warn_when_block_commit_within_duration_threshold() {
     committer.config.block_commit_duration_warn_threshold_millis = Duration::from_secs(3600);
     committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
     assert!(!logs_contain("ms warn threshold"));
+}
+
+#[tokio::test]
+async fn block_commit_latency_histogram_records_commit_duration() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics(BlockNumber(0));
+
+    let mut committer = new_test_committer().await;
+    committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+
+    let recorded_metrics = recorder.handle().render();
+    let histogram_value =
+        COMMITTER_BLOCK_COMMIT_LATENCY.parse_histogram_metric(&recorded_metrics).unwrap();
+    assert_eq!(histogram_value.count, 1);
+    assert!(histogram_value.sum > 0.0);
 }
