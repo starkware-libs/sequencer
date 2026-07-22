@@ -143,7 +143,7 @@ async fn get_proposal_timestamp(
 ) -> u64 {
     if override_timestamp {
         match batcher.start_round().await {
-            Ok(timestamp) => return timestamp,
+            Ok(block_metadata) => return block_metadata.timestamp,
             Err(err) => {
                 warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
             }

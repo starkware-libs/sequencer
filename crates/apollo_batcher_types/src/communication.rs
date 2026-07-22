@@ -14,7 +14,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, ReplayBlockMetadata};
 #[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
@@ -98,8 +98,8 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<SendTxsForProposalStatus>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
-    /// Starts a new proposer round and returns the timestamp for the block about to be built.
-    async fn start_round(&self) -> BatcherClientResult<UnixTimestamp>;
+    /// Starts a new proposer round and returns the metadata for the block about to be built.
+    async fn start_round(&self) -> BatcherClientResult<ReplayBlockMetadata>;
     /// Executes a view (read-only) entry point on a contract against the latest committed batcher
     /// state and returns the retdata.
     async fn call_contract(
@@ -158,7 +158,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
-    StartRound(BatcherResult<UnixTimestamp>),
+    StartRound(BatcherResult<ReplayBlockMetadata>),
     CallContract(BatcherResult<CallContractOutput>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
@@ -361,7 +361,7 @@ where
         )
     }
 
-    async fn start_round(&self) -> BatcherClientResult<UnixTimestamp> {
+    async fn start_round(&self) -> BatcherClientResult<ReplayBlockMetadata> {
         let request = BatcherRequest::StartRound;
         handle_all_response_variants!(
             self,
