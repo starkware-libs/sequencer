@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784632772140,
+  "lastUpdate": 1784728029645,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6765,6 +6765,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1253.4151961500002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "463f546bb88560b83545d4fada848e74f2a95920",
+          "message": "apollo_dashboard,starknet_committer_and_os_cli: forward os_input feature to apollo_committer (#14874)\n\nBoth crates depend on apollo_committer but declared no os_input feature to forward it, unlike\napollo_node and apollo_integration_tests. In a multi-package `cargo ... --all-features` build\n(as run by run_tests.py --changes_only when a batcher-side crate is in the changed set),\napollo_committer_types/os_input is enabled while apollo_committer is compiled as a plain\ndependency without apollo_committer/os_input. The CommitterRequest enum then carries the\nos_input-gated ReadPathsAndCommitBlock variant while apollo_committer's non-os_input handler\ndoes not, producing a non-exhaustive-match error (E0004). Forwarding os_input keeps the two\nfeatures consistent.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-22T13:26:08Z",
+          "tree_id": "7366070510db883a508029e463d227ce06a8841a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/463f546bb88560b83545d4fada848e74f2a95920"
+        },
+        "date": 1784728029159,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 987.01913873,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1516.16441524,
             "unit": "ms"
           }
         ]
