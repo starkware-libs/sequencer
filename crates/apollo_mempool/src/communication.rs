@@ -172,7 +172,7 @@ impl MempoolCommunicationWrapper {
     }
 
     fn resolve_batch_timestamp(&mut self) -> MempoolResult<UnixTimestamp> {
-        Ok(self.mempool.resolve_batch_timestamp())
+        Ok(self.mempool.resolve_block_metadata().timestamp)
     }
 
     // Fetches tx block metadata from recorder and updates mempool.

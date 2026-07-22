@@ -6,6 +6,7 @@ use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, Mempool
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
 use starknet_api::transaction::fields::TransactionSignature;
@@ -230,7 +231,7 @@ fn test_declare_txs_preserve_fifo_order(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_resolve_batch_timestamp_persists_after_queue_emptied(mut mempool: Mempool) {
+fn test_resolved_timestamp_persists_after_queue_emptied(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
 
@@ -241,13 +242,13 @@ fn test_resolve_batch_timestamp_persists_after_queue_emptied(mut mempool: Mempoo
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
 
     // Consume all txs, emptying the queue.
     get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx, input2.tx]);
 
     // Timestamp should persist after queue is emptied.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
 }
 
 #[rstest]
@@ -267,7 +268,7 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
 
     // Request one transaction from the first timestamp batch.
     get_txs_and_assert_expected(&mut mempool, 1, &[input1.tx]);
@@ -279,7 +280,7 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
     assert_eq!(mempool.get_txs(10).unwrap(), vec![]);
 
     // Resolve to advance to timestamp 1001.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1001);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1001);
     get_txs_and_assert_expected(&mut mempool, 10, &[input3.tx, input4.tx]);
 }
 
@@ -293,7 +294,7 @@ fn test_get_txs_same_block_spans_multiple_chunks(mut mempool: Mempool) {
         add_tx(&mut mempool, &input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     // First chunk: block builder fetches 100 txs.
     let chunk1 = mempool.get_txs(100).unwrap();
     assert_eq!(chunk1.len(), 100);
@@ -322,19 +323,44 @@ fn test_get_txs_pauses_once_on_block_number_gap(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 100);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx, input2.tx]);
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 200);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 200);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input3.tx]);
 
     // Block 4 is missing.
-    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 300);
     assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
 
     // Block 5 is present.
-    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 300);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input4.tx, input5.tx]);
+}
+
+#[rstest]
+fn test_resolve_block_metadata_returns_built_block_number_for_empty_block(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    // Block 10 has a tx, block 11 is empty, block 12 has a tx.
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 10));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1200, 12));
+
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+
+    // Build block 10.
+    assert_eq!(mempool.resolve_block_metadata().block_number, Some(BlockNumber(10)));
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
+
+    // Build block 11 (empty). The built block number must be 11, not 12.
+    assert_eq!(mempool.resolve_block_metadata().block_number, Some(BlockNumber(11)));
+    assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+
+    // Build block 12 (non-empty).
+    assert_eq!(mempool.resolve_block_metadata().block_number, Some(BlockNumber(12)));
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
 }
 
 // Consecutive mainnet blocks can share a wall-clock timestamp; a single get_txs call must not
@@ -352,11 +378,11 @@ fn test_get_txs_stops_at_block_boundary_on_shared_timestamp(mut mempool: Mempool
     add_tx(&mut mempool, &block_10_tx);
 
     // First proposal builds block 9 — it must contain only block 9's tx.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![block_9_tx.tx]);
 
     // Second proposal builds block 10 with its tx.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![block_10_tx.tx]);
 }
 
@@ -375,17 +401,17 @@ fn test_get_txs_returns_empty_result_with_gaps(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 100);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
-    assert_eq!(mempool.resolve_batch_timestamp(), 200);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 200);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
 
     for _ in 0..19 {
-        assert_eq!(mempool.resolve_batch_timestamp(), 300);
+        assert_eq!(mempool.resolve_block_metadata().timestamp, 300);
         assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 300);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input3.tx]);
 }
 
@@ -395,16 +421,16 @@ fn test_get_txs_after_queue_emptied_still_resolves_new_tx(mut mempool: Mempool) 
     mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(100, 1));
     add_tx(&mut mempool, &input1);
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 100);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 100);
     assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
 
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
     mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(200, 2));
     add_tx(&mut mempool, &input2);
-    assert_eq!(mempool.resolve_batch_timestamp(), 200);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 200);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
 }
 
@@ -423,15 +449,15 @@ fn test_rewind_partial_block_then_continue_to_next_block(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 3, &[input1.tx, input2.tx, input3.tx.clone()]);
 
     // Only tx 1 and 2 are committed; tx3 rewinds.
     commit_block(&mut mempool, [("0x1", 2)], []);
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input3.tx, input4.tx]);
-    assert_eq!(mempool.resolve_batch_timestamp(), 2000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 2000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input5.tx]);
 }
 
@@ -447,18 +473,18 @@ fn test_realign_to_earlier_block_after_rewind(mut mempool: Mempool) {
     add_tx(&mut mempool, &input2);
 
     // Drain block 1. Expected_block_number = 2.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, std::slice::from_ref(&input1.tx));
 
     // Rewind tx of block 1. Expected_block_number is still 2.
     commit_block(&mut mempool, [], []);
 
     // Realign to block 1.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input1.tx]);
 
     // Now expected_block_number has advanced to 2 again; block-2 tx is next.
-    assert_eq!(mempool.resolve_batch_timestamp(), 2000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 2000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx]);
 }
 
@@ -478,7 +504,7 @@ fn test_rewind_realigns_state_so_get_txs_succeeds_without_resolve(mut mempool: M
 
     // Round 0 of block 1: resolve the timestamp and drain block 1's tx; expected_block_number
     // advances to 2.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![block_1_tx.tx.clone()]);
 
     // Round 0 aborts before commit; round 1 starts with the round-start commit_block only.
@@ -505,7 +531,7 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     // Fetch tx1 and tx2; leave tx3 in queue.
     get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx, input2.tx.clone()]);
 
@@ -516,16 +542,18 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     add_tx(&mut mempool, &input4);
 
     // Rewound tx2 is at the front → timestamp must still be 1000, not 1001.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx, input3.tx]);
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1001);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1001);
     get_txs_and_assert_expected(&mut mempool, 1, &[input4.tx]);
 }
 
 #[rstest]
-fn test_resolve_batch_timestamp_returns_zero_when_never_had_transactions(mut mempool: Mempool) {
-    assert_eq!(mempool.resolve_batch_timestamp(), 0);
+fn test_resolve_block_metadata_returns_zero_timestamp_when_never_had_transactions(
+    mut mempool: Mempool,
+) {
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 0);
 }
 
 #[rstest]
@@ -543,7 +571,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(
         &mut mempool,
         10,
@@ -553,12 +581,12 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     // Commit only nonces 0 and 1; nonces 2, 3, 4 are rewound.
     commit_block(&mut mempool, [("0x1", 2)], []);
 
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input3.tx, input4.tx, input5.tx]);
 
     commit_block(&mut mempool, [("0x1", 5)], []);
     // Queue should now be empty
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[]);
 }
 
@@ -590,7 +618,7 @@ fn test_expired_popped_txs_are_not_rewound() {
     fake_clock.advance(Duration::from_secs(65));
 
     // Both txs are popped then pruned as expired, so no tx should be returned.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![]);
 
     // Commit should not rewind expired popped txs back into queue.
@@ -614,14 +642,14 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
     }
 
     // Stage only the first tx (timestamp 1000).
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[rejected_tx.tx]);
 
     // Reject tx. In FIFO, this removes same-address queued txs.
     commit_block(&mut mempool, [], [tx_hash!(1)]);
 
     // Next timestamp batch should include only the other address tx.
-    assert_eq!(mempool.resolve_batch_timestamp(), 1001);
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1001);
     get_txs_and_assert_expected(&mut mempool, 10, &[other_address_tx.tx]);
 }
 
