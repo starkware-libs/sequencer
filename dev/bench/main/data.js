@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784744744478,
+  "lastUpdate": 1784750091569,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6833,6 +6833,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1378.9916754100002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4258d7b4519cc14c1ead34f5e15690cdfdae2cf7",
+          "message": "starknet_api,blockifier: allow overriding the effective latest Starknet version at runtime (#14727)",
+          "timestamp": "2026-07-22T19:33:40Z",
+          "tree_id": "ad27e7219aea262f5e00ffe773c3209a310b6286",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4258d7b4519cc14c1ead34f5e15690cdfdae2cf7"
+        },
+        "date": 1784750091056,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1232.49757132,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1485.48354689,
             "unit": "ms"
           }
         ]
