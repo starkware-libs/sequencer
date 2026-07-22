@@ -50,7 +50,7 @@ jobs:
     steps:
       - name: Optimize CI
         id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
+        uses: withgraphite/graphite-ci-action@9bc969adfd43bb790da3b64b543c78c75cef9689 # v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
@@ -60,14 +60,14 @@ jobs:
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS (apollo_starknet_os_program).
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-pypy
         with:
           python-version: "pypy3.9"
@@ -79,7 +79,7 @@ jobs:
 
       # Cache the rustup directory so the nightly toolchain isn't re-downloaded every run.
       - name: Cache rustup toolchains
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
         with:
           path: /home/runner/.rustup
 
@@ -106,10 +106,10 @@ jobs:
 
       # Download RPC record fixtures from GCS for ignored integration tests.
       - id: auth
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed" # v2
         with:
           credentials_json: ${{ secrets.SA_STARKNET_OS_RUNNER_ARTIFACTS }}
-      - uses: "google-github-actions/setup-gcloud@v2"
+      - uses: "google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f" # v2
       - run: mkdir -p ./crates/starknet_transaction_prover/resources/rpc_records
       - run: gcloud storage cp -r gs://starknet-os-runner-artifacts/rpc_records/* ./crates/starknet_transaction_prover/resources/rpc_records/
 
@@ -129,13 +129,13 @@ jobs:
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build starknet_transaction_prover Docker image
-        uses: docker/build-push-action@v6.13.0
+        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6.13.0
         with:
           context: .
           file: crates/starknet_transaction_prover/Dockerfile
