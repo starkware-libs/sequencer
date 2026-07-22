@@ -549,6 +549,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "committer_config.block_commit_duration_warn_threshold_millis": {
+    "description": "Blocks whose commit duration exceeds this threshold (in milliseconds) are logged at WARN level.",
+    "privacy": "Public",
+    "value": 3000
+  },
   "committer_config.db_path": {
     "description": "Path to the committer storage directory.",
     "privacy": "Public",

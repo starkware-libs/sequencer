@@ -1,6 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::time::Duration;
 
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    serialize_duration_as_milliseconds,
+};
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -9,6 +14,10 @@ use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
 use validator::Validate;
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 pub type ApolloStorage = CachedStorage<RocksDbStorage>;
 
@@ -20,6 +29,19 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub db_path: PathBuf,
     pub storage_config: C,
     pub verify_state_diff_hash: bool,
+    /// Commit durations above this threshold (in milliseconds) are logged at WARN level.
+    // Deployed nodes load config with schema defaults ignored, so absent params must still
+    // deserialize; `default` keeps configs that predate this field loadable.
+    #[serde(
+        default = "default_block_commit_duration_warn_threshold",
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
+    pub block_commit_duration_warn_threshold_millis: Duration,
+}
+
+fn default_block_commit_duration_warn_threshold() -> Duration {
+    Duration::from_millis(3000)
 }
 
 impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
@@ -35,6 +57,13 @@ impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
                 "db_path",
                 &self.db_path,
                 "Path to the committer storage directory.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "block_commit_duration_warn_threshold_millis",
+                &self.block_commit_duration_warn_threshold_millis.as_millis(),
+                "Blocks whose commit duration exceeds this threshold (in milliseconds) are logged \
+                 at WARN level.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -53,6 +82,8 @@ impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
             db_path: "/data/committer".into(),
             storage_config: C::default(),
             verify_state_diff_hash: true,
+            block_commit_duration_warn_threshold_millis:
+                default_block_commit_duration_warn_threshold(),
         }
     }
 }
