@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{
@@ -16,6 +17,7 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::db::index_db::db::IndexDb;
 use starknet_patricia_storage::map_storage::MapStorage;
+use tracing_test::traced_test;
 
 use super::Committer;
 use crate::committer::StorageConstructor;
@@ -317,4 +319,23 @@ async fn verify_state_diff_hash_fails() {
         .commit_block(CommitBlockRequest { state_diff, state_diff_commitment, height })
         .await;
     assert_matches!(result, Err(CommitterError::StateDiffHashMismatch { .. }));
+}
+
+#[tokio::test]
+#[traced_test]
+async fn warn_when_block_commit_exceeds_duration_threshold() {
+    let mut committer = new_test_committer().await;
+    committer.config.block_commit_duration_warn_threshold_millis = Duration::ZERO;
+    committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    assert!(logs_contain("Block 0 stats"));
+    assert!(logs_contain("ms warn threshold"));
+}
+
+#[tokio::test]
+#[traced_test]
+async fn no_warn_when_block_commit_within_duration_threshold() {
+    let mut committer = new_test_committer().await;
+    committer.config.block_commit_duration_warn_threshold_millis = Duration::from_secs(3600);
+    committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    assert!(!logs_contain("ms warn threshold"));
 }
