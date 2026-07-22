@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784728029645,
+  "lastUpdate": 1784744744478,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6799,6 +6799,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1516.16441524,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2705560bf6956af3be3f404ab5dd8502945527ba",
+          "message": "apollo_mempool,apollo_batcher,starknet_api: serve replayed block metadata to the batcher (#14725)",
+          "timestamp": "2026-07-22T18:04:58Z",
+          "tree_id": "c63ac990338b1d40f3f698ad890fc5d6652bb9e2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2705560bf6956af3be3f404ab5dd8502945527ba"
+        },
+        "date": 1784744744083,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 902.1291529299999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1378.9916754100002,
             "unit": "ms"
           }
         ]
