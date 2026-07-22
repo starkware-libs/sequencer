@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 #[cfg(any(test, feature = "testing"))]
 use std::path::Path;
+use std::sync::OnceLock;
 
 #[cfg(any(test, feature = "testing"))]
 use expect_test::expect_file;
@@ -19,6 +20,33 @@ use strum::IntoEnumIterator;
 
 use crate::block::StarknetVersion;
 
+/// Process-wide override of the "latest" Starknet version; set once at startup in Echonet mode
+/// so versioned-constants lookups use the replayed network's version.
+static EFFECTIVE_LATEST_VERSION: OnceLock<StarknetVersion> = OnceLock::new();
+
+/// Sets the effective latest Starknet version for this process. Meant to be called once at
+/// startup: re-setting to the same version is a no-op, but changing it to a different version
+/// panics, since the effective version must stay stable process-wide.
+pub fn set_effective_latest_version(version: StarknetVersion) {
+    if let Err(rejected_version) = EFFECTIVE_LATEST_VERSION.set(version) {
+        let existing_version = EFFECTIVE_LATEST_VERSION
+            .get()
+            .copied()
+            .expect("EFFECTIVE_LATEST_VERSION is set, since OnceLock::set returned Err");
+        assert_eq!(
+            existing_version, rejected_version,
+            "effective latest Starknet version is already set to {existing_version} and cannot be \
+             changed to {rejected_version}"
+        );
+    }
+}
+
+/// Returns the version set via [`set_effective_latest_version`], or
+/// [`StarknetVersion::LATEST`] if it was never set.
+pub fn effective_starknet_version() -> StarknetVersion {
+    EFFECTIVE_LATEST_VERSION.get().copied().unwrap_or(StarknetVersion::LATEST)
+}
+
 pub trait VersionedConstantsTrait: Debug {
     type Error: Debug;
 
@@ -31,9 +59,14 @@ pub trait VersionedConstantsTrait: Debug {
     /// Gets the contents of the JSON file for the specified Starknet version.
     fn json_str(version: &StarknetVersion) -> Result<&'static str, Self::Error>;
 
-    /// Gets the constants that shipped with the current version of the Starknet.
+    /// Gets the constants that shipped with the current version of the Starknet, honoring
+    /// [`set_effective_latest_version`] and falling back to [`StarknetVersion::LATEST`].
     /// To use custom constants, initialize the struct from a file using `from_path`.
-    fn latest_constants() -> &'static Self;
+    fn latest_constants() -> &'static Self {
+        Self::get(&effective_starknet_version()).unwrap_or_else(|_| {
+            Self::get(&StarknetVersion::LATEST).expect("Latest version should support VC.")
+        })
+    }
 
     /// Gets the constants for the specified Starknet version.
     fn get(version: &StarknetVersion) -> Result<&'static Self, Self::Error>;
@@ -184,11 +217,6 @@ macro_rules! define_versioned_constants_inner {
                     },)*
                     _ => Err(Self::Error::InvalidStarknetVersion(*version)),
                 }
-            }
-
-            fn latest_constants() -> &'static Self {
-                Self::get(&starknet_api::block::StarknetVersion::LATEST)
-                    .expect("Latest version should support VC.")
             }
 
             fn get(
