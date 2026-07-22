@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784753188736,
+  "lastUpdate": 1784758704939,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6901,6 +6901,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 2016.04121487,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad64113696e2e1daff703907ec0ab3017fd414bf",
+          "message": "apollo_gateway,apollo_transaction_converter: accept replayed txs with proof facts but no proof (#14730)",
+          "timestamp": "2026-07-22T22:01:22Z",
+          "tree_id": "e9e80e820a8117af3d3419c44f02f1ce1ac6b12b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ad64113696e2e1daff703907ec0ab3017fd414bf"
+        },
+        "date": 1784758704309,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1282.55007892,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1753.0875368499999,
             "unit": "ms"
           }
         ]
