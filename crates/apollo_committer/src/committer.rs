@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
@@ -238,7 +239,11 @@ where
                     .map_err(|err| self.map_internal_error(err))?;
                 block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
                 block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-                update_metrics(height, &block_measurements.block_measurement);
+                update_metrics(
+                    height,
+                    &block_measurements.block_measurement,
+                    self.config.commit_duration_warn_threshold_millis,
+                );
                 self.update_offset(next_offset);
                 Ok(CommitBlockResponse { global_root })
             }
@@ -420,7 +425,11 @@ where
         .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(height, &block_measurements.block_measurement);
+        update_metrics(
+            height,
+            &block_measurements.block_measurement,
+            self.config.commit_duration_warn_threshold_millis,
+        );
         self.update_offset(last_committed_block);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
@@ -604,7 +613,11 @@ where
                     .map_err(|e: SerializationError| self.map_internal_error(e))?;
                 block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
                 block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-                update_metrics(height, &block_measurements.block_measurement);
+                update_metrics(
+                    height,
+                    &block_measurements.block_measurement,
+                    self.config.commit_duration_warn_threshold_millis,
+                );
                 self.update_offset(next_offset);
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
@@ -663,6 +676,7 @@ fn update_metrics(
         // `apollo_committer/os_input` is disabled.
         ..
     }: &BlockMeasurement,
+    commit_duration_warn_threshold: Duration,
 ) {
     BLOCKS_COMMITTED.increment(1);
     TOTAL_BLOCK_DURATION.increment((durations.block * 1000.0) as u64);
@@ -727,6 +741,7 @@ fn update_metrics(
         write_rate,
         modifications_counts,
         emptied_leaves_percentage,
+        commit_duration_warn_threshold,
         #[cfg(feature = "os_input")]
         *fetched_witnesses_count,
     );
@@ -742,6 +757,7 @@ fn log_block_measurements(
     write_rate: Option<f64>,
     modifications_counts: &BlockModificationsCounts,
     emptied_leaves_percentage: Option<f64>,
+    commit_duration_warn_threshold: Duration,
     #[cfg(feature = "os_input")] fetched_witnesses_count: usize,
 ) {
     #[cfg(feature = "os_input")]
@@ -754,7 +770,7 @@ fn log_block_measurements(
     #[cfg(not(feature = "os_input"))]
     let witness_log = String::new();
 
-    debug!(
+    let stats = format!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
          {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates in \
          entries/sec (read/compute/write): {}/{}/{}, modifications count \
@@ -775,4 +791,12 @@ fn log_block_measurements(
         emptied_leaves_percentage.map_or(String::new(), |p| format!(" ({p:.2}%)")),
         witness_log = witness_log,
     );
+
+    // A slow committer eventually stalls consensus (proposer waits on the N-10 hash).
+    let threshold_millis = commit_duration_warn_threshold.as_millis();
+    if Duration::from_secs_f64(durations.block) > commit_duration_warn_threshold {
+        warn!("{stats}, block commit duration above the {threshold_millis} ms warn threshold");
+    } else {
+        debug!("{stats}");
+    }
 }
