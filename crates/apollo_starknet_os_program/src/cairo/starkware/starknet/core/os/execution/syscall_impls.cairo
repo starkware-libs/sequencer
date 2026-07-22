@@ -1065,8 +1065,11 @@ func execute_sha512_process_block{
     let state: Sha512State* = &sha512_ptr.in_state;
     assert [state] = [request.state_ptr];
 
-    // Relocate response.state_ptr (a temporary segment) to actual_out_state in the sha512
-    // segment, and copy the state so finalize_sha512 can read it.
+    // Relocate `response.state_ptr` (a temporary segment, allocated by the syscall hint) to the
+    // next `out_state` slot in the sha512 segment (`actual_out_state`) and assert that the two
+    // pointers are equal.
+    // Also copy [state_ptr] into [actual_out_state], since finalize_sha512 reads from
+    // [actual_out_state] and the relocation happens in the opposite direction.
     %{ RelocateSha512Segment %}
 
     assert [response] = Sha512ProcessBlockResponse(state_ptr=actual_out_state);

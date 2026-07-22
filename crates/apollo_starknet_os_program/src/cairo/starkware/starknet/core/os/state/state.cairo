@@ -147,8 +147,10 @@ func squash_state_changes_and_maybe_allocate_aliases{range_check_ptr}(
 
     // Squash the storage updates of the alias contract.
     // There should be no access to this storage before, so it is enough to squash it separately
-    // instead of running `squash_state_changes` again. This assumption is enforced by the Patricia
-    // update code.
+    // instead of running `squash_state_changes` again.
+    // This holds because the alias contract has no code of its own, and no syscall lets a contract
+    // read or write another contract's storage; hence nothing can access the alias contract's
+    // storage. This assumption is enforced by the Patricia update code.
     local squashed_aliases_storage_start: DictAccess*;
     local prev_aliases_state_entry: StateEntry*;
     %{ GuessAliasesContractStoragePtr %}
