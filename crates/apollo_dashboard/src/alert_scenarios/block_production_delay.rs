@@ -1,4 +1,10 @@
-use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
+use apollo_committer::metrics::{COMMITTER_BLOCK_COMMIT_LATENCY, COMMITTER_OFFSET};
+use apollo_consensus::metrics::{
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_ROUND_ABOVE_ZERO,
+    IS_OBSERVER,
+};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 use apollo_infra_utils::template::Template;
@@ -100,6 +106,62 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Leaves 3 blocks of headroom before the 10-block STORED_BLOCK_HASH_BUFFER gate.
+const COMMITTER_LAG_ALERT_THRESHOLD_BLOCKS: f64 = 7.0;
+
+pub(crate) fn get_committer_block_number_lag() -> Alert {
+    Alert::new(
+        "committer_block_number_lag",
+        "Committer block number lag",
+        EvaluationRate::Default,
+        // Per-namespace lag (committer vs its own consensus); excludes observer and syncing nodes.
+        format!(
+            "(max by (namespace) ({consensus}) - max by (namespace) ({committer})) and on \
+             (namespace) ({observer} == 0) and on (namespace) (increase({sync}[5m]) == 0)",
+            consensus = CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            committer = COMMITTER_OFFSET.get_name_with_filter(),
+            observer = IS_OBSERVER.get_name_with_filter(),
+            sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter(),
+        ),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            COMMITTER_LAG_ALERT_THRESHOLD_BLOCKS,
+            AlertLogicalOp::And,
+        )],
+        // Debounce brief spikes before paging.
+        "5m",
+        AlertSeverity::Regular,
+        // Observers excluded in the expr; keep Applicable to avoid a second is_observer gate.
+        ObserverApplicability::Applicable,
+    )
+}
+
+/// First-round block-build deadline is 8.1s; we use half of it as the latency indicator.
+const COMMIT_LATENCY_ALERT_THRESHOLD_SECS: f64 = 4.0;
+
+pub(crate) fn get_committer_block_commit_latency_too_high() -> Alert {
+    Alert::new(
+        "committer_block_commit_latency_too_high",
+        "Committer block commit latency too high",
+        EvaluationRate::Default,
+        // 5m window (shorter than cende's 20m) so a regression is caught before lag accumulates.
+        format!(
+            "(sum(rate({}[5m])) or vector(0)) / clamp_min(sum(rate({}[5m])) or vector(0), \
+             0.0000001)",
+            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_sum_with_filter(),
+            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_count_with_filter(),
+        ),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            COMMIT_LATENCY_ALERT_THRESHOLD_SECS,
+            AlertLogicalOp::And,
+        )],
+        PENDING_DURATION_DEFAULT,
+        AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
 }
