@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784113531711,
+  "lastUpdate": 1784741168024,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -849,6 +849,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1283.50364521,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "64527c965e43b8f7e462e9012be7b3b762e34d26",
+          "message": "workspace: upgrade cairo compiler to v2.19.4 (#14873)\n\nBumps the Rust cairo-lang-* crates and the Sierra compiler binary\nversion from 2.19.3 to 2.19.4. The bump moves the Sierra version\nfrom 1.9.2 to 1.9.3, cascading into Cairo1 class hashes and their\ndownstream fixtures: starknet_os_flow_tests fuzz-deployment addresses\nand hint-coverage fixtures, the proof-flow genesis global root and\nSTRK fee-token address, the cende blob regression (operator/fee-token\naddresses, chain_info/preconfirmed_block, GCS blob generation), and\nthe apollo_integration_tests proof-flow fixtures.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-22T17:02:07Z",
+          "tree_id": "01e48f6f31c6284224a1217a04906443cffd2fdb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/64527c965e43b8f7e462e9012be7b3b762e34d26"
+        },
+        "date": 1784741167528,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1235.2673223900001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 2055.12526317,
             "unit": "ms"
           }
         ]
