@@ -3,6 +3,7 @@ use apollo_committer::metrics::{
     AVERAGE_READ_RATE,
     AVERAGE_WRITE_RATE,
     BLOCKS_COMMITTED,
+    COMMITTER_BLOCK_COMMIT_LATENCY,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -68,6 +69,16 @@ fn get_total_block_duration_panel() -> Panel {
         Some(BLOCK_DURATIONS_LOG_QUERY),
         Some(Unit::Seconds),
     )
+}
+
+fn get_block_commit_latency_panel() -> Panel {
+    Panel::from_hist(
+        &COMMITTER_BLOCK_COMMIT_LATENCY,
+        "Block Commit Latency",
+        "Distribution of single-block commit duration",
+    )
+    .with_unit(Unit::Seconds)
+    .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
 }
 
 fn get_total_block_duration_per_modification_panel() -> Panel {
@@ -210,6 +221,7 @@ pub(crate) fn get_committer_row() -> Row {
         vec![
             get_offset_panel(),
             get_total_block_duration_panel(),
+            get_block_commit_latency_panel(),
             get_total_block_duration_per_modification_panel(),
             get_read_duration_per_block_panel(),
             get_average_read_rate_panel(),

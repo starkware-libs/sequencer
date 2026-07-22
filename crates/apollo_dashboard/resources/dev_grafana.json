@@ -1337,6 +1337,19 @@
           }
         },
         {
+          "title": "Block Commit Latency",
+          "description": "Distribution of single-block commit duration",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(committer_block_commit_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(committer_block_commit_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Block\" AND \"durations in ms\""
+          }
+        },
+        {
           "title": "Total Block Duration per Modification",
           "description": "Average total block duration per modification over a 1m window",
           "type": "timeseries",

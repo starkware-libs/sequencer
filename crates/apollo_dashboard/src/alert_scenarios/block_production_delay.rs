@@ -1,3 +1,4 @@
+use apollo_committer::metrics::COMMITTER_BLOCK_COMMIT_LATENCY;
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
@@ -100,6 +101,32 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Roughly 3x the committer's baseline commit latency.
+const COMMIT_LATENCY_ALERT_THRESHOLD_SECS: f64 = 9.0;
+
+pub(crate) fn get_committer_block_commit_latency_too_high() -> Alert {
+    Alert::new(
+        "committer_block_commit_latency_too_high",
+        "Committer block commit latency too high",
+        EvaluationRate::Default,
+        // 2m average commit latency, so a regression is caught before lag accumulates.
+        format!(
+            "(sum(rate({}[2m])) or vector(0)) / clamp_min(sum(rate({}[2m])) or vector(0), \
+             0.0000001)",
+            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_sum_with_filter(),
+            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_count_with_filter(),
+        ),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            COMMIT_LATENCY_ALERT_THRESHOLD_SECS,
+            AlertLogicalOp::And,
+        )],
+        PENDING_DURATION_DEFAULT,
+        AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
 }
