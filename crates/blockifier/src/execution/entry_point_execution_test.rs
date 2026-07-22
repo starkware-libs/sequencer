@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::ENTRY_POINT_BUILTIN_ORDER;
 use cairo_vm::types::builtin_name::BuiltinName;
+use convert_case::{Case, Casing};
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
@@ -130,4 +132,20 @@ fn validate_entry_point_builtins_rejects_invalid(#[case] builtins: Vec<BuiltinNa
         }
         other => panic!("Expected UnsupportedCairo1Builtins({builtins:?}), got {other:?}."),
     }
+}
+
+// `CAIRO1_SUPPORTED_BUILTINS` must stay identical to the compiler's source-of-truth
+// `ENTRY_POINT_BUILTIN_ORDER`; this guards against drift when the Cairo compiler is bumped.
+#[test]
+fn cairo1_supported_builtins_in_sync_with_compiler_order() {
+    let supported_builtins: Vec<String> = CAIRO1_SUPPORTED_BUILTINS
+        .iter()
+        .map(|builtin| builtin.to_str().to_case(Case::UpperCamel))
+        .collect();
+    let compiler_builtins: Vec<&str> =
+        ENTRY_POINT_BUILTIN_ORDER.iter().map(|generic_id| generic_id.0.as_str()).collect();
+    assert_eq!(
+        supported_builtins, compiler_builtins,
+        "CAIRO1_SUPPORTED_BUILTINS drifted from the compiler's ENTRY_POINT_BUILTIN_ORDER."
+    );
 }

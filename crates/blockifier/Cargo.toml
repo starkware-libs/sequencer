@@ -92,6 +92,7 @@ validator.workspace = true
 apollo_metrics = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
+convert_case.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
 expect-test.workspace = true
 glob.workspace = true

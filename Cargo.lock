@@ -3941,6 +3941,7 @@ dependencies = [
  "cairo-lang-utils",
  "cairo-native",
  "cairo-vm",
+ "convert_case 0.11.0",
  "criterion",
  "dashmap",
  "derive_more",
