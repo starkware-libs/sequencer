@@ -8,6 +8,7 @@ description = "Dashboard and monitoring interface for the Starknet sequencer."
 
 
 [features]
+os_input = ["apollo_batcher/os_input", "apollo_committer/os_input"]
 testing = []
 
 [lints]
