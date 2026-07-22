@@ -1095,6 +1095,8 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "indexmap 2.14.0",
+ "metrics",
+ "metrics-exporter-prometheus",
  "starknet_api",
  "starknet_committer",
  "starknet_patricia",
