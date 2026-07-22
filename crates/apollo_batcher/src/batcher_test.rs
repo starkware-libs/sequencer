@@ -196,6 +196,45 @@ fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
     state_diffs
 }
 
+/// Expects a single `commit_proposal` call with the given arguments. Under `os_input`,
+/// `expect_accessed_keys` states whether accessed keys should be written with the state diff.
+fn expect_commit_proposal_once(
+    storage_writer: &mut MockBatcherStorageWriter,
+    expected_height: BlockNumber,
+    expected_state_diff: ThinStateDiff,
+    expected_storage_commitment_block_hash: StorageCommitmentBlockHash,
+    #[cfg(feature = "os_input")] expect_accessed_keys: bool,
+) {
+    #[cfg(not(feature = "os_input"))]
+    storage_writer
+        .expect_commit_proposal()
+        .times(1)
+        .with(
+            eq(expected_height),
+            eq(expected_state_diff),
+            eq(expected_storage_commitment_block_hash),
+        )
+        .returning(|_, _, _| Ok(()));
+    #[cfg(feature = "os_input")]
+    storage_writer
+        .expect_commit_proposal()
+        .times(1)
+        .withf(move |height, state_diff, storage_commitment_block_hash, accessed_keys| {
+            *height == expected_height
+                && *state_diff == expected_state_diff
+                && *storage_commitment_block_hash == expected_storage_commitment_block_hash
+                && accessed_keys.is_some() == expect_accessed_keys
+        })
+        .returning(|_, _, _, _| Ok(()));
+}
+
+fn expect_commit_proposal_success(storage_writer: &mut MockBatcherStorageWriter) {
+    #[cfg(not(feature = "os_input"))]
+    storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
+    #[cfg(feature = "os_input")]
+    storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
+}
+
 fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &ThinStateDiff) {
     batcher
         .storage_writer
@@ -203,6 +242,8 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
             height,
             state_diff.clone(),
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
+            #[cfg(feature = "os_input")]
+            None,
         )
         .expect("set_state_diff failed");
 }
@@ -1194,11 +1235,14 @@ async fn add_sync_block(
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
     let mut storage_writer = MockBatcherStorageWriter::new();
-    storage_writer
-        .expect_commit_proposal()
-        .times(1)
-        .with(eq(block_number), eq(test_state_diff()), eq(storage_commitment_block_hash))
-        .returning(|_, _, _| Ok(()));
+    expect_commit_proposal_once(
+        &mut storage_writer,
+        block_number,
+        test_state_diff(),
+        storage_commitment_block_hash,
+        #[cfg(feature = "os_input")]
+        false,
+    );
 
     mock_clients
         .mempool_client
@@ -1351,19 +1395,17 @@ async fn add_sync_block_for_first_new_block() {
         .times(1)
         .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()), eq(DUMMY_BLOCK_HASH))
         .returning(|_, _| Ok(()));
-    mock_dependencies
-        .storage_writer
-        .expect_commit_proposal()
-        .times(1)
-        .with(
-            eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH),
-            eq(ThinStateDiff::default()),
-            eq(StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
-                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-                ..Default::default()
-            })),
-        )
-        .returning(|_, _, _| Ok(()));
+    expect_commit_proposal_once(
+        &mut mock_dependencies.storage_writer,
+        FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+        ThinStateDiff::default(),
+        StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
+            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+            ..Default::default()
+        }),
+        #[cfg(feature = "os_input")]
+        false,
+    );
 
     mock_dependencies
         .clients
@@ -1553,19 +1595,14 @@ async fn decision_reached() {
         .returning(|_, _, _| Ok(()));
 
     let expected_partial_block_hash = expected_artifacts.partial_block_hash_components();
-    mock_dependencies
-        .storage_writer
-        .expect_commit_proposal()
-        .times(1)
-        .with(
-            eq(INITIAL_HEIGHT),
-            eq(expected_artifacts.thin_state_diff()),
-            eq(StorageCommitmentBlockHash::Partial(expected_partial_block_hash)),
-        )
-        .returning(|_, _, _| Ok(()));
-
-    #[cfg(feature = "os_input")]
-    mock_dependencies.storage_writer.expect_write_accessed_keys().times(1).returning(|_, _| Ok(()));
+    expect_commit_proposal_once(
+        &mut mock_dependencies.storage_writer,
+        INITIAL_HEIGHT,
+        expected_artifacts.thin_state_diff(),
+        StorageCommitmentBlockHash::Partial(expected_partial_block_hash),
+        #[cfg(feature = "os_input")]
+        true,
+    );
 
     mock_dependencies
         .storage_reader
@@ -1635,9 +1672,7 @@ async fn test_execution_info_order_is_kept() {
     mock_dependencies.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_dependencies.clients.mempool_client.expect_commit_block().returning(|_| Ok(()));
     mock_dependencies.clients.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
-    #[cfg(feature = "os_input")]
-    mock_dependencies.storage_writer.expect_write_accessed_keys().times(1).returning(|_, _| Ok(()));
+    expect_commit_proposal_success(&mut mock_dependencies.storage_writer);
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing().await;
     // Check that the execution_infos were initiated properly for this test.
@@ -1734,10 +1769,7 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
         .times(1)
         .returning(move |_, _, _| Err(l1_error.clone()));
 
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
-
-    #[cfg(feature = "os_input")]
-    mock_dependencies.storage_writer.expect_write_accessed_keys().times(1).returning(|_, _| Ok(()));
+    expect_commit_proposal_success(&mut mock_dependencies.storage_writer);
 
     mock_dependencies.clients.mempool_client.expect_commit_block().returning(|_| Ok(()));
 
@@ -1985,9 +2017,7 @@ async fn validation_only_decision_reached_skips_mempool_notification() {
 
     mock_deps.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_deps.clients.l1_provider_client.expect_commit_block().times(1).returning(|_, _, _| Ok(()));
-    mock_deps.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
-    #[cfg(feature = "os_input")]
-    mock_deps.storage_writer.expect_write_accessed_keys().times(1).returning(|_, _| Ok(()));
+    expect_commit_proposal_success(&mut mock_deps.storage_writer);
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     mock_create_builder_for_validate_block(
