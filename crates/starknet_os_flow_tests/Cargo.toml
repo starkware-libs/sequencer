@@ -10,7 +10,6 @@ description = "Integration tests for Starknet OS execution and state commitment 
 exhaustive_fuzz_test = []
 fuzz_test_debug = []
 long_fuzz_test = []
-os_input = ["apollo_integration_tests/os_input", "blockifier/os_input"]
 
 [dev-dependencies]
 apollo_integration_tests.workspace = true
@@ -38,7 +37,7 @@ starknet_os = { workspace = true, features = ["include_program_output", "testing
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 starknet_proof_verifier.workspace = true
-starknet_transaction_prover = { workspace = true, features = ["os_input"] }
+starknet_transaction_prover.workspace = true
 strum.workspace = true
 tokio.workspace = true
 

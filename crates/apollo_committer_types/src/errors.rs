@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_committer::db::forest_trait::ForestMetadataType;
-#[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfosCodecError;
 use thiserror::Error;
 
@@ -51,25 +50,19 @@ pub enum CommitterError {
         height: BlockNumber,
     },
     /// Patricia trie path collection for OS input failed.
-    #[cfg(feature = "os_input")]
     #[error("Failed Patricia paths collection at block {height}: {message}")]
     PatriciaPathsCollectionFailed { height: BlockNumber, message: String },
     /// Stored accessed-keys digest does not match the request (or no digest was stored).
-    #[cfg(feature = "os_input")]
     #[error(
         "Accessed-keys digest mismatch at block {height}: expected {expected:?}, stored {stored:?}"
     )]
     AccessedKeysDigestMismatch { height: BlockNumber, stored: Option<[u8; 32]>, expected: [u8; 32] },
     /// Merged Patricia witness paths are missing for replay.
-    #[cfg(feature = "os_input")]
     #[error("Missing Patricia paths for block {height}")]
     MissingPatriciaPaths { height: BlockNumber },
-    #[cfg(feature = "os_input")]
     #[error("Failed to compress state commitment infos: {0}")]
     StateCommitmentInfosCompression(String),
 }
-
-#[cfg(feature = "os_input")]
 impl From<StateCommitmentInfosCodecError> for CommitterError {
     fn from(error: StateCommitmentInfosCodecError) -> Self {
         CommitterError::StateCommitmentInfosCompression(error.to_string())

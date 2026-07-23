@@ -61,12 +61,14 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-#[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 
-#[cfg(feature = "os_input")]
-use crate::cende::{CendeAmbassadorError, StateCommitmentInfosAndNumber};
-use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
+use crate::cende::{
+    CendeAmbassadorError,
+    MockCendeContext,
+    StateCommitmentInfosAndNumber,
+    N_BLOCK_HASHES_BACK_IN_BLOB,
+};
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::{CONSENSUS_L2_GAS_PRICE, CONSENSUS_L2_GAS_PRICE_AT_MINIMUM};
 use crate::sequencer_consensus_context::{
@@ -916,7 +918,6 @@ async fn blob_parent_proposal_commitment_binds_parent_fee_proposal() {
     context.decision_reached(HEIGHT_1, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
-#[cfg(feature = "os_input")]
 #[tokio::test]
 async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let (mut deps, _network) = create_test_and_network_deps();
@@ -954,8 +955,6 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
-
-#[cfg(feature = "os_input")]
 fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
     CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
 }
@@ -963,7 +962,6 @@ fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
 /// Returns the block numbers `collect_recent_state_commitment_infos` sends for `height` when the
 /// cende recorder reports `offset` and the batcher only has stored commitment infos for heights
 /// in `committed_heights` (reporting `None` for the rest).
-#[cfg(feature = "os_input")]
 async fn collected_heights_for(
     height: BlockNumber,
     cende_offset: Option<BlockNumber>,
@@ -991,7 +989,6 @@ async fn collected_heights_for(
 // `height` is fixed at 100; each case sets the cende recorder's reported offset (its next
 // produced block), the heights the batcher has stored commitment infos for (a `None` from the
 // batcher marks a gap in the stored witnesses), and the block numbers we expect to send.
-#[cfg(feature = "os_input")]
 #[rstest]
 #[case::delta_above_cende_recorder(Some(BlockNumber(98)), (90..=100).collect(), vec![98, 99, 100])]
 #[case::single_new_block(Some(BlockNumber(100)), (90..=100).collect(), vec![100])]
@@ -1012,8 +1009,6 @@ async fn collect_recent_state_commitment_infos_sends_expected_delta(
     let heights = collected_heights_for(height, cende_offset, committed_heights).await;
     assert_eq!(heights, expected);
 }
-
-#[cfg(feature = "os_input")]
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() {
     // A failed offset query must propagate, not silently fall back to genesis.

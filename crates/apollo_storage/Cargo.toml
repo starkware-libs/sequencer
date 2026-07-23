@@ -7,7 +7,6 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-os_input = ["dep:blockifier", "dep:starknet_committer", "starknet_committer/os_input"]
 storage_cli = ["clap", "reqwest"]
 storage_validation = ["clap"]
 testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
@@ -19,7 +18,7 @@ apollo_proc_macros.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 bincode.workspace = true
-blockifier = { workspace = true, features = ["transaction_serde"], optional = true }
+blockifier = { workspace = true, features = ["transaction_serde"] }
 byteorder.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-starknet-classes.workspace = true
@@ -42,7 +41,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
-starknet_committer = { workspace = true, optional = true }
+starknet_committer.workspace = true
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
