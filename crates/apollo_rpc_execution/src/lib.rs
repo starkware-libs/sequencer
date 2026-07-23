@@ -59,11 +59,15 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
+use starknet_api::contract_class::{
+    ClassInfo,
+    EntryPointType,
+    SierraVersion,
+    DEPRECATED_CONTRACT_SIERRA_SIZE,
+};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
-pub use starknet_api::fee_token_defaults::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
@@ -356,8 +360,6 @@ pub type AbiSize = usize;
 
 /// The size of the sierra program.
 pub type SierraSize = usize;
-
-pub use starknet_api::contract_class::DEPRECATED_CONTRACT_SIERRA_SIZE;
 
 /// The transaction input to be executed.
 // TODO(yair): This should use broadcasted transactions instead of regular transactions, but the
