@@ -46,7 +46,6 @@ use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
 use apollo_state_reader::apollo_state::ApolloReader;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-#[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::{
     AccessedKeys,
     AccessedKeysStorageReader,
@@ -65,7 +64,6 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-#[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::{
     CompressedStateCommitmentInfos,
     StateCommitmentInfosStorageReader,
@@ -924,7 +922,6 @@ impl Batcher {
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
             storage_commitment_block_hash,
-            #[cfg(feature = "os_input")]
             None,
         )
         .await?;
@@ -933,7 +930,6 @@ impl Batcher {
             height,
             state_diff,
             optional_state_diff_commitment,
-            #[cfg(feature = "os_input")]
             None,
         )
         .await?;
@@ -980,8 +976,6 @@ impl Batcher {
         let state_diff_commitment =
             partial_block_hash_components.header_commitments.state_diff_commitment;
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
-
-        #[cfg(feature = "os_input")]
         let accessed_keys = self.build_block_accessed_keys(&block_execution_artifacts);
 
         self.commit_proposal_and_block(
@@ -991,7 +985,6 @@ impl Batcher {
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
-            #[cfg(feature = "os_input")]
             Some(accessed_keys.clone()),
         )
         .await?;
@@ -1006,7 +999,6 @@ impl Batcher {
 
         // The OS only needs the read values for the keys it accesses; drop the extra reads (e.g.
         // reverted-tx reads).
-        #[cfg(feature = "os_input")]
         let initial_reads = {
             let mut initial_reads = block_execution_artifacts.initial_reads;
             initial_reads.trim_to_accessed_keys(&accessed_keys);
@@ -1017,7 +1009,6 @@ impl Batcher {
             height,
             state_diff.clone(), // TODO(Nimrod): Remove the clone here.
             Some(state_diff_commitment),
-            #[cfg(feature = "os_input")]
             Some(accessed_keys),
         )
         .await?;
@@ -1047,14 +1038,12 @@ impl Batcher {
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
                 parent_proposal_commitment,
-                #[cfg(feature = "os_input")]
                 initial_reads,
             },
         })
     }
 
     /// Builds the accessed keys for the block.
-    #[cfg(feature = "os_input")]
     fn build_block_accessed_keys(
         &self,
         block_execution_artifacts: &BlockExecutionArtifacts,
@@ -1080,7 +1069,7 @@ impl Batcher {
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        #[cfg(feature = "os_input")] accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<AccessedKeys>,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -1110,13 +1099,7 @@ impl Batcher {
 
         // Commit the proposal to the storage.
         self.storage_writer
-            .commit_proposal(
-                height,
-                state_diff,
-                storage_commitment_block_hash,
-                #[cfg(feature = "os_input")]
-                accessed_keys,
-            )
+            .commit_proposal(height, state_diff, storage_commitment_block_hash, accessed_keys)
             .map_err(|err| {
                 error!("Failed to commit proposal to storage: {}", err);
                 BatcherError::InternalError
@@ -1542,7 +1525,6 @@ impl Batcher {
         Ok(block_hash)
     }
 
-    #[cfg(feature = "os_input")]
     pub fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
@@ -1572,7 +1554,7 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         optional_state_diff_commitment: Option<StateDiffCommitment>,
-        #[cfg(feature = "os_input")] accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<AccessedKeys>,
     ) -> BatcherResult<()> {
         self.get_commitment_results_and_write_to_storage()?;
         self.commitment_manager
@@ -1583,7 +1565,6 @@ impl Batcher {
                 &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
-                #[cfg(feature = "os_input")]
                 accessed_keys,
             )
             .await
@@ -1752,7 +1733,6 @@ pub trait BatcherStorageReader: Send + Sync {
 
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 
-    #[cfg(feature = "os_input")]
     fn get_state_commitment_infos(
         &self,
         height: BlockNumber,
@@ -1765,7 +1745,6 @@ pub trait BatcherStorageReader: Send + Sync {
 
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
 
-    #[cfg(feature = "os_input")]
     fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>>;
 }
 
@@ -1852,7 +1831,6 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.get_block_hash(&height)
     }
 
-    #[cfg(feature = "os_input")]
     fn get_state_commitment_infos(
         &self,
         height: BlockNumber,
@@ -1883,7 +1861,6 @@ impl BatcherStorageReader for StorageReader {
             })
     }
 
-    #[cfg(feature = "os_input")]
     fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>> {
         self.begin_ro_txn()?.get_accessed_keys(height)
     }
@@ -1891,15 +1868,6 @@ impl BatcherStorageReader for StorageReader {
 
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageWriter: Send + Sync {
-    #[cfg(not(feature = "os_input"))]
-    fn commit_proposal(
-        &mut self,
-        height: BlockNumber,
-        state_diff: ThinStateDiff,
-        storage_commitment_block_hash: StorageCommitmentBlockHash,
-    ) -> StorageResult<()>;
-
-    #[cfg(feature = "os_input")]
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
@@ -1910,23 +1878,11 @@ pub trait BatcherStorageWriter: Send + Sync {
 
     fn revert_block(&mut self, height: BlockNumber);
 
-    /// Sets the global root and block hash (unless it's None) for the given height.
-    /// Increments the block hash marker by 1.
-    /// Block hash is optional because for old blocks, the block hash was set separately.
-    #[cfg(not(feature = "os_input"))]
-    fn set_global_root_and_block_hash(
-        &mut self,
-        height: BlockNumber,
-        global_root: GlobalRoot,
-        block_hash: Option<BlockHash>,
-    ) -> StorageResult<()>;
-
     /// Sets the global root and block hash (unless it's None) for the given height, and persists
     /// the commitment infos (when present) in the same transaction.
     /// Increments the block hash marker by 1.
     /// Block hash is optional because for old blocks, the block hash was set separately.
     /// Commitment infos are optional for blocks that doesn't come from decision_reached flow.
-    #[cfg(feature = "os_input")]
     fn set_global_root_and_block_hash(
         &mut self,
         height: BlockNumber,
@@ -1944,7 +1900,7 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        #[cfg(feature = "os_input")] accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<AccessedKeys>,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
@@ -1959,7 +1915,6 @@ impl BatcherStorageWriter for StorageWriter {
                     txn.set_partial_block_hash_components(&height, &partial_block_hash_components)?
             }
         }
-        #[cfg(feature = "os_input")]
         if let Some(accessed_keys) = accessed_keys {
             txn = txn.append_accessed_keys(height, &accessed_keys)?;
         }
@@ -1976,14 +1931,8 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        #[cfg(feature = "os_input")] state_commitment_infos: Option<CompressedStateCommitmentInfos>,
+        state_commitment_infos: Option<CompressedStateCommitmentInfos>,
     ) -> StorageResult<()> {
-        #[cfg(not(feature = "os_input"))]
-        info!(
-            "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
-             hash: {block_hash:?}."
-        );
-        #[cfg(feature = "os_input")]
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
              hash: {block_hash:?}, compressed commitment infos byte length: {:?}.",
@@ -1998,7 +1947,6 @@ impl BatcherStorageWriter for StorageWriter {
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
         }
-        #[cfg(feature = "os_input")]
         if let Some(state_commitment_infos) = state_commitment_infos {
             txn = txn.append_state_commitment_infos(height, &state_commitment_infos)?;
         }

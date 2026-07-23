@@ -8,25 +8,23 @@ use apollo_batcher_config::config::{
     FirstBlockWithPartialBlockHash,
 };
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
-#[cfg(feature = "os_input")]
-use apollo_committer_types::committer_types::ReadPathsAndCommitBlockResponse;
-use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
+use apollo_committer_types::committer_types::{
+    CommitBlockResponse,
+    ReadPathsAndCommitBlockResponse,
+    RevertBlockResponse,
+};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
-#[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::AccessedKeys;
-#[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::receipt::TransactionReceipt;
-use blockifier::state::cached_state::CommitmentStateDiff;
-#[cfg(feature = "os_input")]
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
@@ -215,7 +213,6 @@ impl BlockExecutionArtifacts {
                 address_to_nonce: IndexMap::from_iter([(contract_address!("0x7"), nonce!(1_u64))]),
             },
             compressed_state_diff: Default::default(),
-            #[cfg(feature = "os_input")]
             initial_reads: StateMaps::default(),
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
@@ -304,7 +301,6 @@ impl Default for MockClients {
         committer_client_inner.expect_revert_block().returning(|_| {
             Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
         });
-        #[cfg(feature = "os_input")]
         committer_client_inner.expect_read_paths_and_commit_block().returning(|_| {
             Box::pin(async {
                 Ok(ReadPathsAndCommitBlockResponse {
@@ -348,7 +344,6 @@ impl Default for MockDependencies {
             .returning(|_| {
                 Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
             });
-        #[cfg(feature = "os_input")]
         storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
 
         let batcher_config = BatcherConfig {

@@ -35,8 +35,9 @@ impl StarknetForestProofs {
     /// 3. Contract trie leaves — `ContractTrieLeaves`.
     /// 4. Storage tries inner nodes — `StorageTrieProofs`.
     ///
-    /// Each `commitment_facts` entry uses the same encoding as [`CommitmentInfo::commitment_facts`]
-    /// and OS Patricia hints:
+    /// Each `commitment_facts` entry uses the same encoding as
+    /// [`crate::patricia_merkle_tree::types::CommitmentInfo::commitment_facts`] and OS Patricia
+    /// hints:
     ///
     /// - Binary node — `[left: Felt, right: Felt]`.
     /// - Edge node — `[length: Felt, path: Felt, bottom: Felt]`.

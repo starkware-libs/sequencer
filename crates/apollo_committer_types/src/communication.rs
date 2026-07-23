@@ -18,11 +18,11 @@ use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use crate::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
+    ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
     RevertBlockResponse,
 };
-#[cfg(feature = "os_input")]
-use crate::committer_types::{ReadPathsAndCommitBlockRequest, ReadPathsAndCommitBlockResponse};
 use crate::errors::{CommitterClientError, CommitterClientResult, CommitterResult};
 
 pub type LocalCommitterClient = LocalComponentClient<CommitterRequest, CommitterResponse>;
@@ -46,7 +46,6 @@ pub trait CommitterClient: Send + Sync {
         input: RevertBlockRequest,
     ) -> CommitterClientResult<RevertBlockResponse>;
 
-    #[cfg(feature = "os_input")]
     /// Applies the state diff, collects merged Patricia witnesses for OS input, and persists replay
     /// data (digest + payload).
     async fn read_paths_and_commit_block(
@@ -64,7 +63,6 @@ pub trait CommitterClient: Send + Sync {
 pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
     RevertBlock(RevertBlockRequest),
-    #[cfg(feature = "os_input")]
     ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
 }
 
@@ -76,7 +74,6 @@ impl PrioritizedRequest for CommitterRequest {}
 pub enum CommitterResponse {
     CommitBlock(CommitterResult<CommitBlockResponse>),
     RevertBlock(CommitterResult<RevertBlockResponse>),
-    #[cfg(feature = "os_input")]
     ReadPathsAndCommitBlock(CommitterResult<ReadPathsAndCommitBlockResponse>),
 }
 
@@ -124,7 +121,6 @@ where
         )
     }
 
-    #[cfg(feature = "os_input")]
     async fn read_paths_and_commit_block(
         &self,
         input: ReadPathsAndCommitBlockRequest,
