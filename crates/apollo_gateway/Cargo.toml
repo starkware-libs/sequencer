@@ -55,7 +55,6 @@ tracing.workspace = true
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_gateway_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
-apollo_mempool.workspace = true
 apollo_mempool_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_network_types = { workspace = true, features = ["testing"] }
