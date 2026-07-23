@@ -320,7 +320,6 @@ impl TestDeps {
             .return_once(|_height| tokio::spawn(ready(true)));
         // Default: cende recorder reports nothing stored → send from genesis. Delta tests
         // override this.
-        #[cfg(feature = "os_input")]
         self.cende_ambassador.expect_commitment_infos_height_offset().returning(|| Ok(None));
     }
 
@@ -343,7 +342,6 @@ impl TestDeps {
         self.batcher.expect_get_block_hash().returning(|block_number| {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
         });
-        #[cfg(feature = "os_input")]
         self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
     }
 

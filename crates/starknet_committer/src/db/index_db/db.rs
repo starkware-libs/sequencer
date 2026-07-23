@@ -3,44 +3,36 @@ use std::marker::PhantomData;
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
-#[cfg(feature = "os_input")]
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND_FELT};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
-#[cfg(feature = "os_input")]
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-#[cfg(feature = "os_input")]
 use starknet_patricia_storage::map_storage::MapStorage;
 #[cfg(any(feature = "testing", test))]
 use starknet_patricia_storage::storage_trait::AsyncStorage;
-#[cfg(feature = "os_input")]
-use starknet_patricia_storage::storage_trait::DbOperation;
-#[cfg(feature = "os_input")]
-use starknet_patricia_storage::storage_trait::ImmutableReadOnlyStorage;
-#[cfg(feature = "os_input")]
-use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
+    DbOperation,
     DbOperationMap,
     DbValue,
+    ImmutableReadOnlyStorage,
+    PatriciaStorageError,
     PatriciaStorageResult,
     Storage,
 };
-#[cfg(feature = "os_input")]
 use starknet_patricia_storage::two_layer_storage::TwoLayerStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
-#[cfg(feature = "os_input")]
 use crate::db::forest_trait::forest_trait_witnesses::{
     CommitmentInfosUpdate,
     CommitmentInfosWrite,
@@ -74,17 +66,13 @@ use crate::db::index_db::types::{
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
-#[cfg(feature = "os_input")]
-use crate::forest::forest_errors::ForestError;
-use crate::forest::forest_errors::ForestResult;
+use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-#[cfg(feature = "os_input")]
 use crate::patricia_merkle_tree::tree::{fetch_all_patricia_paths, SortedLeafIndices};
-use crate::patricia_merkle_tree::types::CompiledClassHash;
-#[cfg(feature = "os_input")]
 use crate::patricia_merkle_tree::types::{
+    CompiledClassHash,
     CompressedStateCommitmentInfos,
     StarknetForestProofs,
     StateCommitmentInfos,
@@ -121,7 +109,6 @@ pub(crate) static ACCESSED_KEYS_DIGEST_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&STATE_ROOT_METADATA_PREFIX) + Felt::ONE).to_bytes_be());
 
 /// Prefix for Patricia proofs payload (per block).
-#[cfg_attr(not(feature = "os_input"), expect(dead_code))]
 pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
@@ -324,7 +311,6 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
             ForestMetadataType::StateRoot(block_number) => {
                 block_number_based_key(&STATE_ROOT_METADATA_PREFIX, block_number)
             }
-            #[cfg(feature = "os_input")]
             ForestMetadataType::AccessedKeysDigest(block_number) => {
                 block_number_based_key(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX, block_number)
             }
@@ -368,7 +354,6 @@ fn block_number_based_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> Vec
     key
 }
 
-#[cfg(feature = "os_input")]
 #[async_trait]
 impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReaderWithWitnesses
     for IndexDb<S>
@@ -430,7 +415,6 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
     }
 }
 
-#[cfg(feature = "os_input")]
 #[async_trait]
 impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
     async fn write_with_metadata_and_commitment_infos(
@@ -496,7 +480,7 @@ where
     }
 }
 
-#[cfg(all(feature = "os_input", any(test, feature = "testing")))]
+#[cfg(any(test, feature = "testing"))]
 impl IndexDb<MapStorage> {
     /// Removes Patricia trie node keys while keeping commitment metadata and stored witness
     /// payloads. Tests can call this before replaying `read_paths_and_commit_block` to ensure

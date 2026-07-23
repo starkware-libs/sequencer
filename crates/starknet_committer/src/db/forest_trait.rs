@@ -30,7 +30,6 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
-#[cfg(feature = "os_input")]
 #[path = "forest_trait_witnesses.rs"]
 pub mod forest_trait_witnesses;
 
@@ -40,7 +39,6 @@ pub enum ForestMetadataType {
     StateDiffHash(DbBlockNumber),
     StateRoot(DbBlockNumber),
     /// BLAKE2s digest of the canonical accessed-keys set for the block.
-    #[cfg(feature = "os_input")]
     AccessedKeysDigest(DbBlockNumber),
 }
 
@@ -265,19 +263,6 @@ impl<T> ForestReaderWithEmptyContext for T where
 ///
 /// Types that require external context (e.g., `FactsDb` which needs roots provided externally as
 /// they are not part of the committer storage) should NOT implement this trait.
-#[cfg(not(feature = "os_input"))]
-pub trait ForestStorageWithEmptyReadContext:
-    ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
-{
-}
-
-#[cfg(not(feature = "os_input"))]
-impl<T> ForestStorageWithEmptyReadContext for T where
-    T: ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
-{
-}
-
-#[cfg(feature = "os_input")]
 pub trait ForestStorageWithEmptyReadContext:
     ForestReaderWithEmptyContext
     + forest_trait_witnesses::ForestWriterWithMetadataAndWitnesses
@@ -285,7 +270,6 @@ pub trait ForestStorageWithEmptyReadContext:
 {
 }
 
-#[cfg(feature = "os_input")]
 impl<T> ForestStorageWithEmptyReadContext for T where
     T: ForestReaderWithEmptyContext
         + forest_trait_witnesses::ForestWriterWithMetadataAndWitnesses

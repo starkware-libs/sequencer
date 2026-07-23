@@ -289,7 +289,6 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
     }
 }
 
-#[cfg(any(feature = "reexecution", feature = "os_input"))]
 impl<S: StateReader> CachedState<S> {
     pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
         Ok(self.cache.borrow().initial_reads.clone())

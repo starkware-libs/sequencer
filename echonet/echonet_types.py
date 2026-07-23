@@ -178,8 +178,7 @@ class PathsConfig:
 class OsRunnerConfig:
     """
     Configuration for running the Starknet OS over each received blob, via the
-    block-hash CLI binary's `os run-os-stateless` subcommand (which must be
-    built with the `os_input` and `transaction_serde` features).
+    block-hash CLI binary's `os run-os-stateless` subcommand.
     """
 
     enabled: bool = True

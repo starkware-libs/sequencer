@@ -7,13 +7,10 @@ use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
-    RevertBlockRequest,
-    RevertBlockResponse,
-};
-#[cfg(feature = "os_input")]
-use apollo_committer_types::committer_types::{
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
+    RevertBlockRequest,
+    RevertBlockResponse,
 };
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -23,9 +20,8 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_committer::block_committer::commit::commit_block;
-#[cfg(feature = "os_input")]
 use starknet_committer::block_committer::commit::{
+    commit_block,
     commit_block_with_witnesses,
     CommitBlockWithWitnessesOutput,
 };
@@ -38,7 +34,6 @@ use starknet_committer::block_committer::measurements_util::{
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
-#[cfg(feature = "os_input")]
 use starknet_committer::db::forest_trait::forest_trait_witnesses::{
     CommitmentInfosUpdate,
     CommitmentInfosWrite,
@@ -50,24 +45,19 @@ use starknet_committer::db::forest_trait::{
     ForestStorageWithEmptyReadContext,
 };
 use starknet_committer::db::index_db::IndexDb;
-#[cfg(feature = "os_input")]
-use starknet_committer::db::serde_db_utils::accessed_keys_digest;
 use starknet_committer::db::serde_db_utils::{
+    accessed_keys_digest,
     deserialize_felt_no_packing,
     serialize_felt_no_packing,
     DbBlockNumber,
 };
 use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
-#[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
-#[cfg(feature = "os_input")]
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
-#[cfg(feature = "os_input")]
-use starknet_patricia_storage::storage_trait::ImmutableReadOnlyStorage;
-use starknet_patricia_storage::storage_trait::{DbValue, Storage};
+use starknet_patricia_storage::storage_trait::{DbValue, ImmutableReadOnlyStorage, Storage};
 use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
@@ -403,26 +393,16 @@ where
              to {last_committed_block}"
         );
         block_measurements.start_measurement(Action::Write);
-        let n_write_entries = {
-            #[cfg(not(feature = "os_input"))]
-            {
-                self.forest_storage
-                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
-                    .await
-            }
-            #[cfg(feature = "os_input")]
-            {
-                self.forest_storage
-                    .write_with_metadata_and_commitment_infos(
-                        &filled_forest,
-                        metadata,
-                        deleted_nodes,
-                        CommitmentInfosUpdate::Delete(height),
-                    )
-                    .await
-            }
-        }
-        .map_err(|err| self.map_internal_error(err))?;
+        let n_write_entries = self
+            .forest_storage
+            .write_with_metadata_and_commitment_infos(
+                &filled_forest,
+                metadata,
+                deleted_nodes,
+                CommitmentInfosUpdate::Delete(height),
+            )
+            .await
+            .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(
@@ -509,7 +489,6 @@ where
     }
 }
 
-#[cfg(feature = "os_input")]
 impl<S, ForestDB> Committer<S, ForestDB>
 where
     S: StorageConstructor + ImmutableReadOnlyStorage + 'static,
@@ -668,13 +647,7 @@ fn update_metrics(
         n_writes,
         durations,
         modifications_counts,
-        #[cfg(feature = "os_input")]
         fetched_witnesses_count,
-        // TODO(Yoav): Remove the ".." where os_input becomes default.
-        // It is needed now for including `BlockMeasurement::fetched_witnesses_count` where
-        // `starknet_committer/os_input` is enabled by other crates, while
-        // `apollo_committer/os_input` is disabled.
-        ..
     }: &BlockMeasurement,
     commit_duration_warn_threshold: Duration,
 ) {
@@ -742,7 +715,6 @@ fn update_metrics(
         modifications_counts,
         emptied_leaves_percentage,
         commit_duration_warn_threshold,
-        #[cfg(feature = "os_input")]
         *fetched_witnesses_count,
     );
 }
@@ -758,17 +730,14 @@ fn log_block_measurements(
     modifications_counts: &BlockModificationsCounts,
     emptied_leaves_percentage: Option<f64>,
     commit_duration_warn_threshold: Duration,
-    #[cfg(feature = "os_input")] fetched_witnesses_count: usize,
+    fetched_witnesses_count: usize,
 ) {
-    #[cfg(feature = "os_input")]
     let witness_log = format!(
         "witness fetch ms (pre-commit/post-commit): {:.0}/{:.0}, witness entries: {}",
         durations.fetch_witnesses_first_pass * 1000.0,
         durations.fetch_witnesses_second_pass * 1000.0,
         fetched_witnesses_count,
     );
-    #[cfg(not(feature = "os_input"))]
-    let witness_log = String::new();
 
     let stats = format!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
