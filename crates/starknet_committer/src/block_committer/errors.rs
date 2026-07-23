@@ -1,5 +1,4 @@
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalError;
-#[cfg(feature = "os_input")]
 use starknet_patricia_storage::errors::SerializationError;
 use thiserror::Error;
 
@@ -13,7 +12,6 @@ pub enum BlockCommitmentError {
     Traversal(#[from] TraversalError),
 }
 
-#[cfg(feature = "os_input")]
 #[derive(Debug, Error)]
 pub enum CommitBlockWithWitnessesError {
     #[error(transparent)]

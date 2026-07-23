@@ -7,13 +7,13 @@ use apollo_batcher_config::config::{
     CommitmentManagerConfig,
     FirstBlockWithPartialBlockHash,
 };
-#[cfg(feature = "os_input")]
-use apollo_committer_types::committer_types::ReadPathsAndCommitBlockResponse;
-use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
+use apollo_committer_types::committer_types::{
+    CommitBlockResponse,
+    ReadPathsAndCommitBlockResponse,
+    RevertBlockResponse,
+};
 use apollo_committer_types::communication::MockCommitterClient;
-#[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::AccessedKeys;
-#[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
@@ -65,7 +65,6 @@ fn mock_dependencies() -> MockDependencies {
     committer_client.expect_revert_block().returning(|_| {
         Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
     });
-    #[cfg(feature = "os_input")]
     committer_client.expect_read_paths_and_commit_block().returning(|_| {
         Box::pin(async {
             Ok(ReadPathsAndCommitBlockResponse {
@@ -74,9 +73,6 @@ fn mock_dependencies() -> MockDependencies {
             })
         })
     });
-    #[cfg(not(feature = "os_input"))]
-    let storage_reader = MockBatcherStorageReader::new();
-    #[cfg(feature = "os_input")]
     let storage_reader = {
         let mut storage_reader = MockBatcherStorageReader::new();
         storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
@@ -164,7 +160,6 @@ async fn fill_channels(
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -184,7 +179,6 @@ async fn fill_channels(
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -198,7 +192,6 @@ async fn fill_channels(
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -271,7 +264,6 @@ async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependenci
 
 /// When no accessed keys are stored for a height, the catch-up flow must fall back to `CommitBlock`
 /// (not `ReadPathsAndCommitBlock`), and the resulting commitment carries no Patricia witnesses.
-#[cfg(feature = "os_input")]
 #[rstest]
 #[tokio::test]
 async fn test_add_missing_commitment_tasks_without_accessed_keys(
@@ -351,7 +343,6 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader.clone(),
             &mut storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await;
@@ -375,7 +366,6 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader.clone(),
             &mut storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -403,9 +393,6 @@ async fn test_add_task_wait_for_full_channel(mut mock_dependencies: MockDependen
         let set_global_root_expectation =
             mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
         set_global_root_expectation.times(expected_n_calls);
-        #[cfg(not(feature = "os_input"))]
-        set_global_root_expectation.withf(move |h, _, _| *h == height).returning(|_, _, _| Ok(()));
-        #[cfg(feature = "os_input")]
         set_global_root_expectation
             .withf(move |h, _, _, _| *h == height)
             .returning(|_, _, _, _| Ok(()));
@@ -428,7 +415,6 @@ async fn test_add_task_wait_for_full_channel(mut mock_dependencies: MockDependen
             &None,
             storage_reader.clone(),
             &mut storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -488,7 +474,6 @@ async fn test_add_task_panic_on_full_channel(mut mock_dependencies: MockDependen
             &None,
             storage_reader.clone(),
             &mut storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -524,7 +509,6 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader.clone(),
             &mut storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -537,7 +521,6 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader,
             &mut storage_writer,
-            #[cfg(feature = "os_input")]
             Some(AccessedKeys::default()),
         )
         .await
@@ -567,7 +550,6 @@ async fn add_commitments_and_revert_tasks(
                 &None,
                 storage_reader.clone(),
                 storage_writer,
-                #[cfg(feature = "os_input")]
                 Some(AccessedKeys::default()),
             )
             .await

@@ -7,11 +7,11 @@ use tokio::sync::Mutex;
 use crate::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
+    ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
     RevertBlockResponse,
 };
-#[cfg(feature = "os_input")]
-use crate::committer_types::{ReadPathsAndCommitBlockRequest, ReadPathsAndCommitBlockResponse};
 use crate::communication::{CommitterClient, MockCommitterClient};
 use crate::errors::CommitterClientResult;
 
@@ -42,7 +42,6 @@ impl CommitterClient for MockCommitterClientWithOffset {
         self.inner.revert_block(input).await
     }
 
-    #[cfg(feature = "os_input")]
     async fn read_paths_and_commit_block(
         &self,
         input: ReadPathsAndCommitBlockRequest,

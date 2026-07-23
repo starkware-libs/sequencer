@@ -3,9 +3,7 @@ use std::ops::Deref;
 
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
-use blockifier::state::cached_state::CommitmentStateDiff;
-#[cfg(feature = "os_input")]
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use indexmap::IndexMap;
@@ -161,7 +159,6 @@ pub struct CentralObjects {
     pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
     pub parent_proposal_commitment: Option<ProposalCommitment>,
     /// Pre-block read values the OS needs to replay the block.
-    #[cfg(feature = "os_input")]
     pub initial_reads: StateMaps,
 }
 
