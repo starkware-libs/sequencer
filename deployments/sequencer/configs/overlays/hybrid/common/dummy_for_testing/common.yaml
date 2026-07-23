@@ -1,0 +1,7 @@
+# Dummy values used only by the prepare-production-overlays CI job.
+# If the value is private and cannot be set publicly, it should be added here and set the actual 
+# values in the sequeuncer-devops repo.
+# If the value can be set publicly, it should be added for each env in this repo.
+config:
+  sequencerConfig:
+    validator_id: "0x64"

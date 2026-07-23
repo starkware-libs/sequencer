@@ -29,7 +29,6 @@ apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
 axum.workspace = true
-blockifier_reexecution.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 futures.workspace = true
 http.workspace = true

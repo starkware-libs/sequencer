@@ -47,10 +47,14 @@ impl<S: FlowTestState> TestRunner<S> {
     /// Runs the virtual OS and returns the test output.
     pub(crate) fn run_virtual(self) -> VirtualOsTestOutput {
         // Create expected values before running the virtual OS (os_hints is consumed).
-        let first_block = self.os_hints.os_input.os_block_inputs.first().unwrap();
+        let first_block = self.os_hints.first_block_input();
         // The virtual os does not support state diff encryption.
-        let config_hash =
-            self.os_hints.os_hints_config.chain_info.compute_virtual_os_config_hash().unwrap();
+        let config_hash = self
+            .os_hints
+            .os_hints_config
+            .chain_info
+            .compute_virtual_os_config_hash(first_block.block_info.starknet_version)
+            .unwrap();
 
         let messages_to_l1_hashes = compute_messages_to_l1_hashes(&self.messages_to_l1);
         let messages_to_l1 = self.messages_to_l1;

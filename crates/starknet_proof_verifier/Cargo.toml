@@ -11,7 +11,6 @@ workspace = true
 
 [dependencies]
 apollo_sizeof.workspace = true
-privacy-circuit-verify-v0.workspace = true
 privacy-circuit-verify-v1.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
@@ -21,3 +20,4 @@ thiserror.workspace = true
 [dev-dependencies]
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+zstd.workspace = true

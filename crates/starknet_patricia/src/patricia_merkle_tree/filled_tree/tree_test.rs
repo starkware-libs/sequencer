@@ -171,7 +171,7 @@ async fn test_leaf_computation_error() {
     let leaf_input_map =
         HashMap::from([(first_leaf_index, 1_u128.into()), (second_leaf_index, Felt::MAX)]);
     let skeleton_tree = HashMap::from([
-        (NodeIndex::ROOT, UpdatedSkeletonNode::Binary),
+        (NodeIndex::ROOT, UpdatedSkeletonNode::Binary { n_new_hashes: 1 }),
         (first_leaf_index, UpdatedSkeletonNode::Leaf),
         (second_leaf_index, UpdatedSkeletonNode::Leaf),
     ]);
@@ -330,7 +330,7 @@ fn get_small_tree_expected_filled_tree_map_and_root_hash()
 fn create_binary_updated_skeleton_node_for_testing(
     index: u128,
 ) -> (NodeIndex, UpdatedSkeletonNode) {
-    (NodeIndex::from(index), UpdatedSkeletonNode::Binary)
+    (NodeIndex::from(index), UpdatedSkeletonNode::Binary { n_new_hashes: 0 })
 }
 
 fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
@@ -340,9 +340,11 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
 ) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
-        UpdatedSkeletonNode::Edge(
-            PathToBottom::new(path.into(), EdgePathLength::new(length).unwrap()).unwrap(),
-        ),
+        UpdatedSkeletonNode::Edge {
+            path_to_bottom: PathToBottom::new(path.into(), EdgePathLength::new(length).unwrap())
+                .unwrap(),
+            n_new_hashes: 0,
+        },
     )
 }
 

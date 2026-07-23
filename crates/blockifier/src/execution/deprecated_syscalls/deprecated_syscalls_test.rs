@@ -44,8 +44,7 @@ use crate::execution::call_info::{
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
-use crate::execution::entry_point::{CallEntryPoint, CallType};
-use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionResult};
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsage};
 use crate::state::state_api::StateReader;
@@ -691,7 +690,7 @@ fn emit_events(
     n_emitted_events: &[Felt],
     keys: &[Felt],
     data: &[Felt],
-) -> Result<CallInfo, EntryPointExecutionError> {
+) -> EntryPointExecutionResult<CallInfo> {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = Calldata(

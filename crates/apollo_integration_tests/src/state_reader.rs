@@ -379,13 +379,49 @@ fn initialize_papyrus_test_state(
 
 /// Global root that matches the proof flow fixtures.
 /// Any change to this value requires regenerating the proof fixtures by running
-/// `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
 pub const EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT: Expect =
-    expect!["0x7d9c165e57cf22a07e90cf2a7aefdfde8d4a0caa977c898968fce3e9b4763b2"];
+    expect!["0x666a2f8531136a0ec2c57389f2495c5f873560ea789e3543c77415e021c1210"];
 
 pub fn integration_test_genesis_global_root() -> GlobalRoot {
     GlobalRoot(Felt::from_hex_unchecked(EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT.data()))
+}
+
+/// The genesis block hash the proof-flow integration test seeds into storage. Derived from
+/// `EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT`, so it changes whenever the genesis global root (and
+/// hence the STRK fee token address) changes. Must match the base block hash baked into the
+/// proof-flow fixtures (`resources/proof_flow/proof_facts.json`); see the
+/// `proof_flow_fixtures_match_genesis_block_hash` test.
+pub fn integration_test_genesis_block_hash() -> BlockHash {
+    // The genesis header's state diff length does not affect the block hash components.
+    let genesis_block_header = test_block_header(BlockNumber(0), 0);
+    let partial_block_hash_components = genesis_partial_block_hash_components(
+        &genesis_block_header,
+        // The proof flow seeds the genesis block with a default state diff commitment.
+        StateDiffCommitment::default(),
+    );
+    calculate_block_hash(
+        &partial_block_hash_components,
+        integration_test_genesis_global_root(),
+        BlockHash::GENESIS_PARENT_HASH,
+    )
+    .expect("Integration test genesis block hash must be computable from seeded components.")
+}
+
+fn genesis_partial_block_hash_components(
+    block_header: &BlockHeader,
+    state_diff_commitment: StateDiffCommitment,
+) -> PartialBlockHashComponents {
+    PartialBlockHashComponents {
+        block_number: block_header.block_header_without_hash.block_number,
+        l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
+        l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
+        l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+        sequencer: block_header.block_header_without_hash.sequencer,
+        header_commitments: BlockHeaderCommitments { state_diff_commitment, ..Default::default() },
+        ..Default::default()
+    }
 }
 
 fn prepare_state_diff(
@@ -467,15 +503,8 @@ fn write_state_to_apollo_storage(
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
     let cairo0_contract_classes: Vec<_> =
         cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
-    let partial_block_hash = PartialBlockHashComponents {
-        block_number,
-        l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
-        l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
-        l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
-        sequencer: block_header.block_header_without_hash.sequencer,
-        header_commitments: BlockHeaderCommitments { state_diff_commitment, ..Default::default() },
-        ..Default::default()
-    };
+    let partial_block_hash =
+        genesis_partial_block_hash_components(&block_header, state_diff_commitment);
 
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 

@@ -20,6 +20,7 @@ from echonet.echonet_types import (
 from echonet.l1_logic.l1_client import L1Client
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.os_input_builder import decompress_state_commitment_infos
 from echonet.report_models import SnapshotModel
 
 logger = get_logger("shared_context")
@@ -268,7 +269,7 @@ class _BlockHashMismatchTracker:
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
-    _MAX_BLOCKS_ARCHIVES_BYTES: ClassVar[int] = 30 * 1024 * 1024 * 1024  # 30 GiB
+    _MAX_BLOCKS_ARCHIVES_BYTES: ClassVar[int] = 90 * 1024 * 1024 * 1024  # 30 GiB
     _CLEANUP_INTERVAL_SECONDS: ClassVar[int] = 5 * 60  # avoid expensive scans too frequently
     _last_cleanup_monotonic: ClassVar[float] = 0.0
 
@@ -333,16 +334,40 @@ class _BlockStore:
         evict_bns = [bn for bn in store.keys() if bn < cutoff]
         return [(bn, store.pop(bn)) for bn in sorted(evict_bns)]
 
+    @staticmethod
+    def _evict_old_blob_bodies(
+        store: Dict[int, JsonObject], current_block_number: int
+    ) -> List[tuple[int, bytes]]:
+        """Drop old in-memory blob bodies (the block entry stays); returns them for archiving."""
+        cutoff = current_block_number - CONFIG.block_store.max_blob_bodies_to_keep_in_memory
+        # An entry outlives its blob body, so filter out bodies already dropped on a prior call.
+        evict_bns = [bn for bn, entry in store.items() if bn < cutoff and entry.get("blob_body")]
+        return [(bn, store[bn].pop("blob_body")) for bn in sorted(evict_bns)]
+
     # --- Block store API ---
     def store_block(
-        self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
-    ) -> List[tuple[int, JsonObject]]:
+        self,
+        block_number: int,
+        blob_body: bytes,
+        fgw_block: JsonObject,
+        state_update: JsonObject,
+        block_commitments: JsonObject,
+    ) -> tuple[List[tuple[int, JsonObject]], List[tuple[int, bytes]]]:
+        # Store the blob as raw JSON bytes, not a parsed dict: parsing costs
+        # 5-8x the memory and OOMs the pod; consumers parse just-in-time.
+        # `block_commitments` (the 5-felt BlockHeaderCommitments from ingest)
+        # is stashed for downstream reuse without re-parsing blob_body.
         self.blocks[block_number] = {
-            "blob": blob,
+            "blob_body": blob_body,
             "block": fgw_block,
             "state_update": state_update,
+            "block_commitments": block_commitments,
         }
-        return self._evict_old_items(self.blocks, current_block_number=block_number)
+        evicted_items = self._evict_old_items(self.blocks, current_block_number=block_number)
+        evicted_blob_bodies = self._evict_old_blob_bodies(
+            self.blocks, current_block_number=block_number
+        )
+        return evicted_items, evicted_blob_bodies
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
         self.fgw_blocks[block_number] = block_obj
@@ -373,10 +398,9 @@ class _BlockStore:
     ) -> None:
         try:
             for bn, entry in snapshot_items:
-                (base_dir / f"blob_{bn}.json").write_text(
-                    json.dumps(entry["blob"], ensure_ascii=False),
-                    encoding="utf-8",
-                )
+                blob_body = entry.get("blob_body")
+                if blob_body:
+                    (base_dir / f"blob_{bn}.json").write_bytes(blob_body)
                 (base_dir / f"block_{bn}.json").write_text(
                     json.dumps(entry["block"], ensure_ascii=False),
                     encoding="utf-8",
@@ -388,6 +412,44 @@ class _BlockStore:
             _BlockStore._enforce_blocks_archives_size_cap()
         except Exception as e:
             logger.error(f"Failed to snapshot blocks to disk: {e}")
+
+    @staticmethod
+    def write_blob_bodies_to_disk(blob_body_items: List[tuple[int, bytes]], base_dir: Path) -> None:
+        """Archive blob bodies evicted from memory while their parent entry stays cached."""
+        try:
+            for bn, blob_body in blob_body_items:
+                (base_dir / f"blob_{bn}.json").write_bytes(blob_body)
+            _BlockStore._enforce_blocks_archives_size_cap()
+        except Exception as e:
+            logger.error(f"Failed to archive evicted blob bodies to disk: {e}")
+
+
+@dataclass(slots=True)
+class _OsRunStats:
+    """
+    Cumulative OS-runner outcome counters for the report; `recent_failures` is
+    a rolling list of `{block_number, ts, error}` entries.
+    """
+
+    completed: int
+    failed: int
+    dropped: int
+    deferred_events: int
+    abandoned: int
+    skipped: int
+    recent_failures: List[JsonObject]
+
+    @classmethod
+    def empty(cls) -> "_OsRunStats":
+        return cls(
+            completed=0,
+            failed=0,
+            dropped=0,
+            deferred_events=0,
+            abandoned=0,
+            skipped=0,
+            recent_failures=[],
+        )
 
 
 @dataclass(slots=True)
@@ -475,6 +537,10 @@ class SharedContext:
         self._hash_mismatches = _BlockHashMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._os_runs = _OsRunStats.empty()
+        self._os_run_live = {"queue_depth": 0, "queue_max": 0, "deferred_count": 0}
+        self._commits_by_block: Dict[int, JsonObject] = {}
+        self._last_stored_commitment_height: Optional[int] = None
         self._epoch = 0
 
     def get_uptime_seconds(self) -> int:
@@ -483,6 +549,127 @@ class SharedContext:
     def get_epoch(self) -> int:
         with self._lock:
             return self._epoch
+
+    # --- OS-runner stats ---
+    def record_os_run_completed(self) -> None:
+        with self._lock:
+            self._os_runs.completed += 1
+
+    # Most-recent failure entries kept for the report (older ones drop FIFO).
+    _OS_RUN_FAILURES_RETENTION: int = 50
+
+    def record_os_run_failed(self, block_number: int, error: str) -> None:
+        # Capped so a full Cairo traceback fits; full text survives in pod logs.
+        entry = {
+            "block_number": block_number,
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "error": error[:4096],
+        }
+        with self._lock:
+            self._os_runs.failed += 1
+            self._os_runs.recent_failures.append(entry)
+            overflow = len(self._os_runs.recent_failures) - SharedContext._OS_RUN_FAILURES_RETENTION
+            if overflow > 0:
+                del self._os_runs.recent_failures[:overflow]
+
+    def record_os_run_dropped(self) -> None:
+        with self._lock:
+            self._os_runs.dropped += 1
+
+    def record_os_run_deferred(self) -> None:
+        with self._lock:
+            self._os_runs.deferred_events += 1
+
+    def record_os_run_abandoned(self) -> None:
+        with self._lock:
+            self._os_runs.abandoned += 1
+
+    def record_os_run_skipped(self) -> None:
+        with self._lock:
+            self._os_runs.skipped += 1
+
+    def set_os_run_live_state(self, queue_depth: int, queue_max: int, deferred_count: int) -> None:
+        with self._lock:
+            self._os_run_live["queue_depth"] = queue_depth
+            self._os_run_live["queue_max"] = queue_max
+            self._os_run_live["deferred_count"] = deferred_count
+
+    def _os_run_stats_dict_locked(self) -> JsonObject:
+        """Caller must hold `self._lock`."""
+        return {
+            "completed": self._os_runs.completed,
+            "failed": self._os_runs.failed,
+            "dropped": self._os_runs.dropped,
+            "deferred_events": self._os_runs.deferred_events,
+            "abandoned": self._os_runs.abandoned,
+            "skipped": self._os_runs.skipped,
+            "queue_depth": self._os_run_live["queue_depth"],
+            "queue_max": self._os_run_live["queue_max"],
+            "currently_deferred": self._os_run_live["deferred_count"],
+            "recent_failures": list(self._os_runs.recent_failures),
+        }
+
+    # --- Cende-recorder commitment-info tracking ---
+    # Matches the blob's `recent_state_commitment_infos` width — older commits
+    # are unreachable for OS runs anyway.
+    _COMMITS_RETENTION: int = 10
+
+    def get_last_stored_commitment_height(self) -> Optional[int]:
+        with self._lock:
+            return self._last_stored_commitment_height
+
+    def get_state_commitment_infos(self, block_number: int) -> Optional[JsonObject]:
+        """Return the stored `state_commitment_infos` for `block_number`, or None."""
+        with self._lock:
+            return self._commits_by_block.get(block_number)
+
+    def record_commits_from_blob(self, blob: JsonObject) -> None:
+        """
+        Store every `state_commitment_infos` entry in the blob's vector.
+
+        `last_stored_commitment_height` advances only contiguously: the
+        sequencer skips every commit at-or-below the height we advertise, so
+        claiming a height above a gap would lose the missing commit forever.
+        """
+        entries = blob.get("recent_state_commitment_infos", [])
+        if not entries:
+            return
+        with self._lock:
+            # Decompress once at ingest so every consumer sees the raw dict.
+            for entry in entries:
+                bn = entry["block_number"]
+                if bn in self._commits_by_block:
+                    continue
+                self._commits_by_block[bn] = decompress_state_commitment_infos(
+                    entry["state_commitment_infos"]
+                )
+
+            # Walk the contiguous head forward. A missing height pauses the
+            # walk while the sequencer can still send it; once it falls behind
+            # the blob window it can never arrive — skip it, or it pins the
+            # head forever and the dict grows unboundedly.
+            if self._last_stored_commitment_height is None:
+                self._last_stored_commitment_height = min(self._commits_by_block) - 1
+            newest_stored_height = max(self._commits_by_block)
+            oldest_recoverable_height = newest_stored_height - SharedContext._COMMITS_RETENTION
+            while self._last_stored_commitment_height < newest_stored_height:
+                next_height = self._last_stored_commitment_height + 1
+                if next_height not in self._commits_by_block:
+                    if next_height >= oldest_recoverable_height:
+                        break
+                    logger.warning(
+                        f"state_commitment_infos for block {next_height} never arrived and "
+                        "is now outside the blob window; skipping it in "
+                        "last_stored_commitment_height accounting."
+                    )
+                self._last_stored_commitment_height = next_height
+
+            # Trim below the head only — above it is the live window.
+            if len(self._commits_by_block) > SharedContext._COMMITS_RETENTION:
+                cutoff = self._last_stored_commitment_height - SharedContext._COMMITS_RETENTION
+                stale = [bn for bn in self._commits_by_block if bn < cutoff]
+                for bn in stale:
+                    self._commits_by_block.pop(bn, None)
 
     # --- Tx lifecycle ---
     def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
@@ -589,6 +776,8 @@ class SharedContext:
             self._hash_mismatches.clear_pending_mismatch()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
+            self._commits_by_block.clear()
+            self._last_stored_commitment_height = None
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
 
@@ -626,15 +815,28 @@ class SharedContext:
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
-        self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
+        self,
+        block_number: int,
+        blob_body: bytes,
+        fgw_block: JsonObject,
+        state_update: JsonObject,
+        block_commitments: JsonObject,
     ) -> None:
         with self._lock:
-            evicted_items = self._blocks.store_block(
-                block_number, blob=blob, fgw_block=fgw_block, state_update=state_update
+            evicted_items, evicted_blob_bodies = self._blocks.store_block(
+                block_number,
+                blob_body=blob_body,
+                fgw_block=fgw_block,
+                state_update=state_update,
+                block_commitments=block_commitments,
             )
         if evicted_items:
             _BlockStore.write_snapshot_items_to_disk(
                 evicted_items, base_dir=self._blocks._ensure_archive_dir()
+            )
+        if evicted_blob_bodies:
+            _BlockStore.write_blob_bodies_to_disk(
+                evicted_blob_bodies, base_dir=self._blocks._ensure_archive_dir()
             )
 
     def store_fgw_block(self, block_number: int, block_obj: JsonObject) -> None:
@@ -668,6 +870,20 @@ class SharedContext:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.warning(f"Failed reading archived block dump {path}: {e}")
+            return None
+
+    def get_blob_body_with_disk_fallback(self, block_number: int) -> Optional[bytes]:
+        """Return the raw blob bytes for `block_number`, from memory or the on-disk archive."""
+        in_mem = self.get_block_field(block_number, "blob_body")
+        if in_mem:
+            return in_mem
+        path = _find_archived_block_path(block_number=block_number, field="blob")
+        if not path:
+            return None
+        try:
+            return path.read_bytes()
+        except Exception as e:
+            logger.warning(f"Failed reading archived blob {path}: {e}")
             return None
 
     def get_latest_block_number(self) -> Optional[int]:
@@ -724,6 +940,7 @@ class SharedContext:
                 transaction_commitment_mismatches=list(
                     self._hash_mismatches.transaction_commitment_mismatches
                 ),
+                os_run_stats=self._os_run_stats_dict_locked(),
             )
 
     # --- Progress markers ---

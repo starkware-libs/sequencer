@@ -15,8 +15,7 @@ pub enum VerifyProofError {
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
     #[error(
-        "Unsupported proof version: got {actual}, expected {v0} or {v1}.",
-        v0 = ProofVersion::V0,
+        "Unsupported proof version: got {actual}, expected {v1}.",
         v1 = ProofVersion::V1,
     )]
     InvalidProofVersion { actual: Felt },
@@ -123,9 +122,7 @@ pub fn reconstruct_output_preimage(
 
 /// Verifies a submitted proof against the proof facts using the circuit verifier.
 ///
-/// Dispatches on the first element of `proof_facts`:
-/// - V0 → `privacy-circuit-verify-v0` (pinned to the previous upstream revision).
-/// - V1 → `privacy-circuit-verify-v1` (current upstream revision).
+/// The first element of `proof_facts` must be V1, verified via `privacy-circuit-verify-v1`.
 pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
     // Reject empty proof payloads before running the verifier.
     if proof.is_empty() {
@@ -141,13 +138,10 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
     let proof_bytes = proof.0.to_vec();
 
     match proof_version {
+        // V0 proofs are no longer verifiable: the v0 circuit was removed. V0 proof facts are only
+        // tolerated by the blockifier (gated per protocol version) for replaying historical blocks.
         ProofVersion::V0 => {
-            let proof_output = privacy_circuit_verify_v0::PrivacyProofOutput {
-                proof: proof_bytes,
-                output_preimage,
-            };
-            privacy_circuit_verify_v0::verify_recursive_circuit(&proof_output)
-                .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
+            return Err(VerifyProofError::InvalidProofVersion { actual: proof_version_felt });
         }
         ProofVersion::V1 => {
             let proof_output = privacy_circuit_verify_v1::PrivacyProofOutput {

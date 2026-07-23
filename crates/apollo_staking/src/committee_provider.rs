@@ -12,6 +12,11 @@ use thiserror::Error;
 
 use crate::staking_contract::StakingContractError;
 
+/// A generous upper bound on the committee size, used by consumers that need a static bound on
+/// committee-derived quantities (e.g. sizing caches) without fetching the live committee. The
+/// configured committee size is operationally ~100; this leaves ample headroom.
+pub const MAX_COMMITTEE_SIZE: usize = 1000;
+
 pub type StakerSet = Vec<Staker>;
 
 #[cfg_attr(test, derive(Clone))]
@@ -34,6 +39,10 @@ pub enum CommitteeProviderError {
     InvalidHeight { height: BlockNumber },
     #[error("Missing epoch information for epoch {epoch_id}.")]
     MissingInformation { epoch_id: u64 },
+    #[error("Staking contract returned a duplicate staker address: {address}.")]
+    DuplicateStakerAddress { address: ContractAddress },
+    #[error("Staking contract returned no usable stakers (empty or all zero-weight).")]
+    EmptyStakerSet,
     #[error(transparent)]
     StakingContractError(#[from] StakingContractError),
     #[error(

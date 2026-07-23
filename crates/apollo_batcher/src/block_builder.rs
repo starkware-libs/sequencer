@@ -30,6 +30,8 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
+#[cfg(feature = "os_input")]
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -114,6 +116,8 @@ pub enum FailOnErrorCause {
     TransactionFailed(BlockifierTransactionExecutorError),
     #[error("L1 Handler transaction validation failed: {0}")]
     L1HandlerTransactionValidationFailed(TransactionProviderError),
+    #[error("Duplicate transaction hash in proposal: {0}")]
+    DuplicateTransaction(TransactionHash),
 }
 
 enum AddTxsToExecutorResult {
@@ -129,6 +133,8 @@ pub struct BlockExecutionArtifacts {
     pub execution_data: BlockTransactionExecutionData,
     pub commitment_state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
+    #[cfg(feature = "os_input")]
+    pub initial_reads: StateMaps,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
@@ -142,7 +148,13 @@ pub struct BlockExecutionArtifacts {
 
 impl BlockExecutionArtifacts {
     pub async fn new(
-        BlockExecutionSummary {
+        block_summary: BlockExecutionSummary,
+        execution_data: BlockTransactionExecutionData,
+        final_n_executed_txs: usize,
+    ) -> Self {
+        #[cfg(feature = "os_input")]
+        let initial_reads = block_summary.initial_reads;
+        let BlockExecutionSummary {
             state_diff: commitment_state_diff,
             compressed_state_diff,
             bouncer_weights,
@@ -150,10 +162,9 @@ impl BlockExecutionArtifacts {
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
             block_info,
-        }: BlockExecutionSummary,
-        execution_data: BlockTransactionExecutionData,
-        final_n_executed_txs: usize,
-    ) -> Self {
+            // TODO(Yoav): Remove the ".." when the os_input feature is removed.
+            ..
+        } = block_summary;
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
@@ -173,6 +184,8 @@ impl BlockExecutionArtifacts {
             execution_data,
             commitment_state_diff,
             compressed_state_diff,
+            #[cfg(feature = "os_input")]
+            initial_reads,
             bouncer_weights,
             l2_gas_used,
             casm_hash_computation_data_sierra_gas,
@@ -501,17 +514,18 @@ impl BlockBuilder {
         }
 
         let n_txs = next_txs.len();
+        let block_txs_start = self.block_txs.len();
         debug!(
             "Got {} transactions from the transaction provider (aggregated: {}).",
             n_txs,
-            self.block_txs.len() + n_txs
+            block_txs_start + n_txs
         );
 
-        self.block_txs.extend(next_txs.iter().cloned());
+        self.block_txs.extend(next_txs);
 
-        let tx_convert_futures = next_txs.iter().map(|tx| async {
-            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
-        });
+        let tx_convert_futures = self.block_txs[block_txs_start..]
+            .iter()
+            .map(|tx| convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()));
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
         // Start the execution of the transactions on the worker pool.
@@ -526,8 +540,8 @@ impl BlockBuilder {
         if let Some(output_content_sender) = &self.output_content_sender {
             // Send the transactions to the validators.
             // Only reached in proposal flow.
-            for tx in next_txs.into_iter() {
-                output_content_sender.send(tx).map_err(Box::new)?;
+            for tx in &self.block_txs[block_txs_start..] {
+                output_content_sender.send(tx.clone()).map_err(Box::new)?;
             }
         }
 
@@ -623,9 +637,19 @@ async fn collect_execution_results_and_stream_txs(
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
         if let InternalConsensusTransaction::L1Handler(_) = input_tx {
             let is_new_entry = execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
-            // Even though this doesn't get past the set insertion, this indicates a major, possibly
-            // reorg-producing bug, either in some batcher cache or the l1 provider.
+            // Unlike the duplicate account/RPC hashes handled below, a duplicate L1 handler hash is
+            // never valid input: it signals a batcher-cache or l1-provider fault, possibly
+            // reorg-producing. Keep it a hard invariant.
             assert!(is_new_entry, "Duplicate L1 handler transaction hash: {tx_hash}.");
+        }
+
+        // Check for duplicates in both the executed and rejected collections.
+        if execution_data.execution_infos_and_signatures.contains_key(&tx_hash)
+            || execution_data.rejected_tx_hashes.contains(&tx_hash)
+        {
+            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(
+                tx_hash,
+            )));
         }
 
         match result {
@@ -638,12 +662,10 @@ async fn collect_execution_results_and_stream_txs(
                         revert_error,
                     );
                 }
-                let (tx_index, duplicate_tx_hash) =
-                    execution_data.execution_infos_and_signatures.insert_full(
-                        tx_hash,
-                        (tx_execution_info, input_tx.tx_signature_for_commitment()),
-                    );
-                assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
+                let (tx_index, _) = execution_data.execution_infos_and_signatures.insert_full(
+                    tx_hash,
+                    (tx_execution_info, input_tx.tx_signature_for_commitment()),
+                );
 
                 if let Some(block_number) = proof_facts_block_number(input_tx) {
                     execution_data.proof_facts_block_numbers.insert(tx_hash, block_number);
@@ -691,8 +713,7 @@ async fn collect_execution_results_and_stream_txs(
                     tx_hash,
                     err.log_compatible_to_string()
                 );
-                let is_new_entry = execution_data.rejected_tx_hashes.insert(tx_hash);
-                assert!(is_new_entry, "Duplicate rejected transaction hash: {tx_hash}.");
+                execution_data.rejected_tx_hashes.insert(tx_hash);
             }
         }
     }

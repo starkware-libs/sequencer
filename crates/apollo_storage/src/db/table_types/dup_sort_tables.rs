@@ -101,7 +101,6 @@ where
 }
 
 impl DbWriter {
-    #[allow(dead_code)]
     pub(crate) fn create_common_prefix_table<
         MainKey: KeyTrait + Debug,
         SubKey: KeyTrait + Debug,
@@ -345,7 +344,6 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
     // The sub-key is equal to the last sub-key of the given main-key.
     // NOTICE: if this returns an error, the transaction should not be committed. Doing so can cause
     // a corrupt database.
-    #[allow(dead_code)]
     pub(crate) fn append_greater_sub_key(
         &'env self,
         txn: &DbTransaction<'env, RW>,

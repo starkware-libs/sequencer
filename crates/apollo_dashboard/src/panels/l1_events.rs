@@ -1,6 +1,7 @@
 use apollo_l1_events::metrics::{
     L1_MESSAGE_PROVIDER_NUM_PENDING_TXS,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT,
     L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
@@ -49,6 +50,14 @@ fn get_panel_l1_message_scraper_latest_scraped_block() -> Panel {
 fn get_panel_l1_events_num_pending_txs() -> Panel {
     Panel::from_gauge(&L1_MESSAGE_PROVIDER_NUM_PENDING_TXS, PanelType::TimeSeries)
 }
+fn get_panel_l1_message_scraper_l1_handler_tx_rate() -> Panel {
+    Panel::new(
+        "L1 Handler Tx Scrape Rate (per minute)",
+        "Number of unique L1 handler transactions scraped from L1 over the last 1m window",
+        increase(&L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT, "1m"),
+        PanelType::TimeSeries,
+    )
+}
 
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
@@ -70,6 +79,7 @@ pub(crate) fn get_l1_events_row() -> Row {
             get_panel_l1_message_scraper_seconds_since_last_successful_scrape(),
             get_panel_l1_message_scraper_latest_scraped_block(),
             get_panel_l1_events_num_pending_txs(),
+            get_panel_l1_message_scraper_l1_handler_tx_rate(),
             get_panel_l1_message_scraper_success_count(),
             get_panel_l1_message_scraper_baselayer_error_count(),
             get_panel_l1_message_scraper_reorg_detected(),

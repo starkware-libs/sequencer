@@ -24,6 +24,11 @@
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY"
   },
+  "base_layer_config.retry_primary_interval_seconds": {
+    "description": "The interval (seconds) after which the next base-layer access retries the primary (first) endpoint.",
+    "privacy": "Public",
+    "value": 60
+  },
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "privacy": "Public",
@@ -60,7 +65,12 @@
     "value": false
   },
   "batcher_config.dynamic_config.tx_polling_interval_millis": {
-    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions. Applies when proposing (polls the mempool). Kept intentionally high so txs accumulate between polls and ordering is decided by tip/priority fee rather than by arrival latency (geographic proximity).",
+    "privacy": "Public",
+    "value": 10
+  },
+  "batcher_config.dynamic_config.validate_tx_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions. Applies when validating a proposal, where the tx order is already fixed; a short interval reduces the delay before streamed txs are executed.",
     "privacy": "Public",
     "value": 10
   },
@@ -334,8 +344,18 @@
     "privacy": "Public",
     "value": 1
   },
+  "batcher_config.static_config.storage.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.static_config.storage.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
+  },
   "batcher_config.static_config.storage.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -410,7 +430,7 @@
     "value": "starknet"
   },
   "chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
@@ -439,8 +459,18 @@
     "privacy": "Public",
     "value": 4089446
   },
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
+  },
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -2494,6 +2524,11 @@
     "pointer_target": "recorder_url",
     "privacy": "Public"
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.far_behind_proposal_threshold": {
+    "description": "If the network tip exceeds the node's current height by more than this many blocks, the node keeps syncing instead of proposing. Must be in the range [5, 1000].",
+    "privacy": "Public",
+    "value": 30
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
@@ -2589,8 +2624,18 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -2729,6 +2774,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.dynamic_config.snip35_target_atto_usd_per_l2_gas": {
+    "description": "SNIP-35 target USD cost per L2 gas unit, in atto-USD ($0.88 per 1e9 L2 gas = 880_000_000 atto-USD).",
+    "privacy": "Public",
+    "value": 880000000
+  },
   "consensus_manager_config.context_config.static_config.behavior_mode": {
     "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
     "pointer_target": "behavior_mode",
@@ -2800,7 +2850,7 @@
     "value": 100000
   },
   "consensus_manager_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -2964,6 +3014,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "gateway_config.static_config.behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "behavior_mode",
+    "privacy": "Public"
+  },
   "gateway_config.static_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",
@@ -3039,10 +3094,20 @@
     "privacy": "Public",
     "value": 2
   },
+  "gateway_config.static_config.max_concurrent_declare_compilations": {
+    "description": "Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) allowed to run concurrently. Declares arriving while this limit is reached are rejected immediately.",
+    "privacy": "Public",
+    "value": 40
+  },
   "gateway_config.static_config.proof_archive_writer_config.bucket_name": {
     "description": "The name of the bucket to write proofs to. An empty string indicates a test environment that does not connect to GCS.",
     "privacy": "Public",
     "value": "proof-archive"
+  },
+  "gateway_config.static_config.recorder_url": {
+    "description": "The URL of the recorder service; used in Echonet mode to fetch the replayed network's Starknet version at startup.",
+    "pointer_target": "recorder_url",
+    "privacy": "Public"
   },
   "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
@@ -3132,7 +3197,7 @@
   "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 8
+    "value": 9
   },
   "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.patch": {
     "description": "The patch version of the configuration.",
@@ -3229,6 +3294,11 @@
     "privacy": "Public",
     "value": 70
   },
+  "l1_events_provider_config.max_commit_block_backlog_len": {
+    "description": "Maximum number of commit-blocks buffered in the catch-up backlog during startup sync before commit_block fails; guards against unbounded memory growth on a stalled or lagging L2 sync.",
+    "privacy": "Public",
+    "value": 1000000
+  },
   "l1_events_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
     "privacy": "Public",
@@ -3240,7 +3310,7 @@
     "value": false
   },
   "l1_events_scraper_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -3253,6 +3323,11 @@
     "description": "The time it takes for a new L1 block to be created.",
     "privacy": "Public",
     "value": 12
+  },
+  "l1_events_scraper_config.max_blocks_per_fetch": {
+    "description": "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the catch-up window so a large backlog is drained over successive polls instead of in one unbounded request.",
+    "privacy": "Public",
+    "value": 1000
   },
   "l1_events_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
@@ -3340,7 +3415,7 @@
     "value": false
   },
   "l1_gas_price_scraper_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -3475,7 +3550,7 @@
     "value": 100000
   },
   "mempool_p2p_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -3719,6 +3794,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_before_tip_to_disable_batching": {
+    "description": "Batching is automatically disabled (batch_size=1) once the node is within this many blocks of the chain tip, ensuring low-latency commits near the tip.",
+    "privacy": "Public",
+    "value": 100
+  },
   "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
     "description": "Max amount of blocks to download in a stream.",
     "privacy": "Public",
@@ -3785,7 +3865,7 @@
     "value": 100000
   },
   "state_sync_config.static_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -3925,7 +4005,7 @@
     "value": 1000
   },
   "state_sync_config.static_config.rpc_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -3974,8 +4054,18 @@
     "pointer_target": "starknet_url",
     "privacy": "Public"
   },
+  "state_sync_config.static_config.storage_config.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.storage_config.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
+  },
   "state_sync_config.static_config.storage_config.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },

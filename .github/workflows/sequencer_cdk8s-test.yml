@@ -71,6 +71,8 @@ jobs:
           cdk8s import
           echo "Installing pip dependencies..."
           pipenv install
+          echo "Running port uniqueness tests..."
+          pipenv run pytest test/test_port_uniqueness.py -v
           echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay }}..."
           cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist1
           echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay2 }}..."
@@ -117,6 +119,45 @@ jobs:
       - name: kubectl validation test for version 1.34
         run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.34
         continue-on-error: false
+
+  prepare-production-overlays:
+    runs-on: ubuntu-24.04
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 60
+    env:
+      cdk8s_sequencer_path: ${{ github.workspace }}/deployments/sequencer
+
+    steps:
+      - name: Checkout sequencer
+        uses: actions/checkout@v6
+
+      - name: Setup python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.2.0
+        with:
+          node-version: 22
+
+      - name: Install pip dependencies
+        run: python3 -m pip install pipenv
+
+      - name: Install cdk8s-cli
+        run: npm install -g cdk8s-cli@2.198.334
+
+      - name: CDK8s synth production overlays
+        working-directory: ${{ env.cdk8s_sequencer_path }}
+        run: |
+          cdk8s import
+          pipenv install
+          for overlay_prefix in mainnet sepolia-alpha sepolia-integration; do
+            echo "Synthesizing hybrid.${overlay_prefix}..."
+            cdk8s synth --app "pipenv run python -m main --namespace test -l hybrid -o hybrid.${overlay_prefix} -o hybrid.common.dummy_for_testing" --output dist
+          done
 
   prepare-dummy-services:
     runs-on: ubuntu-24.04

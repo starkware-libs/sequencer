@@ -14,7 +14,9 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, ReplayBlockMetadata};
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
@@ -54,6 +56,11 @@ pub trait BatcherClient: Send + Sync {
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
     /// Gets the block hash for a given block number.
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<StateCommitmentInfos>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -91,7 +98,8 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<SendTxsForProposalStatus>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
-    async fn get_batch_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
+    /// Starts a new proposer round and returns the metadata for the block about to be built.
+    async fn start_round(&self) -> BatcherClientResult<ReplayBlockMetadata>;
     /// Executes a view (read-only) entry point on a contract against the latest committed batcher
     /// state and returns the retdata.
     async fn call_contract(
@@ -110,6 +118,8 @@ pub trait BatcherClient: Send + Sync {
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetBlockHash(BlockNumber),
+    #[cfg(feature = "os_input")]
+    GetStateCommitmentInfos(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -120,7 +130,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
-    GetBatchTimestamp,
+    StartRound,
     CallContract(CallContractInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
@@ -136,6 +146,8 @@ generate_permutation_labels! {
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
+    #[cfg(feature = "os_input")]
+    GetStateCommitmentInfos(BatcherResult<StateCommitmentInfos>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -146,7 +158,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
-    GetBatchTimestamp(BatcherResult<u64>),
+    StartRound(BatcherResult<ReplayBlockMetadata>),
     CallContract(BatcherResult<CallContractOutput>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
@@ -184,6 +196,23 @@ where
             request,
             BatcherResponse,
             GetBlockHash,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn get_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<StateCommitmentInfos> {
+        let request = BatcherRequest::GetStateCommitmentInfos(block_number);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            GetStateCommitmentInfos,
             BatcherClientError,
             BatcherError,
             Direct
@@ -332,13 +361,13 @@ where
         )
     }
 
-    async fn get_batch_timestamp(&self) -> BatcherClientResult<UnixTimestamp> {
-        let request = BatcherRequest::GetBatchTimestamp;
+    async fn start_round(&self) -> BatcherClientResult<ReplayBlockMetadata> {
+        let request = BatcherRequest::StartRound;
         handle_all_response_variants!(
             self,
             request,
             BatcherResponse,
-            GetBatchTimestamp,
+            StartRound,
             BatcherClientError,
             BatcherError,
             Direct

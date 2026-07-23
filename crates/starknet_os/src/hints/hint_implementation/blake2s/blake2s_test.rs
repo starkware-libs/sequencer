@@ -92,14 +92,6 @@ fn cairo_encode_felt252_data_and_calc_blake_hash_steps(input: &[Felt]) -> usize 
 }
 
 /// Asserts the estimated constants correspond to empiric measurements.
-/// The [CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER] constant is not computed here as
-/// there is a linear dependency between constants. Specifically, if we denote:
-/// * R=STEPS_PER_2_U32_REMINDER
-/// * S=STEPS_PER_SMALL_FELT
-/// * L=STEPS_PER_LARGE_FELT
-/// * D=STEPS_DISCOUNT_PER_FULL_MSG
-/// Then, for any X, if we shift (R, S, L, D) -> (R+X,S-X,L-4X,D-8X), all measurements will produce
-/// the same results.
 #[rstest]
 fn test_blake_step_constants() {
     let large_felt = Blake2Felt252::SMALL_THRESHOLD;
@@ -115,26 +107,16 @@ fn test_blake_step_constants() {
     let one_small_felt_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[small_felt]);
     let two_small_felts_cost =
         cairo_encode_felt252_data_and_calc_blake_hash_steps(&[small_felt; 2]);
-    let small_felt_overhead = two_small_felts_cost
-        - one_small_felt_cost
-        - CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER;
+    let small_felt_overhead = two_small_felts_cost - one_small_felt_cost;
     STEPS_PER_SMALL_FELT_EXPECT.assert_eq(&small_felt_overhead.to_string());
 
     // Base cost for partial message.
-    let base_partial_message_cost = one_small_felt_cost
-        - small_felt_overhead
-        - (CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
-            * CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT
-            / 2);
+    let base_partial_message_cost = one_small_felt_cost - small_felt_overhead;
     BASE_STEPS_PARTIAL_MSG_EXPECT.assert_eq(&base_partial_message_cost.to_string());
 
     // Large felt overhead.
     let one_large_felt_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[large_felt]);
-    let large_felt_overhead = one_large_felt_cost
-        - base_partial_message_cost
-        - (CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
-            * CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT
-            / 2);
+    let large_felt_overhead = one_large_felt_cost - base_partial_message_cost;
     STEPS_PER_LARGE_FELT_EXPECT.assert_eq(&large_felt_overhead.to_string());
 
     // Discount per full message.

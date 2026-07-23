@@ -21,6 +21,11 @@ pub struct L1EventsProviderConfig {
     pub l1_handler_proposal_cooldown_seconds: Duration,
     /// When true, the L1 provider operates in dummy mode.
     pub dummy_mode: bool,
+    /// Maximum number of commit-blocks buffered in the catch-up backlog while the provider syncs
+    /// to the target height. Bounds memory growth when L2 sync stalls or lags during startup
+    /// catch-up. Hitting it is a hard error rather than a silent drop, because the backlog
+    /// must remain a gapless, strictly-sequential run of heights.
+    pub max_commit_block_backlog_len: usize,
 }
 
 impl Default for L1EventsProviderConfig {
@@ -31,6 +36,9 @@ impl Default for L1EventsProviderConfig {
             l1_handler_consumption_timelock_seconds: Duration::from_secs(5 * 60),
             l1_handler_proposal_cooldown_seconds: Duration::from_secs(70),
             dummy_mode: false,
+            // ~1M entries is only ~tens of MB, comfortably covering any legitimate startup sync gap
+            // while still bounding worst-case memory.
+            max_commit_block_backlog_len: 1_000_000,
         }
     }
 }
@@ -70,6 +78,14 @@ impl SerializeConfig for L1EventsProviderConfig {
                 &self.dummy_mode,
                 "When true, the L1 provider operates in dummy mode, always responding with \
                  trivial truthy responses without connecting to actual L1.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_commit_block_backlog_len",
+                &self.max_commit_block_backlog_len,
+                "Maximum number of commit-blocks buffered in the catch-up backlog during startup \
+                 sync before commit_block fails; guards against unbounded memory growth on a \
+                 stalled or lagging L2 sync.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -115,6 +131,11 @@ pub struct L1EventsScraperConfig {
     pub set_provider_historic_height_to_l2_genesis: bool,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub l1_block_time_seconds: Duration,
+    /// Maximum number of L1 blocks fetched per `events` (eth_getLogs) request. Caps the catch-up
+    /// window so a large backlog is drained over successive polls instead of one unbounded
+    /// request.
+    #[validate(range(min = 1))]
+    pub max_blocks_per_fetch: u64,
 }
 
 impl Default for L1EventsScraperConfig {
@@ -126,6 +147,10 @@ impl Default for L1EventsScraperConfig {
             polling_interval_seconds: Duration::from_secs(30),
             set_provider_historic_height_to_l2_genesis: false,
             l1_block_time_seconds: Duration::from_secs(12),
+            // Conservative default: well under the common public-RPC eth_getLogs block-range caps
+            // (~1k-10k) and the 1s base-layer timeout. Operators on permissive private RPCs may
+            // raise it.
+            max_blocks_per_fetch: 1000,
         }
     }
 }
@@ -154,7 +179,7 @@ impl SerializeConfig for L1EventsScraperConfig {
             ser_param(
                 "chain_id",
                 &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -168,6 +193,14 @@ impl SerializeConfig for L1EventsScraperConfig {
                 "l1_block_time_seconds",
                 &self.l1_block_time_seconds.as_secs(),
                 "The time it takes for a new L1 block to be created.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_blocks_per_fetch",
+                &self.max_blocks_per_fetch,
+                "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the \
+                 catch-up window so a large backlog is drained over successive polls instead of in \
+                 one unbounded request.",
                 ParamPrivacyInput::Public,
             ),
         ])

@@ -12,7 +12,11 @@ use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
+#[cfg(feature = "os_input")]
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::CommitmentStateDiff;
+#[cfg(feature = "os_input")]
+use blockifier::state::cached_state::StateMaps;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
     process_transactions,
@@ -40,6 +44,8 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{info, warn, Instrument};
@@ -71,6 +77,13 @@ pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
+#[cfg(feature = "os_input")]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct StateCommitmentInfosAndNumber {
+    pub state_commitment_infos: StateCommitmentInfos,
+    pub block_number: BlockNumber,
+}
+
 /// A chunk of all the data to write to Aersopike.
 #[cfg_attr(any(feature = "testing", test), derive(Deserialize, PartialEq))]
 #[derive(Debug, Serialize)]
@@ -93,6 +106,12 @@ pub struct AerospikeBlob {
     proposal_commitment: ProposalCommitment,
     parent_proposal_commitment: Option<ProposalCommitment>,
     recent_block_hashes: Vec<BlockHashAndNumber>,
+    #[cfg(feature = "os_input")]
+    recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
+    #[cfg(feature = "os_input")]
+    accessed_keys: AccessedKeys,
+    #[cfg(feature = "os_input")]
+    initial_reads: StateMaps,
 }
 
 #[cfg_attr(test, automock)]
@@ -152,9 +171,20 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
                 .expect("Failed to construct get latest received block URL"),
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-                .build(),
+            // Bound each attempt by the max retry interval. Without a per-attempt timeout
+            // `RetryTransientMiddleware` only retries attempts that *return* a transient error, so
+            // a request that hangs against a slow recorder would block until the build deadline
+            // instead of being retried. Capping an attempt at the backoff's upper bound turns such
+            // a hang into a timeout error the retry policy can act on, while leaving room for
+            // multiple attempts within `max_retry_duration_secs`.
+            client: ClientBuilder::new(
+                reqwest::Client::builder()
+                    .timeout(cende_config.max_retry_interval_ms)
+                    .build()
+                    .expect("Failed to build cende recorder client"),
+            )
+            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+            .build(),
             class_manager,
         }
     }
@@ -361,6 +391,8 @@ pub struct InternalTransactionWithReceipt {
 #[derive(Debug, Default)]
 pub struct BlobParameters {
     pub block_info: BlockInfo,
+    // The version stamped on the proposal (the replayed network's version in Echonet mode).
+    pub starknet_version: StarknetVersion,
     pub state_diff: ThinStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
@@ -375,6 +407,12 @@ pub struct BlobParameters {
     pub proposal_commitment: ProposalCommitment,
     pub parent_proposal_commitment: Option<ProposalCommitment>,
     pub recent_block_hashes: Vec<BlockHashAndNumber>,
+    #[cfg(feature = "os_input")]
+    pub recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
+    #[cfg(feature = "os_input")]
+    pub accessed_keys: AccessedKeys,
+    #[cfg(feature = "os_input")]
+    pub initial_reads: StateMaps,
 }
 
 impl AerospikeBlob {
@@ -386,7 +424,7 @@ impl AerospikeBlob {
         let block_timestamp = blob_parameters.block_info.block_timestamp.0;
 
         let block_info =
-            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
+            CentralBlockInfo::from((blob_parameters.block_info, blob_parameters.starknet_version));
         let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
         let compressed_state_diff =
             blob_parameters.compressed_state_diff.map(|compressed_state_diff| {
@@ -430,6 +468,12 @@ impl AerospikeBlob {
             proposal_commitment: blob_parameters.proposal_commitment,
             parent_proposal_commitment: blob_parameters.parent_proposal_commitment,
             recent_block_hashes: blob_parameters.recent_block_hashes,
+            #[cfg(feature = "os_input")]
+            recent_state_commitment_infos: blob_parameters.recent_state_commitment_infos,
+            #[cfg(feature = "os_input")]
+            accessed_keys: blob_parameters.accessed_keys,
+            #[cfg(feature = "os_input")]
+            initial_reads: blob_parameters.initial_reads,
         })
     }
 }

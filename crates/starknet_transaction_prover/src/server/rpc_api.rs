@@ -16,7 +16,8 @@ use crate::proving::virtual_snos_prover::ProveTransactionResult;
 pub trait ProvingRpc {
     /// Returns the spec version (serves as lightweight health check).
     ///
-    /// Returns "0.10.1" for Starknet RPC v0.10 compatibility.
+    /// Returns the pinned proving-api spec version (the `SPEC_VERSION` constant) for Starknet
+    /// RPC v0.10 compatibility.
     #[method(name = "specVersion")]
     async fn spec_version(&self) -> RpcResult<String>;
 

@@ -21,6 +21,8 @@ use crate::committer_types::{
     RevertBlockRequest,
     RevertBlockResponse,
 };
+#[cfg(feature = "os_input")]
+use crate::committer_types::{ReadPathsAndCommitBlockRequest, ReadPathsAndCommitBlockResponse};
 use crate::errors::{CommitterClientError, CommitterClientResult, CommitterResult};
 
 pub type LocalCommitterClient = LocalComponentClient<CommitterRequest, CommitterResponse>;
@@ -43,6 +45,14 @@ pub trait CommitterClient: Send + Sync {
         &self,
         input: RevertBlockRequest,
     ) -> CommitterClientResult<RevertBlockResponse>;
+
+    #[cfg(feature = "os_input")]
+    /// Applies the state diff, collects merged Patricia witnesses for OS input, and persists replay
+    /// data (digest + payload).
+    async fn read_paths_and_commit_block(
+        &self,
+        input: ReadPathsAndCommitBlockRequest,
+    ) -> CommitterClientResult<ReadPathsAndCommitBlockResponse>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -54,6 +64,8 @@ pub trait CommitterClient: Send + Sync {
 pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
     RevertBlock(RevertBlockRequest),
+    #[cfg(feature = "os_input")]
+    ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);
@@ -64,6 +76,8 @@ impl PrioritizedRequest for CommitterRequest {}
 pub enum CommitterResponse {
     CommitBlock(CommitterResult<CommitBlockResponse>),
     RevertBlock(CommitterResult<RevertBlockResponse>),
+    #[cfg(feature = "os_input")]
+    ReadPathsAndCommitBlock(CommitterResult<ReadPathsAndCommitBlockResponse>),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterResponse);
@@ -104,6 +118,23 @@ where
             request,
             CommitterResponse,
             RevertBlock,
+            CommitterClientError,
+            CommitterError,
+            Direct
+        )
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn read_paths_and_commit_block(
+        &self,
+        input: ReadPathsAndCommitBlockRequest,
+    ) -> CommitterClientResult<ReadPathsAndCommitBlockResponse> {
+        let request = CommitterRequest::ReadPathsAndCommitBlock(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            CommitterResponse,
+            ReadPathsAndCommitBlock,
             CommitterClientError,
             CommitterError,
             Direct

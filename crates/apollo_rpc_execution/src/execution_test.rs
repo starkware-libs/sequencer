@@ -6,6 +6,7 @@ use apollo_storage::test_utils::get_test_storage;
 use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::call_info::Retdata;
+use blockifier::execution::contract_class::TrackedResource;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
 use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
@@ -774,6 +775,7 @@ fn simulate_with_query_bit_outputs_same_as_no_query_bit() {
 // TODO(yair): remove once blockifier arranges the errors.
 #[test]
 fn blockifier_error_mapping() {
+    let strip_vm_frames = VersionedConstants::latest_constants().strip_vm_frames_in_sierra_gas;
     let child = blockifier::execution::errors::EntryPointExecutionError::RecursionDepthExceeded;
     let storage_address = contract_address!("0x123");
     let class_hash = class_hash!("0x321");
@@ -786,7 +788,7 @@ fn blockifier_error_mapping() {
 
     let blockifier_err = BlockifierTransactionExecutionError::ContractConstructorExecutionFailed(
         ConstructorEntryPointExecutionError::ExecutionError {
-            error: Box::new(child),
+            error: Box::new(child.annotated(TrackedResource::CairoSteps, strip_vm_frames)),
             class_hash,
             contract_address: storage_address,
             constructor_selector: None,
@@ -803,7 +805,7 @@ fn blockifier_error_mapping() {
     let child = blockifier::execution::errors::EntryPointExecutionError::RecursionDepthExceeded;
     let selector = EntryPointSelector(felt!("0x111"));
     let blockifier_err = BlockifierTransactionExecutionError::ExecutionError {
-        error: Box::new(child),
+        error: Box::new(child.annotated(TrackedResource::CairoSteps, strip_vm_frames)),
         class_hash,
         storage_address,
         selector,
@@ -819,7 +821,7 @@ fn blockifier_error_mapping() {
 
     let child = blockifier::execution::errors::EntryPointExecutionError::RecursionDepthExceeded;
     let blockifier_err = BlockifierTransactionExecutionError::ValidateTransactionError {
-        error: Box::new(child),
+        error: Box::new(child.annotated(TrackedResource::CairoSteps, strip_vm_frames)),
         class_hash,
         storage_address,
         selector,

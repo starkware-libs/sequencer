@@ -45,6 +45,7 @@ use tracing::warn;
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
+    try_node_index_into_contract_address,
     ReaderConfig,
     StarknetStorageValue,
 };
@@ -850,6 +851,48 @@ where
     }
 }
 
+/// Storage task for fetching Patricia paths in a single storage trie.
+struct StoragePathsReadTask<'indices, Layout: NodeLayoutFor<StarknetStorageValue>> {
+    address: ContractAddress,
+    storage_root_hash: HashOutput,
+    sorted_leaf_indices: SortedLeafIndices<'indices>,
+    _layout: PhantomData<Layout>,
+}
+
+impl<'indices, S, Layout> StorageTaskOutput<S> for StoragePathsReadTask<'indices, Layout>
+where
+    S: ImmutableReadOnlyStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+{
+    type Output = TraversalResult<(ContractAddress, PreimageMap)>;
+}
+
+#[async_trait]
+impl<'indices, 'storage, S, Layout> StorageTask<'storage, S>
+    for StoragePathsReadTask<'indices, Layout>
+where
+    S: ImmutableReadOnlyStorage + 'storage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    async fn run_with_storage(
+        self,
+        storage: &mut ReadsCollectorStorage<'storage, S>,
+    ) -> Self::Output {
+        let leaves = None;
+        let proof = fetch_patricia_paths::<Layout::DbLeaf, Layout>(
+            storage,
+            self.storage_root_hash,
+            self.sorted_leaf_indices,
+            leaves,
+            &self.address,
+        )
+        .await?;
+        Ok((self.address, proof))
+    }
+}
+
 async fn create_storage_tries_concurrently<'a, S, Layout>(
     storage: &mut S,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -876,6 +919,125 @@ where
                 .get(address)
                 .ok_or(ForestError::MissingSortedLeafIndices(*address))?,
             warn_on_trivial_modifications,
+            _layout: PhantomData,
+        });
+    }
+    storage.gather(tasks).await.into_iter().collect()
+}
+
+/// Fetches Patricia proofs for the storage tries. If the storage has a [GatherableStorage] version,
+/// then the paths are fetched concurrently. Otherwise, they are fetched sequentially.
+pub(crate) async fn fetch_contract_storage_paths<StorageLayout, ContractLeaf>(
+    storage: &mut impl ReadOnlyStorage,
+    contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
+    contract_leaves: &HashMap<NodeIndex, ContractLeaf>,
+) -> TraversalResult<HashMap<ContractAddress, PreimageMap>>
+where
+    StorageLayout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+    <StorageLayout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+    ContractLeaf: AsRef<ContractState>,
+{
+    if let Some(gatherable_storage) = storage.as_gatherable_storage() {
+        return fetch_contract_storage_paths_concurrently::<_, StorageLayout, ContractLeaf>(
+            gatherable_storage,
+            contract_storage_sorted_leaf_indices,
+            contract_leaves,
+        )
+        .await;
+    }
+    fetch_contract_storage_paths_sequentially::<StorageLayout, ContractLeaf>(
+        storage,
+        contract_storage_sorted_leaf_indices,
+        contract_leaves,
+    )
+    .await
+}
+
+/// Returns the contract address and storage root hash for the given leaf index, if the contract
+/// exists in the contracts trie.
+///
+/// The contract address might not exist in the contracts trie in the following cases:
+/// 1. We are looking at the previous tree and the contract is new.
+/// 2. We are looking at the new tree and the contract is deleted (revert).
+///
+/// In either case, the storage trie of this contract is empty, so there is nothing to
+/// prove regarding the contract storage.
+pub(crate) fn get_address_and_storage_root<ContractLeaf: AsRef<ContractState>>(
+    idx: &NodeIndex,
+    contract_leaves: &HashMap<NodeIndex, ContractLeaf>,
+) -> Option<(ContractAddress, HashOutput)> {
+    let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
+        panic!(
+            "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
+             {idx:?}."
+        )
+    });
+    let storage_root_hash = contract_leaves.get(idx).map(|leaf| leaf.as_ref().storage_root_hash)?;
+    Some((contract_address, storage_root_hash))
+}
+
+/// Sequentially fetches Patricia proofs for the storage tries.
+async fn fetch_contract_storage_paths_sequentially<StorageLayout, ContractLeaf>(
+    storage: &mut impl ReadOnlyStorage,
+    contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
+    contract_leaves: &HashMap<NodeIndex, ContractLeaf>,
+) -> TraversalResult<HashMap<ContractAddress, PreimageMap>>
+where
+    StorageLayout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+    <StorageLayout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+    ContractLeaf: AsRef<ContractState>,
+{
+    let mut contracts_trie_storage_proofs =
+        HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
+
+    for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
+        let Some((contract_address, storage_root_hash)) =
+            get_address_and_storage_root(idx, contract_leaves)
+        else {
+            continue;
+        };
+
+        let leaves = None;
+        let proof = fetch_patricia_paths::<StorageLayout::DbLeaf, StorageLayout>(
+            storage,
+            storage_root_hash,
+            *sorted_leaf_indices,
+            leaves,
+            &contract_address,
+        )
+        .await?;
+        contracts_trie_storage_proofs.insert(contract_address, proof);
+    }
+
+    Ok(contracts_trie_storage_proofs)
+}
+
+/// Concurrently fetches Patricia proofs for the storage tries.
+async fn fetch_contract_storage_paths_concurrently<S, StorageLayout, ContractLeaf>(
+    storage: &mut S,
+    contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
+    contract_leaves: &HashMap<NodeIndex, ContractLeaf>,
+) -> TraversalResult<HashMap<ContractAddress, PreimageMap>>
+where
+    S: GatherableStorage,
+    StorageLayout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+    <StorageLayout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+    ContractLeaf: AsRef<ContractState>,
+{
+    let mut tasks = Vec::new();
+    for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
+        let Some((contract_address, storage_root_hash)) =
+            get_address_and_storage_root(idx, contract_leaves)
+        else {
+            continue;
+        };
+        tasks.push(StoragePathsReadTask::<StorageLayout> {
+            address: contract_address,
+            storage_root_hash,
+            sorted_leaf_indices: *sorted_leaf_indices,
             _layout: PhantomData,
         });
     }

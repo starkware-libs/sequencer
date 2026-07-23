@@ -45,7 +45,7 @@ pub struct TreeHashFunctionImpl;
 
 /// Implementation of TreeHashFunction for contracts trie.
 /// The implementation is based on the following reference:
-/// <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction>
+/// <https://docs.starknet.io/learn/protocol/state#trie-construction>
 impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
     fn compute_leaf_hash(contract_state: &ContractState) -> HashOutput {
         compute_contract_state_leaf_hash(contract_state)
@@ -79,7 +79,7 @@ fn compute_contract_state_leaf_hash<L: AsRef<ContractState>>(
 
 /// Implementation of TreeHashFunction for the classes trie.
 /// The implementation is based on the following reference:
-/// <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction>
+/// <https://docs.starknet.io/learn/protocol/state#trie-construction>
 impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
     fn compute_leaf_hash(compiled_class_hash: &CompiledClassHash) -> HashOutput {
         compute_compiled_class_leaf_hash(compiled_class_hash)
@@ -109,7 +109,7 @@ fn compute_compiled_class_leaf_hash<L: AsRef<CompiledClassHash>>(
 
 /// Implementation of TreeHashFunction for the storage trie.
 /// The implementation is based on the following reference:
-/// <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction>
+/// <https://docs.starknet.io/learn/protocol/state#trie-construction>
 impl TreeHashFunction<StarknetStorageValue> for TreeHashFunctionImpl {
     fn compute_leaf_hash(storage_value: &StarknetStorageValue) -> HashOutput {
         HashOutput(storage_value.0)

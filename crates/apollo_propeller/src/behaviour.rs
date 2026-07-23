@@ -31,6 +31,8 @@ use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
 use crate::metrics::PropellerMetrics;
 use crate::types::{CommitteeId, CommitteeSetupError, Event, UnitPublishError};
+#[cfg(test)]
+use crate::PropellerUnit;
 
 /// The Propeller network behaviour.
 ///
@@ -123,6 +125,30 @@ impl Behaviour {
         self.engine_commands_tx.send(command).expect("Engine task has exited");
         response_rx
     }
+
+    /// Creates a handler for a new connection, wiring a bounded channel between the handler
+    /// and the engine for inbound unit delivery.
+    fn create_handler(&self, peer_id: PeerId) -> Handler {
+        let (sender, receiver) =
+            futures::channel::mpsc::channel(self.config.inbound_channel_capacity);
+        let command = EngineCommand::RegisterHandler { peer_id, receiver };
+        self.engine_commands_tx.send(command).expect("Engine task has exited");
+        Handler::new(&self.config, sender)
+    }
+
+    /// Test-only mirror of `create_handler`'s channel wiring that returns the sender, so tests can
+    /// inject inbound units into the engine as if received from `peer_id`'s connection.
+    #[cfg(test)]
+    pub(crate) fn register_inbound_channel(
+        &self,
+        peer_id: PeerId,
+    ) -> futures::channel::mpsc::Sender<PropellerUnit> {
+        let (sender, receiver) =
+            futures::channel::mpsc::channel(self.config.inbound_channel_capacity);
+        let command = EngineCommand::RegisterHandler { peer_id, receiver };
+        self.engine_commands_tx.send(command).expect("Engine task has exited");
+        sender
+    }
 }
 
 impl NetworkBehaviour for Behaviour {
@@ -132,22 +158,22 @@ impl NetworkBehaviour for Behaviour {
     fn handle_established_inbound_connection(
         &mut self,
         _connection_id: ConnectionId,
-        _peer: PeerId,
+        peer: PeerId,
         _local_addr: &libp2p::core::Multiaddr,
         _remote_addr: &libp2p::core::Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(&self.config))
+        Ok(self.create_handler(peer))
     }
 
     fn handle_established_outbound_connection(
         &mut self,
         _connection_id: ConnectionId,
-        _peer: PeerId,
+        peer: PeerId,
         _addr: &libp2p::core::Multiaddr,
         _role_override: Endpoint,
         _port_use: libp2p::core::transport::PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(&self.config))
+        Ok(self.create_handler(peer))
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {

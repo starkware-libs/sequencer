@@ -59,6 +59,7 @@ pub fn get_sections(local: bool) -> Vec<(&'static str, Vec<(String, &'static str
             vec![
                 (metric_name(&NETWORK_CONNECTED_PEERS), "short"),
                 (quantile(&RECEIVE_MESSAGE_DELAY_SECONDS, "0.99"), "s"),
+                (format!("max({})", metric_name(&RECEIVE_MESSAGE_CLOCK_SKEW_SECONDS)), "s"),
                 (cpu_query, cpu_unit),
                 (memory_query, memory_unit),
                 (metric_name(&BROADCAST_MESSAGE_THEORETICAL_THROUGHPUT), "binBps"),
@@ -322,6 +323,14 @@ fn get_thresholds_from_query(query: &str) -> Value {
             "steps": [
                 {"color": "red", "value": null},
                 {"color": "green", "value": 1}
+            ]
+        })
+    } else if query.contains("clock_skew") {
+        // Seconds. Red above 1ms of inter-node clock skew.
+        json!({
+            "steps": [
+                {"color": "green", "value": null},
+                {"color": "red", "value": 0.001}
             ]
         })
     } else if query.contains("slow_poll_ratio") || query.contains("long_delay_ratio") {

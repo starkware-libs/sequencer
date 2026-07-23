@@ -97,6 +97,7 @@
           "accessModes": [
             "ReadWriteOnce"
           ],
+          "storageClassName": "hyperdisk-balanced-baseline",
           "resources": {
             "requests": {
               "storage": "8Gi"

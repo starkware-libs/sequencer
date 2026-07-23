@@ -1,0 +1,91 @@
+name: core
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_core.json
+  sequencerConfig:
+    batcher_config.dynamic_config.proposer_idle_detection_delay_millis: 1500
+    batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events: 5000
+    batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas: 5800000000
+    batcher_config.static_config.storage_reader_server_static_config.port: 55011
+    class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
+    class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port: 55210
+    consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
+    consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
+    consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 9.1
+    consensus_manager_config.context_config.dynamic_config.build_proposal_margin_millis: 1000
+    consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash: true
+    consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate: 0
+    consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none: true
+    consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri: 0
+    consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none: true
+    consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri: 0
+    consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none: true
+    consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri: 0
+    consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none: true
+    consensus_manager_config.network_config.port: 53080
+    consensus_manager_config.staking_manager_config.dynamic_config.override_committee: ''
+    consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true
+    components.batcher.port: 55000
+    components.batcher.url: sequencer-core-service
+    components.class_manager.port: 55001
+    components.class_manager.url: sequencer-core-service
+    components.committer.port: 55013
+    components.committer.url: sequencer-committer-service
+    components.l1_events_provider.port: 55004
+    components.l1_events_provider.url: sequencer-l1-service
+    components.l1_gas_price_provider.port: 55003
+    components.l1_gas_price_provider.url: sequencer-l1-service
+    components.mempool.port: 55006
+    components.mempool.url: sequencer-mempool-service
+    components.proof_manager.port: 55012
+    components.proof_manager.url: sequencer-core-service
+    components.sierra_compiler.port: 55007
+    components.sierra_compiler.url: sequencer-sierracompiler-service
+    components.signature_manager.port: 55008
+    components.signature_manager.url: sequencer-core-service
+    components.state_sync.port: 55009
+    components.state_sync.url: sequencer-core-service
+    state_sync_config.static_config.p2p_sync_client_config.#is_none: true
+    state_sync_config.static_config.rpc_config.port: 8090
+    state_sync_config.static_config.storage_reader_server_static_config.port: 55014
+service:
+  ports:
+  - name: batcher
+    port: 55000
+    targetPort: 55000
+    protocol: TCP
+  - name: batcher-storage-reader
+    port: 55011
+    targetPort: 55011
+    protocol: TCP
+  - name: class-manager
+    port: 55001
+    targetPort: 55001
+    protocol: TCP
+  - name: class-manager-storage-reader
+    port: 55210
+    targetPort: 55210
+    protocol: TCP
+  - name: consensus-p2p
+    port: 53080
+    targetPort: 53080
+    protocol: TCP
+  - name: proof-manager
+    port: 55012
+    targetPort: 55012
+    protocol: TCP
+  - name: signature-manager
+    port: 55008
+    targetPort: 55008
+    protocol: TCP
+  - name: state-sync-network
+    port: 55010
+    targetPort: 55010
+    protocol: TCP
+  - name: state-sync-rpc
+    port: 55009
+    targetPort: 55009
+    protocol: TCP
+  - name: state-sync-storage-reader
+    port: 55014
+    targetPort: 55014
+    protocol: TCP

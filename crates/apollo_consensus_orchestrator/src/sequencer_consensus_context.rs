@@ -75,9 +75,11 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
+#[cfg(feature = "os_input")]
+use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{
     BlobParameters,
     CendeContext,
@@ -90,7 +92,6 @@ use crate::dynamic_gas_price::{
     compute_fee_target,
     proposal_commitment_from,
     FeeProposalInfo,
-    TARGET_ATTO_USD_PER_L2_GAS,
 };
 use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
@@ -102,9 +103,10 @@ use crate::metrics::{
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
-    SNIP35_FEE_ACTUAL,
-    SNIP35_FEE_PROPOSAL,
-    SNIP35_FEE_TARGET,
+    SNIP35_FEE_ACTUAL_FRI,
+    SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ATTO_USD,
+    SNIP35_FEE_TARGET_FRI,
 };
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -438,27 +440,20 @@ impl SequencerConsensusContext {
         )
     }
 
-    /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
-    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
-    /// validator derives the same fallback so both sides agree.
-    async fn compute_proposer_fee_proposal(
+    async fn resolve_fee_target(
         &self,
-        fee_actual: Option<GasPrice>,
         timestamp: u64,
-    ) -> GasPrice {
-        let Some(fee_actual) = fee_actual else {
-            warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
-            SNIP35_FEE_PROPOSAL.set_lossy(self.l2_gas_price.0);
-            return self.l2_gas_price;
-        };
-        SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
-
-        let fee_target = match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await
-        {
+        target_atto_usd_per_l2_gas: u128,
+    ) -> Option<GasPrice> {
+        if let Some(v) = self.config.dynamic_config.override_l2_gas_price_fri {
+            SNIP35_FEE_TARGET_FRI.set_lossy(v);
+            return Some(GasPrice(v));
+        }
+        match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await {
             Ok(rate) => {
-                let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, rate);
+                let target = compute_fee_target(target_atto_usd_per_l2_gas, rate);
                 match target {
-                    Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),
+                    Some(t) => SNIP35_FEE_TARGET_FRI.set_lossy(t.0),
                     None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
                 }
                 target
@@ -467,14 +462,34 @@ impl SequencerConsensusContext {
                 warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
                 None
             }
+        }
+    }
+
+    /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
+    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
+    /// validator derives the same fallback so both sides agree.
+    async fn compute_proposer_fee_proposal(
+        &self,
+        fee_actual: Option<GasPrice>,
+        timestamp: u64,
+        target_atto_usd_per_l2_gas: u128,
+    ) -> GasPrice {
+        SNIP35_FEE_TARGET_ATTO_USD.set_lossy(target_atto_usd_per_l2_gas);
+        let Some(fee_actual) = fee_actual else {
+            warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
+            SNIP35_FEE_PROPOSAL_FRI.set_lossy(self.l2_gas_price.0);
+            return self.l2_gas_price;
         };
+        SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
+
+        let fee_target = self.resolve_fee_target(timestamp, target_atto_usd_per_l2_gas).await;
 
         let proposal = compute_fee_proposal(
             fee_target,
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
         );
-        SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
+        SNIP35_FEE_PROPOSAL_FRI.set_lossy(proposal.0);
         proposal
     }
 
@@ -534,10 +549,11 @@ impl SequencerConsensusContext {
             .collect::<Vec<_>>();
 
         // The conversion should never fail, if we already managed to get a decision.
-        let Ok(cende_block_info) = convert_to_sn_api_block_info(init) else {
-            warn!("Failed to convert block info to SN API block info at height {height}: {init:?}");
-            return;
-        };
+        let cende_block_info = convert_to_sn_api_block_info(init).expect(
+            "Failed to convert block info to SN API block info (required for state sync and \
+             preparing the cende blob). IMPORTANT: The block was committed; a revert might be \
+             required for the node to be able to proceed.",
+        );
 
         if let Err(e) = self
             .update_state_sync_with_new_block(
@@ -562,11 +578,21 @@ impl SequencerConsensusContext {
             self.wait_for_block_hash(height).await;
         }
 
+        // The parent block's `fee_proposal_fri` is needed to reconstruct its V0_14_3 commitment
+        // (`Poseidon(partial_block_hash, fee_proposal_fri)`). It is read from the in-memory
+        // `fee_proposals_window`, which mirrors `BlockHeaderWithoutHash` storage. `None` means the
+        // parent is pre-V0_14_3 (or, near genesis, is absent from the window).
+        let parent_fee_proposal = height
+            .prev()
+            .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
+            .flatten();
+
         if let Err(e) = self
             .deps
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 block_info: cende_block_info,
+                starknet_version: init.starknet_version,
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions_with_execution_infos,
@@ -587,14 +613,18 @@ impl SequencerConsensusContext {
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
                 proposal_commitment: commitment,
-                // TODO(AndrewL): plumb the parent block's `fee_proposal_fri` here once
-                // `central_objects.parent_proposal_commitment` carries it (or read from
-                // BlockHeaderWithoutHash storage). Today we pass `None`, which means
-                // pre-V0_14_3 commitments — correct for pre-V0_14_3 deployments only.
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|c| proposal_commitment_from(c.partial_block_hash, None)),
+                    .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                #[cfg(feature = "os_input")]
+                recent_state_commitment_infos: self
+                    .collect_recent_state_commitment_infos(height)
+                    .await,
+                #[cfg(feature = "os_input")]
+                accessed_keys: central_objects.accessed_keys,
+                #[cfg(feature = "os_input")]
+                initial_reads: central_objects.initial_reads,
             })
             .await
         {
@@ -662,6 +692,39 @@ impl SequencerConsensusContext {
         }
         recent_block_hashes
     }
+
+    #[cfg(feature = "os_input")]
+    async fn collect_recent_state_commitment_infos(
+        &self,
+        height: BlockNumber,
+    ) -> Vec<StateCommitmentInfosAndNumber> {
+        let mut recent_state_commitment_infos = Vec::with_capacity(
+            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
+                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
+                + 1,
+        );
+        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        for height in lowest_height..=height.0 {
+            let block_number = BlockNumber(height);
+            match self.deps.batcher.get_state_commitment_infos(block_number).await {
+                Ok(state_commitment_infos) => recent_state_commitment_infos
+                    .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+                Err(err) => {
+                    // This error is expected if the block is not yet committed.
+                    if !matches!(
+                        err,
+                        BatcherClientError::BatcherError(
+                            BatcherError::StateCommitmentInfosNotFound(_)
+                        )
+                    ) {
+                        warn!("Failed to get state commitment infos from batcher: {err:?}");
+                    }
+                    break;
+                }
+            }
+        }
+        recent_state_commitment_infos
+    }
 }
 
 #[async_trait]
@@ -713,7 +776,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let override_timestamp = match self.config.static_config.behavior_mode {
+        let override_block_metadata = match self.config.static_config.behavior_mode {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
@@ -722,8 +785,13 @@ impl ConsensusContext for SequencerConsensusContext {
             build_param.height,
             VersionedConstants::latest_constants().fee_proposal_window_size,
         );
-        let fee_proposal =
-            self.compute_proposer_fee_proposal(fee_actual, self.deps.clock.unix_now()).await;
+        let fee_proposal = self
+            .compute_proposer_fee_proposal(
+                fee_actual,
+                self.deps.clock.unix_now(),
+                self.config.dynamic_config.snip35_target_atto_usd_per_l2_gas,
+            )
+            .await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -746,7 +814,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
-            override_timestamp,
+            override_block_metadata,
             override_l2_gas_price_fri: self.config.dynamic_config.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: self
                 .config
@@ -852,6 +920,12 @@ impl ConsensusContext for SequencerConsensusContext {
     ) {
         info!(?proposal_commitment, ?build_param, "Reproposing.");
         let height = build_param.height;
+        let round = build_param.round;
+        // Tear down any proposal still tracked from a previous round before starting this one,
+        // mirroring build/validate. set_height_and_round already interrupts on round change; we
+        // repeat it here so the active-proposal slot is guaranteed free without asserting.
+        self.interrupt_active_proposal().await;
+
         let (init, txs, finished_info) = self
             .valid_proposals
             .lock()
@@ -861,20 +935,32 @@ impl ConsensusContext for SequencerConsensusContext {
         let next_l2_gas_price =
             self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
         let transaction_converter = self.deps.transaction_converter.clone();
-        let mut stream_sender =
-            self.start_stream(HeightAndRound(height.0, build_param.round)).await;
+        let mut stream_sender = self.start_stream(HeightAndRound(height.0, round)).await;
+
+        // Track the reproposal task like build/validate so it is cancelled and awaited on
+        // round/height change. Otherwise a superseded reproposal keeps re-converting every
+        // transaction through the class manager and holding a full-block clone, with no
+        // backpressure on the number of in-flight tasks.
+        let cancel_token = CancellationToken::new();
+        let cancel_token_clone = cancel_token.clone();
         let handle = tokio::spawn(
             async move {
-                let res = send_reproposal(
-                    proposal_commitment,
-                    init,
-                    txs,
-                    finished_info,
-                    next_l2_gas_price,
-                    &mut stream_sender,
-                    transaction_converter,
-                )
-                .await;
+                let res = tokio::select! {
+                    biased;
+                    () = cancel_token.cancelled() => {
+                        info!(?height, round, "Reproposal cancelled for superseded round.");
+                        return;
+                    }
+                    res = send_reproposal(
+                        proposal_commitment,
+                        init,
+                        txs,
+                        finished_info,
+                        next_l2_gas_price,
+                        &mut stream_sender,
+                        transaction_converter,
+                    ) => res,
+                };
                 match res {
                     Ok(()) => {
                         info!(?proposal_commitment, ?build_param, "Reproposal succeeded.");
@@ -884,15 +970,11 @@ impl ConsensusContext for SequencerConsensusContext {
                     }
                 }
             }
-            .instrument(error_span!("consensus_repropose", round = build_param.round)),
+            .instrument(error_span!("consensus_repropose", round)),
         );
-        // Spawn a follow-up task to detect panics. Without this, if the reproposal
-        // task panics, the JoinError is silently swallowed when the handle is dropped.
-        tokio::spawn(async move {
-            if let Err(e) = handle.await {
-                error!("Reproposal task panicked: {e:?}");
-            }
-        });
+        // Panics in the task surface as a JoinError when interrupt_active_proposal awaits the
+        // handle on the next round/height change or on decision_reached, matching build/validate.
+        self.active_proposal = Some((cancel_token_clone, handle));
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
@@ -1015,6 +1097,16 @@ impl ConsensusContext for SequencerConsensusContext {
         true
     }
 
+    async fn network_tip(&self) -> Option<BlockNumber> {
+        // Fail-open: on error, report an unknown tip so consensus proceeds as usual. Logged at
+        // debug (not error) because this is queried every height and a transient miss is benign;
+        // a persistently unknown tip shows up as repeated lines worth investigating.
+        self.deps.state_sync_client.get_highest_block_number().await.unwrap_or_else(|err| {
+            debug!("Failed to fetch network tip from state sync: {err}");
+            None
+        })
+    }
+
     async fn set_height_and_round(
         &mut self,
         height: BlockNumber,
@@ -1067,14 +1159,17 @@ impl ConsensusContext for SequencerConsensusContext {
         let mut to_process = None;
         while let Some(entry) = self.queued_proposals.first_entry() {
             match self.current_round.cmp(entry.key()) {
-                std::cmp::Ordering::Less => {
+                // The queued proposal is for a past round; drop it and keep scanning.
+                std::cmp::Ordering::Greater => {
                     entry.remove();
                 }
+                // The queued proposal is for the current round; take it and stop.
                 std::cmp::Ordering::Equal => {
                     to_process = Some(entry.remove());
                     break;
                 }
-                std::cmp::Ordering::Greater => return Ok(()),
+                // The queued proposal is for a future round; preserve it for later.
+                std::cmp::Ordering::Less => break,
             }
         }
         // Validate the proposal for the current round if exists.
@@ -1216,11 +1311,11 @@ async fn send_reproposal(
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
     stream_sender.send(ProposalPart::Init(init)).await?;
-    for batch in txs.iter() {
-        let transactions = futures::future::join_all(batch.iter().map(|tx| {
+    for batch in txs.into_iter() {
+        let transactions = futures::future::join_all(batch.into_iter().map(|tx| {
             // transaction_converter is an external dependency (class manager) and so
             // we can't assume success on reproposal.
-            transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
+            transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx)
         }))
         .await
         .into_iter()

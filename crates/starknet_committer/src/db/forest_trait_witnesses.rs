@@ -19,33 +19,32 @@ use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::patricia_merkle_tree::tree::SortedLeafIndices;
-use crate::patricia_merkle_tree::types::StarknetForestProofs;
+use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
 
-/// The information required to write Patricia proofs to the database.
-pub struct PatriciaProofsWrite {
+/// The information required to write the OS-input commitment infos to the database.
+pub struct CommitmentInfosWrite {
     pub block_number: BlockNumber,
     pub keys_digest: [u8; 32],
-    pub witnesses: StarknetForestProofs,
+    pub commitment_infos: StateCommitmentInfos,
 }
 
-/// Patricia proofs DB operation, which can be either delete or write.
-/// Expected by [ForestWriterWithMetadataAndWitnesses::write_with_metadata_and_witnesses], which
-/// accumulates all DB operations to guarantee atomicity.
-pub enum PatriciaProofsUpdate {
-    Write(PatriciaProofsWrite),
+/// Commitment-infos DB operation, which can be either delete or write.
+/// Expected by [ForestWriterWithMetadataAndWitnesses::write_with_metadata_and_commitment_infos],
+/// which accumulates all DB operations to guarantee atomicity.
+pub enum CommitmentInfosUpdate {
+    Write(CommitmentInfosWrite),
     Delete(BlockNumber),
 }
 
-/// Reads committed OS-input witness payload (structured [`StarknetForestProofs`]) for a block
-/// height.
+/// Reads the committed OS-input commitment infos ([`StateCommitmentInfos`]) for a block height.
 #[async_trait]
 pub trait ForestReaderWithWitnesses:
     ForestReader<InitialReadContext: EmptyInitialReadContext> + Send
 {
-    async fn read_witnesses(
+    async fn read_commitment_infos(
         &mut self,
         height: BlockNumber,
-    ) -> ForestResult<Option<StarknetForestProofs>>;
+    ) -> ForestResult<Option<StateCommitmentInfos>>;
 
     /// Fetches Patricia witness paths for OS input, optionally staging serialized trie node KVs on
     /// an in-memory overlay so reads match post-commit state before the forest is persisted.
@@ -60,16 +59,16 @@ pub trait ForestReaderWithWitnesses:
     ) -> TraversalResult<StarknetForestProofs>;
 }
 
-/// Writes forest + metadata + deleted nodes, and applies [`PatriciaProofsUpdate`] in the same
+/// Writes forest + metadata + deleted nodes, and applies [`CommitmentInfosUpdate`] in the same
 /// batch.
 #[async_trait]
 pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send {
-    async fn write_with_metadata_and_witnesses(
+    async fn write_with_metadata_and_commitment_infos(
         &mut self,
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
-        patricia_proofs_update: PatriciaProofsUpdate,
+        commitment_infos_update: CommitmentInfosUpdate,
     ) -> SerializationResult<usize>;
 }
 

@@ -2,8 +2,9 @@ use assert_matches::assert_matches;
 use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
+use starknet_types_core::hash::{Blake2Felt252, Pedersen, StarkHash as CoreStarkHash};
 
+use crate::block::StarknetVersion;
 use crate::core::{
     ascii_as_felt,
     calculate_contract_address,
@@ -12,10 +13,14 @@ use crate::core::{
     ContractAddress,
     EthAddress,
     Nonce,
+    OsChainInfo,
+    OsConfigHashVersion,
     PatriciaKey,
     StarknetApiError,
     CONTRACT_ADDRESS_PREFIX,
     L2_ADDRESS_UPPER_BOUND,
+    STARKNET_OS_CONFIG_HASH_VERSION_V3,
+    STARKNET_OS_CONFIG_HASH_VERSION_V4,
 };
 use crate::hash::StarkHash;
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
@@ -135,4 +140,53 @@ fn test_value_too_large_for_type() {
         "Out of range Felt 340282366920938463463374607431768211456 is too big to convert to \
          'u128'."
     );
+}
+
+#[rstest]
+// Below the cutover (V0_14_3) the OS config hash stays Pedersen (V3), so pre-cutover blocks remain
+// re-executable / re-provable against their original hash.
+#[case::pre_cutover(StarknetVersion::V0_14_2, OsConfigHashVersion::V3)]
+// At and above the cutover the OS config hash switches to Blake (V4).
+#[case::at_cutover(StarknetVersion::V0_14_3, OsConfigHashVersion::V4)]
+#[case::latest(StarknetVersion::LATEST, OsConfigHashVersion::V4)]
+fn test_os_config_hash_version_gating(
+    #[case] starknet_version: StarknetVersion,
+    #[case] expected_hash_version: OsConfigHashVersion,
+) {
+    assert_eq!(OsConfigHashVersion::from(starknet_version), expected_hash_version);
+
+    let chain_info = OsChainInfo {
+        chain_id: ChainId::Mainnet,
+        strk_fee_token_address: ContractAddress(patricia_key!(0x123_u32)),
+    };
+    let chain_id_felt: Felt = (&chain_info.chain_id).try_into().unwrap();
+    let fee_token_felt: Felt = chain_info.strk_fee_token_address.into();
+
+    let actual_hash = chain_info.compute_os_config_hash(None, starknet_version).unwrap();
+    let expected_hash = match expected_hash_version {
+        OsConfigHashVersion::V3 => Pedersen::hash_array(&[
+            STARKNET_OS_CONFIG_HASH_VERSION_V3,
+            chain_id_felt,
+            fee_token_felt,
+        ]),
+        OsConfigHashVersion::V4 => Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&[
+            STARKNET_OS_CONFIG_HASH_VERSION_V4,
+            chain_id_felt,
+            fee_token_felt,
+        ]),
+    };
+    assert_eq!(actual_hash, expected_hash);
+}
+
+#[test]
+fn test_os_config_hash_pedersen_and_blake_differ() {
+    // The same chain config must hash differently before and after the cutover, so a Blake hash is
+    // never mistaken for the pre-cutover Pedersen hash that L1 / historical proofs were bound to.
+    let chain_info = OsChainInfo {
+        chain_id: ChainId::Mainnet,
+        strk_fee_token_address: ContractAddress(patricia_key!(0x123_u32)),
+    };
+    let pedersen_hash = chain_info.compute_os_config_hash(None, StarknetVersion::V0_14_2).unwrap();
+    let blake_hash = chain_info.compute_os_config_hash(None, StarknetVersion::V0_14_3).unwrap();
+    assert_ne!(pedersen_hash, blake_hash);
 }

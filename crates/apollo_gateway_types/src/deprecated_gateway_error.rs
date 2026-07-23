@@ -91,6 +91,19 @@ impl StarknetError {
         self.code == Self::internal_error_code()
     }
 
+    /// Returned when the gateway is already running its maximum number of concurrent declare
+    /// compilations and rejects an additional declare rather than queueing it.
+    pub fn too_many_concurrent_declare_compilations() -> Self {
+        Self {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::TransactionLimitExceeded,
+            ),
+            message: "Too many declare transactions are being compiled concurrently. Please retry \
+                      later."
+                .to_string(),
+        }
+    }
+
     fn internal_error_code() -> StarknetErrorCode {
         StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".to_string())
     }

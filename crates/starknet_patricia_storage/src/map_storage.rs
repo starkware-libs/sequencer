@@ -37,11 +37,6 @@ const DEFAULT_CACHE_SIZE: usize = 10000000;
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
 
-#[derive(Serialize, Debug)]
-pub struct BorrowedStorage<'a, S: Storage> {
-    pub storage: &'a mut S,
-}
-
 impl ImmutableReadOnlyStorage for MapStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
@@ -59,6 +54,10 @@ impl ReadOnlyStorage for MapStorage {
 
     async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
+    }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
     }
 }
 
@@ -101,10 +100,6 @@ impl Storage for MapStorage {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         // Need a concrete Option type.
         None::<NullStorage>
-    }
-
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        Some(self)
     }
 }
 
@@ -303,7 +298,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> GatherableStorage for Cach
 }
 
 // TODO(Nimrod): Find a way to share the implementation with `ImmutableReadOnlyStorage`.
-impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
+impl<S: Storage + ImmutableReadOnlyStorage + 'static> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
         if let Some(cached_value) = self.cache.get(key) {
@@ -345,6 +340,10 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
         );
 
         Ok(values)
+    }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
     }
 }
 
@@ -419,9 +418,5 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         // Need a concrete Option type.
         None::<NullStorage>
-    }
-
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        Some(self)
     }
 }

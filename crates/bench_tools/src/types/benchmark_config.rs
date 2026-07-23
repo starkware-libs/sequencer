@@ -14,11 +14,6 @@ pub struct BenchmarkConfig {
 }
 
 impl BenchmarkConfig {
-    /// Get the full cargo bench command as owned strings.
-    pub fn cmd_args_owned(&self) -> Vec<String> {
-        self.cmd_args.iter().map(|s| s.to_string()).collect()
-    }
-
     /// Check if this benchmark requires input files.
     pub fn needs_inputs(&self) -> bool {
         self.input_dir.is_some()

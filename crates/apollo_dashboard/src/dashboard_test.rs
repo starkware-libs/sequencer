@@ -96,7 +96,6 @@ fn test_ratio_time_series() {
     );
     let panel = Panel::ratio_time_series("y", "y", &metric_1, &[&metric_2], duration);
     assert_eq!(panel.exprs, vec![expected]);
-    assert!(panel.extra.show_percent_change.is_none());
     assert!(panel.extra.log_query.is_none());
 }
 
@@ -104,7 +103,6 @@ fn test_ratio_time_series() {
 fn test_extra_params() {
     let panel_with_extra_params = Panel::new("x", "x", "y".to_string(), PanelType::Stat)
         .with_unit(Unit::Bytes)
-        .show_percent_change()
         .with_log_query("Query")
         .with_absolute_thresholds(vec![
             ("green", None),
@@ -114,7 +112,6 @@ fn test_extra_params() {
         .with_legends(vec!["a"]);
 
     assert_eq!(panel_with_extra_params.extra.unit, Some(Unit::Bytes));
-    assert_eq!(panel_with_extra_params.extra.show_percent_change, Some(true));
     assert_eq!(panel_with_extra_params.extra.log_query, Some("\"Query\"".to_string()));
     assert_eq!(
         panel_with_extra_params.extra.thresholds,
@@ -131,7 +128,6 @@ fn test_extra_params() {
 
     let panel_without_extra_params = Panel::new("x", "x", "y".to_string(), PanelType::Stat);
     assert!(panel_without_extra_params.extra.unit.is_none());
-    assert!(panel_without_extra_params.extra.show_percent_change.is_none());
     assert!(panel_without_extra_params.extra.log_query.is_none());
     assert!(panel_without_extra_params.extra.thresholds.is_none());
     assert!(panel_without_extra_params.extra.legends.is_none());

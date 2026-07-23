@@ -15,6 +15,7 @@ use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
     deserialize_vec,
     serialize_slice,
 };
@@ -84,6 +85,16 @@ impl CircularUrlIterator {
     pub fn get_current_url(&self) -> Sensitive<Url> {
         self.urls.get(self.index).cloned().expect("No endpoint URLs provided")
     }
+
+    /// Returns true if the iterator is currently pointing at the primary (first) endpoint.
+    pub fn is_at_primary(&self) -> bool {
+        self.index == 0
+    }
+
+    /// Resets the iterator to point at the primary (first) endpoint.
+    pub fn reset_to_primary(&mut self) {
+        self.index = 0;
+    }
 }
 
 impl Iterator for CircularUrlIterator {
@@ -100,23 +111,26 @@ pub struct EthereumBaseLayerContract {
     pub url_iterator: CircularUrlIterator,
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
+    // The URL that `contract`'s live provider is bound to. Kept in sync with `contract` on every
+    // rebuild so that `get_url` reflects the endpoint actually being queried, not just the
+    // iterator's position.
+    node_url: Sensitive<Url>,
 }
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Self {
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
-        let contract = build_contract_instance(
-            config.starknet_contract_address,
-            url_iterator.get_current_url(),
-        );
-        Self { url_iterator, contract, config }
+        let node_url = url_iterator.get_current_url();
+        let contract = build_contract_instance(config.starknet_contract_address, node_url.clone());
+        Self { url_iterator, contract, config, node_url }
     }
     #[cfg(any(test, feature = "testing"))]
     pub fn new_with_provider(config: EthereumBaseLayerConfig, provider: RootProvider) -> Self {
         let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
+        let node_url = url_iterator.get_current_url();
         let starknet_contract_address = config.starknet_contract_address;
         let contract = Starknet::new(starknet_contract_address, provider);
-        Self { url_iterator, contract, config }
+        Self { url_iterator, contract, config, node_url }
     }
 }
 
@@ -286,20 +300,37 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error> {
-        Ok(self.url_iterator.get_current_url())
+        Ok(self.node_url.clone())
     }
 
     /// Rebuilds the provider on the new url.
     async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error> {
         self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        self.node_url = url;
         Ok(())
     }
 
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
-        self.url_iterator
+        let next_url = self
+            .url_iterator
             .next()
             .expect("URL list was validated to be non-empty when config was loaded");
-        Ok(())
+        // Rebuild the live provider on the new URL; advancing the iterator alone would leave
+        // `contract` querying the previous (failed) endpoint.
+        self.set_provider_url(next_url).await
+    }
+
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error> {
+        // No-op if already on the primary endpoint, to avoid a needless provider rebuild.
+        if self.url_iterator.is_at_primary() {
+            return Ok(());
+        }
+        self.url_iterator.reset_to_primary();
+        self.set_provider_url(self.url_iterator.get_current_url()).await
+    }
+
+    async fn is_at_primary(&self) -> Result<bool, Self::Error> {
+        Ok(self.url_iterator.is_at_primary())
     }
 }
 
@@ -390,6 +421,10 @@ pub struct EthereumBaseLayerConfig {
     pub bpo2_start_block_number: L1BlockNumber,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub timeout_millis: Duration,
+    /// The interval (seconds) after which the next base-layer access retries the primary (first)
+    /// endpoint.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub retry_primary_interval_seconds: Duration,
 }
 
 impl Validate for EthereumBaseLayerConfig {
@@ -469,6 +504,13 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "retry_primary_interval_seconds",
+                &self.retry_primary_interval_seconds.as_secs(),
+                "The interval (seconds) after which the next base-layer access retries the \
+                 primary (first) endpoint.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -487,6 +529,7 @@ impl Default for EthereumBaseLayerConfig {
             bpo1_start_block_number: 0,
             bpo2_start_block_number: 0,
             timeout_millis: Duration::from_millis(1000),
+            retry_primary_interval_seconds: Duration::from_secs(60),
         }
     }
 }

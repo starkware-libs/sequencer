@@ -20,11 +20,16 @@ use crate::metrics::{
     BROADCAST_MESSAGE_THEORETICAL_THROUGHPUT,
     RECEIVE_MESSAGE_BYTES,
     RECEIVE_MESSAGE_BYTES_SUM,
+    RECEIVE_MESSAGE_CLOCK_SKEW_SECONDS,
     RECEIVE_MESSAGE_COUNT,
     RECEIVE_MESSAGE_DELAY_SECONDS,
     RECEIVE_MESSAGE_PENDING_COUNT,
 };
 use crate::protocol::MessageSender;
+
+#[cfg(test)]
+#[path = "handlers_test.rs"]
+mod handlers_test;
 
 pub struct IndexedMessage {
     pub sender_id: u64,
@@ -129,11 +134,14 @@ pub fn receive_stress_test_message(
     );
 
     let start_time = received_message.metadata.time;
-    // Intentionally panic on clock skew: any node clock running ahead of another node's
-    // clock invalidates the latency histogram, and we'd rather fail the benchmark loudly
-    // than silently report misleading percentiles. Operators must NTP-sync nodes.
-    let delay =
-        end_time.duration_since(start_time).expect("clock skew detected: sender clock is ahead");
+    // Negative delay means the sender's clock is ahead of ours; clamp to zero and report the skew.
+    let delay = match end_time.duration_since(start_time) {
+        Ok(delay) => delay,
+        Err(skew_error) => {
+            RECEIVE_MESSAGE_CLOCK_SKEW_SECONDS.set(skew_error.duration().as_secs_f64());
+            Duration::ZERO
+        }
+    };
     RECEIVE_MESSAGE_DELAY_SECONDS.record(delay.as_secs_f64());
 
     let indexed_message = IndexedMessage {
@@ -159,71 +167,5 @@ pub async fn record_indexed_messages(mut indexed_message_receiver: Receiver<Inde
         all_pending = all_pending.saturating_sub(old_pending).saturating_add(new_pending);
 
         RECEIVE_MESSAGE_PENDING_COUNT.set(all_pending.into_f64());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use apollo_network_benchmark::node_args::{
-        Mode,
-        NetworkProtocol,
-        NodeArgs,
-        RunnerArgs,
-        UserArgs,
-    };
-
-    use super::round_robin_owner_at;
-
-    fn make_args(id: u64, num_other_peers: usize, round_duration_seconds: u64) -> NodeArgs {
-        NodeArgs {
-            runner: RunnerArgs {
-                id,
-                metric_port: 0,
-                p2p_port: 0,
-                bootstrap: vec![String::new(); num_other_peers],
-            },
-            user: UserArgs {
-                verbosity: 0,
-                buffer_size: 0,
-                mode: Mode::RoundRobin,
-                network_protocol: NetworkProtocol::Gossipsub,
-                broadcaster: None,
-                round_duration_seconds,
-                message_size_bytes: 0,
-                heartbeat_millis: 1,
-                timeout_seconds: 0,
-            },
-        }
-    }
-
-    #[test]
-    fn zero_round_duration_yields_no_owner() {
-        let args = make_args(0, 2, 0);
-        assert_eq!(round_robin_owner_at(0, &args), None);
-        assert_eq!(round_robin_owner_at(1_234_567, &args), None);
-    }
-
-    #[test]
-    fn single_node_always_owns_the_round() {
-        // bootstrap is empty → num_nodes = 1; owner is always node 0.
-        let args = make_args(0, 0, 3);
-        for now_seconds in [0u64, 1, 2, 3, 100, 100_000] {
-            assert_eq!(round_robin_owner_at(now_seconds, &args), Some(0));
-        }
-    }
-
-    #[test]
-    fn ownership_rotates_across_nodes_at_round_boundaries() {
-        // Three nodes, 5-second rounds. The current node id is unused by `round_robin_owner_at`,
-        // so we just check the schedule.
-        let args = make_args(0, 2, 5);
-        assert_eq!(round_robin_owner_at(0, &args), Some(0));
-        assert_eq!(round_robin_owner_at(4, &args), Some(0));
-        assert_eq!(round_robin_owner_at(5, &args), Some(1));
-        assert_eq!(round_robin_owner_at(9, &args), Some(1));
-        assert_eq!(round_robin_owner_at(10, &args), Some(2));
-        assert_eq!(round_robin_owner_at(14, &args), Some(2));
-        // Wraps back to node 0 on the next cycle.
-        assert_eq!(round_robin_owner_at(15, &args), Some(0));
     }
 }

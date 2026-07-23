@@ -27,6 +27,23 @@ from common_lib import (
 from restarter_lib import ServiceRestarter
 
 
+class _ConciseHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Help formatter that shows the metavar once per option.
+
+    Renders "-j, --service SERVICE" instead of argparse's default
+    "-j SERVICE, --service SERVICE". This matches argparse's own behavior in Python 3.13+; this
+    formatter provides it on the older versions we run on. Inherits RawDescriptionHelpFormatter so
+    the multi-line usage epilog is still printed verbatim.
+    """
+
+    def _format_action_invocation(self, action: argparse.Action) -> str:
+        if not action.option_strings or action.nargs == 0:
+            return super()._format_action_invocation(action)
+        default_metavar = self._get_default_metavar_for_optional(action)
+        args_string = self._format_args(action, default_metavar)
+        return ", ".join(action.option_strings) + " " + args_string
+
+
 class ApolloArgsParserBuilder:
     """Builder class for creating argument parsers with required flags and custom arguments."""
 
@@ -40,7 +57,7 @@ class ApolloArgsParserBuilder:
         self.usage_example = usage_example
         self.parser = argparse.ArgumentParser(
             description=description,
-            formatter_class=argparse.RawDescriptionHelpFormatter,
+            formatter_class=_ConciseHelpFormatter,
             epilog=usage_example,
         )
 
@@ -80,6 +97,15 @@ class ApolloArgsParserBuilder:
             help="The starting index for node IDs (default: 0)",
         )
 
+        self.parser.add_argument(
+            "-p",
+            "--max-parallelism",
+            type=int,
+            default=16,
+            help="Max number of nodes to restart / wait on concurrently for non-interactive "
+            "strategies (default: 16). Interactive strategies (one_by_one) always run sequentially.",
+        )
+
         cluster_group = self.parser.add_mutually_exclusive_group()
         cluster_group.add_argument(
             "-c", "--cluster-prefix", help="Optional cluster prefix for kubectl context"
@@ -96,9 +122,10 @@ class ApolloArgsParserBuilder:
                 "-t",
                 "--restart-strategy",
                 type=restart_strategy_converter,
-                choices=list(RestartStrategy),
                 required=True,
-                help="Strategy for restarting nodes",
+                metavar="STRATEGY",
+                help="Strategy for restarting nodes. One of: "
+                + ", ".join(str(strategy) for strategy in RestartStrategy),
             )
 
     def add_argument(self, *args, **kwargs):
@@ -450,6 +477,7 @@ def update_config_and_restart_nodes(
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
     restarter: ServiceRestarter,
+    max_parallelism: int = 1,
 ) -> None:
     assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
 
@@ -462,9 +490,6 @@ def update_config_and_restart_nodes(
     if config_values_updater is not None:
         _update_config(config_values_updater, namespace_and_instruction_args, service)
 
-    for index in range(namespace_and_instruction_args.size()):
-        if not restarter.restart_service(index):
-            print_colored("\nAborting restart process.")
-            sys.exit(1)
+    restarter.restart_all(max_parallelism)
 
     print("\nOperation completed successfully!")

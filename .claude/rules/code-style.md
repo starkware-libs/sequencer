@@ -147,9 +147,21 @@ Reusable lessons from code reviews and debugging in this codebase. Update this w
 - Readers should encounter the high-level orchestration first and drill into details top-down
 
 ### Imports at scope top, not inline
-- Place `use` statements at the top of the scope they serve — module-level for module-wide usage, `#[cfg(test)] mod tests` top for test-only usage
+- Place `use` statements at the top of the scope they serve: module-level for module-wide usage, and at the top of the sibling `*_test.rs` file for test-only usage
 - Never put `use` inside function bodies; hoist to the enclosing module
 - Use short imported names in signatures and bodies, not inline qualified paths like `super::types::Foo`
+
+### Tests live in sibling `*_test.rs` files
+- Place unit tests in a sibling file, not in an inline `#[cfg(test)] mod tests { ... }` block.
+- For a single-file module `<module>.rs`, name the test file `<module>_test.rs`.
+- For a crate root (`lib.rs`/`main.rs`) or a directory module (`<module>/mod.rs`), name the test file `test.rs` (in the crate root or `<module>/` directory respectively).
+- Declare the test module from the source file, after the imports:
+  ```rust
+  #[cfg(test)]
+  #[path = "<module>_test.rs"] // or "test.rs" for a crate root / mod.rs module
+  mod <module>_test; // or `mod test;`
+  ```
+- Inside the test file, import the items under test with `use super::...`
 
 ---
 

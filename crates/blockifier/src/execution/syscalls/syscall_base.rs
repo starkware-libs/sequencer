@@ -426,6 +426,10 @@ impl<'state> SyscallHandlerBase<'state> {
     }
 
     pub fn send_message_to_l1(&mut self, message: MessageToL1) -> SyscallResult<()> {
+        self.increment_syscall_linear_factor_by(
+            &SyscallSelector::SendMessageToL1,
+            message.payload.0.len(),
+        );
         if !self.context.tx_context.block_context.chain_info.is_l3 {
             EthAddress::try_from(message.to_address)?;
         }

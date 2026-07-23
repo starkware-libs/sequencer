@@ -11,11 +11,7 @@ use crate::execution::call_info::{
     Retdata,
 };
 use crate::execution::contract_class::TrackedResource;
-use crate::execution::entry_point::{
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
-    ExecutableCallEntryPoint,
-};
+use crate::execution::entry_point::{EntryPointExecutionContext, ExecutableCallEntryPoint};
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -29,8 +25,10 @@ pub fn execute_entry_point_call(
     compiled_class: NativeCompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
-) -> EntryPointExecutionResult<CallInfo> {
-    let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
+) -> Result<CallInfo, EntryPointExecutionError> {
+    let entry_point = compiled_class
+        .get_entry_point(&call.type_and_selector())
+        .map_err(EntryPointExecutionError::from)?;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
         NativeSyscallHandler::new(call, state, context);

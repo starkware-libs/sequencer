@@ -104,6 +104,7 @@ members = [
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
+  "crates/patricia_root_cli",
   "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_committer",
@@ -253,12 +254,12 @@ c-kzg = "2.1.5"
 cached = "0.44.0"
 cairo-air = "1.1.0"
 cairo-felt = "0.9.1"
-cairo-lang-casm = "2.19.0-rc.0"
-cairo-lang-runner = "2.19.0-rc.0"
-cairo-lang-sierra = "2.19.0-rc.0"
-cairo-lang-sierra-to-casm = "2.19.0-rc.0"
-cairo-lang-starknet-classes = "2.19.0-rc.0"
-cairo-lang-utils = "2.19.0-rc.0"
+cairo-lang-casm = "2.19.0-rc.3"
+cairo-lang-runner = "2.19.0-rc.3"
+cairo-lang-sierra = "2.19.0-rc.3"
+cairo-lang-sierra-to-casm = "2.19.0-rc.3"
+cairo-lang-starknet-classes = "2.19.0-rc.3"
+cairo-lang-utils = "2.19.0-rc.3"
 cairo-native = "0.9.0-rc.7"
 cairo-program-runner-lib = "1.1.0"
 cairo-vm = "3.2.0"
@@ -331,12 +332,12 @@ papyrus_common.path = "crates/papyrus_common"
 parity-scale-codec = "3.6"
 parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
+patricia_root_cli.path = "crates/patricia_root_cli"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
-privacy-circuit-verify-v0 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", rev = "580135e" }
-privacy-circuit-verify-v1 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", rev = "1e0f8fc" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "1e0f8fc" }
+privacy-circuit-verify-v1 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
@@ -397,7 +398,7 @@ test-log = "0.2.14"
 thiserror = "1.0.37"
 tikv-jemallocator = "0.5.4"
 time = "0.3.37"
-tokio = "1.47.1"
+tokio = "1.52.3"
 tokio-metrics = "0.4.4"
 tokio-retry = "0.3"
 tokio-rustls = "0.26.4"

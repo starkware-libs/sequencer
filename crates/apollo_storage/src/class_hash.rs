@@ -3,13 +3,13 @@
 //! Use carefully, only within class manager code, which is responsible for maintaining this table.
 //!
 //! Import [`ClassHashStorageReader`] and [`ClassHashStorageWriter`] to read and write data related
-//! to classes using a [`StorageTxn`].
+//! to classes using a `StorageTxn`.
 
 use starknet_api::core::{ClassHash, CompiledClassHash};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageResult, StorageTxn};
+use crate::db::RW;
+use crate::{StorageResult, StorageTransaction};
 
 #[cfg(test)]
 #[path = "class_hash_test.rs"]
@@ -41,24 +41,24 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> ClassHashStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> ClassHashStorageReader for T {
     fn get_executable_class_hash_v2(
         &self,
         class_hash: &ClassHash,
     ) -> StorageResult<Option<CompiledClassHash>> {
-        let table = self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
-        Ok(table.get(&self.txn, class_hash)?)
+        let table = self.open_table(&self.tables().stateless_compiled_class_hash_v2)?;
+        Ok(table.get(self.txn(), class_hash)?)
     }
 }
 
-impl ClassHashStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> ClassHashStorageWriter for T {
     fn set_executable_class_hash_v2(
         self,
         class_hash: &ClassHash,
         executable_class_hash_v2: CompiledClassHash,
     ) -> StorageResult<Self> {
-        let table = self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
-        table.upsert(&self.txn, class_hash, &executable_class_hash_v2)?;
+        let table = self.open_table(&self.tables().stateless_compiled_class_hash_v2)?;
+        table.upsert(self.txn(), class_hash, &executable_class_hash_v2)?;
         Ok(self)
     }
 }

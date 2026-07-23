@@ -18,14 +18,6 @@ pub enum L1EventsProviderError {
     UnexpectedHeight { expected_height: BlockNumber, got: BlockNumber },
     #[error("Unexpected provider state: {expected}, got: {found}")]
     UnexpectedProviderState { expected: ProviderState, found: ProviderState },
-    #[error("Cannot transition from {from} to {to}")]
-    UnexpectedProviderStateTransition { from: String, to: String },
-}
-
-impl L1EventsProviderError {
-    pub fn unexpected_transition(from: impl ToString, to: impl ToString) -> Self {
-        Self::UnexpectedProviderStateTransition { from: from.to_string(), to: to.to_string() }
-    }
 }
 
 #[derive(Clone, Debug, Error)]

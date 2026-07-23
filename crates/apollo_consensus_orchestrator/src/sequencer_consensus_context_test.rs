@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+#[cfg(feature = "os_input")]
+use std::collections::HashMap;
 use std::future::ready;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -61,7 +63,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 
+#[cfg(feature = "os_input")]
+use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
@@ -107,6 +113,7 @@ const HEIGHT_1: BlockNumber = BlockNumber(1);
 // Use heights < 10 to avoid triggering the height-10 block-hash mapping code path (not tested
 // here). Use non-zero height because height 0 always skips the write without querying the recorder.
 const HEIGHT_FOR_WRITE_TESTS: BlockNumber = BlockNumber(8);
+const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
 
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
@@ -341,6 +348,53 @@ async fn proposals_from_different_rounds() {
     content_sender.close_channel();
     // Even with sending fin and closing the channel.
     assert!(fin_receiver_future_round.now_or_never().is_none());
+}
+
+// Regression test: a round skip (e.g. round 1 times out) must not strand a queued future
+// proposal nor permanently poison the queue. Previously the round comparison in
+// set_height_and_round was inverted, so a queued proposal for a skipped past round caused an
+// early return that halted consensus liveness for the height.
+#[tokio::test]
+async fn skipped_round_does_not_block_future_proposal() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
+    let mut context = deps.build_context();
+    // Initialize the context for a specific height, starting with round 0.
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
+
+    let prop_part_txs =
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    let prop_part_fin = ProposalPart::Fin(ProposalFin {
+        proposal_commitment: *TEST_PROPOSAL_COMMITMENT,
+        executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+        fin_payload: Some(ProposalFinPayload::default()),
+    });
+
+    // Queue a proposal for round 1 (a future round while we are at round 0).
+    let (mut content_sender_round_1, content_receiver_round_1) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    content_sender_round_1.send(prop_part_txs.clone()).await.unwrap();
+    let fin_receiver_round_1 = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_1), TIMEOUT, content_receiver_round_1)
+        .await;
+
+    // Queue a proposal for round 2 (also a future round while we are at round 0).
+    let (mut content_sender_round_2, content_receiver_round_2) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    content_sender_round_2.send(prop_part_txs.clone()).await.unwrap();
+    content_sender_round_2.send(prop_part_fin.clone()).await.unwrap();
+    let fin_receiver_round_2 = context
+        .validate_proposal(proposal_init(HEIGHT_0, 2), TIMEOUT, content_receiver_round_2)
+        .await;
+
+    // Advance directly to round 2, skipping round 1 (e.g. round 1 timed out).
+    context.set_height_and_round(HEIGHT_0, 2).await.unwrap();
+
+    // The skipped round-1 proposal is discarded; its fin sender is dropped.
+    assert!(fin_receiver_round_1.await.is_err());
+    // The round-2 proposal is found in the queue and validated, proving the skipped past round
+    // did not poison the queue.
+    assert_eq!(fin_receiver_round_2.await.unwrap(), *TEST_PROPOSAL_COMMITMENT);
 }
 
 #[tokio::test]
@@ -595,6 +649,74 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     context.decision_reached(HEIGHT_0, ROUND_1, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
+// M-27: a reproposal must be tracked in `active_proposal` like build/validate, so that advancing
+// the round cancels and tears down the (possibly in-flight) reproposal task instead of leaving it
+// detached and re-converting transactions for a superseded round.
+#[tokio::test]
+async fn repropose_is_tracked_and_cancelled_on_round_change() {
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(SetupDepsArgs {
+        n_executed_txs_count: TX_BATCH.len(),
+        ..Default::default()
+    });
+
+    const TIMESTAMP: u64 = 123456;
+    let mut clock = MockClock::new();
+    clock.expect_unix_now().return_const(TIMESTAMP);
+    clock.expect_now().return_const(Utc.timestamp_opt(TIMESTAMP.try_into().unwrap(), 0).unwrap());
+    deps.clock = Arc::new(clock);
+
+    // A buffer of 1 guarantees the reproposal task parks mid-stream (after Init, before Fin) since
+    // its output stream is never drained, letting us observe that cancellation tears it down while
+    // it is still in flight.
+    let mut context = deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig {
+            proposal_buffer_size: 1,
+            chain_id: CHAIN_ID,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    // Build a proposal at round 0 and drain it so the stored proposal exists and the build task
+    // completes.
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
+    let (_, mut build_receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    while build_receiver.next().await.is_some() {}
+    assert_eq!(fin_receiver.await.unwrap(), *TEST_PROPOSAL_COMMITMENT);
+
+    // Advance to round 1: interrupts the finished build and clears the active-proposal slot.
+    context.set_height_and_round(HEIGHT_0, ROUND_1).await.unwrap();
+    assert!(context.active_proposal.is_none(), "build task should be cleared after round change");
+
+    // Re-propose round 0's content at round 1, without draining the stream so the task stays in
+    // flight (parked once the single-slot buffer fills).
+    let build_param =
+        BuildParam { round: ROUND_1, valid_round: Some(ROUND_0), ..Default::default() };
+    context.repropose(*TEST_PROPOSAL_COMMITMENT, build_param).await;
+    let (_, mut reproposal_receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    assert!(
+        context.active_proposal.is_some(),
+        "reproposal task must be tracked in active_proposal"
+    );
+
+    // Advancing the round must cancel and await the in-flight reproposal task. If the task were not
+    // cancel-aware, interrupt_active_proposal would hang here on the parked stream send.
+    context.set_height_and_round(HEIGHT_0, ROUND_1 + 1).await.unwrap();
+    assert!(
+        context.active_proposal.is_none(),
+        "reproposal task should be cleared after round change"
+    );
+
+    // The cancelled task dropped its stream sender before reaching Fin, so the abandoned stream for
+    // the superseded round closes without ever delivering a Fin part.
+    let mut saw_fin = false;
+    while let Some(part) = reproposal_receiver.next().await {
+        saw_fin |= matches!(part, ProposalPart::Fin(_));
+    }
+    assert!(!saw_fin, "cancelled reproposal must not deliver a Fin for the superseded round");
+}
+
 #[tokio::test]
 async fn gas_price_fri_out_of_range() {
     let (mut deps, _network) = create_test_and_network_deps();
@@ -742,6 +864,97 @@ async fn decision_reached_sends_correct_values() {
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+}
+
+// The blob's `parent_proposal_commitment` must bind the parent block's `fee_proposal_fri`, which
+// is read from `fee_proposals_window`. Build/decide at HEIGHT_1 so the parent (HEIGHT_0) exists,
+// seed the window with a parent fee distinct from the current block's, and assert the blob carries
+// the V0_14_3 commitment `Poseidon(partial_block_hash, parent_fee_proposal)`.
+#[tokio::test]
+async fn blob_parent_proposal_commitment_binds_parent_fee_proposal() {
+    const PARENT_FEE_PROPOSAL: GasPrice = GasPrice(5_000_000_000);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT_1, ..Default::default() });
+
+    deps.batcher.expect_decision_reached().times(1).return_once(move |_| {
+        Ok(DecisionReachedResponse {
+            central_objects: CentralObjects {
+                parent_proposal_commitment: Some(BatcherProposalCommitment {
+                    partial_block_hash: PARTIAL_BLOCK_HASH,
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    });
+
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+
+    let expected_parent_commitment =
+        proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(PARENT_FEE_PROPOSAL));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
+        move |params| {
+            assert_eq!(params.proposal_commitment, *TEST_PROPOSAL_COMMITMENT);
+            assert_eq!(params.parent_proposal_commitment, Some(expected_parent_commitment));
+            Ok(())
+        },
+    );
+
+    let mut context = deps.build_context();
+
+    let _fin = context
+        .build_proposal(BuildParam { height: HEIGHT_1, ..Default::default() }, TIMEOUT)
+        .await
+        .unwrap()
+        .await;
+    // Seed the parent fee after building, so the current block still uses the default fee_proposal.
+    context.fee_proposals_window.insert(HEIGHT_0, Some(PARENT_FEE_PROPOSAL));
+
+    context.decision_reached(HEIGHT_1, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
+}
+
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn decision_reached_attaches_state_commitment_infos_to_blob() {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    let state_commitment_infos = StateCommitmentInfos {
+        contracts_trie_commitment_info: CommitmentInfo::default(),
+        classes_trie_commitment_info: CommitmentInfo::default(),
+        storage_tries_commitment_infos: HashMap::new(),
+    };
+
+    let returned_infos = state_commitment_infos.clone();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .times(1)
+        .return_once(move |_| Ok(returned_infos));
+
+    deps.setup_deps_for_build(SetupDepsArgs::default());
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
+        move |blob_parameters| {
+            assert_eq!(
+                blob_parameters.recent_state_commitment_infos,
+                vec![StateCommitmentInfosAndNumber {
+                    state_commitment_infos,
+                    block_number: HEIGHT_0
+                }]
+            );
+            Ok(())
+        },
+    );
+
+    let mut context = deps.build_context();
+    let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
+    context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:
@@ -1685,7 +1898,8 @@ async fn test_compute_proposer_fee_proposal(
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
-    let proposal = context.compute_proposer_fee_proposal(fee_actual, 0).await;
+    let proposal =
+        context.compute_proposer_fee_proposal(fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS).await;
     assert_eq!(proposal, expected_fee_proposal);
 }
 
@@ -1725,7 +1939,9 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             let h = BlockNumber(height);
             let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
-            let proposal = context.compute_proposer_fee_proposal(Some(fee_actual), 0).await;
+            let proposal = context
+                .compute_proposer_fee_proposal(Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
+                .await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;
         }

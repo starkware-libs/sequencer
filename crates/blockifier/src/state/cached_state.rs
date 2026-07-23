@@ -9,6 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
 use crate::execution::contract_class::RunnableCompiledClass;
+use crate::state::accessed_keys::AccessedKeys;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -288,10 +289,33 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
     }
 }
 
-#[cfg(feature = "reexecution")]
+#[cfg(any(feature = "reexecution", feature = "os_input"))]
 impl<S: StateReader> CachedState<S> {
     pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
         Ok(self.cache.borrow().initial_reads.clone())
+    }
+
+    /// Returns the pre-block values the OS needs to replay the block: the values read during
+    /// execution, extended with the class hash and nonce of every accessed contract and the
+    /// compiled class hash of every accessed class (the OS reads these trie leaves even when
+    /// execution itself did not). `declared_contracts` is cleared, as the OS does not consume it.
+    pub fn get_os_initial_reads(&mut self) -> StateResult<StateMaps> {
+        // Back-fill write-only storage cells so their pre-block values are part of the initial
+        // reads.
+        self.update_initial_values_of_write_only_access()?;
+        let raw_initial_reads = self.get_initial_reads()?;
+        // Force-read the contract-trie and class-trie leaves so their pre-block values are cached
+        // in the initial reads.
+        for contract_address in raw_initial_reads.get_contract_addresses() {
+            self.get_class_hash_at(contract_address)?;
+            self.get_nonce_at(contract_address)?;
+        }
+        for class_hash in raw_initial_reads.declared_contracts.keys() {
+            self.get_compiled_class_hash(*class_hash)?;
+        }
+        let mut os_initial_reads = self.get_initial_reads()?;
+        os_initial_reads.declared_contracts.clear();
+        Ok(os_initial_reads)
     }
 }
 
@@ -374,6 +398,15 @@ impl StateMaps {
         self.storage.extend(&other.storage);
         self.compiled_class_hashes.extend(&other.compiled_class_hashes);
         self.declared_contracts.extend(&other.declared_contracts)
+    }
+
+    /// Removes every entry whose key is not in `accessed_keys`.
+    pub fn trim_to_accessed_keys(&mut self, accessed_keys: &AccessedKeys) {
+        self.storage.retain(|key, _| accessed_keys.storage_keys.contains(key));
+        self.nonces.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
+        self.class_hashes.retain(|address, _| accessed_keys.accessed_contracts.contains(address));
+        self.compiled_class_hashes
+            .retain(|class_hash, _| accessed_keys.accessed_class_hashes.contains(class_hash));
     }
 
     /// Subtracts other's mappings from self.

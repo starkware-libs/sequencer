@@ -40,11 +40,14 @@ use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::fields::{
     Fee,
     TransactionSignature,
-    PROOF_VERSION_V0,
+    PROOF_VERSION_V1,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
 use starknet_api::transaction::TransactionHash;
+#[cfg(feature = "os_input")]
+use starknet_api::{contract_address, felt, nonce, proof_facts, storage_key, tx_hash};
+#[cfg(not(feature = "os_input"))]
 use starknet_api::{proof_facts, tx_hash};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -100,6 +103,8 @@ async fn block_execution_artifacts(
     let block_summary = BlockExecutionSummary {
         state_diff: Default::default(),
         compressed_state_diff: Default::default(),
+        #[cfg(feature = "os_input")]
+        initial_reads: test_initial_reads(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
@@ -133,6 +138,14 @@ fn execution_info() -> TransactionExecutionInfo {
         },
         ..Default::default()
     }
+}
+
+#[cfg(feature = "os_input")]
+fn test_initial_reads() -> StateMaps {
+    let mut initial_reads = StateMaps::default();
+    initial_reads.nonces.insert(contract_address!("0x1"), nonce!(7_u64));
+    initial_reads.storage.insert((contract_address!("0x1"), storage_key!("0x2")), felt!(8_u8));
+    initial_reads
 }
 
 async fn one_chunk_test_expectations() -> TestExpectations {
@@ -445,6 +458,8 @@ async fn transaction_failed_test_expectations() -> TestExpectations {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
             casm_hash_computation_data_sierra_gas: expected_block_artifacts_copy
                 .casm_hash_computation_data_sierra_gas,
@@ -543,6 +558,8 @@ async fn set_close_block_expectations(
         Ok(BlockExecutionSummary {
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: output_block_artifacts.bouncer_weights,
             casm_hash_computation_data_sierra_gas: output_block_artifacts
                 .casm_hash_computation_data_sierra_gas,
@@ -1080,6 +1097,8 @@ async fn failed_l1_handler_transaction_consumed() {
         Ok(BlockExecutionSummary {
             state_diff: Default::default(),
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
@@ -1141,6 +1160,8 @@ async fn partial_chunk_execution_proposer() {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
+            #[cfg(feature = "os_input")]
+            initial_reads: test_initial_reads(),
             bouncer_weights: expected_block_artifacts.bouncer_weights,
             casm_hash_computation_data_sierra_gas: expected_block_artifacts
                 .casm_hash_computation_data_sierra_gas,
@@ -1239,7 +1260,7 @@ fn invoke_tx_with_snos_proof_facts(
     let block_hash = Felt::from(0xBB_u32);
     let config_hash = Felt::from(0xCC_u32);
     let proof_facts = proof_facts![
-        PROOF_VERSION_V0,
+        PROOF_VERSION_V1,
         VIRTUAL_SNOS,
         program_hash,
         VIRTUAL_OS_OUTPUT_VERSION,
@@ -1282,5 +1303,112 @@ async fn proof_facts_block_numbers_collected_from_snos_invokes() {
     assert_eq!(
         result_block_artifacts.execution_data.proof_facts_block_numbers,
         IndexMap::from([(tx_hash!(0), proof_block_number)]),
+    );
+}
+
+#[tokio::test]
+async fn validate_block_rejects_duplicate_rejected_account_tx() {
+    let mut input_txs = test_txs(0..2);
+    input_txs.push(input_txs[0].clone());
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_get_new_results_with_results(
+        input_txs
+            .iter()
+            .map(|_| {
+                Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress))
+            })
+            .collect(),
+    );
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        helper.mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(tx_hash)))
+        if tx_hash == tx_hash!(0)
+    );
+}
+
+#[tokio::test]
+async fn validate_block_rejects_duplicate_successful_account_tx() {
+    let mut input_txs = test_txs(0..2);
+    input_txs.push(input_txs[0].clone());
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_successful_get_new_results(input_txs.len());
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        helper.mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(tx_hash)))
+        if tx_hash == tx_hash!(0)
+    );
+}
+
+#[tokio::test]
+async fn validate_block_rejects_duplicate_account_tx_executed_then_rejected() {
+    let mut input_txs = test_txs(0..2);
+    input_txs.push(input_txs[0].clone());
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_get_new_results_with_results(vec![
+        Ok((execution_info(), StateMaps::default())),
+        Ok((execution_info(), StateMaps::default())),
+        Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
+    ]);
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        helper.mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::DuplicateTransaction(tx_hash)))
+        if tx_hash == tx_hash!(0)
     );
 }

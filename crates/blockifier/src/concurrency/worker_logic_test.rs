@@ -665,6 +665,7 @@ fn test_deploy_before_declare(
                 felt!(2_u8),                  // Constructor calldata length.
                 felt!(1_u8),                  // Constructor calldata arg1.
                 felt!(1_u8),                  // Constructor calldata arg2.
+                false.into(),                 // deploy_from_zero
             ]
         ),
         resource_bounds: default_all_resource_bounds,

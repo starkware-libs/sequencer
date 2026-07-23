@@ -128,7 +128,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             call_info_tracker.call_info.call.class_hash.expect("No class hash was set.");
         let tx_version = *vm.get_integer(get_address_of_nested_fields_from_base_address(
             original_tx_info_start_ptr,
-            CairoStruct::TxInfo,
+            CairoStruct::DeprecatedTxInfo,
             vm,
             &["version"],
             syscall_handler.program,

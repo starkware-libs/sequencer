@@ -3,12 +3,12 @@
 # the following (note that the python version is hard coded in this comment but it may be changed in
 # the future; point of truth is the CI workflow that recompiles the contracts):
 # ```bash
-# python3.9 -m venv reqs_venv
-# . reqs_venv/bin/activate
+# python3.9 -m venv blockifier_test_venv
+# . blockifier_test_venv/bin/activate
 # pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements-gen.txt
 # pip freeze > crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
 # deactivate
-# rm -r reqs_venv
+# rm -r blockifier_test_venv
 # ```
 cairo-lang==0.14.0.1
 # pytest-asyncio 1.1.0 depends on backports.asyncio.runner, which is not compatible with python 3.11

@@ -8,6 +8,7 @@ use apollo_batcher_types::batcher_types::{
     FinishedProposalInfoWithoutParent,
     ProposalCommitment,
     ProposalId,
+    SendTxsForProposalStatus,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -47,7 +48,7 @@ use crate::test_utils::{
     TIMEOUT,
     TX_BATCH,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams};
+use crate::utils::{expected_version_constant_commitment, make_gas_price_params, GasPriceParams};
 
 /// The default-test proposal commitment that the validator computes when:
 /// - the batcher returns `partial_block_hash == StarkHash::ZERO` (test default), and
@@ -203,6 +204,77 @@ async fn validate_proposal_success() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert_matches!(res, Ok(val) if val == expected);
+}
+
+#[tokio::test]
+async fn fin_with_inflated_executed_tx_count_is_rejected() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    proposal_args.deps.setup_default_expectations();
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_send_txs_for_proposal()
+        .times(1)
+        .returning(|_| Ok(SendTxsForProposalStatus::Processing));
+    // The inflated count must be rejected before reaching the batcher: `finish_proposal` is
+    // never called, and the in-progress proposal is aborted instead.
+    proposal_args.deps.batcher.expect_finish_proposal().times(0);
+    proposal_args.deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
+
+    // Stream TX_BATCH (3 txs), then claim one more was executed than was received.
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
+        .await
+        .unwrap();
+    let inflated_count = (TX_BATCH.len() + 1).try_into().unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: inflated_count,
+            fin_payload: None,
+        }))
+        .await
+        .unwrap();
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(res, Err(ValidateProposalError::ProposalPartFailed(_, _)));
+}
+
+#[tokio::test]
+async fn duplicate_transaction_hash_in_proposal_is_rejected_before_batcher() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args.deps.batcher.expect_send_txs_for_proposal().times(0);
+    proposal_args.deps.batcher.expect_finish_proposal().times(0);
+    proposal_args.deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
+
+    let duplicate_tx = TX_BATCH[0].clone();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![duplicate_tx.clone(), duplicate_tx],
+        }))
+        .await
+        .unwrap();
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(
+        res,
+        Err(ValidateProposalError::ProposalPartFailed(reason, _))
+        if reason.contains("Duplicate transaction hash")
+    );
 }
 
 #[tokio::test]
@@ -365,6 +437,49 @@ async fn fee_proposal_within_margin_of_fee_actual(
     }
 }
 
+// The proposer (`build_proposal`) and the validator both read the commitment from
+// `expected_version_constant_commitment()`, so by construction they cannot drift: the accept case
+// feeds the validator exactly the value the proposer emits, and the reject case proves the
+// validator enforces the match rather than ignoring the field (the regression that would recreate
+// the "populated but unvalidated" half-state).
+#[rstest]
+#[case::accepts_value_the_proposer_emits(expected_version_constant_commitment(), true)]
+#[case::rejects_any_other_value(expected_version_constant_commitment() + Felt::ONE, false)]
+#[tokio::test]
+async fn validates_version_constant_commitment(
+    #[case] version_constant_commitment: Felt,
+    #[case] should_accept: bool,
+) {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    init.version_constant_commitment = version_constant_commitment;
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    if should_accept {
+        assert!(res.is_ok(), "expected accept, got {res:?}");
+    } else {
+        assert_matches!(
+            res,
+            Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
+                if msg.contains("version_constant_commitment mismatch")
+        );
+    }
+}
+
 #[tokio::test]
 async fn validate_block_fail() {
     let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
@@ -459,17 +574,34 @@ async fn invalid_starknet_version() {
         if msg.contains("starknet_version mismatch")));
 }
 
+// Cases are (proposed, reference, margin_percent, expected). The band is anchored to `reference`.
 #[rstest]
 #[case::big_number_in_margin(1000, 1050, 10, true)]
 #[case::big_number_out_of_margin(1000, 1150, 10, false)]
 #[case::small_number_in_margin(9, 10, 10, true)]
 #[case::small_number_out_of_margin(9, 11, 10, false)]
 #[case::identical_numbers(12345, 12345, 1, true)]
+// Reference-anchored margin is 1000*10/100 = 100 < diff 111, so this is rejected; a
+// proposed-anchored margin would be 1111*10/100 = 111 and would wrongly accept it.
+#[case::inflated_proposed_rejected(1111, 1000, 10, false)]
+#[case::upper_bound_inclusive(1100, 1000, 10, true)]
+#[case::lower_bound_inclusive(900, 1000, 10, true)]
+#[case::deflated_proposed_rejected(889, 1000, 10, false)]
+// Equal values hit the abs_diff early return, before the margin multiply.
+#[case::large_identical_no_overflow(u128::MAX, u128::MAX, 10, true)]
+// Differs by >1 wei, so this reaches and exercises the saturating multiply on a huge reference.
+#[case::large_within_no_overflow(u128::MAX - 5, u128::MAX, 10, true)]
 fn test_within_margin(
-    #[case] a: u128,
-    #[case] b: u128,
+    #[case] proposed: u128,
+    #[case] reference: u128,
     #[case] margin: u128,
     #[case] expected: bool,
 ) {
-    assert_eq!(within_margin(GasPrice(a), GasPrice(b), margin), expected);
+    assert_eq!(within_margin(GasPrice(proposed), GasPrice(reference), margin), expected);
+}
+
+// A far-out proposed against a huge reference must reject without overflowing the margin multiply.
+#[test]
+fn within_margin_large_reference_does_not_overflow() {
+    assert!(!within_margin(GasPrice(1), GasPrice(u128::MAX), 10));
 }

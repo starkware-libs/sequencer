@@ -47,9 +47,10 @@ mod staking_manager_test;
 // The minimum number of blocks in an epoch. This is used to anticipate if a
 // height falls within the next epoch, even when the exact epoch length is unknown.
 //
-// CONSTRAINT: Must be ≥ `STORED_BLOCK_HASH_BUFFER` - the maximum StateSync lag.
-// A smaller value could cause the consensus tip to advance beyond our knowledge of the next epoch,
-// resulting in a failure to retrieve the committee.
+// CONSTRAINT: Must be ≥ `STORED_BLOCK_HASH_BUFFER` - the maximum lag between the consensus tip and
+// the height source used to resolve the current epoch (the batcher's committed height, falling
+// back to StateSync). A smaller value could cause the consensus tip to advance beyond our
+// knowledge of the next epoch, resulting in a failure to retrieve the committee.
 const MIN_EPOCH_LENGTH: u64 = 5 * 60 / 2; // Roughly 5 minutes in 2 seconds blocks.
 const_assert!(MIN_EPOCH_LENGTH >= STORED_BLOCK_HASH_BUFFER);
 
@@ -96,7 +97,11 @@ impl Epoch {
 
     fn within_next_epoch_min_bounds(&self, height: BlockNumber) -> bool {
         let next_epoch_start_block = BlockNumber(self.start_block.0 + self.epoch_length);
-        range_contains(height, next_epoch_start_block, MIN_EPOCH_LENGTH)
+        // Only heights guaranteed to fall within the next epoch may resolve to `epoch_id + 1`.
+        // The next epoch's length is unknown until it starts, so bound the window by the
+        // smallest known lower bound on epoch length.
+        let next_epoch_min_length = MIN_EPOCH_LENGTH.min(self.epoch_length);
+        range_contains(height, next_epoch_start_block, next_epoch_min_length)
     }
 }
 
@@ -298,6 +303,9 @@ impl StakingManager {
         let contract_stakers =
             self.staking_contract.get_stakers_with_config(epoch, &dynamic_config).await?;
 
+        // Validate the staker set returned by the contract before building the committee.
+        let contract_stakers = validate_stakers(contract_stakers)?;
+
         // Get the active committee config for this epoch (includes size and stakers).
         let active_config = get_config_for_epoch(
             &dynamic_config.default_committee,
@@ -469,6 +477,34 @@ impl StakingManager {
         info!("Resolved height={height} to epoch_id={epoch_id}.");
         Ok(epoch_id)
     }
+}
+
+// Validates the staker set returned by the staking contract before committee construction.
+// Rejects the whole response on a duplicate address (a corruption signal), drops zero-weight
+// stakers (they occupy a committee seat and count for voting membership but contribute nothing
+// to weighted thresholds), and rejects an empty result (an all-zero-weight or empty response
+// would make total_weight == 0 and panic proposer selection).
+fn validate_stakers(stakers: StakerSet) -> CommitteeProviderResult<StakerSet> {
+    let mut seen_addresses = HashSet::with_capacity(stakers.len());
+    for staker in &stakers {
+        let new_address = seen_addresses.insert(staker.address);
+        if !new_address {
+            return Err(CommitteeProviderError::DuplicateStakerAddress { address: staker.address });
+        }
+    }
+
+    let (valid_stakers, filtered): (StakerSet, StakerSet) =
+        stakers.into_iter().partition(|staker| staker.weight.0 > 0);
+
+    for staker in &filtered {
+        warn!("Filtered out zero-weight staker {:?} from the staking response.", staker.address);
+    }
+
+    if valid_stakers.is_empty() {
+        return Err(CommitteeProviderError::EmptyStakerSet);
+    }
+
+    Ok(valid_stakers)
 }
 
 impl CommitteeTrait for Committee {

@@ -21,6 +21,10 @@ use starknet_api::core::ChainId;
 use url::Url;
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ExchangeRateOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
@@ -93,6 +97,9 @@ impl Default for ExchangeRateOracleConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceProviderConfig {
     // TODO(guyn): these two fields need to go into VersionedConstants.
+    // Must be >= 1: the provider divides the summed prices by this window when computing the mean,
+    // so a value of 0 would cause a divide-by-zero panic during block production.
+    #[validate(range(min = 1))]
     pub number_of_blocks_for_mean: u64,
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
@@ -203,7 +210,7 @@ impl SerializeConfig for L1GasPriceScraperConfig {
             ser_param(
                 "chain_id",
                 &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
+                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

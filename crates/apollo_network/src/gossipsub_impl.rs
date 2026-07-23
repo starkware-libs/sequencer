@@ -57,7 +57,6 @@ pub enum ExternalEvent {
     /// 1. Forward the message to registered topic subscribers
     /// 2. Provide metadata about the message originator
     /// 3. Enable validation and potential peer reporting
-    #[allow(dead_code)]
     Received {
         /// The peer ID of the node that originally sent this message.
         originated_peer_id: PeerId,

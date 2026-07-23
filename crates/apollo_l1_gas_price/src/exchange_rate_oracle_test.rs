@@ -231,6 +231,40 @@ async fn eth_to_fri_rate_two_urls() {
 }
 
 #[tokio::test]
+async fn eth_to_fri_rate_zero_price_rejected() {
+    const LAG_INTERVAL_SECONDS: u64 = 60;
+    const TIMESTAMP: u64 = 1234567890;
+
+    let mut server = mockito::Server::new_async().await;
+
+    let _mock_response = make_server(&mut server, json!({"price": "0x0", "decimals": 18})).await;
+
+    let url_and_headers =
+        UrlAndHeaders { url: Url::parse(&server.url()).unwrap(), headers: BTreeMap::new() };
+    let config = ExchangeRateOracleConfig {
+        url_header_list: Some(vec![url_and_headers.into()]),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS,
+        ..Default::default()
+    };
+    let client = ExchangeRateOracleClient::new(config, ETH_TO_STRK_ORACLE_METRICS);
+
+    // First call triggers the background query and returns QueryNotReadyError.
+    assert!(matches!(
+        client.fetch_rate(TIMESTAMP).await,
+        Err(ExchangeRateOracleClientError::QueryNotReadyError(_))
+    ));
+    // Wait for the query to resolve; a zero rate must be rejected (AllUrlsFailedError).
+    loop {
+        match client.fetch_rate(TIMESTAMP).await {
+            Err(ExchangeRateOracleClientError::QueryNotReadyError(_)) => {}
+            Err(ExchangeRateOracleClientError::AllUrlsFailedError(..)) => break,
+            other => panic!("Expected AllUrlsFailedError for zero rate, got: {other:?}"),
+        }
+        tokio::task::yield_now().await;
+    }
+}
+
+#[tokio::test]
 async fn eth_to_fri_rate_non_success_status_code() {
     const LAG_INTERVAL_SECONDS: u64 = 60;
     const TIMESTAMP: u64 = 1234567890;

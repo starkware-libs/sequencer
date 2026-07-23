@@ -3,12 +3,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, PendingData};
-use apollo_storage::header::HeaderStorageReader;
-use apollo_storage::StorageReader;
 use futures::stream::FuturesUnordered;
 use futures_util::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::{PendingClasses, PendingClassesTrait};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockHash;
 use starknet_api::core::ClassHash;
 use tokio::sync::RwLock;
 use tracing::{debug, trace};
@@ -22,32 +20,18 @@ pub(crate) async fn sync_pending_data<
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
     TCentralSource: CentralSourceTrait + Sync + Send + 'static,
 >(
-    reader: StorageReader,
+    // The hash of the latest synced block, used to anchor the pending block. The caller must pass
+    // the tip it used to decide we are caught up (the central tip / channel marker), NOT a value
+    // re-read from a read-only storage snapshot: with batched writes the committed-to-disk view
+    // can lag the channel marker, which would anchor pending data on a stale block and starve the
+    // pending feed.
+    latest_block_hash: BlockHash,
     central_source: Arc<TCentralSource>,
     pending_source: Arc<TPendingSource>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
     sleep_duration: Duration,
 ) -> Result<(), StateSyncError> {
-    let txn = reader.begin_ro_txn()?;
-    let header_marker = txn.get_header_marker()?;
-    // TODO(Shahak): Consider extracting this functionality to different а function.
-    let latest_block_hash = match header_marker {
-        // TODO(shahak): Consider adding genesis hash to the config to support chains that have
-        // different genesis hash.
-        BlockNumber(0) => BlockHash::GENESIS_PARENT_HASH,
-        _ => {
-            txn.get_block_header(
-                header_marker
-                    .prev()
-                    .expect("All blocks other than the first block should have a predecessor."),
-            )?
-            .expect("Block before the header marker must have header in the database.")
-            .block_hash
-        }
-    };
-    drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
-
     let mut tasks = FuturesUnordered::new();
     tasks.push(
         get_pending_data(

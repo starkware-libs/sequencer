@@ -24,7 +24,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
-use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait};
+use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait, MAX_COMMITTEE_SIZE};
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc::{self};
 use futures::future::BoxFuture;
@@ -61,6 +61,8 @@ use crate::votes_threshold::QuorumType;
 
 pub(crate) const CONSENSUS_RUNNING_PAST_STOP_HEIGHT: &str =
     "Consensus is running past stop height, going to sleep...";
+
+pub(crate) const SKIPPED_PROPOSER_FAR_BEHIND: &str = "Skipped proposer: far behind tip";
 
 /// Arguments for running consensus.
 pub struct RunConsensusArguments {
@@ -162,9 +164,7 @@ where
             .await?
         {
             RunHeightRes::Decision(decision) => {
-                // We expect there to be under 100 validators, so this is a reasonable number of
-                // precommits to print.
-                let round = decision.precommits[0].round;
+                let round = decision.round;
                 // Proposer should never fail here, we already checked it in the state machine.
                 let proposer = get_proposer_for_height(
                     &run_consensus_args.committee_provider,
@@ -176,6 +176,7 @@ where
                 if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
                 }
+                // Under 100 validators expected, so printing all precommits is reasonable.
                 info!(
                     "DECISION_REACHED: Decision reached for round {} with proposer {}. {:?}",
                     round, proposer, decision
@@ -210,6 +211,10 @@ pub struct EquivocationVoteReport {
     pub cached_vote: Vote,
     pub new_vote: Vote,
 }
+
+/// Number of vote types a validator can cast per round ([`VoteType::Prevote`] and
+/// [`VoteType::Precommit`]). Used to bound the future-vote cache.
+const NUM_VOTE_TYPES: usize = 2;
 
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
@@ -286,8 +291,21 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
         self.get_current_height_proposals(height);
     }
 
+    /// Maximum number of future votes cached per height: an upper bound on the number of distinct,
+    /// non-equivocating votes an honest committee can produce across the cached future rounds
+    /// (`MAX_COMMITTEE_SIZE * NUM_VOTE_TYPES * rounds`). Uses the static `MAX_COMMITTEE_SIZE`
+    /// rather than the live committee size so the cap is always available (e.g. on syncing
+    /// nodes that never run a height locally).
+    fn future_votes_cap(&self) -> usize {
+        let cached_rounds = usize::try_from(self.future_msg_limit.future_height_round_limit)
+            .expect("future_height_round_limit should fit in usize")
+            + 1;
+        MAX_COMMITTEE_SIZE.saturating_mul(NUM_VOTE_TYPES).saturating_mul(cached_rounds)
+    }
+
     /// Caches a vote for a future height.
     fn cache_future_vote(&mut self, vote: Vote) -> Result<(), Box<EquivocationVoteReport>> {
+        let cap = self.future_votes_cap();
         let votes = self.future_votes.entry(vote.height).or_default();
         // Find a vote in the list with the same type, round, and voter. If found, do not add it to
         // list.
@@ -306,8 +324,23 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
                 }))
             }
         } else {
-            // If no duplicate vote was found, we add the vote to the list.
-            votes.push(vote);
+            // Bound the cache to what an honest committee could produce. Since vote signatures are
+            // not yet verified, a peer can forge votes with arbitrary voter addresses; without this
+            // cap that would grow `future_votes` without bound and exhaust memory.
+            if votes.len() < cap {
+                votes.push(vote);
+            } else {
+                // TODO(Matan): once the network expands beyond the current trusted set, rate-limit
+                // this log (e.g. `trace_every_n_ms!`) so that dropping votes can't itself be used
+                // as a log-flood DoS.
+                warn!(
+                    height = vote.height.0,
+                    round = vote.round,
+                    voter = ?vote.voter,
+                    cap,
+                    "Dropping future vote: per-height cache cap reached."
+                );
+            }
             Ok(())
         }
     }
@@ -406,7 +439,6 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
     // rust limitations.
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
-    #[allow(dead_code)]
     committee_provider: Arc<dyn CommitteeProvider>,
     // Proposal content streams keyed by (height, round)
     current_height_proposals_streams:
@@ -476,11 +508,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let res = match consensus_result {
             Ok(ok) => match ok {
                 RunHeightRes::Decision(decision) => {
-                    let decided_round = decision
-                        .precommits
-                        .first()
-                        .expect("Decision must contain at least one precommit")
-                        .round;
+                    let decided_round = decision.round;
                     let wait_for_last_commitment =
                         self.consensus_config.dynamic_config.stop_at_height == Some(height);
                     // Commit decision to context.
@@ -598,6 +626,24 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         } else if context.try_sync(height).await {
             return Some(RunHeightRes::Sync);
         }
+
+        // Sync did not deliver this height, so we are about to run live consensus. If the network
+        // tip (from the trusted central source) is far ahead of our current height, we are catching
+        // up: keep syncing instead of proposing at this stale height — this stops a far-behind node
+        // from self-electing as proposer and producing blocks the network has long since passed.
+        // Fail-open when the tip is unknown (e.g. no central source).
+        if let Some(network_tip) = context.network_tip().await {
+            let blocks_behind = network_tip.0.saturating_sub(height.0);
+            if blocks_behind > self.consensus_config.dynamic_config.far_behind_proposal_threshold {
+                warn!(
+                    "{SKIPPED_PROPOSER_FAR_BEHIND} (current height {height}, network tip \
+                     {network_tip}, {blocks_behind} blocks behind). Waiting for sync."
+                );
+                self.wait_until_sync_reaches_height(height, context).await;
+                return Some(RunHeightRes::Sync);
+            }
+        }
+
         None
     }
 

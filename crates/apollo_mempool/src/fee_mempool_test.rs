@@ -24,7 +24,13 @@ use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
 
@@ -822,12 +828,12 @@ fn fee_escalation_queue_removal() {
     let mut mempool = MempoolTestContentBuilder::new()
         .with_priority_queue([queued_tx_reference])
         .with_pool([queued_tx.clone(), tx_to_be_replaced])
-        .with_fee_escalation_percentage(0) // Always replace.
+        .with_fee_escalation_percentage(10)
         .build_full_mempool();
 
     // Test and assert: replacement doesn't affect queue.
 
-    let valid_replacement_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 0, max_l2_gas_price: min_gas_price);
+    let valid_replacement_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 1, max_l2_gas_price: min_gas_price + 1);
     add_tx(&mut mempool, &valid_replacement_input);
     let expected_mempool_content = MempoolTestContentBuilder::new()
         .with_pool([queued_tx, valid_replacement_input.tx])
@@ -843,12 +849,12 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
     let tx = tx!(tx_hash: 0, tip: 0, max_l2_gas_price: min_gas_price);
     let mempool = MempoolTestContentBuilder::new()
         .with_pool([tx])
-        .with_fee_escalation_percentage(0) // Always replace.
+        .with_fee_escalation_percentage(10)
         .build_full_mempool();
 
-    // Test and assert: replacement with maximum values.
+    // Test and assert: smallest replacement that clears the minimum bump on both bounds.
     let valid_replacement_input =
-        add_tx_input!(tx_hash: 1, tip: 0, max_l2_gas_price: min_gas_price);
+        add_tx_input!(tx_hash: 1, tip: 1, max_l2_gas_price: min_gas_price + 1);
     validate_and_add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
@@ -914,6 +920,32 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
         existing_tx,
         [invalid_replacement_input],
     );
+}
+
+#[rstest]
+fn test_fee_escalation_rounds_up_required_bump() {
+    // 10% of 5 is 0.5, which rounds up to a required increase of 1: an equal fee is rejected and a
+    // +1 replacement is accepted.
+    let existing_tx = tx!(tx_hash: 0, tip: 5, max_l2_gas_price: 5);
+
+    let equal_fee_replacement = add_tx_input!(tx_hash: 1, tip: 5, max_l2_gas_price: 5);
+    let mempool = MempoolTestContentBuilder::new()
+        .with_pool([existing_tx.clone()])
+        .with_fee_escalation_percentage(10)
+        .build_full_mempool();
+    validate_and_add_txs_and_verify_no_replacement_in_pool(
+        mempool,
+        existing_tx,
+        [equal_fee_replacement],
+    );
+
+    let existing_tx = tx!(tx_hash: 0, tip: 5, max_l2_gas_price: 5);
+    let plus_one_replacement = add_tx_input!(tx_hash: 2, tip: 6, max_l2_gas_price: 6);
+    let mempool = MempoolTestContentBuilder::new()
+        .with_pool([existing_tx])
+        .with_fee_escalation_percentage(10)
+        .build_full_mempool();
+    validate_and_add_tx_and_verify_replacement_in_pool(mempool, plus_one_replacement);
 }
 
 // `update_gas_price_threshold` tests.
@@ -1904,6 +1936,143 @@ fn rejects_or_accepts_tx_based_on_freed_space(
     // Transactions tx1 and tx2 are evicted regardless of whether large_tx is accepted or rejected.
     // We do not revert the eviction attempt even if adding large_tx ultimately fails.
     assert!(!mempool.tx_pool.contains_account(contract_address!("0x1")));
+}
+
+// Atomic fee-escalation replacement tests (a rejected replacement must never drop the existing
+// transaction). The replacement's byte size is controlled via the signature length so it can be
+// made larger than the transaction it replaces.
+
+fn invoke_tx_with_signature_size(
+    tx_hash_value: u8,
+    address: &str,
+    tx_nonce_value: u8,
+    tip_value: u64,
+    max_l2_gas_price_value: u128,
+    signature_size: usize,
+) -> InternalRpcTransaction {
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l2_gas: ResourceBounds {
+            max_price_per_unit: GasPrice(max_l2_gas_price_value),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    internal_invoke_tx(invoke_tx_args!(
+        tx_hash: tx_hash!(tx_hash_value),
+        sender_address: contract_address!(address),
+        nonce: nonce!(tx_nonce_value),
+        tip: Tip(tip_value),
+        resource_bounds,
+        signature: TransactionSignature(vec![felt!("0x0"); signature_size].into()),
+    ))
+}
+
+fn full_mempool_with_fee_escalation(capacity_in_bytes: u64) -> Mempool {
+    Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes,
+                enable_fee_escalation: true,
+                fee_escalation_percentage: 10,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    )
+}
+
+fn add_tx_input_for(
+    tx: InternalRpcTransaction,
+    address: &str,
+    account_nonce: u8,
+) -> AddTransactionArgs {
+    AddTransactionArgs {
+        tx,
+        account_state: AccountState {
+            address: contract_address!(address),
+            nonce: nonce!(account_nonce),
+        },
+    }
+}
+
+#[rstest]
+fn fee_escalation_rejected_replacement_does_not_drop_existing_tx() {
+    // Existing tx A occupies the account's next nonce (0). No other account exists, so there is
+    // nothing to evict and a larger replacement cannot be admitted.
+    let existing_tx = invoke_tx_with_signature_size(1, "0x0", 0, 90, 90, 0);
+    let mut mempool = full_mempool_with_fee_escalation(existing_tx.total_bytes());
+    add_tx(&mut mempool, &add_tx_input_for(existing_tx.clone(), "0x0", 0));
+
+    // Higher-fee but larger replacement at the same nonce: rejected, and A must remain.
+    let larger_replacement =
+        add_tx_input_for(invoke_tx_with_signature_size(2, "0x0", 0, 100, 100, 32), "0x0", 0);
+    add_tx_expect_error(&mut mempool, &larger_replacement, MempoolError::MempoolFull);
+
+    assert!(
+        mempool.tx_pool.get_by_tx_hash(existing_tx.tx_hash()).is_ok(),
+        "rejected replacement must not drop the existing transaction"
+    );
+    assert!(mempool.tx_pool.get_by_tx_hash(larger_replacement.tx.tx_hash()).is_err());
+}
+
+#[rstest]
+fn fee_escalation_rejected_replacement_of_gapped_tx_keeps_existing_tx() {
+    // Existing tx A sits at a future nonce (5) while the account nonce is 0, so A is gapped. A
+    // gapped account is never granted eviction, so a larger replacement is rejected.
+    let existing_tx = invoke_tx_with_signature_size(1, "0x0", 5, 90, 90, 0);
+    let mut mempool = full_mempool_with_fee_escalation(existing_tx.total_bytes());
+    add_tx(&mut mempool, &add_tx_input_for(existing_tx.clone(), "0x0", 0));
+
+    let larger_replacement =
+        add_tx_input_for(invoke_tx_with_signature_size(2, "0x0", 5, 100, 100, 32), "0x0", 0);
+    add_tx_expect_error(&mut mempool, &larger_replacement, MempoolError::MempoolFull);
+
+    assert!(
+        mempool.tx_pool.get_by_tx_hash(existing_tx.tx_hash()).is_ok(),
+        "rejected replacement of a gapped tx must not drop it"
+    );
+}
+
+#[rstest]
+fn fee_escalation_same_size_replacement_succeeds_on_full_pool() {
+    // The common case: a same-size, higher-fee bump at the next nonce. Crediting A's freed bytes
+    // nets to zero, so it must replace A on a full pool without any eviction.
+    let existing_tx = invoke_tx_with_signature_size(1, "0x0", 0, 90, 90, 4);
+    let mut mempool = full_mempool_with_fee_escalation(existing_tx.total_bytes());
+    add_tx(&mut mempool, &add_tx_input_for(existing_tx.clone(), "0x0", 0));
+
+    let replacement =
+        add_tx_input_for(invoke_tx_with_signature_size(2, "0x0", 0, 100, 100, 4), "0x0", 0);
+    add_tx(&mut mempool, &replacement);
+
+    assert!(mempool.tx_pool.get_by_tx_hash(replacement.tx.tx_hash()).is_ok(), "B must replace A");
+    assert!(mempool.tx_pool.get_by_tx_hash(existing_tx.tx_hash()).is_err(), "A must be removed");
+}
+
+#[rstest]
+fn fee_escalation_larger_replacement_evicts_to_make_room() {
+    // A larger replacement at the account's next nonce gets the same eviction support as a fresh
+    // next-nonce tx: a third-party gap account is evicted to fit the delta, and A is replaced
+    // (never dropped). Locks in that eviction never targets A.
+    let existing_tx = invoke_tx_with_signature_size(1, "0x0", 0, 90, 90, 0);
+    let evictable_tx = invoke_tx_with_signature_size(2, "0x1", 5, 0, 100, 0);
+    let capacity = existing_tx.total_bytes() + evictable_tx.total_bytes();
+    let mut mempool = full_mempool_with_fee_escalation(capacity);
+    add_tx(&mut mempool, &add_tx_input_for(existing_tx.clone(), "0x0", 0));
+    add_tx(&mut mempool, &add_tx_input_for(evictable_tx.clone(), "0x1", 0));
+
+    // Delta (4 signature felts) is far smaller than the evictable tx, so eviction frees enough.
+    let larger_replacement =
+        add_tx_input_for(invoke_tx_with_signature_size(3, "0x0", 0, 100, 100, 4), "0x0", 0);
+    add_tx(&mut mempool, &larger_replacement);
+
+    assert!(mempool.tx_pool.get_by_tx_hash(larger_replacement.tx.tx_hash()).is_ok());
+    assert!(mempool.tx_pool.get_by_tx_hash(existing_tx.tx_hash()).is_err(), "A must be replaced");
+    assert!(
+        mempool.tx_pool.get_by_tx_hash(evictable_tx.tx_hash()).is_err(),
+        "third-party gap account must be evicted, never A"
+    );
 }
 
 // Stuck-tx counter tests.

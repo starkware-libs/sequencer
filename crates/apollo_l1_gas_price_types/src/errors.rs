@@ -47,6 +47,8 @@ pub enum ExchangeRateOracleClientError {
     QueryNotReadyError(u64),
     #[error("All URLs in the list failed for timestamp {0}, starting with index {1}")]
     AllUrlsFailedError(u64, usize),
+    #[error("Invalid rate from oracle: {0}")]
+    InvalidRateError(String),
 }
 
 impl From<reqwest::Error> for ExchangeRateOracleClientError {

@@ -290,7 +290,7 @@ impl From<FlattenedSierraClass> for SierraContractClass {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct ContractClassComponentHashes {
     pub contract_class_version: Felt,
     pub external_functions_hash: PoseidonHash,

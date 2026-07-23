@@ -14,6 +14,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
@@ -116,6 +117,57 @@ pub enum EntryPointExecutionError {
     TraceError(#[from] TraceError),
 }
 
+impl EntryPointExecutionError {
+    /// Tags `self` with the frame's `tracked_resource` and strip policy.
+    pub fn annotated(
+        self,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    ) -> AnnotatedEntryPointExecutionError {
+        AnnotatedEntryPointExecutionError {
+            inner: Box::new(self),
+            tracked_resource,
+            strip_vm_frames_in_sierra_gas,
+        }
+    }
+}
+
+/// Annotated `EntryPointExecutionError`: only constructible via
+/// `EntryPointExecutionError::annotated` (private fields enforce this), so stack-trace-feeding
+/// fields typed `AnnotatedEntryPointExecutionError` statically reject unannotated errors.
+#[derive(Debug, Error)]
+#[error("{inner}")]
+pub struct AnnotatedEntryPointExecutionError {
+    #[source]
+    inner: Box<EntryPointExecutionError>,
+    tracked_resource: TrackedResource,
+    strip_vm_frames_in_sierra_gas: bool,
+}
+
+impl AnnotatedEntryPointExecutionError {
+    pub fn unannotated(&self) -> &EntryPointExecutionError {
+        &self.inner
+    }
+
+    pub fn into_unannotated(self) -> EntryPointExecutionError {
+        *self.inner
+    }
+
+    pub fn tracked_resource(&self) -> TrackedResource {
+        self.tracked_resource
+    }
+
+    pub fn strip_vm_frames_in_sierra_gas(&self) -> bool {
+        self.strip_vm_frames_in_sierra_gas
+    }
+
+    /// Consumes `self` into `(inner, tracked_resource, strip_vm_frames_in_sierra_gas)`. Lets
+    /// callers re-wrap a transformed inner error without losing the annotation.
+    pub fn into_parts(self) -> (EntryPointExecutionError, TrackedResource, bool) {
+        (*self.inner, self.tracked_resource, self.strip_vm_frames_in_sierra_gas)
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConstructorEntryPointExecutionError {
     #[error(
@@ -124,7 +176,7 @@ pub enum ConstructorEntryPointExecutionError {
     )]
     ExecutionError {
         #[source]
-        error: Box<EntryPointExecutionError>,
+        error: Box<AnnotatedEntryPointExecutionError>,
         class_hash: ClassHash,
         contract_address: ContractAddress,
         constructor_selector: Option<EntryPointSelector>,
@@ -133,7 +185,7 @@ pub enum ConstructorEntryPointExecutionError {
 
 impl ConstructorEntryPointExecutionError {
     pub fn new(
-        error: EntryPointExecutionError,
+        error: AnnotatedEntryPointExecutionError,
         ctor_context: &ConstructorContext,
         selector: Option<EntryPointSelector>,
     ) -> Self {

@@ -7,7 +7,7 @@ use crate::compression_utils::{compress, decompress};
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
-use crate::{OffsetKind, StorageResult, StorageTxn};
+use crate::{OffsetKind, StorageResult, StorageTransaction};
 
 impl StorageSerde for AccessedKeys {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
@@ -46,35 +46,35 @@ where
     fn revert_accessed_keys(self, block_number: BlockNumber) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> AccessedKeysStorageReader<Mode> for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> AccessedKeysStorageReader<<T as StorageTransaction>::Mode> for T {
     fn get_accessed_keys(&self, block_number: BlockNumber) -> StorageResult<Option<AccessedKeys>> {
-        let table = self.open_table(&self.tables.accessed_keys)?;
-        let Some(location) = table.get(&self.txn, &block_number)? else {
+        let table = self.open_table(&self.tables().accessed_keys)?;
+        let Some(location) = table.get(self.txn(), &block_number)? else {
             return Ok(None);
         };
-        Ok(Some(self.file_handlers.get_accessed_keys_unchecked(location)?))
+        Ok(Some(self.file_handlers().get_accessed_keys_unchecked(location)?))
     }
 }
 
-impl AccessedKeysStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> AccessedKeysStorageWriter for T {
     fn append_accessed_keys(
         self,
         block_number: BlockNumber,
         accessed_keys: &AccessedKeys,
     ) -> StorageResult<Self> {
-        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
-        let accessed_keys_table = self.open_table(&self.tables.accessed_keys)?;
+        let file_offset_table = self.open_table(&self.tables().file_offsets)?;
+        let accessed_keys_table = self.open_table(&self.tables().accessed_keys)?;
 
-        let location = self.file_handlers.append_accessed_keys(accessed_keys);
-        accessed_keys_table.upsert(&self.txn, &block_number, &location)?;
-        file_offset_table.upsert(&self.txn, &OffsetKind::AccessedKeys, &location.next_offset())?;
+        let location = self.file_handlers().append_accessed_keys(accessed_keys);
+        accessed_keys_table.upsert(self.txn(), &block_number, &location)?;
+        file_offset_table.upsert(self.txn(), &OffsetKind::AccessedKeys, &location.next_offset())?;
 
         Ok(self)
     }
 
     fn revert_accessed_keys(self, block_number: BlockNumber) -> StorageResult<Self> {
-        let accessed_keys_table = self.open_table(&self.tables.accessed_keys)?;
-        accessed_keys_table.delete(&self.txn, &block_number)?;
+        let accessed_keys_table = self.open_table(&self.tables().accessed_keys)?;
+        accessed_keys_table.delete(self.txn(), &block_number)?;
         Ok(self)
     }
 }

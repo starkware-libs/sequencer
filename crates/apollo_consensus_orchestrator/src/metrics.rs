@@ -35,9 +35,10 @@ define_metrics!(
 
         // SNIP-35 dynamic gas pricing metrics.
         // STRK/USD rate metrics are in `apollo_l1_gas_price`.
-        MetricGauge { SNIP35_FEE_ACTUAL, "snip35_fee_actual", "The current fee_actual (median of recent fee_proposals sliding window)" },
-        MetricGauge { SNIP35_FEE_PROPOSAL, "snip35_fee_proposal", "The fee_proposal this node published in the latest block" },
-        MetricGauge { SNIP35_FEE_TARGET, "snip35_fee_target", "The fee_target computed from the STRK/USD oracle" },
+        MetricGauge { SNIP35_FEE_ACTUAL_FRI, "snip35_fee_actual_fri", "The current fee_actual (median of recent fee_proposals sliding window), in Fri" },
+        MetricGauge { SNIP35_FEE_PROPOSAL_FRI, "snip35_fee_proposal_fri", "The fee_proposal this node published in the latest block, in Fri" },
+        MetricGauge { SNIP35_FEE_TARGET_FRI, "snip35_fee_target_fri", "The fee_target computed from the STRK/USD oracle, in Fri" },
+        MetricGauge { SNIP35_FEE_TARGET_ATTO_USD, "snip35_fee_target_atto_usd", "Configured target USD cost per L2 gas unit, in atto-USD" },
     }
 );
 
@@ -106,7 +107,8 @@ pub(crate) fn register_metrics() {
     CONSENSUS_BUILD_PROPOSAL_FAILURE.register();
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE.register();
     CONSENSUS_PROOF_MANAGER_STORE_LATENCY.register();
-    SNIP35_FEE_ACTUAL.register();
-    SNIP35_FEE_PROPOSAL.register();
-    SNIP35_FEE_TARGET.register();
+    SNIP35_FEE_ACTUAL_FRI.register();
+    SNIP35_FEE_PROPOSAL_FRI.register();
+    SNIP35_FEE_TARGET_FRI.register();
+    SNIP35_FEE_TARGET_ATTO_USD.register();
 }

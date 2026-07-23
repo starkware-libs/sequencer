@@ -29,7 +29,7 @@ const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
 /// 5 MiB — matches the convention used elsewhere in the sequencer.
-const DEFAULT_MAX_REQUEST_BODY_SIZE: u32 = 5 * 1024 * 1024;
+pub(crate) const DEFAULT_MAX_REQUEST_BODY_SIZE: u32 = 5 * 1024 * 1024;
 const DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS: u64 = 3600;
 
 /// Transport mode for the JSON-RPC server.

@@ -1,13 +1,15 @@
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_events_types::SharedL1EventsProviderClient;
+use apollo_l1_events_types::{L1EventsProviderResult, SharedL1EventsProviderClient};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, warn};
+
+use crate::metrics::L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN;
 
 // When the Provider gets a commit_block that is too high, it starts catching up.
 // The commit is rejected by the provider, so it must use sync to catch up to the height of the
@@ -20,7 +22,9 @@ use tracing::{debug, warn};
 /// Caches commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
 pub struct Catchupper {
-    pub target_height: BlockNumber,
+    // Shared with the running sync task (rather than passed by value) so the target can be raised
+    // while the task is in flight; see `update_target_height`.
+    pub target_height: Arc<AtomicU64>,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
@@ -28,6 +32,14 @@ pub struct Catchupper {
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
     pub n_sync_health_check_failures: Arc<AtomicU8>,
+    /// Cap on `commit_block_backlog` length. Exceeding it abandons the in-memory backlog (rather
+    /// than dropping a single entry, which would tear a gap) and defers to L2 sync; see
+    /// `add_commit_block_to_backlog`.
+    pub max_commit_block_backlog_len: usize,
+    /// Set once the backlog is abandoned during a catch-up (cap hit, or a non-sequential height
+    /// that would tear the gapless run). While set, tip commits are no longer buffered: L2 sync
+    /// owns the whole range and only its target is extended. Cleared when catch-up completes.
+    pub backlog_overflowed: bool,
 }
 
 impl Catchupper {
@@ -39,6 +51,7 @@ impl Catchupper {
         l1_events_provider_client: SharedL1EventsProviderClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
+        max_commit_block_backlog_len: usize,
     ) -> Self {
         Self {
             sync_retry_interval,
@@ -47,15 +60,17 @@ impl Catchupper {
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
+            max_commit_block_backlog_len,
+            backlog_overflowed: false,
             // This is overriden when starting the sync task (e.g., when provider starts
             // catching up).
-            target_height: BlockNumber(0),
+            target_height: Default::default(),
         }
     }
 
     /// Check if the caller has caught up with the catchupper.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        let is_caught_up = current_provider_height > self.target_height;
+        let is_caught_up = current_provider_height > self.target_height();
 
         self.sync_task_health_check(is_caught_up);
 
@@ -66,17 +81,47 @@ impl Catchupper {
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) {
-        assert!(
-            self.commit_block_backlog
-                .last()
-                .is_none_or(|commit_block| commit_block.height.unchecked_next() == height),
-            "Heights should be sequential."
-        );
+    ) -> L1EventsProviderResult<()> {
+        // Already abandoned this catch-up's backlog: L2 sync owns the whole range now. Don't
+        // rebuild the buffer; just keep extending the sync target so the task drives the provider
+        // up to the latest tip height.
+        if self.backlog_overflowed {
+            self.update_target_height(height);
+            return Ok(());
+        }
+
+        let is_sequential = self
+            .commit_block_backlog
+            .last()
+            .is_none_or(|commit_block| commit_block.height.unchecked_next() == height);
+        let is_full = self.commit_block_backlog.len() >= self.max_commit_block_backlog_len;
+
+        // Two runtime-reachable conditions force us off the in-memory fast path: the backlog hit
+        // its cap (a stalled/lagging L2 sync let the tip race ahead), or a non-sequential height
+        // would tear a hole in the gapless run. Dropping any single entry would leave a permanent
+        // gap that corrupts the drain-time sequential invariant (and previously panicked the
+        // provider, since the batcher swallows the error and keeps advancing). Instead, abandon the
+        // backlog entirely and let the authoritative L2 sync re-drive every height up to the tip --
+        // bounded memory, no gap, no panic. The buffered commits are redundant: sync re-delivers
+        // the same heights, just with more latency while it is stalled.
+        if is_full || !is_sequential {
+            warn!(
+                "Catch-up commit-block backlog abandoned at height {height} (cap {}, sequential: \
+                 {is_sequential}); deferring to L2 sync to re-drive the range. L2 sync is likely \
+                 stalled or lagging.",
+                self.max_commit_block_backlog_len
+            );
+            self.backlog_overflowed = true;
+            self.commit_block_backlog.clear();
+            L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.set_lossy(0_usize);
+            self.update_target_height(height);
+            return Ok(());
+        }
 
         debug!("Adding future commit-block to backlog at height: {height}");
-        self.commit_block_backlog
-            .push(CommitBlockBacklog { height, committed_txs: committed_txs.clone() });
+        self.commit_block_backlog.push(CommitBlockBacklog { height, committed_txs });
+        L1_MESSAGE_PROVIDER_COMMIT_BLOCK_BACKLOG_LEN.set_lossy(self.commit_block_backlog.len());
+        Ok(())
     }
 
     /// Spawns async task that produces and sends commit block messages to the provider, according
@@ -86,7 +131,8 @@ impl Catchupper {
         current_provider_height: BlockNumber,
         target_height: BlockNumber,
     ) {
-        self.target_height = target_height;
+        // Fresh shared target for this task; cloned into the task below so it shares the same cell.
+        self.target_height = Arc::new(AtomicU64::new(target_height.0));
         // FIXME: spawning a task like this is evil.
         // However, we aren't using the task executor, so no choice :(
         // Once we start using a centralized threadpool, spawn through it instead of the
@@ -95,7 +141,7 @@ impl Catchupper {
             self.l1_events_provider_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
-            target_height,
+            self.target_height.clone(),
             self.sync_retry_interval,
         ));
 
@@ -103,7 +149,18 @@ impl Catchupper {
     }
 
     pub fn target_height(&self) -> BlockNumber {
-        self.target_height
+        BlockNumber(self.target_height.load(Ordering::Acquire))
+    }
+
+    /// Raises the target height of the running sync task so it keeps syncing up to `target_height`.
+    /// Uses `fetch_max` so the target only moves forward; a lower height is ignored.
+    pub fn update_target_height(&self, target_height: BlockNumber) {
+        self.target_height.fetch_max(target_height.0, Ordering::Release);
+    }
+
+    /// Returns true while an L2 sync task is in flight (spawned and not yet finished).
+    pub fn is_sync_task_running(&self) -> bool {
+        matches!(&self.sync_task_handle, SyncTaskHandle::Started(sync_task) if !sync_task.is_finished())
     }
 
     fn sync_task_health_check(&self, is_caught_up: bool) {
@@ -129,7 +186,7 @@ impl Catchupper {
 
 impl PartialEq for Catchupper {
     fn eq(&self, other: &Self) -> bool {
-        self.target_height == other.target_height
+        self.target_height() == other.target_height()
             && self.commit_block_backlog == other.commit_block_backlog
     }
 }
@@ -139,7 +196,7 @@ impl Eq for Catchupper {}
 impl std::fmt::Debug for Catchupper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Catchupper")
-            .field("target_height", &self.target_height)
+            .field("target_height", &self.target_height())
             .field("commit_block_backlog", &self.commit_block_backlog)
             .field("sync_task_handle", &self.sync_task_handle)
             .finish_non_exhaustive()
@@ -150,14 +207,18 @@ async fn l2_sync_task(
     l1_events_provider_client: SharedL1EventsProviderClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
-    target_height: BlockNumber,
+    target_height: Arc<AtomicU64>,
     retry_interval: Duration,
 ) {
-    while current_height <= target_height {
+    // The target is re-read every iteration so an `update_target_height` call from the provider
+    // (a higher block committed before catch-up finishes) extends this same task instead of
+    // spawning a competing one.
+    while current_height.0 <= target_height.load(Ordering::Acquire) {
         // TODO(Gilad): add tracing instrument.
         debug!(
             "Syncing L1EventsProvider with L2 height: {} to target height: {}",
-            current_height, target_height
+            current_height,
+            target_height.load(Ordering::Acquire)
         );
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
 

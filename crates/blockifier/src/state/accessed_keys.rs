@@ -7,9 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::StorageKey;
 
-#[cfg(any(feature = "testing", test))]
-use super::cached_state::StateChangesKeys;
-use super::cached_state::{CommitmentStateDiff, StorageEntry};
+use super::cached_state::{CommitmentStateDiff, StateChangesKeys, StorageEntry};
 use super::stateful_compression::predicted_alias_storage_entries;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -47,7 +45,29 @@ impl From<AccessedKeys> for StateChangesKeys {
     }
 }
 
+impl From<StateChangesKeys> for AccessedKeys {
+    fn from(state_changes_keys: StateChangesKeys) -> Self {
+        Self {
+            storage_keys: state_changes_keys.storage_keys.into_iter().collect(),
+            accessed_contracts: state_changes_keys.modified_contracts.into_iter().collect(),
+            accessed_class_hashes: state_changes_keys
+                .compiled_class_hash_keys
+                .into_iter()
+                .collect(),
+        }
+    }
+}
+
 impl AccessedKeys {
+    /// The total number of accessed trie leaves across all three tries.
+    pub fn len(&self) -> usize {
+        self.storage_keys.len() + self.accessed_contracts.len() + self.accessed_class_hashes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Builds the [`AccessedKeys`] the OS needs to read at the execution of a block.
     pub fn new<'a>(
         execution_infos: impl IntoIterator<Item = &'a TransactionExecutionInfo>,

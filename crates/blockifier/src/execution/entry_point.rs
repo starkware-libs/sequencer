@@ -29,6 +29,7 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::errors::{
+    AnnotatedEntryPointExecutionError,
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
     PreExecutionError,
@@ -47,7 +48,7 @@ pub mod test;
 pub const FAULTY_CLASS_HASH: &str =
     "0x1A7820094FEAF82D53F53F214B81292D717E7BB9A92BB2488092CD306F3993F";
 
-pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
+pub type EntryPointExecutionResult<T> = Result<T, AnnotatedEntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Holds the the information required to revert the execution of an entry point.
@@ -165,16 +166,25 @@ impl CallEntryPoint {
         remaining_gas: &mut u64,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context = &context.tx_context;
+        let strip_vm_frames = context.versioned_constants().strip_vm_frames_in_sierra_gas;
         let mut decrement_when_dropped = RecursionDepthGuard::new(
             context.current_recursion_depth.clone(),
             context.versioned_constants().max_recursion_depth,
         );
-        decrement_when_dropped.try_increment_and_check_depth()?;
+        decrement_when_dropped
+            .try_increment_and_check_depth()
+            .map_err(|e| e.annotated(TrackedResource::CairoSteps, strip_vm_frames))?;
 
         // Validate contract is deployed.
-        let storage_class_hash = state.get_class_hash_at(self.storage_address)?;
+        let storage_class_hash = state.get_class_hash_at(self.storage_address).map_err(|e| {
+            EntryPointExecutionError::from(e)
+                .annotated(TrackedResource::CairoSteps, strip_vm_frames)
+        })?;
         if storage_class_hash == ClassHash::default() {
-            return Err(PreExecutionError::UninitializedStorageAddress(self.storage_address).into());
+            return Err(EntryPointExecutionError::from(
+                PreExecutionError::UninitializedStorageAddress(self.storage_address),
+            )
+            .annotated(TrackedResource::CairoSteps, strip_vm_frames));
         }
 
         let class_hash = match self.class_hash {
@@ -188,11 +198,15 @@ impl CallEntryPoint {
                     Felt::from_hex(FAULTY_CLASS_HASH).expect("A class hash must be a felt."),
                 )
         {
-            return Err(PreExecutionError::FraudAttempt.into());
+            return Err(EntryPointExecutionError::from(PreExecutionError::FraudAttempt)
+                .annotated(TrackedResource::CairoSteps, strip_vm_frames));
         }
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
-        let compiled_class = state.get_compiled_class(class_hash)?;
+        let compiled_class = state.get_compiled_class(class_hash).map_err(|e| {
+            EntryPointExecutionError::from(e)
+                .annotated(TrackedResource::CairoSteps, strip_vm_frames)
+        })?;
 
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,
@@ -233,7 +247,11 @@ impl CallEntryPoint {
                         call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .annotated(
+                    call_info.tracked_resource,
+                    context.versioned_constants().strip_vm_frames_in_sierra_gas,
+                ));
             }
         }
 
@@ -537,9 +555,15 @@ pub fn execute_constructor_entry_point(
     calldata: Calldata,
     remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
+    let strip_vm_frames = context.versioned_constants().strip_vm_frames_in_sierra_gas;
     // Ensure the class is declared (by reading it).
     let compiled_class = state.get_compiled_class(ctor_context.class_hash).map_err(|error| {
-        ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+        ConstructorEntryPointExecutionError::new(
+            EntryPointExecutionError::from(error)
+                .annotated(TrackedResource::CairoSteps, strip_vm_frames),
+            &ctor_context,
+            None,
+        )
     })?;
     let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
@@ -616,15 +640,17 @@ pub fn handle_empty_constructor(
     calldata: Calldata,
     remaining_gas: u64,
 ) -> EntryPointExecutionResult<CallInfo> {
+    let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
+    let strip_vm_frames = context.versioned_constants().strip_vm_frames_in_sierra_gas;
     // Validate no calldata.
     if !calldata.0.is_empty() {
         return Err(EntryPointExecutionError::InvalidExecutionInput {
             input_descriptor: "constructor_calldata".to_string(),
             info: "Cannot pass calldata to a contract with no constructor.".to_string(),
-        });
+        }
+        .annotated(current_tracked_resource, strip_vm_frames));
     }
 
-    let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
     let initial_gas = if current_tracked_resource == TrackedResource::CairoSteps {
         // Override the initial gas with a high value to be consistent with the behavior for the
         // rest of the CairoSteps mode calls.
@@ -664,7 +690,7 @@ impl RecursionDepthGuard {
 
     // Tries to increment the current recursion depth and returns an error if the maximum depth
     // would be exceeded.
-    fn try_increment_and_check_depth(&mut self) -> EntryPointExecutionResult<()> {
+    fn try_increment_and_check_depth(&mut self) -> Result<(), EntryPointExecutionError> {
         *self.current_depth.borrow_mut() += 1;
         if *self.current_depth.borrow() > self.max_depth {
             return Err(EntryPointExecutionError::RecursionDepthExceeded);

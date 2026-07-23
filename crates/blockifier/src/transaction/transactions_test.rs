@@ -441,7 +441,7 @@ fn expected_fee_transfer_call_info(
     };
     let expected_gas_consumed = match cairo_version {
         CairoVersion::Cairo0 => 0_u64,
-        CairoVersion::Cairo1(_) => 414470_u64,
+        CairoVersion::Cairo1(_) => 413070_u64,
     };
     let expected_resources = match cairo_version {
         CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
@@ -591,7 +591,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 113920,
+        execute_gas_consumed: 112320,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
@@ -599,7 +599,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 113920,
+        execute_gas_consumed: 112320,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -2332,7 +2332,7 @@ fn test_deploy_account_tx(
         TransactionExecutionError::ContractConstructorExecutionFailed(
             ConstructorEntryPointExecutionError::ExecutionError { error, .. }
         )
-        if matches!(*error, EntryPointExecutionError::StateError(
+        if matches!(error.unannotated(), EntryPointExecutionError::StateError(
             StateError::UnavailableContractAddress(_)
         ))
     );
@@ -2371,9 +2371,9 @@ fn test_fail_deploy_account_undeclared_class_hash(
             ConstructorEntryPointExecutionError::ExecutionError { error, .. }
         )
         if matches!(
-            *error,
+            error.unannotated(),
             EntryPointExecutionError::StateError(StateError::UndeclaredClassHash(class_hash))
-            if class_hash == undeclared_hash
+            if *class_hash == undeclared_hash
         )
     );
 }
@@ -2386,22 +2386,22 @@ fn check_native_validate_error(
 ) {
     let syscall_error = match error {
         TransactionExecutionError::ValidateTransactionError { error: boxed_error, .. } => {
-            match *boxed_error {
+            match (*boxed_error).into_unannotated() {
                 EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error) => {
                     assert!(!validate_constructor);
                     boxed_syscall_error
                 }
-                _ => panic!("Unexpected error: {boxed_error:?}"),
+                other => panic!("Unexpected error: {other:?}"),
             }
         }
         TransactionExecutionError::ContractConstructorExecutionFailed(
             ConstructorEntryPointExecutionError::ExecutionError { error: boxed_error, .. },
-        ) => match *boxed_error {
+        ) => match (*boxed_error).into_unannotated() {
             EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error) => {
                 assert!(validate_constructor);
                 boxed_syscall_error
             }
-            _ => panic!("Unexpected error: {boxed_error:?}"),
+            other => panic!("Unexpected error: {other:?}"),
         },
         _ => panic!("Unexpected error: {:?}", &error),
     };
@@ -2850,7 +2850,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    651775,
+                    653175,
                 ),
             }
         "#]]
@@ -2864,7 +2864,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    600875,
+                    602275,
                 ),
             }
         "#]]

@@ -88,7 +88,10 @@ use crate::execution::entry_point::{
     ConstructorContext,
     EntryPointExecutionContext,
 };
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{
+    AnnotatedEntryPointExecutionError,
+    ConstructorEntryPointExecutionError,
+};
 use crate::execution::execution_utils::{
     execute_deployment,
     felt_from_ptr,
@@ -114,7 +117,7 @@ pub enum DeprecatedSyscallExecutionError {
     #[error(transparent)]
     BaseError(#[from] DeprecatedSyscallExecutorBaseError),
     #[error(transparent)]
-    EntryPointExecutionError(#[from] EntryPointExecutionError),
+    EntryPointExecutionError(#[from] AnnotatedEntryPointExecutionError),
     #[error(transparent)]
     ConstructorEntryPointExecutionError(#[from] ConstructorEntryPointExecutionError),
     #[error("{error}")]
@@ -812,6 +815,15 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         if !execution_context.tx_context.block_context.chain_info.is_l3 {
             EthAddress::try_from(request.message.to_address)?;
         }
+
+        // Increment the SendMessageToL1 syscall's linear cost counter by the number of elements in
+        // the payload.
+        let syscall_usage = syscall_handler
+            .syscalls_usage
+            .get_mut(&DeprecatedSyscallSelector::SendMessageToL1)
+            .expect("syscalls_usage entry for SendMessageToL1 must be initialized");
+        syscall_usage.linear_factor += request.message.payload.0.len();
+
         let ordered_message_to_l1 = OrderedL2ToL1Message {
             order: execution_context.n_sent_messages_to_l1,
             message: request.message,

@@ -13,7 +13,7 @@ pub struct CairoLangVersion<'a>(pub &'a str);
 
 pub const EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION: CairoLangVersion<'static> =
     CairoLangVersion("0.14.0.1");
-pub const EXPECTED_CAIRO0_VERSION: CairoLangVersion<'static> = CairoLangVersion("0.14.3a2");
+pub const EXPECTED_CAIRO0_VERSION: CairoLangVersion<'static> = CairoLangVersion("0.14.3a3");
 
 /// The local python requirements used to determine the cairo0 compiler version.
 pub(crate) static PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =

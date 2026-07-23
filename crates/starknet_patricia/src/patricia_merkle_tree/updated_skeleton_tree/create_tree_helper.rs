@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use starknet_api::hash::HashOutput;
+
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -28,12 +30,26 @@ pub(crate) enum TempSkeletonNode {
     Empty,
     // A new/modified leaf.
     Leaf,
-    Original(OriginalSkeletonNode),
+    // `n_new_hashes` is the number of hashes that must be computed for the subtree rooted at this
+    // node.
+    OriginalBinary { n_new_hashes: usize },
+    OriginalEdge { path: PathToBottom, n_new_hashes: usize },
+    OriginalUnmodified { hash: HashOutput },
 }
 
 impl TempSkeletonNode {
     fn is_empty(&self) -> bool {
         *self == Self::Empty
+    }
+
+    /// The number of node hashes that must be (re)computed for the subtree rooted at this node.
+    fn n_new_hashes(&self) -> usize {
+        match self {
+            Self::Empty | Self::Leaf | Self::OriginalUnmodified { .. } => 0,
+            Self::OriginalBinary { n_new_hashes } | Self::OriginalEdge { n_new_hashes, .. } => {
+                *n_new_hashes
+            }
+        }
     }
 }
 
@@ -168,16 +184,20 @@ impl UpdatedSkeletonTreeImpl {
             .unwrap_or_else(|| panic!("Node {root_index:?} not found."));
 
         if leaf_indices.is_empty() {
-            match original_node {
+            return match original_node {
                 OriginalSkeletonNode::Binary => unreachable!(
                     "Index {root_index:?} is an original Binary node without leaf modifications -
                     it should be an unmodified subtree instead."
                 ),
-                OriginalSkeletonNode::Edge(_) | OriginalSkeletonNode::UnmodifiedSubTree(_) => {
-                    return TempSkeletonNode::Original(original_node);
+                // An unmodified edge node's hash is still recomputed during the filled-tree pass.
+                OriginalSkeletonNode::Edge(path) => {
+                    TempSkeletonNode::OriginalEdge { path, n_new_hashes: 1 }
                 }
-            }
-        };
+                OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
+                    TempSkeletonNode::OriginalUnmodified { hash }
+                }
+            };
+        }
 
         match original_node {
             OriginalSkeletonNode::UnmodifiedSubTree(_) => {
@@ -220,38 +240,12 @@ impl UpdatedSkeletonTreeImpl {
         if !left.is_empty() && !right.is_empty() {
             // Both children are non-empty - a binary node.
             // Finalize children, as a binary node cannot change form.
-            for (index, node) in [(left_index, left), (right_index, right)] {
-                let TempSkeletonNode::Original(original_node) = node else {
-                    match node {
-                        TempSkeletonNode::Leaf => {
-                            // Leaf is finalized in the initial phase of updated skeleton creation.
-                            assert!(
-                                self.skeleton_tree.contains_key(&index),
-                                "Leaf index {index:?} doesn't appear in the skeleton."
-                            );
-                            continue;
-                        }
-                        TempSkeletonNode::Empty => unreachable!("Unexpected empty node."),
-                        TempSkeletonNode::Original(_) => {
-                            unreachable!("node is not an Original variant.")
-                        }
-                    }
-                };
-                let updated_node = match original_node {
-                    OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
-                    OriginalSkeletonNode::Edge(path_to_bottom) => {
-                        UpdatedSkeletonNode::Edge(*path_to_bottom)
-                    }
-                    OriginalSkeletonNode::UnmodifiedSubTree(_) => {
-                        // Unmodified nodes are finalized in the initial phase of updated skeleton
-                        // creation.
-                        continue;
-                    }
-                };
-                self.skeleton_tree.insert(index, updated_node);
-            }
+            self.finalize_binary_child(left_index, left);
+            self.finalize_binary_child(right_index, right);
 
-            return TempSkeletonNode::Original(OriginalSkeletonNode::Binary);
+            return TempSkeletonNode::OriginalBinary {
+                n_new_hashes: 1 + left.n_new_hashes() + right.n_new_hashes(),
+            };
         }
 
         // At least one of the children is empty.
@@ -263,6 +257,34 @@ impl UpdatedSkeletonTreeImpl {
         self.node_from_edge_data(&child_direction, &child_index, child_node)
     }
 
+    /// Finalizes a child of a binary node into the skeleton, inserting its updated node. Leaves and
+    /// unmodified subtrees are already finalized in the initial phase of updated skeleton creation,
+    /// so they are only sanity-checked, not inserted.
+    fn finalize_binary_child(&mut self, index: NodeIndex, child: &TempSkeletonNode) {
+        match child {
+            TempSkeletonNode::OriginalBinary { n_new_hashes } => {
+                self.skeleton_tree
+                    .insert(index, UpdatedSkeletonNode::Binary { n_new_hashes: *n_new_hashes });
+            }
+            TempSkeletonNode::OriginalEdge { path, n_new_hashes } => {
+                self.skeleton_tree.insert(
+                    index,
+                    UpdatedSkeletonNode::Edge {
+                        path_to_bottom: *path,
+                        n_new_hashes: *n_new_hashes,
+                    },
+                );
+            }
+            TempSkeletonNode::OriginalUnmodified { .. } | TempSkeletonNode::Leaf => {
+                assert!(
+                    self.skeleton_tree.contains_key(&index),
+                    "Index {index:?} doesn't appear in the skeleton."
+                );
+            }
+            TempSkeletonNode::Empty => unreachable!("Unexpected empty node."),
+        }
+    }
+
     /// Builds a (probably edge) node from its given updated descendant. Returns the
     /// TempSkeletonNode matching the given root (the source for the path to bottom) for the subtree
     /// it is the root of. If bottom is empty, returns an empty node.
@@ -272,34 +294,34 @@ impl UpdatedSkeletonTreeImpl {
         bottom_index: &NodeIndex,
         bottom: &TempSkeletonNode,
     ) -> TempSkeletonNode {
-        let TempSkeletonNode::Original(original_node) = bottom else {
-            match bottom {
-                TempSkeletonNode::Empty => {
-                    return TempSkeletonNode::Empty;
+        match bottom {
+            TempSkeletonNode::Empty => TempSkeletonNode::Empty,
+            TempSkeletonNode::OriginalEdge { path: bottom_path, n_new_hashes } => {
+                // The new edge unifies with the bottom edge into a single edge node, so the bottom
+                // edge's hash count already includes this node - no additional hash.
+                TempSkeletonNode::OriginalEdge {
+                    path: path.concat_paths(*bottom_path),
+                    n_new_hashes: *n_new_hashes,
                 }
-                TempSkeletonNode::Leaf => {
-                    // Leaf is finalized in the initial phase of updated skeleton creation.
-                    assert!(
-                        self.skeleton_tree.contains_key(bottom_index),
-                        "bottom {bottom_index:?} is a non-empty leaf but doesn't appear in the \
-                         skeleton."
-                    );
-                    return TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path));
-                }
-                TempSkeletonNode::Original(_) => unreachable!("bottom is not an Original variant."),
-            };
-        };
-        TempSkeletonNode::Original(match original_node {
-            OriginalSkeletonNode::Edge(path_to_bottom) => {
-                OriginalSkeletonNode::Edge(path.concat_paths(*path_to_bottom))
             }
-            OriginalSkeletonNode::Binary => {
+            TempSkeletonNode::OriginalBinary { n_new_hashes } => {
                 // Finalize bottom - a binary descendant cannot change form.
-                self.skeleton_tree.insert(*bottom_index, UpdatedSkeletonNode::Binary);
-                OriginalSkeletonNode::Edge(*path)
+                self.skeleton_tree.insert(
+                    *bottom_index,
+                    UpdatedSkeletonNode::Binary { n_new_hashes: *n_new_hashes },
+                );
+                TempSkeletonNode::OriginalEdge { path: *path, n_new_hashes: 1 + *n_new_hashes }
             }
-            OriginalSkeletonNode::UnmodifiedSubTree(_) => OriginalSkeletonNode::Edge(*path),
-        })
+            TempSkeletonNode::OriginalUnmodified { .. } | TempSkeletonNode::Leaf => {
+                // Leaves and unmodified subtrees are finalized in the initial phase of updated
+                // skeleton creation.
+                assert!(
+                    self.skeleton_tree.contains_key(bottom_index),
+                    "bottom {bottom_index:?} doesn't appear in the skeleton."
+                );
+                TempSkeletonNode::OriginalEdge { path: *path, n_new_hashes: 1 }
+            }
+        }
     }
 
     /// Update an original subtree rooted with an edge node.

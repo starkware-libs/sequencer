@@ -49,7 +49,7 @@ use crate::storage_reader_types::{
 };
 use crate::test_utils::get_test_storage;
 use crate::version::VersionStorageReader;
-use crate::{MarkerKind, OffsetKind, StorageReader};
+use crate::{MarkerKind, OffsetKind, StorageReader, StorageTransaction};
 
 struct TestDynamicConfigProvider {
     enabled: bool,

@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 use std::vec;
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use assert_matches::assert_matches;
@@ -45,6 +46,12 @@ use crate::test_utils::{
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
 };
+
+fn stateless_validator(
+    config: StatelessTransactionValidatorConfig,
+) -> StatelessTransactionValidator {
+    StatelessTransactionValidator { config, behavior_mode: BehaviorMode::default() }
+}
 
 static DEFAULT_VALIDATOR_CONFIG: LazyLock<StatelessTransactionValidatorConfig> =
     LazyLock::new(StatelessTransactionValidatorConfig::default);
@@ -163,7 +170,7 @@ fn test_positive_flow(
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
-    let tx_validator = StatelessTransactionValidator { config };
+    let tx_validator = stateless_validator(config);
 
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
@@ -193,7 +200,7 @@ fn valid_l2_gas_amount_on_declare(
     #[case] rpc_tx_args: RpcTransactionArgs,
 ) {
     let tx_type = TransactionType::Declare;
-    let tx_validator = StatelessTransactionValidator { config };
+    let tx_validator = stateless_validator(config);
 
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
@@ -232,8 +239,7 @@ fn test_invalid_resource_bounds(
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG.to_owned() };
+    let tx_validator = stateless_validator(DEFAULT_VALIDATOR_CONFIG.to_owned());
 
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
@@ -262,8 +268,7 @@ fn test_invalid_max_l2_gas_amount(
     #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::DeployAccount, TransactionType::Invoke)] tx_type: TransactionType,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG.to_owned() };
+    let tx_validator = stateless_validator(DEFAULT_VALIDATOR_CONFIG.to_owned());
 
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
@@ -391,7 +396,7 @@ fn test_invalid_tx(
     #[case] expected_error: StatelessTransactionValidatorError,
     #[case] tx_types: Vec<TransactionType>,
 ) {
-    let tx_validator = StatelessTransactionValidator { config };
+    let tx_validator = stateless_validator(config);
     for tx_type in tx_types {
         let tx = rpc_tx_for_testing(tx_type, rpc_tx_args.clone());
 
@@ -473,8 +478,7 @@ fn test_declare_sierra_version_failure(
     #[case] sierra_program: Vec<Felt>,
     #[case] expected_error: StatelessTransactionValidatorError,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx_validator = stateless_validator(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone());
 
     let contract_class = SierraContractClass { sierra_program, ..Default::default() };
     let tx = rpc_declare_tx(declare_tx_args!(), contract_class);
@@ -493,8 +497,7 @@ fn test_declare_sierra_version_failure(
 ))]
 #[case::max_sierra_version(create_sierra_program(&MAX_SIERRA_VERSION))]
 fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx_validator = stateless_validator(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone());
 
     let contract_class = SierraContractClass { sierra_program, ..Default::default() };
     let tx = rpc_declare_tx(declare_tx_args!(), contract_class);
@@ -505,12 +508,10 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
 #[test]
 fn test_declare_contract_class_size_too_long() {
     let config_max_contract_class_object_size = 100; // Some arbitrary value, which will fail the test.
-    let tx_validator = StatelessTransactionValidator {
-        config: StatelessTransactionValidatorConfig {
-            max_contract_class_object_size: config_max_contract_class_object_size,
-            ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-        },
-    };
+    let tx_validator = stateless_validator(StatelessTransactionValidatorConfig {
+        max_contract_class_object_size: config_max_contract_class_object_size,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    });
     let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
         ..Default::default()
@@ -532,12 +533,10 @@ fn test_declare_contract_class_size_too_long() {
 fn test_declare_contract_bytecode_size_too_long() {
     let sierra_program = create_sierra_program(&MIN_SIERRA_VERSION);
     assert!(sierra_program.len() > 1);
-    let tx_validator = StatelessTransactionValidator {
-        config: StatelessTransactionValidatorConfig {
-            max_contract_bytecode_size: sierra_program.len() - 1,
-            ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-        },
-    };
+    let tx_validator = stateless_validator(StatelessTransactionValidatorConfig {
+        max_contract_bytecode_size: sierra_program.len() - 1,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    });
 
     let tx = rpc_declare_tx(
         declare_tx_args!(),
@@ -594,8 +593,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
     #[case] entry_points: Vec<EntryPoint>,
     #[case] expected: StatelessTransactionValidatorResult<()>,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx_validator = stateless_validator(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone());
 
     let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
@@ -660,7 +658,7 @@ fn test_client_side_proving_flag(
         allow_client_side_proving,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
-    let tx_validator = StatelessTransactionValidator { config };
+    let tx_validator = stateless_validator(config);
 
     // Check for proof data before moving values.
     let has_proof_data = proof_facts.is_some() || proof.is_some();
@@ -702,7 +700,7 @@ fn test_proof_facts_and_proof_consistency(
         allow_client_side_proving: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
-    let tx_validator = StatelessTransactionValidator { config };
+    let tx_validator = stateless_validator(config);
 
     let rpc_tx_args = RpcTransactionArgs { proof_facts, proof, ..Default::default() };
 
@@ -717,6 +715,39 @@ fn test_proof_facts_and_proof_consistency(
                 has_proof_facts,
                 has_proof,
             }) if has_proof_facts == expected_has_proof_facts && has_proof == expected_has_proof
+        );
+    }
+}
+
+// In Echonet mode replayed txs arrive with proof facts but no proof (mainnet's feeder strips
+// it); the consistency check must accept that. A proof without facts is still rejected.
+#[rstest]
+#[case::both_empty(ProofFacts::default(), Proof::default(), true)]
+#[case::both_non_empty(create_valid_proof_facts_for_testing(), Proof::proof_for_testing(), true)]
+#[case::proof_facts_only(create_valid_proof_facts_for_testing(), Proof::default(), true)]
+#[case::proof_only(ProofFacts::default(), Proof::proof_for_testing(), false)]
+fn test_proof_facts_and_proof_consistency_in_echonet_mode(
+    #[case] proof_facts: ProofFacts,
+    #[case] proof: Proof,
+    #[case] should_pass: bool,
+) {
+    let tx_validator = StatelessTransactionValidator {
+        config: StatelessTransactionValidatorConfig {
+            allow_client_side_proving: true,
+            ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        },
+        behavior_mode: BehaviorMode::Echonet,
+    };
+
+    let rpc_tx_args = RpcTransactionArgs { proof_facts, proof, ..Default::default() };
+    let tx = rpc_tx_for_testing(TransactionType::Invoke, rpc_tx_args);
+
+    if should_pass {
+        assert_matches!(tx_validator.validate(&tx), Ok(()));
+    } else {
+        assert_matches!(
+            tx_validator.validate(&tx),
+            Err(StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. })
         );
     }
 }

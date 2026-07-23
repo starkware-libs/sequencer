@@ -55,6 +55,10 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH="${RUSTUP_HOME}/bin:${PATH}"
 
+# Disabling the `rustc-wrapper = "sccache"` as sccache is not installed in this
+# image.
+ENV CARGO_BUILD_RUSTC_WRAPPER=""
+
 COPY rust-toolchain.toml rust-toolchain.toml
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none \
     && rustup toolchain install \

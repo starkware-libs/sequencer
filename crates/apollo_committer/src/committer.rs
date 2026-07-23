@@ -3,32 +3,32 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
-#[cfg(feature = "os_input")]
-use apollo_committer_types::committer_types::{
-    AccessedKeys,
-    ReadPathsAndCommitBlockRequest,
-    ReadPathsAndCommitBlockResponse,
-};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
     RevertBlockRequest,
     RevertBlockResponse,
 };
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::{
+    ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
+};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
-#[cfg(feature = "os_input")]
-use starknet_api::core::ContractAddress;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::commit_block;
-use starknet_committer::block_committer::input::Input;
 #[cfg(feature = "os_input")]
-use starknet_committer::block_committer::input::StarknetStorageKey;
+use starknet_committer::block_committer::commit::{
+    commit_block_with_witnesses,
+    CommitBlockWithWitnessesOutput,
+};
+use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
     BlockDurations,
@@ -39,9 +39,9 @@ use starknet_committer::block_committer::measurements_util::{
 };
 #[cfg(feature = "os_input")]
 use starknet_committer::db::forest_trait::forest_trait_witnesses::{
+    CommitmentInfosUpdate,
+    CommitmentInfosWrite,
     ForestStorageWithWitnesses,
-    PatriciaProofsUpdate,
-    PatriciaProofsWrite,
 };
 use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
@@ -59,7 +59,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
 #[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::tree::{LeavesRequest, SortedLeavesRequest};
+use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
 #[cfg(feature = "os_input")]
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::CachedStorage;
@@ -398,11 +398,26 @@ where
              to {last_committed_block}"
         );
         block_measurements.start_measurement(Action::Write);
-        let n_write_entries = self
-            .forest_storage
-            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
+        let n_write_entries = {
+            #[cfg(not(feature = "os_input"))]
+            {
+                self.forest_storage
+                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
+                    .await
+            }
+            #[cfg(feature = "os_input")]
+            {
+                self.forest_storage
+                    .write_with_metadata_and_commitment_infos(
+                        &filled_forest,
+                        metadata,
+                        deleted_nodes,
+                        CommitmentInfosUpdate::Delete(height),
+                    )
+                    .await
+            }
+        }
+        .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(height, &block_measurements.block_measurement);
@@ -497,29 +512,16 @@ where
         &mut self,
         ReadPathsAndCommitBlockRequest {
             commit: CommitBlockRequest { state_diff, state_diff_commitment, height },
-            accessed_keys: AccessedKeys { storage_keys, accessed_contracts, accessed_class_hashes },
+            accessed_keys,
         }: ReadPathsAndCommitBlockRequest,
     ) -> CommitterResult<ReadPathsAndCommitBlockResponse> {
-        let class_hashes: Vec<_> = accessed_class_hashes.iter().copied().collect();
-        let contract_addresses: Vec<_> = accessed_contracts.iter().copied().collect();
-        let contract_storage_keys = storage_keys.iter().fold(
-            HashMap::<ContractAddress, Vec<StarknetStorageKey>>::new(),
-            |mut accumulator, (address, key)| {
-                accumulator.entry(*address).or_default().push(StarknetStorageKey(*key));
-                accumulator
-            },
-        );
-        let mut leaves_request = LeavesRequest::from_accessed_leaves(
-            &class_hashes,
-            &contract_addresses,
-            &contract_storage_keys,
-        );
+        let mut leaves_request = LeavesRequest::from(&accessed_keys);
         info!(
             "read_paths_and_commit_block: height {height}, accessed keys len {}, state diff len {}",
             leaves_request.total_leaf_count(),
             state_diff.len(),
         );
-        let sorted_leaves: SortedLeavesRequest<'_> = (&mut leaves_request).into();
+        let sorted_leaves = leaves_request.sorted();
         let digest = accessed_keys_digest(&sorted_leaves);
 
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
@@ -532,13 +534,13 @@ where
                         expected: digest,
                     });
                 }
-                let proofs = self
+                let state_commitment_infos = self
                     .forest_storage
-                    .read_witnesses(height)
+                    .read_commitment_infos(height)
                     .await
-                    .map_err(|error| self.map_internal_error_at_height(height, error))?;
-                let proofs = proofs.ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse { global_root, patricia_proofs: proofs })
+                    .map_err(|error| self.map_internal_error_at_height(height, error))?
+                    .ok_or(CommitterError::MissingPatriciaPaths { height })?;
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -549,80 +551,50 @@ where
             // 4. Merge the two sets of patricia paths and write the result to the storage.
             // 5. Update the commitment offset and return the global root and the patricia proofs.
             CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
-                let pre_roots = self
-                    .forest_storage
-                    .read_roots(ForestDB::InitialReadContext::create_empty())
-                    .await
-                    .map_err(|e| self.map_internal_error(e))?;
-                let mut patricia_proofs = self
-                    .forest_storage
-                    .fetch_patricia_witnesses(
-                        pre_roots.classes_trie_root_hash,
-                        pre_roots.contracts_trie_root_hash,
-                        sorted_leaves.class_sorted,
-                        sorted_leaves.contract_sorted,
-                        &sorted_leaves.storage_sorted,
-                        None,
-                    )
-                    .await
-                    .map_err(|e| CommitterError::PatriciaPathsCollectionFailed {
-                        height,
-                        message: format!("pre-commit witness paths: {e:?}"),
-                    })?;
-
                 let mut block_measurements = SingleBlockMeasurements::default();
                 block_measurements.start_measurement(Action::EndToEnd);
-                let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
-                    self.commit_state_diff(state_diff, &mut block_measurements).await?;
-                let post_roots = filled_forest.state_roots();
 
-                let forest_updates = ForestDB::serialize_forest(&filled_forest)
-                    .map_err(|e| self.map_internal_error(e))?;
+                let input = Input {
+                    state_diff: state_diff.into(),
+                    initial_read_context: ForestDB::InitialReadContext::create_empty(),
+                    config: self.config.reader_config.clone(),
+                };
 
-                let proof_after = self
-                    .forest_storage
-                    .fetch_patricia_witnesses(
-                        post_roots.classes_trie_root_hash,
-                        post_roots.contracts_trie_root_hash,
-                        sorted_leaves.class_sorted,
-                        sorted_leaves.contract_sorted,
-                        &sorted_leaves.storage_sorted,
-                        Some(forest_updates),
-                    )
-                    .await
-                    .map_err(|e| CommitterError::PatriciaPathsCollectionFailed {
-                        height,
-                        message: format!("post-commit witness paths: {e:?}"),
-                    })?;
-
-                patricia_proofs.extend(proof_after);
+                let CommitBlockWithWitnessesOutput {
+                    filled_forest,
+                    deleted_nodes,
+                    state_commitment_infos,
+                    global_root,
+                } = commit_block_with_witnesses(
+                    input,
+                    &sorted_leaves,
+                    &mut self.forest_storage,
+                    &mut block_measurements,
+                )
+                .await
+                .map_err(|err| self.map_internal_error(err))?;
 
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
-                let witness_node_count = patricia_proofs.classes_trie_proof.len()
-                    + patricia_proofs.contracts_trie_proof.nodes.len()
-                    + patricia_proofs.contracts_trie_proof.leaves.len()
-                    + patricia_proofs
-                        .contracts_trie_storage_proofs
-                        .values()
-                        .map(|proof| proof.len())
-                        .sum::<usize>();
+
                 info!(
-                    "For block number {height}, writing filled forest and {witness_node_count} \
-                     witness nodes to storage with metadata: {metadata:?}, delete {} nodes",
-                    deleted_nodes.len()
+                    "For block number {height}, writing filled forest and \
+                     {commitment_facts_count} commitment facts to storage with metadata: \
+                     {metadata:?}, delete {deleted_nodes_count} nodes",
+                    commitment_facts_count = state_commitment_infos.n_commitment_facts(),
+                    deleted_nodes_count = deleted_nodes.len(),
                 );
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
                     .forest_storage
-                    .write_with_metadata_and_witnesses(
+                    .write_with_metadata_and_commitment_infos(
                         &filled_forest,
                         metadata,
                         deleted_nodes,
-                        PatriciaProofsUpdate::Write(PatriciaProofsWrite {
+                        CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                             block_number: height,
                             keys_digest: digest,
-                            witnesses: patricia_proofs.clone(),
+                            commitment_infos: state_commitment_infos.clone(),
                         }),
                     )
                     .await
@@ -631,7 +603,7 @@ where
                 block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
                 update_metrics(height, &block_measurements.block_measurement);
                 self.update_offset(next_offset);
-                Ok(ReadPathsAndCommitBlockResponse { global_root, patricia_proofs })
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
         }
     }
@@ -669,9 +641,22 @@ impl ComponentStarter for ApolloCommitter {
 }
 
 #[allow(clippy::as_conversions)]
+// TODO(Ariel): Consider adding fetch witnesses measurements.
 fn update_metrics(
     height: BlockNumber,
-    BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
+    BlockMeasurement {
+        n_reads,
+        n_writes,
+        durations,
+        modifications_counts,
+        #[cfg(feature = "os_input")]
+        fetched_witnesses_count,
+        // TODO(Yoav): Remove the ".." where os_input becomes default.
+        // It is needed now for including `BlockMeasurement::fetched_witnesses_count` where
+        // `starknet_committer/os_input` is enabled by other crates, while
+        // `apollo_committer/os_input` is disabled.
+        ..
+    }: &BlockMeasurement,
 ) {
     BLOCKS_COMMITTED.increment(1);
     TOTAL_BLOCK_DURATION.increment((durations.block * 1000.0) as u64);
@@ -736,6 +721,8 @@ fn update_metrics(
         write_rate,
         modifications_counts,
         emptied_leaves_percentage,
+        #[cfg(feature = "os_input")]
+        *fetched_witnesses_count,
     );
 }
 
@@ -749,12 +736,24 @@ fn log_block_measurements(
     write_rate: Option<f64>,
     modifications_counts: &BlockModificationsCounts,
     emptied_leaves_percentage: Option<f64>,
+    #[cfg(feature = "os_input")] fetched_witnesses_count: usize,
 ) {
+    #[cfg(feature = "os_input")]
+    let witness_log = format!(
+        "witness fetch ms (pre-commit/post-commit): {:.0}/{:.0}, witness entries: {}",
+        durations.fetch_witnesses_first_pass * 1000.0,
+        durations.fetch_witnesses_second_pass * 1000.0,
+        fetched_witnesses_count,
+    );
+    #[cfg(not(feature = "os_input"))]
+    let witness_log = String::new();
+
     debug!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
          {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates in \
          entries/sec (read/compute/write): {}/{}/{}, modifications count \
-         (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}",
+         (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}, \
+         {witness_log}",
         durations.block * 1000.0,
         durations.read * 1000.0,
         durations.compute * 1000.0,
@@ -767,6 +766,7 @@ fn log_block_measurements(
         modifications_counts.contracts_trie,
         modifications_counts.classes_trie,
         modifications_counts.emptied_storage_leaves,
-        emptied_leaves_percentage.map_or(String::new(), |p| format!(" ({p:.2}%)"))
+        emptied_leaves_percentage.map_or(String::new(), |p| format!(" ({p:.2}%)")),
+        witness_log = witness_log,
     );
 }

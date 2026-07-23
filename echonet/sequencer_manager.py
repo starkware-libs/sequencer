@@ -200,7 +200,7 @@ class SequencerManager:
     def wait_for_state_sync_and_batcher_revert_complete(
         self,
         target_block: int,
-        timeout_seconds: float = 10000.0,
+        timeout_seconds: float = 100000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 1000,
         pod_name: Optional[str] = None,
@@ -341,18 +341,29 @@ class SequencerManager:
     def resync(self, block_number: int) -> None:
         """
         Full resync loop around a target block:
-        - Enable revert + bounce + wait for pending
+        - Revert down to the resync floor + bounce + wait for revert
         - Start sync + bounce + wait for catching up
         - Stop sync at block + bounce + wait for pending
         - Disable revert + bounce
         """
         logger.info(f"Starting resync workflow around block {block_number}...")
 
-        self.configure_revert(should_revert=True)
+        if CONFIG.resync.bounded_revert_enabled:
+            # Bound the rewind to `revert_lookback_blocks`, but never deeper than the prior revert
+            # marker: a shallow prior revert would otherwise make bounded re-sync more blocks from
+            # the feeder than the legacy path would.
+            revert_target_block = max(
+                CONFIG.blocks.start_block,
+                block_number - CONFIG.resync.revert_lookback_blocks,
+                self._read_previous_revert_marker(),
+            )
+            self.configure_stop_sync(block_number=revert_target_block)
+        else:
+            revert_target_block = self._read_previous_revert_marker()
+            self.configure_revert(should_revert=True)
+
         self.restart_node()
-        self.wait_for_state_sync_and_batcher_revert_complete(
-            target_block=self._read_previous_revert_marker()
-        )
+        self.wait_for_state_sync_and_batcher_revert_complete(target_block=revert_target_block)
 
         self.configure_start_sync()
         self.restart_node()

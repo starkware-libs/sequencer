@@ -10,8 +10,13 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{
+    AnnotatedEntryPointExecutionError,
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+};
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     ENTRYPOINT_FAILED_ERROR_FELT,
@@ -163,16 +168,40 @@ impl Display for ErrorStack {
         let error_stack_str = self.stack.iter().map(String::from).join("\n");
 
         // When the trace string is too long, trim it in a way that keeps both the beginning and
-        // end.
+        // end. The cut points are snapped to char boundaries: trace content includes
+        // contract/VM-controlled strings (revert reasons, error attributes), so a multi-byte
+        // UTF-8 character straddling a raw byte index would panic the formatter.
         let final_str = if error_stack_str.len() > TRACE_LENGTH_CAP + TRACE_EXTRA_CHARS_SLACK {
-            error_stack_str[..(TRACE_LENGTH_CAP / 2)].to_string()
-                + "\n\n...\n\n"
-                + &error_stack_str[(error_stack_str.len() - TRACE_LENGTH_CAP / 2)..]
+            let half_cap = TRACE_LENGTH_CAP / 2;
+            let head_end = floor_char_boundary(&error_stack_str, half_cap);
+            let tail_start = ceil_char_boundary(&error_stack_str, error_stack_str.len() - half_cap);
+            error_stack_str[..head_end].to_string() + "\n\n...\n\n" + &error_stack_str[tail_start..]
         } else {
             error_stack_str
         };
         write!(f, "{}{}", self.header, final_str)
     }
+}
+
+/// Returns the largest index `<= idx` that lies on a `char` boundary of `s` (or `s.len()` if `idx`
+/// is past the end). Replacement for the unstable `str::floor_char_boundary`.
+fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
+    if idx >= s.len() {
+        return s.len();
+    }
+    while !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    idx
+}
+
+/// Returns the smallest index `>= idx` that lies on a `char` boundary of `s` (or `s.len()` if no
+/// such index exists below the end). Replacement for the unstable `str::ceil_char_boundary`.
+fn ceil_char_boundary(s: &str, mut idx: usize) -> usize {
+    while idx < s.len() && !s.is_char_boundary(idx) {
+        idx += 1;
+    }
+    idx
 }
 
 impl ErrorStack {
@@ -460,7 +489,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
 /// Generate error stack from top-level entry point execution error.
 fn gen_error_trace_from_entry_point_error(
     header: ErrorStackHeader,
-    error: &EntryPointExecutionError,
+    error: &AnnotatedEntryPointExecutionError,
     storage_address: &ContractAddress,
     class_hash: &ClassHash,
     entry_point_selector: Option<&EntryPointSelector>,
@@ -486,16 +515,19 @@ fn extract_cairo_run_error_into_stack_trace(
     error_stack: &mut ErrorStack,
     depth: usize,
     error: &CairoRunError,
+    omit_vm_frame: bool,
 ) {
     if let CairoRunError::VmException(vm_exception) = error {
-        error_stack.push(
-            VmExceptionFrame {
-                pc: vm_exception.pc,
-                error_attr_value: vm_exception.error_attr_value.clone(),
-                traceback: vm_exception.traceback.clone(),
-            }
-            .into(),
-        );
+        if !omit_vm_frame {
+            error_stack.push(
+                VmExceptionFrame {
+                    pc: vm_exception.pc,
+                    error_attr_value: vm_exception.error_attr_value.clone(),
+                    traceback: vm_exception.traceback.clone(),
+                }
+                .into(),
+            );
+        }
         extract_virtual_machine_error_into_stack_trace(error_stack, depth, &vm_exception.inner_exc);
     } else {
         error_stack.push(error.to_string().into());
@@ -703,11 +735,22 @@ fn extract_deprecated_syscall_execution_error_into_stack_trace(
 fn extract_entry_point_execution_error_into_stack_trace(
     error_stack: &mut ErrorStack,
     depth: usize,
-    entry_point_error: &EntryPointExecutionError,
+    entry_point_error: &AnnotatedEntryPointExecutionError,
 ) {
-    match entry_point_error {
+    let inner = entry_point_error.unannotated();
+    match inner {
         EntryPointExecutionError::CairoRunError(cairo_run_error) => {
-            extract_cairo_run_error_into_stack_trace(error_stack, depth, cairo_run_error)
+            // Omit the cairo-vm PC/traceback only for SierraGas frames at versions where the
+            // strip policy is on — makes the revert reason invariant across execution
+            // backends. Cairo 0 (CairoSteps) always emits; it has no native counterpart.
+            let omit_vm_frame = entry_point_error.strip_vm_frames_in_sierra_gas()
+                && entry_point_error.tracked_resource() == TrackedResource::SierraGas;
+            extract_cairo_run_error_into_stack_trace(
+                error_stack,
+                depth,
+                cairo_run_error,
+                omit_vm_frame,
+            )
         }
         #[cfg(feature = "cairo_native")]
         EntryPointExecutionError::NativeUnrecoverableError(error) => {
@@ -716,6 +759,6 @@ fn extract_entry_point_execution_error_into_stack_trace(
         EntryPointExecutionError::ExecutionFailed { error_trace } => {
             error_stack.push(error_trace.clone().into())
         }
-        _ => error_stack.push(format!("{entry_point_error}\n").into()),
+        _ => error_stack.push(format!("{inner}\n").into()),
     }
 }

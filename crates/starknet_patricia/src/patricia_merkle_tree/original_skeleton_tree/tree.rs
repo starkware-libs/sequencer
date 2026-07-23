@@ -16,7 +16,6 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 pub trait OriginalSkeletonTree<'a>: Sized {
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap;
 
-    #[allow(dead_code)]
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a>;
 }
 

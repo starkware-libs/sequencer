@@ -16,7 +16,7 @@ use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use mockall::predicate;
 use rand::Rng;
-use starknet_api::block::{Block, BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -26,6 +26,12 @@ use tokio::sync::RwLock;
 use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
+    setup_with_highest_block(None)
+}
+
+fn setup_with_highest_block(
+    highest_block: Option<BlockHashAndNumber>,
+) -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
     let mut config_manager_client = MockConfigManagerClient::new();
     config_manager_client
@@ -34,11 +40,34 @@ fn setup() -> (StateSync, StorageWriter) {
     let state_sync = StateSync {
         storage_reader,
         new_block_sender: channel(0).0,
+        shared_highest_block: Arc::new(RwLock::new(highest_block)),
         starknet_client: None,
         config_manager_client: Arc::new(config_manager_client),
         dynamic_config: Arc::new(RwLock::new(StateSyncDynamicConfig::default())),
     };
     (state_sync, storage_writer)
+}
+
+#[tokio::test]
+async fn test_get_highest_block_number() {
+    // Returns the central-source tip when it is known.
+    let highest_block_number = BlockNumber(11_158_875);
+    let highest_block =
+        BlockHashAndNumber { hash: BlockHash::default(), number: highest_block_number };
+    let (mut state_sync, _storage_writer) = setup_with_highest_block(Some(highest_block));
+    let response = state_sync.handle_request(StateSyncRequest::GetHighestBlockNumber()).await;
+    let StateSyncResponse::GetHighestBlockNumber(Ok(returned)) = response else {
+        panic!("Expected StateSyncResponse::GetHighestBlockNumber(Ok(_)), but got {response:?}");
+    };
+    assert_eq!(returned, Some(highest_block_number));
+
+    // Returns None when no tip is known yet (e.g. no central source).
+    let (mut state_sync, _storage_writer) = setup();
+    let response = state_sync.handle_request(StateSyncRequest::GetHighestBlockNumber()).await;
+    let StateSyncResponse::GetHighestBlockNumber(Ok(returned)) = response else {
+        panic!("Expected StateSyncResponse::GetHighestBlockNumber(Ok(_)), but got {response:?}");
+    };
+    assert_eq!(returned, None);
 }
 
 #[tokio::test]
@@ -145,6 +174,7 @@ async fn test_get_block_hash_fallback_to_starknet_client() {
     let mut state_sync = StateSync {
         storage_reader,
         new_block_sender: channel(0).0,
+        shared_highest_block: Arc::new(RwLock::new(None)),
         starknet_client,
         config_manager_client: Arc::new(config_manager_client),
         dynamic_config: Arc::new(RwLock::new(StateSyncDynamicConfig::default())),

@@ -5,7 +5,7 @@
 //! - `compute_fee_actual`: the base fee for this block, calculated as the median of the most recent
 //!   `fee_proposal` values across `window_size` blocks.
 //! - `compute_fee_target`: the fee we'd *like* for this block, derived from the STRK/USD oracle
-//!   quote and a fixed USD-cost target.
+//!   quote and a configurable USD-cost target.
 //! - `compute_fee_proposal`: the target, clamped within a fixed multiplicative margin of
 //!   `fee_actual` (so a proposer cannot move the fee too far per round).
 //!
@@ -43,10 +43,6 @@ const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 
 /// Denominator for parts-per-thousand calculations in fee_proposal bounds.
 pub(crate) const PPT_DENOMINATOR: u128 = 1000;
-
-/// Target USD cost per L2 gas unit in atto-USD ($3e-9 = 3_000_000_000 atto-USD).
-// TODO(AndrewL): consider moving this to a dynamic config.
-pub(crate) const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
 
 /// Compute fee_actual for `height` as the median of the `fee_proposal` values
 /// recorded for heights `[height - window_size, height - 1]`.

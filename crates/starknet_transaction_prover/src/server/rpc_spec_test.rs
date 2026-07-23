@@ -396,6 +396,41 @@ async fn test_spec_matches_rpc_module(mock_rpc_module: RpcModule<MockProvingRpc>
     }
 }
 
+/// The documented `additional_data` is an optional, opaque object. A prover response must
+/// validate against the proveTransaction result schema both when it omits the field
+/// (backward-compatible) and when it carries one (e.g. a relayed screening signature).
+#[test]
+fn test_prove_transaction_result_schema_with_and_without_additional_data() {
+    let method_index = SPEC["methods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|method| method["name"].as_str() == Some(PROVE_TRANSACTION_METHOD))
+        .unwrap();
+    let schema = compile_schema_for_ref(&SPEC, &format!("methods/{method_index}/result/schema"));
+
+    let response: Value = serde_json::from_str(include_str!(
+        "../../resources/mock_proving_rpc/prove_transaction_result.json"
+    ))
+    .unwrap();
+    // The fixture omits additional_data, exercising the backward-compatible case.
+    assert!(
+        response.get("additional_data").is_none(),
+        "fixture must omit additional_data to exercise the backward-compatible case"
+    );
+    assert_matches_schema(&schema, &response, "proveTransaction response without additional_data");
+
+    let mut response_with_additional_data = response;
+    response_with_additional_data["additional_data"] = serde_json::json!({
+        "signature": { "issued_at": 1716579600_u64, "sig_r": "0x1", "sig_s": "0x2" }
+    });
+    assert_matches_schema(
+        &schema,
+        &response_with_additional_data,
+        "proveTransaction response with additional_data",
+    );
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_prove_transaction_rejects_pending_block_id(

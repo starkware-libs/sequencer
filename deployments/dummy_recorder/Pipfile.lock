@@ -77,11 +77,11 @@
         },
         "jsii": {
             "hashes": [
-                "sha256:5a44d7c3a5a326fa3d9befdb3770b380057e0a61e3804e7c4907f70d76afaaa2",
-                "sha256:c79c47899f53a7c3c4b20f80d3cd306628fe9ed1852eee970324c71eba1d974e"
+                "sha256:575a389c56e4651f33fad0e0dafdc61d001a499d3cc0630cee734fc5e0b525ae",
+                "sha256:efc66b5831c8c41e343b644f03221d71480b69c3c39dc41df15659a01ce28fbb"
             ],
-            "markers": "python_version ~= '3.8'",
-            "version": "==1.106.0"
+            "markers": "python_version >= '3.10'",
+            "version": "==1.138.0"
         },
         "publication": {
             "hashes": [

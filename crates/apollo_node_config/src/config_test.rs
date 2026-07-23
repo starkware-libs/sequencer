@@ -1,4 +1,6 @@
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
+use apollo_gateway_config::config::GatewayConfig;
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use apollo_infra_utils::dumping::serialize_to_file_test;
@@ -99,6 +101,36 @@ fn default_config_file_is_up_to_date() {
 fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
+}
+
+fn echonet_gateway_config() -> GatewayConfig {
+    let mut gateway_config = GatewayConfig::default();
+    gateway_config.static_config.behavior_mode = BehaviorMode::Echonet;
+    gateway_config
+}
+
+#[test]
+fn echonet_with_remote_batcher_fails() {
+    let config = SequencerNodeConfig {
+        components: ComponentConfig {
+            batcher: ReactiveComponentExecutionConfig::remote(VALID_URL.to_string(), VALID_PORT),
+            ..Default::default()
+        },
+        gateway_config: Some(echonet_gateway_config()),
+        batcher_config: None,
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("consolidated"), "Unexpected error: {err:?}");
+}
+
+#[test]
+fn echonet_consolidated_succeeds() {
+    let config = SequencerNodeConfig {
+        gateway_config: Some(echonet_gateway_config()),
+        ..Default::default()
+    };
+    assert!(config.validate_node_config().is_ok(), "{:?}", config.validate_node_config());
 }
 
 #[rstest]
@@ -207,6 +239,51 @@ fn validation_only_with_mempool_p2p_enabled_fails() {
     };
     let err = config.validate_node_config().unwrap_err();
     assert!(format!("{err:?}").contains("mempool_p2p"), "Unexpected error: {err:?}");
+}
+
+// The config manager is a local infrastructure component; running it remotely would make its
+// consumers (e.g. the mempool) reach it over a network RPC that can fail mid-request. Both
+// remote-capable execution modes must be rejected at validation time so the client is always local.
+#[test]
+fn config_manager_remote_is_rejected() {
+    // `config_manager_config` is None so the per-component "set iff running locally" check passes
+    // (remote is not running locally) and we reach the config_manager-specific validation.
+    let config = SequencerNodeConfig {
+        components: ComponentConfig {
+            config_manager: ReactiveComponentExecutionConfig::remote(VALID_URL.into(), VALID_PORT),
+            ..Default::default()
+        },
+        config_manager_config: None,
+        state_sync_config: Some(state_sync_config_with_full_archive()),
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(
+        format!("{err:?}").contains("config_manager must run locally"),
+        "Unexpected error: {err:?}"
+    );
+}
+
+#[test]
+fn config_manager_local_with_remote_enabled_is_rejected() {
+    // This mode runs locally, so the default (Some) config_manager_config satisfies the
+    // per-component check and we reach the config_manager-specific validation.
+    let config = SequencerNodeConfig {
+        components: ComponentConfig {
+            config_manager: ReactiveComponentExecutionConfig::local_with_remote_enabled(
+                VALID_URL.into(),
+                VALID_PORT,
+            ),
+            ..Default::default()
+        },
+        state_sync_config: Some(state_sync_config_with_full_archive()),
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(
+        format!("{err:?}").contains("config_manager must run locally"),
+        "Unexpected error: {err:?}"
+    );
 }
 
 #[test]

@@ -10,8 +10,8 @@ pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintContext<'_>) -> 
     let request_block_number = ctx.get_integer(Ids::RequestBlockNumber)?;
     let current_block_number = ctx.get_integer(Ids::CurrentBlockNumber)?;
     let stored_block_hash_buffer = ctx.fetch_const(Const::StoredBlockHashBuffer)?;
-    let is_block_number_in_block_hash_buffer =
-        request_block_number > current_block_number - stored_block_hash_buffer;
+    let is_block_number_in_block_hash_buffer = current_block_number < *stored_block_hash_buffer
+        || request_block_number > current_block_number - stored_block_hash_buffer;
     ctx.insert_value(
         Ids::IsBlockNumberInBlockHashBuffer,
         Felt::from(is_block_number_in_block_hash_buffer),

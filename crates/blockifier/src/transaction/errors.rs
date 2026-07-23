@@ -11,7 +11,10 @@ use thiserror::Error;
 
 use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{
+    AnnotatedEntryPointExecutionError,
+    ConstructorEntryPointExecutionError,
+};
 use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertSummary};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
@@ -40,7 +43,7 @@ pub enum TransactionFeeError {
     #[error("Cairo resource names must be contained in fee cost dict.")]
     CairoResourcesNotContainedInFeeCosts,
     #[error(transparent)]
-    ExecuteFeeTransferError(#[from] EntryPointExecutionError),
+    ExecuteFeeTransferError(#[from] AnnotatedEntryPointExecutionError),
     #[error("Actual fee ({}) exceeded max fee ({}).", actual_fee.0, max_fee.0)]
     FeeTransferError { max_fee: Fee, actual_fee: Fee },
     #[error("Actual fee ({}) exceeded paid fee on L1 ({}).", actual_fee.0, paid_fee.0)]
@@ -82,7 +85,7 @@ pub enum TransactionExecutionError {
     DeclareTransactionError { class_hash: ClassHash },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ExecutionError {
-        error: Box<EntryPointExecutionError>,
+        error: Box<AnnotatedEntryPointExecutionError>,
         class_hash: ClassHash,
         storage_address: ContractAddress,
         selector: EntryPointSelector,
@@ -117,7 +120,7 @@ pub enum TransactionExecutionError {
     TransactionTooLarge { max_capacity: Box<BouncerWeights>, tx_size: Box<BouncerWeights> },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ValidateTransactionError {
-        error: Box<EntryPointExecutionError>,
+        error: Box<AnnotatedEntryPointExecutionError>,
         class_hash: ClassHash,
         storage_address: ContractAddress,
         selector: EntryPointSelector,

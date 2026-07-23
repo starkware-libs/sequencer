@@ -1,0 +1,19 @@
+[package]
+name = "patricia_root_cli"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "CLI that computes the Patricia root of a JSON."
+
+[dependencies]
+serde_json.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_committer.workspace = true
+starknet_patricia.workspace = true
+starknet_patricia_storage.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

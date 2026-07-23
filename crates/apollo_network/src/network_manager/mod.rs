@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use async_trait::async_trait;
@@ -40,6 +41,12 @@ use crate::{gossipsub_impl, mixed_behaviour, Bytes, NetworkConfig};
 
 const DEFAULT_ACTIVE_COMMITTEES_CAPACITY: usize = 2;
 const ADD_EPOCH_CHANNEL_CAPACITY: usize = 100;
+
+// When a node is restarted (e.g. integration tests that kill and respawn a node), the OS may not
+// have released the previous process's listening socket yet, so the first bind can transiently
+// fail with "address already in use". Retry a few times before giving up.
+const LISTEN_BIND_MAX_ATTEMPTS: usize = 5;
+const LISTEN_BIND_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 /// Errors that can occur during network operations.
 ///
@@ -1266,9 +1273,28 @@ impl NetworkManager {
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
         .build();
 
-        swarm
-            .listen_on(listen_address.clone())
-            .unwrap_or_else(|_| panic!("Error while binding to {listen_address}"));
+        let mut bind_attempt = 1;
+        loop {
+            match swarm.listen_on(listen_address.clone()) {
+                Ok(_) => break,
+                Err(bind_error) if bind_attempt < LISTEN_BIND_MAX_ATTEMPTS => {
+                    warn!(
+                        "Failed to bind to {listen_address} (attempt \
+                         {bind_attempt}/{LISTEN_BIND_MAX_ATTEMPTS}): {bind_error}. Retrying in \
+                         {LISTEN_BIND_RETRY_DELAY:?}."
+                    );
+                    // `new` is synchronous and runs once at startup; a brief blocking sleep here is
+                    // acceptable. The port is freed by the previous (already-killed) process, so
+                    // blocking this thread does not delay that release.
+                    std::thread::sleep(LISTEN_BIND_RETRY_DELAY);
+                    bind_attempt += 1;
+                }
+                Err(bind_error) => panic!(
+                    "Error while binding to {listen_address} after {LISTEN_BIND_MAX_ATTEMPTS} \
+                     attempts: {bind_error}"
+                ),
+            }
+        }
 
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
             address

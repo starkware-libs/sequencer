@@ -165,7 +165,7 @@ impl BlockContext {
     pub(crate) fn virtual_os_config_hash(&self) -> Felt {
         *self.virtual_os_config_hash.get_or_init(|| {
             OsChainInfo::from(&self.chain_info)
-                .compute_virtual_os_config_hash()
+                .compute_virtual_os_config_hash(self.block_info.starknet_version)
                 .expect("Failed to compute OS config hash")
         })
     }

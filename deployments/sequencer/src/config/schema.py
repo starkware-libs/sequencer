@@ -243,6 +243,15 @@ class HealthCheck(StrictBaseModel):
     unhealthyThreshold: Optional[int] = None
 
 
+class BackendConfigLogging(StrictBaseModel):
+    # Whether to log load balancer traffic for this backend. Defaults to true so that specifying
+    # the logging block without enable turns logging on.
+    enable: bool = True
+    # Request sampling rate in [0, 1]; only meaningful when enable is true. None leaves it unset,
+    # so GCP applies its own default (1.0).
+    sampleRate: Optional[float] = None
+
+
 class BackendConfig(StrictBaseModel):
     enabled: Optional[bool] = None
     customRequestHeaders: List[str] = Field(default_factory=list)
@@ -250,6 +259,8 @@ class BackendConfig(StrictBaseModel):
     securityPolicy: Optional[str] = None
     timeOutSeconds: Optional[int] = None
     healthCheck: Optional[HealthCheck] = None
+    # Optional: only emitted when present in config, so omitting it produces no logging block.
+    logging: Optional[BackendConfigLogging] = None
 
 
 class Secret(StrictBaseModel):

@@ -24,7 +24,7 @@ use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tokio::task::AbortHandle;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
@@ -394,15 +394,6 @@ impl FsClassStorage {
         self.persistent_root.join(self.get_class_dir(class_id))
     }
 
-    fn get_persistent_dir_with_create(&self, class_id: ClassId) -> FsClassStorageResult<PathBuf> {
-        let path = self.get_persistent_dir(class_id);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        Ok(path)
-    }
-
     fn get_sierra_path(&self, class_id: ClassId) -> PathBuf {
         concat_sierra_filename(&self.get_persistent_dir(class_id))
     }
@@ -418,7 +409,7 @@ impl FsClassStorage {
     fn create_tmp_dir(
         &self,
         class_id: ClassId,
-    ) -> FsClassStorageResult<(tempfile::TempDir, PathBuf)> {
+    ) -> FsClassStorageResult<(tempfile::TempDir, PathBuf, PathBuf)> {
         // Compute the final persistent directory for this `class_id`
         let persistent_dir = self.get_persistent_dir(class_id);
         let parent_dir = persistent_dir
@@ -435,7 +426,7 @@ impl FsClassStorage {
         let tmp_dir = tmp_root.path().join(leaf);
         // Returning `TempDir` since without it the handle would drop immediately and the temp
         // directory would be removed before writes/rename.
-        Ok((tmp_root, tmp_dir))
+        Ok((tmp_root, tmp_dir, persistent_dir))
     }
 
     fn mark_class_id_as_existent(
@@ -455,15 +446,11 @@ impl FsClassStorage {
         executable_class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write classes to a temporary directory.
-        let (_tmp_root, tmp_dir) = self.create_tmp_dir(class_id)?;
+        let (_tmp_root, tmp_dir, persistent_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_sierra_filename(&tmp_dir))?;
         executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
-        // Atomically rename directory to persistent one.
-        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
-        std::fs::rename(tmp_dir, persistent_dir)?;
-
-        Ok(())
+        self.rename_to_persistent_dir(tmp_dir, persistent_dir)
     }
 
     fn write_deprecated_class_atomically(
@@ -472,13 +459,43 @@ impl FsClassStorage {
         class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write class to a temporary directory.
-        let (_tmp_root, tmp_dir) = self.create_tmp_dir(class_id)?;
+        let (_tmp_root, tmp_dir, persistent_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
-        // Atomically rename directory to persistent one.
-        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
-        std::fs::rename(tmp_dir, persistent_dir)?;
+        self.rename_to_persistent_dir(tmp_dir, persistent_dir)
+    }
 
+    /// Atomically moves the staged class directory into its content-addressed persistent directory.
+    ///
+    /// The parent directory is guaranteed to exist: `create_tmp_dir` creates it before this is
+    /// called. The rename is attempted optimistically; `ENOTEMPTY` means a prior crash left an
+    /// orphaned non-empty directory at `persistent_dir`. Since the directory is named by class hash
+    /// it holds the same class content — removing it lets the rename proceed and the existence
+    /// marker get committed, restoring filesystem/marker consistency. Any other error is surfaced
+    /// immediately.
+    fn rename_to_persistent_dir(
+        &self,
+        tmp_dir: PathBuf,
+        persistent_dir: PathBuf,
+    ) -> FsClassStorageResult<()> {
+        if let Err(rename_error) = std::fs::rename(&tmp_dir, &persistent_dir) {
+            // POSIX permits both ENOTEMPTY and EEXIST for a non-empty destination directory;
+            // different kernels and filesystems can return either. Recover from both.
+            if matches!(
+                rename_error.kind(),
+                std::io::ErrorKind::DirectoryNotEmpty | std::io::ErrorKind::AlreadyExists
+            ) {
+                warn!(
+                    "Recovering orphaned class dir from a prior partial write: {persistent_dir:?}"
+                );
+                // Safe to remove: the directory is named by class hash, so an existing
+                // directory holds the same class content (content-addressing invariant).
+                std::fs::remove_dir_all(&persistent_dir)?;
+                std::fs::rename(tmp_dir, persistent_dir)?;
+            } else {
+                return Err(rename_error.into());
+            }
+        }
         Ok(())
     }
 }

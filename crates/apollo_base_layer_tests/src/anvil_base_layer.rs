@@ -13,7 +13,6 @@ use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    CircularUrlIterator,
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
@@ -116,13 +115,11 @@ curl -L \
             );
         });
         let config = Self::config(Self::url_static(port));
-        let url_iterator = CircularUrlIterator::new(config.ordered_l1_endpoint_urls.clone());
         let root_client = anvil_client.root().clone();
-        let contract = Starknet::new(config.starknet_contract_address, root_client);
 
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
-            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url_iterator },
+            ethereum_base_layer: EthereumBaseLayerContract::new_with_provider(config, root_client),
             port,
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
@@ -269,6 +266,15 @@ impl BaseLayerContract for AnvilBaseLayer {
 
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
+    }
+
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error> {
+        unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
+    }
+
+    // Anvil is tied to a single fixed URL, so it is always on its only (primary) endpoint.
+    async fn is_at_primary(&self) -> Result<bool, Self::Error> {
+        Ok(true)
     }
 }
 

@@ -81,6 +81,7 @@ fn write_json_files(
             )?,
         ),
         (headless_service_file_name.as_str(), STRESS_TEST_HEADLESS_SERVICE_JSON.to_string()),
+        ("sleep-policy.json", get_sleep_policy_json()?),
         ("prometheus-rbac.json", get_prometheus_rbac_json(namespace_name)?),
         ("prometheus-config.json", get_prometheus_json_file(args.shared.num_nodes)?),
         ("prometheus-statefulset.json", PROMETHEUS_DEPLOYMENT_JSON.to_string()),

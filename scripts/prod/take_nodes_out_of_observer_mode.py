@@ -133,6 +133,7 @@ Examples:
         namespace_and_instruction_args,
         Service.Core,
         restarter,
+        args.max_parallelism,
     )
 
 

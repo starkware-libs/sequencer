@@ -18,6 +18,7 @@ use url::Url;
 pub mod constants;
 pub mod cyclic_base_layer_wrapper;
 pub mod ethereum_base_layer_contract;
+pub mod metrics;
 
 pub(crate) mod eth_events;
 
@@ -46,8 +47,10 @@ impl std::fmt::Display for L1BlockHash {
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum MockError {
-    #[error("Mock error")]
+    #[error("mock error")]
     MockError,
+    #[error("mock error {0}")]
+    Numbered(usize),
 }
 
 /// Interface for getting data from the Starknet base contract.
@@ -90,6 +93,12 @@ pub trait BaseLayerContract {
     async fn get_url(&self) -> Result<Sensitive<Url>, Self::Error>;
     async fn set_provider_url(&mut self, url: Sensitive<Url>) -> Result<(), Self::Error>;
     async fn cycle_provider_url(&mut self) -> Result<(), Self::Error>;
+    /// Resets the provider to the primary (first) endpoint. This is a no-op if the provider is
+    /// already on the primary endpoint.
+    async fn reset_provider_url_to_primary(&mut self) -> Result<(), Self::Error>;
+
+    /// Returns whether the active provider is currently the primary (first) endpoint.
+    async fn is_at_primary(&self) -> Result<bool, Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.

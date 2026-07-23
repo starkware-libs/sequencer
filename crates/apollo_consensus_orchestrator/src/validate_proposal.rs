@@ -26,6 +26,7 @@ use apollo_transaction_converter::{TransactionConverterTrait, VerifyAndStoreProo
 use apollo_versioned_constants::VersionedConstants;
 use futures::channel::mpsc;
 use futures::StreamExt;
+use indexmap::IndexSet;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -45,6 +46,7 @@ use crate::metrics::{
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
+    expected_version_constant_commitment,
     get_l1_prices_in_fri_and_wei,
     retrospective_block_hash,
     truncate_to_executed_txs,
@@ -142,6 +144,7 @@ pub(crate) async fn validate_proposal(
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
     let mut verify_and_store_proof_tasks: Vec<VerifyAndStoreProofTask> = Vec::new();
+    let mut seen_tx_hashes: IndexSet<TransactionHash> = IndexSet::new();
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -198,6 +201,7 @@ pub(crate) async fn validate_proposal(
                     args.deps.batcher.as_ref(),
                     proposal_part.clone(),
                     &mut content,
+                    &mut seen_tx_hashes,
                     &mut verify_and_store_proof_tasks,
                     args.deps.transaction_converter.clone(),
                     &deadline_params,
@@ -289,6 +293,22 @@ async fn is_proposal_init_valid(
             format!(
                 "starknet_version mismatch: expected={:?}, proposed={:?}",
                 proposal_init_validation.starknet_version, init_proposed.starknet_version
+            ),
+        ));
+    }
+    // `version_constant_commitment` is proposer-supplied (network-derived). It is not yet a real
+    // commitment (see `expected_version_constant_commitment`): the only valid value is the
+    // sentinel, so reject anything else. Enforcing the same value the proposer emits keeps the two
+    // sides in lockstep, so a real value cannot ship on one side without the other.
+    let expected_commitment = expected_version_constant_commitment();
+    if init_proposed.version_constant_commitment != expected_commitment {
+        return Err(ValidateProposalError::InvalidProposalInit(
+            init_proposed.clone(),
+            proposal_init_validation.clone(),
+            format!(
+                "version_constant_commitment mismatch: expected={expected_commitment:?}, \
+                 proposed={:?}",
+                init_proposed.version_constant_commitment
             ),
         ));
     }
@@ -401,16 +421,23 @@ async fn is_proposal_init_valid(
     Ok(())
 }
 
-fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
+/// Returns whether `proposed` is within `margin_percent` of the locally-trusted `reference`,
+/// i.e. within the symmetric band `[reference*(1-m), reference*(1+m)]`.
+///
+/// The band is anchored to `reference` (the node's own L1 oracle read), not to the
+/// proposer-supplied `proposed`: anchoring to `proposed` would let a malicious proposer scale the
+/// band width with its own input and widen it in its favor.
+fn within_margin(proposed: GasPrice, reference: GasPrice, margin_percent: u128) -> bool {
     // For small numbers (e.g., less than 10 wei, if margin is 10%), even an off-by-one
     // error might be bigger than the margin, even if it is just a rounding error.
     // We make an exception for such mismatch, and don't bother checking percentages
     // if the difference in price is only one wei.
-    if number1.0.abs_diff(number2.0) <= GAS_PRICE_ABS_DIFF_MARGIN {
+    if proposed.0.abs_diff(reference.0) <= GAS_PRICE_ABS_DIFF_MARGIN {
         return true;
     }
-    let margin = (number1.0 * margin_percent) / 100;
-    number1.0.abs_diff(number2.0) <= margin
+    // Saturate: `reference.0 * margin_percent` can overflow u128 on large WEI prices.
+    let margin = reference.0.saturating_mul(margin_percent) / 100;
+    proposed.0.abs_diff(reference.0) <= margin
 }
 
 // The second proposal part when validating a proposal must be:
@@ -468,6 +495,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    seen_tx_hashes: &mut IndexSet<TransactionHash>,
     verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     deadline_params: &ProposalDeadlineParams,
@@ -491,6 +519,17 @@ async fn handle_proposal_part(
                     "Number of executed transactions should fit in usize".to_string(),
                 );
             };
+
+            // `executed_transaction_count` comes straight off the wire, so a dishonest or
+            // spoofed `Fin` can claim more transactions than were actually streamed. Reject
+            // that here instead of trusting the count downstream.
+            let n_received_txs = content.iter().map(Vec::len).sum::<usize>();
+            if executed_txs_count > n_received_txs {
+                return HandledProposalPart::Failed(format!(
+                    "Fin claims {executed_txs_count} executed transactions but only \
+                     {n_received_txs} were received in the proposal."
+                ));
+            }
 
             *content = truncate_to_executed_txs(content, executed_txs_count);
 
@@ -594,6 +633,15 @@ async fn handle_proposal_part(
                 "Converted transactions to internal representation. hashes={:?}",
                 txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
             );
+
+            for tx in &txs {
+                let tx_hash = tx.tx_hash();
+                if !seen_tx_hashes.insert(tx_hash) {
+                    return HandledProposalPart::Failed(format!(
+                        "Duplicate transaction hash in proposal: {tx_hash}."
+                    ));
+                }
+            }
 
             content.push(txs.clone());
             let input = SendTxsForProposalInput { proposal_id, txs };

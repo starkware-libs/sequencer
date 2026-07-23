@@ -311,6 +311,14 @@ impl AccountTransaction {
         };
         let os_constants = &block_context.versioned_constants.os_constants;
 
+        if !os_constants.allowed_proof_versions.contains(&snos_proof_facts.proof_version.as_felt())
+        {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "Proof version {} is not allowed under this protocol version.",
+                snos_proof_facts.proof_version
+            )));
+        }
+
         // Validate the program hash.
         let allowed = &os_constants.allowed_virtual_os_program_hashes;
         if !allowed.contains(&snos_proof_facts.program_hash) {

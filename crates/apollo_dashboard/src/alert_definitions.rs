@@ -28,7 +28,6 @@ use apollo_l1_events::metrics::{
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
 use apollo_l1_gas_price::metrics::{
-    ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_INFRA_METRICS,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
@@ -69,12 +68,21 @@ use crate::alert_scenarios::infra_alerts::{
     get_general_pod_state_not_ready,
     get_periodic_ping,
 };
+use crate::alert_scenarios::l1_endpoints::get_primary_l1_endpoint_down_too_long_alerts;
 use crate::alert_scenarios::l1_gas_prices::{
+    get_eth_to_strk_error_count_alert,
+    get_eth_to_strk_rate_frozen_alert,
     get_eth_to_strk_success_count_alert,
     get_l1_gas_price_provider_insufficient_history_alert,
     get_l1_gas_price_scraper_success_count_alert,
+    get_strk_to_usd_error_count_alert,
+    get_strk_to_usd_rate_frozen_alert,
+    get_strk_to_usd_success_count_alert,
 };
-use crate::alert_scenarios::l1_handlers::get_l1_message_scraper_no_successes_alert;
+use crate::alert_scenarios::l1_handlers::{
+    get_l1_handler_transaction_waiting_in_l1_alert,
+    get_l1_message_scraper_no_successes_alert,
+};
 use crate::alert_scenarios::mempool_size::{
     get_mempool_evictions_count_alert,
     get_mempool_pool_size_increase,
@@ -303,22 +311,6 @@ fn get_consensus_retrospective_block_hash_mismatch() -> Alert {
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Sos,
         ObserverApplicability::Applicable,
-    )
-}
-
-fn get_eth_to_strk_error_count_alert() -> Alert {
-    Alert::new(
-        "eth_to_strk_error_count",
-        "Eth to Strk error count",
-        EvaluationRate::Default,
-        format!(
-            "sum(increase({}[1h])) or vector(0)",
-            ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()
-        ),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
-        "1m",
-        AlertSeverity::Informational,
-        ObserverApplicability::NotApplicable,
     )
 }
 
@@ -617,6 +609,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_round_above_zero(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
+        get_strk_to_usd_error_count_alert(),
         get_gateway_add_tx_idle(),
         get_gateway_proof_archive_write_failure(),
         get_general_pod_state_not_ready(),
@@ -648,6 +641,9 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_consensus_round_above_zero_multiple_times());
     alerts.push(get_consensus_round_high());
     alerts.push(get_eth_to_strk_success_count_alert());
+    alerts.push(get_strk_to_usd_success_count_alert());
+    alerts.push(get_eth_to_strk_rate_frozen_alert());
+    alerts.push(get_strk_to_usd_rate_frozen_alert());
     alerts.append(&mut get_general_pod_memory_utilization_vec());
     alerts.append(&mut get_general_pod_disk_utilization_vec());
     alerts.push(get_http_server_avg_add_tx_latency_alert());
@@ -659,6 +655,8 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_l1_gas_price_provider_insufficient_history_alert());
     alerts.push(get_l1_gas_price_scraper_success_count_alert());
     alerts.push(get_l1_message_scraper_no_successes_alert());
+    alerts.push(get_l1_handler_transaction_waiting_in_l1_alert());
+    alerts.extend(get_primary_l1_endpoint_down_too_long_alerts());
     alerts.push(get_mempool_evictions_count_alert());
     alerts.push(get_mempool_p2p_peer_down());
     alerts.push(get_mempool_pool_size_increase());

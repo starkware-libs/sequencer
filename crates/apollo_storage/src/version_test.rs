@@ -22,6 +22,7 @@ use crate::{
     verify_storage_version,
     StorageError,
     StorageScope,
+    StorageTransaction,
     StorageWriter,
     STORAGE_VERSION_BLOCKS,
     STORAGE_VERSION_STATE,
@@ -204,8 +205,8 @@ fn open_storage_state_only_different_blocks_major_versions() {
 // Changes the storage version with version_key to the given version.
 fn change_storage_version(writer: &mut StorageWriter, version_key: &str, version: &Version) {
     let wtxn = writer.begin_rw_txn().unwrap();
-    let version_table = wtxn.open_table(&wtxn.tables.storage_version).unwrap();
-    version_table.upsert(&wtxn.txn, &version_key.to_string(), version).unwrap();
+    let version_table = wtxn.open_table(&wtxn.tables().storage_version).unwrap();
+    version_table.upsert(wtxn.txn(), &version_key.to_string(), version).unwrap();
     wtxn.commit().unwrap();
 }
 
@@ -224,16 +225,17 @@ fn get_different_major_version(version: Version) -> Version {
 
 #[test]
 fn test_verify_storage_version_good_flow() {
-    let ((reader_full_archive, _), _temp_dir) =
+    let ((_reader_full_archive, mut writer_full_archive), _temp_dir) =
         get_test_storage_by_scope(StorageScope::FullArchive);
-    let ((reader_state_only, _), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
-    verify_storage_version(reader_full_archive).unwrap();
-    verify_storage_version(reader_state_only).unwrap();
+    let ((_reader_state_only, mut writer_state_only), _temp_dir2) =
+        get_test_storage_by_scope(StorageScope::StateOnly);
+    verify_storage_version(&mut writer_full_archive).unwrap();
+    verify_storage_version(&mut writer_state_only).unwrap();
 }
 
 #[test]
 fn test_verify_storage_version_different_minor_blocks_version() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::FullArchive);
+    let ((_reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::FullArchive);
     let blocks_higher_version =
         Version { major: STORAGE_VERSION_BLOCKS.major, minor: STORAGE_VERSION_BLOCKS.minor + 1 };
     writer
@@ -244,7 +246,7 @@ fn test_verify_storage_version_different_minor_blocks_version() {
         .commit()
         .unwrap();
     assert_matches!(
-        verify_storage_version(reader),
+        verify_storage_version(&mut writer),
         Err(StorageError::StorageVersionInconsistency(
             StorageVersionError::InconsistentStorageVersion {
                 crate_version: STORAGE_VERSION_BLOCKS,
@@ -256,7 +258,7 @@ fn test_verify_storage_version_different_minor_blocks_version() {
 
 #[test]
 fn test_verify_storage_version_different_minor_state_version() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::FullArchive);
+    let ((_reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::FullArchive);
     let state_higher_version =
         Version { major: STORAGE_VERSION_STATE.major, minor: STORAGE_VERSION_STATE.minor + 1 };
     writer
@@ -267,7 +269,7 @@ fn test_verify_storage_version_different_minor_state_version() {
         .commit()
         .unwrap();
     assert_matches!(
-        verify_storage_version(reader),
+        verify_storage_version(&mut writer),
         Err(StorageError::StorageVersionInconsistency(
             StorageVersionError::InconsistentStorageVersion {
                 crate_version: STORAGE_VERSION_STATE,
@@ -279,11 +281,10 @@ fn test_verify_storage_version_different_minor_state_version() {
 
 #[test]
 fn test_set_version_if_needed() {
-    let ((mut reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
-    reader.scope = StorageScope::FullArchive;
+    let ((_reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
     writer.scope = StorageScope::FullArchive;
     assert!(
-        set_version_if_needed(reader, writer).is_err(),
+        set_version_if_needed(&mut writer).is_err(),
         "Should fail, because storage scope cannot shift from state-only to full-archive."
     );
 }

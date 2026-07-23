@@ -17,7 +17,7 @@ use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     calculate_contract_address,
@@ -58,7 +58,6 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     ProofFacts,
-    ProofVersion,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -85,14 +84,16 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
-use strum::IntoEnumIterator;
 
 use crate::initial_state::{
     create_default_initial_state_data,
@@ -226,8 +227,12 @@ async fn declare_deploy_scenario(
         arg2,
     ];
     let contract_address_salt = ContractAddressSalt(Felt::ONE);
-    let calldata: Vec<_> =
-        [class_hash.0, contract_address_salt.0].into_iter().chain(constructor_calldata).collect();
+    let calldata: Vec<_> = [class_hash.0, contract_address_salt.0]
+        .into_iter()
+        .chain(constructor_calldata)
+        // deploy_from_zero
+        .chain(vec![false.into()])
+        .collect();
     let deploy_contract_calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
         DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
@@ -1023,7 +1028,6 @@ async fn test_v1_bound_accounts_cairo1() {
     let test_contract_sierra = &V1_BOUND_CAIRO1_CONTRACT_SIERRA;
     let test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;
     let class_hash = test_contract_sierra.calculate_class_hash();
-    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
     let vc = VersionedConstants::latest_constants();
     let max_tip = vc.os_constants.v1_bound_accounts_max_tip;
     assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
@@ -1031,23 +1035,17 @@ async fn test_v1_bound_accounts_cairo1() {
     let chain_id = &test_builder.chain_id();
 
     // Declare the V1-bound account.
-    let declare_args = declare_tx_args! {
+    let extra_declare_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        class_hash,
-        compiled_class_hash,
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let account_declare_tx = declare_tx(declare_args);
-    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
-    let class_info = ClassInfo {
-        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
-        sierra_program_length: test_contract_sierra.sierra_program.len(),
-        abi_length: test_contract_sierra.abi.len(),
-        sierra_version,
-    };
-    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
-    test_builder.add_cairo1_declare_tx(tx, test_contract_sierra);
+    test_builder.add_explicit_cairo1_declare_tx(
+        test_contract_sierra,
+        (**test_contract_casm).clone(),
+        extra_declare_args,
+        chain_id,
+    );
 
     // Deploy it (from funded account).
     let private_key = Felt::ONE;
@@ -1289,7 +1287,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         .copied()
         .unwrap_or(0);
     expect![[r#"
-        553
+        560
     "#]]
     .assert_debug_eq(&blakes);
 
@@ -1516,6 +1514,14 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
+    // Test that get_class_hash_at returns 0 for the alias contract address.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_get_class_hash_at",
+        &[***ALIAS_CONTRACT_ADDRESS, Felt::ZERO, undeployed_address],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
     // Test send-message-to-L1 syscall.
     let test_send_message_to_l1_to_address = Felt::ZERO;
     let test_send_message_to_l1_payload = vec![Felt::from(4365), Felt::from(23)];
@@ -1713,6 +1719,82 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_new_syscalls_flow_use_kzg_da_{}_n_blocks_{}",
         use_kzg_da, n_blocks_in_multi_block
     ));
+}
+
+/// Runs three secp256r1 operations involving the affine point with x == 0 (which exists on
+/// secp256r1 but not secp256k1) as txs in a single flow, then runs the OS. Each contract entry
+/// point asserts the correct result, so this exercises the OS handling of the x == 0 point
+/// end-to-end (it previously mishandled the point; see the per-tx comments). The u256 (low, high)
+/// limb pairs are the inputs followed by the expected result.
+#[tokio::test]
+async fn test_secp256r1_zero_x_point_handling() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [main_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+
+    // add(x == 0 point, generator).
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata: create_calldata(
+            main_contract_address,
+            "test_add_secp256r1_checked",
+            &[
+                Felt::ZERO,
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x541c2af31dae871728bf856a174f93f4"),
+                Felt::from_hex_unchecked("0x66485c780e2f83d72433bd5d84a06bb6"),
+                Felt::from_hex_unchecked("0x309d479ae02982a3a0c135a210379e6f"),
+                Felt::from_hex_unchecked("0x00486efab89170d45f6160cbc7d034a9"),
+                Felt::from_hex_unchecked("0xbe0766825f92a0794540ee7970f48bb9"),
+                Felt::from_hex_unchecked("0x651969b753803a6019cec6e6877a0ff8"),
+            ],
+        ),
+    });
+
+    // mul(x == 0 point, 3).
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata: create_calldata(
+            main_contract_address,
+            "test_mul_point_secp256r1_checked",
+            &[
+                Felt::ZERO,
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x541c2af31dae871728bf856a174f93f4"),
+                Felt::from_hex_unchecked("0x66485c780e2f83d72433bd5d84a06bb6"),
+                Felt::from(3_u8),
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x1e1338620020b5febb703b78a52557b1"),
+                Felt::from_hex_unchecked("0x4edb2f8a9b1b9d31dc704c71e17cd2d5"),
+                Felt::from_hex_unchecked("0x149ce1aa9aee2f11be92df6e405c55b8"),
+                Felt::from_hex_unchecked("0x9f6c246d01e73176c7318a8b17bd3ca2"),
+            ],
+        ),
+    });
+
+    // mul(P/2, 3), where 2 * (P/2) == the x == 0 point: it appears mid-computation as the
+    // scalar-mul precompute entry table[2].
+    test_builder.add_funded_account_invoke(invoke_tx_args! {
+        calldata: create_calldata(
+            main_contract_address,
+            "test_mul_point_secp256r1_checked",
+            &[
+                Felt::from_hex_unchecked("0x278e28febff3b05632eeff09011c5579"),
+                Felt::from_hex_unchecked("0x81bfb55b010b1bdf08b8d9d8590087aa"),
+                Felt::from_hex_unchecked("0x50799b354b0fb1e77eb75eba8bff3d58"),
+                Felt::from_hex_unchecked("0x8cd2f199d9815d7585073034eb76c93d"),
+                Felt::from(3_u8),
+                Felt::ZERO,
+                Felt::from_hex_unchecked("0x3987510e0f01f0675cab69d0ccb480b7"),
+                Felt::from_hex_unchecked("0x6f370ba949025de60e38bfaec452e3d5"),
+                Felt::from_hex_unchecked("0x5df6f10c46fb2a67036c5251f9e5c9af"),
+                Felt::from_hex_unchecked("0xd62ff00ad9d9eaa09da9ba13a1c26049"),
+            ],
+        ),
+    });
+
+    test_builder.build_and_run().await.perform_default_validations();
 }
 
 /// Runs the same syscall several times from various call depths. E.g.,
@@ -1974,7 +2056,7 @@ async fn test_deploy_syscall() {
     let calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
         "deploy_contract",
-        &[empty_class_hash.0, salt.0, Felt::ZERO],
+        &[empty_class_hash.0, salt.0, Felt::ZERO, false.into()],
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
@@ -2161,7 +2243,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
         "deploy_contract",
-        &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0]],
+        &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0], false.into()],
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
@@ -2497,7 +2579,6 @@ async fn test_data_gas_accounts() {
     let test_contract_sierra = &DATA_GAS_ACCOUNT_CONTRACT_SIERRA;
     let test_contract_casm = &DATA_GAS_ACCOUNT_CONTRACT_CASM;
     let class_hash = test_contract_sierra.calculate_class_hash();
-    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
     assert!(
         VersionedConstants::latest_constants().os_constants.data_gas_accounts.contains(&class_hash)
     );
@@ -2505,23 +2586,17 @@ async fn test_data_gas_accounts() {
     let chain_id = &test_builder.chain_id();
 
     // Declare the data gas account.
-    let declare_args = declare_tx_args! {
+    let extra_declare_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        class_hash,
-        compiled_class_hash,
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let account_declare_tx = declare_tx(declare_args);
-    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
-    let class_info = ClassInfo {
-        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
-        sierra_program_length: test_contract_sierra.sierra_program.len(),
-        abi_length: test_contract_sierra.abi.len(),
-        sierra_version,
-    };
-    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
-    test_builder.add_cairo1_declare_tx(tx, test_contract_sierra);
+    test_builder.add_explicit_cairo1_declare_tx(
+        test_contract_sierra,
+        (**test_contract_casm).clone(),
+        extra_declare_args,
+        chain_id,
+    );
 
     // Deploy it (from funded account).
     let salt = ContractAddressSalt(Felt::ZERO);
@@ -2960,7 +3035,7 @@ async fn test_load_bottom() {
 async fn test_initial_empty_block() {
     let empty_initial_state = InitialState {
         updatable_state: DictStateReader::default(),
-        commitment_storage: Default::default(),
+        commitment_storage: IndexDb::new(MapStorage::default()),
         contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
         classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
         block_context: block_context_for_flow_tests(BlockNumber(0), false),
@@ -3073,30 +3148,30 @@ async fn test_proof_facts_versions_and_program_hashes() {
     )])
     .await;
     let config_hash = test_builder.compute_virtual_os_config_hash();
-    let allowed_program_hashes = VersionedConstants::latest_constants()
-        .os_constants
-        .allowed_virtual_os_program_hashes
-        .clone();
+    let os_versioned_constants = &VersionedConstants::latest_constants().os_constants;
+    let allowed_program_hashes = os_versioned_constants.allowed_virtual_os_program_hashes.clone();
+    let allowed_proof_versions = os_versioned_constants.allowed_proof_versions.clone();
     let calldata = create_calldata(test_contract_address, "empty_function", &[]);
     let reference_program_hash =
         *allowed_program_hashes.first().expect("expected at least one allowed program hash");
-    let reference_proof_version =
-        ProofVersion::iter().next().expect("ProofVersion must have at least one variant");
+    let reference_proof_version = allowed_proof_versions
+        .first()
+        .expect("allowed_proof_versions must have at least one variant");
 
     // Cover every allowed program hash (with a fixed proof version).
     for program_hash in &allowed_program_hashes {
         let mut proof_facts =
             ProofFacts::custom_proof_facts_for_testing(*program_hash, config_hash);
-        Arc::make_mut(&mut proof_facts.0)[0] = reference_proof_version.as_felt();
+        Arc::make_mut(&mut proof_facts.0)[0] = *reference_proof_version;
         test_builder
             .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
     }
 
     // Cover every proof version (with a fixed program hash).
-    for proof_version in ProofVersion::iter() {
+    for proof_version in &allowed_proof_versions {
         let mut proof_facts =
             ProofFacts::custom_proof_facts_for_testing(reference_program_hash, config_hash);
-        Arc::make_mut(&mut proof_facts.0)[0] = proof_version.as_felt();
+        Arc::make_mut(&mut proof_facts.0)[0] = *proof_version;
         test_builder
             .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
     }

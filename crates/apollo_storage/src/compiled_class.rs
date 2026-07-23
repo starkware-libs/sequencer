@@ -2,7 +2,7 @@
 //!
 //! The compiled class is the result of compiling a Cairo program.
 //! Import [`CasmStorageReader`] and [`CasmStorageWriter`] to read and write data related to the
-//! compiled classes using a [`StorageTxn`].
+//! compiled classes using a `StorageTxn`.
 //! # Example
 //! ```
 //! use apollo_storage::open_storage;
@@ -56,9 +56,16 @@ use starknet_api::state::SierraContractClass;
 use crate::class::ClassStorageReader;
 use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::{SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, TableHandle, RW};
 use crate::mmap_file::LocationInFile;
-use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn};
+use crate::{
+    FileHandlers,
+    MarkerKind,
+    MarkersTable,
+    OffsetKind,
+    StorageResult,
+    StorageTransaction,
+};
 
 /// Interface for reading data related to the compiled classes.
 pub trait CasmStorageReader {
@@ -104,7 +111,7 @@ where
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> CasmStorageReader for T {
     fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>> {
         let casm_location = self.get_casm_location(class_hash)?;
         casm_location.map(|location| self.get_casm_from_location(location)).transpose()
@@ -118,13 +125,13 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     }
 
     fn get_casm_location(&self, class_hash: &ClassHash) -> StorageResult<Option<LocationInFile>> {
-        let casm_table = self.open_table(&self.tables.casms)?;
-        let casm_location = casm_table.get(&self.txn, class_hash)?;
+        let casm_table = self.open_table(&self.tables().casms)?;
+        let casm_location = casm_table.get(self.txn(), class_hash)?;
         Ok(casm_location)
     }
 
     fn get_casm_from_location(&self, location: LocationInFile) -> StorageResult<CasmContractClass> {
-        self.file_handlers.get_casm_unchecked(location)
+        self.file_handlers().get_casm_unchecked(location)
     }
 
     fn get_compiled_class_hash(
@@ -132,32 +139,32 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
         class_hash: ClassHash,
         block_number: BlockNumber,
     ) -> StorageResult<Option<CompiledClassHash>> {
-        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
-        Ok(compiled_class_hash_table.get(&self.txn, &(class_hash, block_number))?)
+        let compiled_class_hash_table = self.open_table(&self.tables().compiled_class_hash)?;
+        Ok(compiled_class_hash_table.get(self.txn(), &(class_hash, block_number))?)
     }
 
     fn get_compiled_class_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::CompiledClass)?.unwrap_or_default())
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::CompiledClass)?.unwrap_or_default())
     }
 }
 
-impl CasmStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> CasmStorageWriter for T {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
-        let casm_table = self.open_table(&self.tables.casms)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let state_diff_table = self.open_table(&self.tables.state_diffs)?;
-        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
+        let casm_table = self.open_table(&self.tables().casms)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let state_diff_table = self.open_table(&self.tables().state_diffs)?;
+        let file_offset_table = self.txn().open_table(&self.tables().file_offsets)?;
 
-        let location = self.file_handlers.append_casm(casm);
-        casm_table.insert(&self.txn, class_hash, &location)?;
-        file_offset_table.upsert(&self.txn, &OffsetKind::Casm, &location.next_offset())?;
+        let location = self.file_handlers().append_casm(casm);
+        casm_table.insert(self.txn(), class_hash, &location)?;
+        file_offset_table.upsert(self.txn(), &OffsetKind::Casm, &location.next_offset())?;
         update_marker(
-            &self.txn,
+            self.txn(),
             &markers_table,
             &state_diff_table,
-            self.file_handlers.clone(),
+            self.file_handlers(),
             class_hash,
         )?;
         Ok(self)
@@ -173,7 +180,7 @@ fn update_marker<'env>(
         VersionZeroWrapper<LocationInFile>,
         SimpleTable,
     >,
-    file_handlers: FileHandlers<RW>,
+    file_handlers: &FileHandlers<RW>,
     class_hash: &ClassHash,
 ) -> StorageResult<()> {
     // The marker needs to update if we reached the last class from the state diff. We can continue

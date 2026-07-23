@@ -26,6 +26,7 @@ use apollo_staking::committee_provider::{
     MockCommitteeProvider,
     MockCommitteeTrait,
     Staker,
+    MAX_COMMITTEE_SIZE,
 };
 use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -41,8 +42,8 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing_test::traced_test;
 
-use super::{run_consensus, MultiHeightManager, RunHeightRes};
-use crate::manager::CONSENSUS_RUNNING_PAST_STOP_HEIGHT;
+use super::{run_consensus, ConsensusCache, MultiHeightManager, RunHeightRes, NUM_VOTE_TYPES};
+use crate::manager::{CONSENSUS_RUNNING_PAST_STOP_HEIGHT, SKIPPED_PROPOSER_FAR_BEHIND};
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
     precommit,
@@ -126,6 +127,7 @@ fn consensus_config() -> ConsensusConfig {
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
             future_msg_limit: FutureMsgLimitsConfig::default(),
+            far_behind_proposal_threshold: 30,
             require_virtual_proposer_vote: true,
             stop_at_height: None,
         },
@@ -203,6 +205,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     // Run the manager for height 1.
     context.expect_try_sync().returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
@@ -256,6 +259,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
 async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     // Set expectations.
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     let (decision_tx, decision_rx) = oneshot::channel();
 
     let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -330,6 +334,7 @@ async fn run_consensus_stop_at_height(consensus_config: ConsensusConfig) {
     send(&mut network_sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
@@ -388,6 +393,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     expect_validate_proposal(&mut context, Felt::ONE, 2);
     context.expect_try_sync().returning(|_| false);
@@ -458,6 +464,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // TODO(matan): Make run_height more generic so don't need mock network?
     // Check that, even when sync is immediately ready, consensus still handles queued messages.
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_try_sync().returning(|_| true);
 
     // Send messages
@@ -547,6 +554,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     send(&mut sender, precommit(Some(Felt::ZERO), HEIGHT_0, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_try_sync().returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ZERO, 1); // Height 0 validation
     expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
@@ -673,6 +681,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     send(&mut sender, precommit(None, HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_try_sync().returning(|_| false);
     // Will be called twice for round 0 and 2 (will send the proposal when advancing to round 2).
     expect_validate_proposal(&mut context, Felt::ONE, 2);
@@ -776,6 +785,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
 
     // Context: H1 we sync (try_sync returns true); at H2 we run consensus as the proposer.
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
@@ -869,6 +879,7 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
         .returning(|| Ok(Some(LAST_VOTED_HEIGHT)));
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_try_sync().with(eq(CURRENT_HEIGHT)).times(1).returning(|_| true);
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -891,6 +902,109 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
         .unwrap();
 
     assert_eq!(decision, RunHeightRes::Sync);
+}
+
+#[rstest]
+#[traced_test]
+#[tokio::test]
+async fn far_behind_node_syncs_instead_of_proposing(consensus_config: ConsensusConfig) {
+    // This node is the designated proposer for HEIGHT_1, but the network tip (from the central
+    // source) is far ahead, so it must keep syncing and must NOT build a proposal. No
+    // build_proposal expectation is set, so the test panics (via mockall) if the guard is bypassed.
+    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let (_proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    let network_tip =
+        BlockNumber(HEIGHT_1.0 + consensus_config.dynamic_config.far_behind_proposal_threshold + 1);
+    let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(move || Some(network_tip));
+    // try_sync first fails, so we fall past the sync checks and reach the guard; it then succeeds,
+    // so the guard's wait_until_sync_reaches_height completes (rather than looping forever).
+    context.expect_try_sync().times(1).returning(|_| false);
+    context.expect_try_sync().returning(|_| true);
+
+    // This node (VALIDATOR_ID) is the proposer, so a bypassed guard would call build_proposal.
+    let committee = mock_committee_with_members_and_proposer(vec![*VALIDATOR_ID], *VALIDATOR_ID);
+    let mut committee_provider = MockCommitteeProvider::new();
+    committee_provider
+        .expect_get_committee()
+        .returning(move |_| Box::pin(std::future::ready(Ok(Arc::clone(&committee)))));
+
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        Arc::new(committee_provider),
+    )
+    .await;
+    let mut subscriber_channels = subscriber_channels.into();
+    let res = manager
+        .run_height(
+            &mut context,
+            HEIGHT_1,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res, RunHeightRes::Sync);
+    assert!(logs_contain(SKIPPED_PROPOSER_FAR_BEHIND));
+}
+
+#[rstest]
+#[tokio::test]
+async fn at_threshold_node_proposes_normally(consensus_config: ConsensusConfig) {
+    // The tip is exactly far_behind_proposal_threshold ahead (gap == threshold, not > it), so the
+    // guard must NOT fire: the node (proposer) proceeds past the guard and builds a proposal.
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let _vote_sender = mock_network.broadcasted_messages_sender;
+    let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    let network_tip =
+        BlockNumber(HEIGHT_1.0 + consensus_config.dynamic_config.far_behind_proposal_threshold);
+    let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(move || Some(network_tip));
+    context.expect_try_sync().returning(|_| false);
+    context.expect_set_height_and_round().returning(|_, _| Ok(()));
+    context.expect_broadcast().returning(|_| Ok(()));
+    let (proposed_tx, proposed_rx) = oneshot::channel();
+    context.expect_build_proposal().withf(|init, _| init.height == HEIGHT_1).return_once(
+        move |_, _| {
+            // Reaching build_proposal proves the guard did not short-circuit at the boundary.
+            proposed_tx.send(()).unwrap();
+            let (sender, receiver) = oneshot::channel();
+            sender.send(ProposalCommitment(Felt::ONE)).unwrap();
+            Ok(receiver)
+        },
+    );
+
+    let committee = mock_committee_with_members_and_proposer(vec![*VALIDATOR_ID], *VALIDATOR_ID);
+    let mut committee_provider = MockCommitteeProvider::new();
+    committee_provider
+        .expect_get_committee()
+        .returning(move |_| Box::pin(std::future::ready(Ok(Arc::clone(&committee)))));
+
+    let run_consensus_args = RunConsensusArguments {
+        start_active_height: HEIGHT_1,
+        consensus_config,
+        quorum_type: QuorumType::Byzantine,
+        config_manager_client: None,
+        last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        committee_provider: Arc::new(committee_provider),
+    };
+    tokio::spawn(async move {
+        let _ = run_consensus(
+            run_consensus_args,
+            context,
+            subscriber_channels.into(),
+            proposal_receiver_receiver,
+        )
+        .await;
+    });
+    proposed_rx.await.unwrap();
 }
 
 #[rstest]
@@ -930,6 +1044,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     send(&mut sender, precommit(Some(Felt::ONE), CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     // Sync will never succeed so we will proceed to run consensus (during which try_sync is called
     // periodically regardless of last voted height functionality).
     context.expect_try_sync().with(eq(CURRENT_HEIGHT)).returning(|_| false);
@@ -990,6 +1105,7 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
     send(&mut sender, precommit(Some(Felt::ONE), LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     // At the last voted height we expect the manager to halt until it can get the last voted height
     // from storage. We wait 3 retries to make sure it retries.
     context.expect_try_sync().with(eq(LAST_VOTED_HEIGHT)).times(3).returning(|_| false);
@@ -1039,6 +1155,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         mpsc::channel(CHANNEL_SIZE);
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_try_sync().returning(|_| false);
 
@@ -1182,6 +1299,7 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
         mpsc::channel(CHANNEL_SIZE);
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
 
     // Sync should first fail, so consensus will try to run.
     context.expect_try_sync().times(1).returning(|_| false);
@@ -1249,6 +1367,7 @@ async fn cache_future_vote_deduplication(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(Some(Felt::ZERO), HEIGHT_0, ROUND_0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_try_sync().returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ZERO, 1);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
@@ -1291,6 +1410,45 @@ async fn cache_future_vote_deduplication(consensus_config: ConsensusConfig) {
     );
 }
 
+/// Builds `n` distinct validator ids, for use as distinct vote voters.
+fn distinct_voters(n: usize) -> Vec<ValidatorId> {
+    (0..n)
+        .map(|i| {
+            let offset = u64::try_from(i).expect("voter index should fit in u64");
+            (DEFAULT_VALIDATOR_ID + 1 + offset).into()
+        })
+        .collect()
+}
+
+/// The number of future votes cached for a height is statically bounded by the
+/// `MAX_COMMITTEE_SIZE`-derived cap, even when flooded with votes from arbitrary (forged) voters.
+#[test]
+fn future_votes_capped() {
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    let cached_rounds = usize::try_from(FutureMsgLimitsConfig::default().future_height_round_limit)
+        .expect("future_height_round_limit should fit in usize")
+        + 1;
+    let expected_cap = MAX_COMMITTEE_SIZE * NUM_VOTE_TYPES * cached_rounds;
+
+    // Flood more distinct-voter future votes than the cap allows.
+    for voter in distinct_voters(expected_cap + 5) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+
+    assert_eq!(cache.future_votes[&HEIGHT_1].len(), expected_cap);
+}
+
+/// Honest volume (well under the cap) is fully retained.
+#[test]
+fn future_votes_below_cap_are_all_retained() {
+    let mut cache = ConsensusCache::<MockTestContext>::new(FutureMsgLimitsConfig::default());
+    let num_votes = 50;
+    for voter in distinct_voters(num_votes) {
+        cache.cache_future_vote(prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, voter)).unwrap();
+    }
+    assert_eq!(cache.future_votes[&HEIGHT_1].len(), num_votes);
+}
+
 #[rstest]
 #[tokio::test]
 async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusConfig) {
@@ -1302,6 +1460,7 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
         mpsc::channel(CHANNEL_SIZE);
 
     let mut context = MockTestContext::new();
+    context.expect_network_tip().returning(|| None);
     context.expect_try_sync().returning(|_| false);
 
     // Send proposal with no content.

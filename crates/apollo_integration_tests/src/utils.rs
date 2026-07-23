@@ -849,7 +849,9 @@ pub fn create_gateway_config(
             chain_info,
             block_declare: false,
             authorized_declarer_accounts: None,
+            max_concurrent_declare_compilations: 5,
             proof_archive_writer_config,
+            ..Default::default()
         },
         ..Default::default()
     }

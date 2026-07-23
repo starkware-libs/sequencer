@@ -4,7 +4,7 @@ use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::{GasPriceData, MockExchangeRateOracleClientTrait, PriceInfo};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 
-use crate::l1_gas_price_provider::{L1GasPriceProvider, L1GasPriceProviderError};
+use crate::l1_gas_price_provider::{L1GasPriceProvider, L1GasPriceProviderError, RingBuffer};
 
 // Make a provider with five block prices. Timestamps are 2 seconds apart, starting from 0.
 // To get the prices for the middle three blocks use the timestamp for block[3].
@@ -39,6 +39,30 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
             .unwrap();
     }
     (provider, prices, timestamp3)
+}
+
+#[test]
+fn ring_buffer_enforces_configured_limit() {
+    const LIMIT: usize = 3;
+    const NUM_VALUES_PUSHED: i32 = 100;
+    // After pushing 0..NUM_VALUES_PUSHED, only the most recent LIMIT values remain, oldest-first.
+    const EXPECTED_REMAINING: [i32; LIMIT] = [97, 98, 99];
+
+    let mut buffer = RingBuffer::new(LIMIT);
+
+    // Push well past the limit. The allocator may round the underlying VecDeque's capacity up
+    // above LIMIT, but the buffer must drop the oldest item and never retain more than LIMIT.
+    for value in 0..NUM_VALUES_PUSHED {
+        buffer.push(value);
+        assert!(
+            buffer.len() <= LIMIT,
+            "buffer retained {} items, exceeding limit {LIMIT}",
+            buffer.len()
+        );
+    }
+
+    let remaining: Vec<_> = buffer.iter().copied().collect();
+    assert_eq!(remaining, EXPECTED_REMAINING);
 }
 
 #[test]

@@ -137,9 +137,10 @@ Examples:
         "-j",
         "--service",
         type=service_type_converter,
-        choices=list(Service),
-        default=Service.Core,
-        help="Service type to operate on; determines configmap and pod names (default: Core)",
+        required=True,
+        metavar="SERVICE",
+        help="Service type to operate on; determines configmap and pod names. One of: "
+        + ", ".join(str(service) for service in Service),
     )
 
     args_builder.add_argument(
@@ -198,6 +199,7 @@ Examples:
         namespace_and_instruction_args,
         args.service,
         restarter,
+        args.max_parallelism,
     )
 
 

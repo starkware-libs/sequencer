@@ -62,6 +62,7 @@ pub fn execute_entry_point_call_wrapper(
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
     let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
+    let strip_vm_frames = context.versioned_constants().strip_vm_frames_in_sierra_gas;
     if current_tracked_resource == TrackedResource::CairoSteps {
         // Override the initial gas with a high value so it won't limit the run.
         call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
@@ -82,33 +83,41 @@ pub fn execute_entry_point_call_wrapper(
                         &call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .annotated(current_tracked_resource, strip_vm_frames));
             }
             update_remaining_gas(remaining_gas, &call_info);
             Ok(call_info)
         }
-        Err(EntryPointExecutionError::PreExecutionError(err))
-            if context.versioned_constants().enable_reverts =>
-        {
-            let error_code = match err {
-                PreExecutionError::EntryPointNotFound(_)
-                | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR_FELT,
-                PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
-                _ => return Err(err.into()),
-            };
-            Ok(CallInfo {
-                call: orig_call.into(),
-                execution: CallExecution {
-                    retdata: Retdata(vec![error_code]),
-                    failed: true,
-                    gas_consumed: 0,
-                    ..CallExecution::default()
-                },
-                tracked_resource: current_tracked_resource,
-                ..CallInfo::default()
-            })
-        }
-        Err(err) => Err(err),
+        Err(err) => match err {
+            EntryPointExecutionError::PreExecutionError(err)
+                if context.versioned_constants().enable_reverts =>
+            {
+                let error_code = match err {
+                    PreExecutionError::EntryPointNotFound(_)
+                    | PreExecutionError::NoEntryPointOfTypeFound(_) => {
+                        ENTRYPOINT_NOT_FOUND_ERROR_FELT
+                    }
+                    PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
+                    _ => {
+                        return Err(EntryPointExecutionError::from(err)
+                            .annotated(current_tracked_resource, strip_vm_frames));
+                    }
+                };
+                Ok(CallInfo {
+                    call: orig_call.into(),
+                    execution: CallExecution {
+                        retdata: Retdata(vec![error_code]),
+                        failed: true,
+                        gas_consumed: 0,
+                        ..CallExecution::default()
+                    },
+                    tracked_resource: current_tracked_resource,
+                    ..CallInfo::default()
+                })
+            }
+            other => Err(other.annotated(current_tracked_resource, strip_vm_frames)),
+        },
     }
 }
 
@@ -118,7 +127,7 @@ pub fn execute_entry_point_call(
     compiled_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
-) -> EntryPointExecutionResult<CallInfo> {
+) -> Result<CallInfo, EntryPointExecutionError> {
     #[cfg(feature = "benchmarking")]
     let pre_time = std::time::Instant::now();
 
@@ -322,16 +331,25 @@ pub fn execute_deployment(
     constructor_calldata: Calldata,
     remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
+    let strip_vm_frames = context.versioned_constants().strip_vm_frames_in_sierra_gas;
     // Address allocation in the state is done before calling the constructor, so that it is
     // visible from it.
     let deployed_contract_address = ctor_context.storage_address;
     let current_class_hash =
         state.get_class_hash_at(deployed_contract_address).map_err(|error| {
-            ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+            ConstructorEntryPointExecutionError::new(
+                EntryPointExecutionError::from(error)
+                    .annotated(TrackedResource::CairoSteps, strip_vm_frames),
+                &ctor_context,
+                None,
+            )
         })?;
     if current_class_hash != ClassHash::default() {
         return Err(ConstructorEntryPointExecutionError::new(
-            StateError::UnavailableContractAddress(deployed_contract_address).into(),
+            EntryPointExecutionError::from(StateError::UnavailableContractAddress(
+                deployed_contract_address,
+            ))
+            .annotated(TrackedResource::CairoSteps, strip_vm_frames),
             &ctor_context,
             None,
         ));
@@ -344,7 +362,14 @@ pub fn execute_deployment(
         context.n_sent_messages_to_l1,
     ));
     state.set_class_hash_at(deployed_contract_address, ctor_context.class_hash).map_err(
-        |error| ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None),
+        |error| {
+            ConstructorEntryPointExecutionError::new(
+                EntryPointExecutionError::from(error)
+                    .annotated(TrackedResource::CairoSteps, strip_vm_frames),
+                &ctor_context,
+                None,
+            )
+        },
     )?;
 
     execute_constructor_entry_point(

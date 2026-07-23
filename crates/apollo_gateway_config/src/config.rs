@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::converters::{
     deserialize_comma_separated_str,
     serialize_optional_comma_separated,
@@ -18,11 +19,25 @@ use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_types_core::felt::Felt;
+use url::Url;
 use validator::Validate;
 
 use crate::compiler_version::VersionId;
 
 const DEFAULT_BUCKET_NAME: &str = "proof-archive";
+
+// Compiling a declared Sierra class to CASM is CPU- and memory-intensive, and it happens during
+// transaction ingestion before the transaction's signature and balance are verified. Bound the
+// number of compilations running concurrently to protect the node from resource exhaustion.
+//
+// Derivation: compilations are served by the sierracompiler instances, so the safe per-gateway
+// bound is the sierracompiler fleet's headroom divided across the gateway fleet, i.e.
+// `per_instance_capacity * num_sierracompiler_instances / num_gateway_instances`. Observed
+// sierracompiler usage per compilation is small (memory spike ~0.75% of an instance), so a single
+// instance can absorb many concurrent compilations. 40 stays well within that envelope while still
+// capping the blast radius of a declare flood; retune via the formula above if the
+// sierracompiler/gateway instance ratio or per-instance capacity changes.
+const DEFAULT_MAX_CONCURRENT_DECLARE_COMPILATIONS: usize = 40;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayStaticConfig {
@@ -36,7 +51,14 @@ pub struct GatewayStaticConfig {
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
+    /// Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) allowed
+    /// to run concurrently. Declares that arrive while this limit is reached are rejected
+    /// immediately rather than queued.
+    #[validate(range(min = 1))]
+    pub max_concurrent_declare_compilations: usize,
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
+    pub behavior_mode: BehaviorMode,
+    pub recorder_url: Url,
 }
 
 impl Default for GatewayStaticConfig {
@@ -51,7 +73,12 @@ impl Default for GatewayStaticConfig {
             chain_info: ChainInfo::default(),
             block_declare: false,
             authorized_declarer_accounts: None,
+            max_concurrent_declare_compilations: DEFAULT_MAX_CONCURRENT_DECLARE_COMPILATIONS,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+            behavior_mode: BehaviorMode::default(),
+            recorder_url: "https://recorder_url"
+                .parse()
+                .expect("recorder_url must be a valid Recorder URL"),
         }
     }
 }
@@ -85,10 +112,33 @@ impl SerializeConfig for GatewayStaticConfig {
              Addresses are in hex format and separated by a comma with no space.",
             ParamPrivacyInput::Public,
         ));
+        dump.extend([ser_param(
+            "max_concurrent_declare_compilations",
+            &self.max_concurrent_declare_compilations,
+            "Maximum number of Sierra-to-CASM compilations (triggered by declare transactions) \
+             allowed to run concurrently. Declares arriving while this limit is reached are \
+             rejected immediately.",
+            ParamPrivacyInput::Public,
+        )]);
         dump.extend(prepend_sub_config_name(
             self.proof_archive_writer_config.dump(),
             "proof_archive_writer_config",
         ));
+        dump.extend([
+            ser_param(
+                "behavior_mode",
+                &self.behavior_mode,
+                "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the recorder service; used in Echonet mode to fetch the replayed \
+                 network's Starknet version at startup.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump
     }
 }
@@ -169,7 +219,7 @@ impl Default for StatelessTransactionValidatorConfig {
             max_contract_bytecode_size: 81920,
             max_contract_class_object_size: 4089446,
             min_sierra_version: VersionId::new(1, 1, 0),
-            max_sierra_version: VersionId::new(1, 8, usize::MAX),
+            max_sierra_version: VersionId::new(1, 9, usize::MAX),
             allow_client_side_proving: true,
             max_proof_size: 480000,
         }

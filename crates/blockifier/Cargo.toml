@@ -21,6 +21,7 @@ mocks = []
 native_blockifier = []
 node_api = []
 only-native = ["cairo_native"]
+os_input = []
 reexecution = ["transaction_serde"]
 testing = [
   "blockifier_test_utils",

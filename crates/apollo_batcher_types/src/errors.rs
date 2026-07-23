@@ -49,6 +49,8 @@ pub enum BatcherError {
     ProposingNotSupported,
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
+    #[error("State commitment infos not found for block number {0}.")]
+    StateCommitmentInfosNotFound(BlockNumber),
     #[error(
         "Storage height marker mismatch. Storage marker (first unwritten height): \
          {marker_height}, requested height: {requested_height}."

@@ -1,7 +1,6 @@
 from copy import deepcopy
 from pathlib import Path
 
-import yaml
 from rich.markup import escape as escape_markup
 from src.config.loaders import DeploymentConfigLoader
 from src.config.overlay import (
@@ -29,14 +28,19 @@ def _flatten_dict_to_paths(d: dict, prefix: str = "") -> set[str]:
     return out
 
 
-def _load_common_yaml(path: str) -> dict | None:
-    """Load and validate common.yaml; return dict or None if file missing/invalid."""
+def _load_common_yaml(path: str, config_base_dir: str | None = None) -> dict | None:
+    """Load and validate common.yaml; return dict or None if file missing/invalid. Supports include:."""
     p = Path(path)
     if not p.is_file():
         return None
-    with open(p, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f) or {}
-    validated = CommonConfig.model_validate(raw)
+    loader = DeploymentConfigLoader(
+        configs_dir_path=str(p.parent),
+        config_base_dir=config_base_dir or str(p.parent),
+    )
+    merged = loader._load_one_file_with_includes(p)
+    if not merged:
+        return None
+    validated = CommonConfig.model_validate(merged)
     return validated.model_dump(mode="python", exclude_unset=True, exclude_none=True)
 
 
@@ -150,7 +154,9 @@ def merge_configs(
 
     # --- Load layout configs ---
     layout_common = (
-        _load_common_yaml(layout_common_config_path) if layout_common_config_path else None
+        _load_common_yaml(layout_common_config_path, config_base_dir)
+        if layout_common_config_path
+        else None
     )
     layout_loader = DeploymentConfigLoader(
         configs_dir_path=layout_services_config_dir_path,
@@ -182,7 +188,7 @@ def merge_configs(
                     service_path_to_overlays[key].append(overlay_name)
             merged_services = apply_services_overlay_strict(merged_services, overlay_services)
         if overlay_common_path:
-            overlay_common = _load_common_yaml(overlay_common_path)
+            overlay_common = _load_common_yaml(overlay_common_path, config_base_dir)
             if overlay_common is not None:
                 for key_path in _flatten_dict_to_paths(overlay_common):
                     if key_path not in common_path_to_overlays:

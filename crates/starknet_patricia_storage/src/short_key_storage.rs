@@ -82,6 +82,10 @@ macro_rules! define_short_key_storage {
                     .mget_mut(small_keys.iter().collect::<Vec<&DbKey>>().as_slice())
                     .await
             }
+
+            fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+                None::<&mut NullStorage>
+            }
         }
 
         impl<S: Storage> Storage for $name<S> {
@@ -122,10 +126,6 @@ macro_rules! define_short_key_storage {
 
             fn get_async_self(&self) -> Option<impl AsyncStorage> {
                 Some($name::new(self.storage.get_async_self()?))
-            }
-
-            fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-                None::<&mut NullStorage>
             }
         }
 

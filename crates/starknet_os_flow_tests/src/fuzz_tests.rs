@@ -88,15 +88,15 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x38f136db1159afdd3edfab673cf87a6e54fcc37c860dcfa0f98a5742a5213cb"];
+    expect!["0x6020d0bb6812673ad0285bac26e753da039337e142e5f0465513def9641a200"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x188df0205a3d5dfd572dcc2b8d8942fa90b97017f772a9db170d8ca35a286f8"];
+    expect!["0x2972235d87b56531511b26bef0b2f0e39965df14ef640e9b96cd98e0453ef0e"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x7758b558dff20f4dcffe3585207087b9123e0e1944861662f5b633a9b77aab4"];
+    expect!["0xe70a47648580e8bc91f8626a073c780e786bfee337158ba5764d284a096481"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x5b5a5eb884441ce9346b6a292e77fbbd6797d89134fba1e3ab16f9676c4ada6"];
+    expect!["0x4c1fc5dac49ae4a5312e5220392e793e393682d10bca27b551f80911f9f2785"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x5c94de69e68d8c9e2bd82f6214cb1e7f99b72ff16486118450f3863d144b96d"];
+    expect!["0x736f82bdf9b4bb7545ff1aeef76db36dfaee4f8accfa92fb1bc1d9d928730d0"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });

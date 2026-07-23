@@ -197,6 +197,10 @@ pub trait ReadOnlyStorage: Send + Sync {
         &mut self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+
+    /// If the storage supports concurrent task execution via [GatherableStorage::gather], returns
+    /// a mutable reference to it. Returns `None` otherwise.
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage>;
 }
 
 /// A trait for the storage. Extends [ReadOnlyStorage] with write operations.
@@ -248,10 +252,6 @@ pub trait Storage: ReadOnlyStorage {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
-
-    /// If the storage supports concurrent task execution via [GatherableStorage::gather], returns
-    /// a mutable reference to it. Returns `None` otherwise.
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage>;
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.
@@ -299,6 +299,10 @@ impl ReadOnlyStorage for NullStorage {
     async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
+    }
 }
 
 impl Storage for NullStorage {
@@ -330,10 +334,6 @@ impl Storage for NullStorage {
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
-    }
-
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        Some(self)
     }
 }
 
@@ -374,14 +374,5 @@ impl Serialize for DbKey {
 
 /// Returns a `DbKey` from a prefix , separator, and suffix.
 pub fn create_db_key(prefix: DbKeyPrefix, separator: &[u8], suffix: &[u8]) -> DbKey {
-    DbKey([prefix.to_bytes(), separator, suffix].concat().to_vec())
-}
-
-/// Extracts the suffix from a `DbKey`. If the key doesn't match the prefix, None is returned.
-pub fn try_extract_suffix_from_db_key<'a>(
-    key: &'a DbKey,
-    prefix: &DbKeyPrefix,
-) -> Option<&'a [u8]> {
-    // Ignore the ':' char that appears after the prefix.
-    key.0.strip_prefix(prefix.to_bytes()).map(|s| &s[1..])
+    DbKey([prefix.to_bytes(), separator, suffix].concat())
 }

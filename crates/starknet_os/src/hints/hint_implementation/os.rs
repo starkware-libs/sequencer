@@ -3,6 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block_hash::block_hash_calculator::gas_prices_to_hash;
+use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -186,8 +187,13 @@ pub(crate) fn get_block_hashes<S: StateReader>(
     )?;
     ctx.insert_value(Ids::HeaderCommitments, header_commitments_ptr)?;
 
-    let starknet_version_felt = Felt::try_from(&block_info.starknet_version)?;
-    ctx.insert_value(Ids::StarknetVersion, starknet_version_felt)?;
+    // The on-chain block hash commits to the exact ASCII encoding of the version string, which
+    // may be newer than the latest known `StarknetVersion` variant.
+    let starknet_version_string = os_input
+        .starknet_version_override
+        .clone()
+        .unwrap_or_else(|| block_info.starknet_version.to_string());
+    ctx.insert_value(Ids::StarknetVersion, ascii_as_felt(&starknet_version_string)?)?;
 
     let [gas_prices_hash]: [Felt; 1] = gas_prices_to_hash(
         &gas_prices.l1_gas_price_per_token(),

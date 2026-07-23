@@ -212,6 +212,8 @@ gcpPodMonitoring:
 # GCP BackendConfig Configuration - Enabled
 gcpBackendConfig:
   enabled: true
+  logging:
+    enable: false
   customRequestHeaders:
     - "X-Forwarded-Proto: https"
   connectionDrainingTimeoutSeconds: 60

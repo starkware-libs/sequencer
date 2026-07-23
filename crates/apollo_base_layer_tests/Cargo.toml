@@ -23,4 +23,4 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-apollo_infra_utils.workspace = true
+apollo_infra_utils = { workspace = true, features = ["testing"] }

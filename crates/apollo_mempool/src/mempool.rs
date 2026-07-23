@@ -17,7 +17,7 @@ use apollo_mempool_types::mempool_types::{
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
 use rand::{rng, RngExt};
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -47,7 +47,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use crate::transaction_pool::TransactionPool;
-use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
+use crate::transaction_queue_trait::{BlockMetadata, RewindData, TransactionQueueTrait};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -288,14 +288,14 @@ impl Mempool {
         matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet)
     }
 
-    pub fn resolve_batch_timestamp(&mut self) -> UnixTimestamp {
+    pub(crate) fn resolve_block_metadata(&mut self) -> BlockMetadata {
         if !self.is_fifo() {
             let timestamp = self.clock.unix_now();
-            debug!("Mempool resolve_batch_timestamp (Fee): timestamp={}", timestamp);
-            return timestamp;
+            debug!("Mempool resolve_block_metadata (Fee): timestamp={}", timestamp);
+            return BlockMetadata { timestamp, block_number: None };
         }
 
-        self.tx_queue.resolve_timestamp()
+        self.tx_queue.resolve_metadata()
     }
 
     pub(crate) fn update_tx_block_metadata(
@@ -402,7 +402,7 @@ impl Mempool {
     pub fn validate_tx(&mut self, args: ValidationArgs) -> MempoolResult<()> {
         let tx_reference = (&args).into();
         self.validate_incoming_tx(tx_reference, args.account_nonce)?;
-        self.handle_fee_escalation(tx_reference, true)?;
+        self.validate_fee_escalation(tx_reference)?;
 
         Ok(())
     }
@@ -415,10 +415,29 @@ impl Mempool {
         account_nonce: Nonce,
     ) -> MempoolResult<()> {
         self.validate_incoming_tx(tx_reference, account_nonce)?;
-        self.handle_fee_escalation(tx_reference, false)?;
+        let replaced_tx_reference = self.validate_fee_escalation(tx_reference)?;
 
-        if self.exceeds_capacity(tx) {
-            self.handle_capacity_overflow(tx, account_nonce)?;
+        // The replaced transaction is still pooled, so its bytes still count toward
+        // `size_in_bytes()`. Credit what its removal will free: a same-size bump nets to zero (no
+        // overflow handling), and a larger replacement only needs room for the delta, consistent
+        // with how a fresh next-nonce transaction is treated. The removal happens only after
+        // capacity is confirmed below, so a rejected incoming transaction never strands the
+        // account.
+        let freed_bytes = replaced_tx_reference.map_or(0, |reference| {
+            self.tx_pool
+                .get_by_tx_hash(reference.tx_hash)
+                .expect("Replacement target from pool must exist.")
+                .total_bytes()
+        });
+
+        if self.exceeds_capacity(tx, freed_bytes) {
+            self.handle_capacity_overflow(tx, account_nonce, freed_bytes)?;
+        }
+
+        // Capacity is confirmed: this is the final, infallible mutation before the incoming
+        // transaction is inserted by the caller.
+        if let Some(existing_tx_reference) = replaced_tx_reference {
+            self.remove_replaced_tx(existing_tx_reference);
         }
 
         Ok(())
@@ -591,7 +610,7 @@ impl Mempool {
             // Fee mode: only add transactions with matching account nonce.
             // Remove queued transactions the account might have. This includes old nonce
             // transactions that have become obsolete; those with an equal nonce should
-            // already have been removed in `handle_fee_escalation`.
+            // already have been removed via fee escalation (`remove_replaced_tx`).
             self.tx_queue.remove_by_address(address);
             self.insert_to_tx_queue(tx_reference);
         }
@@ -734,18 +753,14 @@ impl Mempool {
         Ok(())
     }
 
-    /// This method checks if an incoming transaction with the same (address, nonce) already exists
-    /// in the pool and determines whether the incoming transaction should replace it based on fee
-    /// escalation rules.
-    /// If `validation_only` is `true`, only validates whether replacement would be allowed without
-    /// actually removing the existing transaction. If `false`, removes the existing transaction
-    /// when replacement is valid.
-    /// Note: This method will **not** add the new incoming transaction.
-    fn handle_fee_escalation(
-        &mut self,
+    /// Validates whether the incoming transaction may replace an existing one at the same
+    /// `(address, nonce)` via fee escalation, without mutating any state. Returns the existing
+    /// transaction to be replaced when a valid replacement exists, `None` when there is nothing to
+    /// replace, or an error when a replacement is present but not permitted.
+    fn validate_fee_escalation(
+        &self,
         incoming_tx_reference: TransactionReference,
-        validation_only: bool,
-    ) -> MempoolResult<()> {
+    ) -> MempoolResult<Option<TransactionReference>> {
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
 
         self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
@@ -755,13 +770,13 @@ impl Mempool {
                 return Err(MempoolError::DuplicateNonce { address, nonce });
             };
 
-            return Ok(());
+            return Ok(None);
         }
 
         let Some(existing_tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce)
         else {
             // Replacement irrelevant: no existing transaction with the same nonce for address.
-            return Ok(());
+            return Ok(None);
         };
 
         if !self.should_replace_tx(&existing_tx_reference, &incoming_tx_reference) {
@@ -773,19 +788,20 @@ impl Mempool {
             return Err(MempoolError::DuplicateNonce { address, nonce });
         }
 
-        if validation_only {
-            return Ok(());
-        }
+        Ok(Some(existing_tx_reference))
+    }
 
-        debug!("{existing_tx_reference} will be replaced by {incoming_tx_reference}.");
+    /// Removes the existing transaction that is being replaced via fee escalation. Must be called
+    /// only after the incoming replacement is guaranteed to be admitted, so the account is never
+    /// left without a transaction at this nonce.
+    fn remove_replaced_tx(&mut self, existing_tx_reference: TransactionReference) {
+        debug!("{existing_tx_reference} is being replaced via fee escalation.");
 
         self.tx_queue.remove_txs(&[existing_tx_reference]);
         self.tx_pool
             .remove(existing_tx_reference.tx_hash)
             .expect("Transaction hash from pool must exist.");
-        self.decrement_stuck_txs_if_gap_account(address, 1);
-
-        Ok(())
+        self.decrement_stuck_txs_if_gap_account(existing_tx_reference.address, 1);
     }
 
     fn should_replace_tx(
@@ -805,13 +821,12 @@ impl Mempool {
     fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
         let percentage = u128::from(self.config.static_config.fee_escalation_percentage);
 
-        // Note: To reduce precision loss, we first multiply by the percentage and then divide by
-        // 100. This could cause an overflow and an automatic rejection of the transaction, but the
-        // values aren't expected to be large enough for this to be an issue.
+        // Round up the required increase so any positive percentage always demands a strictly
+        // higher fee, even for small values.
         let Some(escalation_qualified_value) = existing_value
             .checked_mul(percentage)
-            .map(|v| v / 100)
-            .and_then(|increase| existing_value.checked_add(increase))
+            .map(|scaled| scaled.div_ceil(100))
+            .and_then(|required_increase| existing_value.checked_add(required_increase))
         else {
             // Overflow occurred during calculation; reject the transaction.
             return false;
@@ -906,7 +921,7 @@ impl Mempool {
 
     fn decrement_stuck_txs_if_gap_account(&mut self, address: ContractAddress, n: usize) {
         if self.accounts_with_gap.contains(&address) {
-            self.n_stuck_txs -= n;
+            self.n_stuck_txs = self.n_stuck_txs.saturating_sub(n);
         }
     }
 
@@ -914,13 +929,19 @@ impl Mempool {
     // n_stuck_txs. No-op if the address was not tracked.
     fn remove_from_accounts_with_gap(&mut self, address: ContractAddress) {
         if self.accounts_with_gap.swap_remove(&address) {
-            self.n_stuck_txs -= self.tx_pool.n_txs_for_address(address);
+            self.n_stuck_txs =
+                self.n_stuck_txs.saturating_sub(self.tx_pool.n_txs_for_address(address));
         }
     }
 
-    // Returns true if the mempool will exceeds its capacity by adding the given transaction.
-    fn exceeds_capacity(&self, tx: &InternalRpcTransaction) -> bool {
-        self.size_in_bytes() + tx.total_bytes() > self.config.static_config.capacity_in_bytes
+    // Returns true if adding the given transaction would exceed the mempool capacity, after
+    // crediting `freed_bytes` that an accompanying removal (e.g. a fee-escalation replacement)
+    // will free. `freed_bytes` is 0 when there is no such removal.
+    fn exceeds_capacity(&self, tx: &InternalRpcTransaction, freed_bytes: u64) -> bool {
+        // The to-be-removed transaction is still counted in `size_in_bytes()` here, so subtract
+        // what its removal frees. `saturating_sub` guards the (impossible) underflow defensively.
+        (self.size_in_bytes() + tx.total_bytes()).saturating_sub(freed_bytes)
+            > self.config.static_config.capacity_in_bytes
     }
 
     fn update_accounts_with_gap(&mut self, address_to_nonce: AddressToNonce) {
@@ -970,10 +991,11 @@ impl Mempool {
     // Returns true if enough space was freed, false otherwise.
     pub fn try_make_space(&mut self, required_space: u64) -> bool {
         let mut total_space_freed = 0;
+        let mut evicted_txs = Vec::new();
 
         while total_space_freed < required_space {
             let Some(address) = self.get_evictable_account() else {
-                return false;
+                break;
             };
 
             let txs: Vec<_> = self.tx_pool.account_txs_sorted_by_nonce(address).copied().collect();
@@ -983,6 +1005,7 @@ impl Mempool {
                     .remove(tx_ref.tx_hash)
                     .expect("Transaction must exist in the pool.");
                 total_space_freed += tx.total_bytes();
+                evicted_txs.push(*tx_ref);
                 metric_count_evicted_txs(1);
                 self.decrement_stuck_txs_if_gap_account(address, 1);
                 if total_space_freed >= required_space {
@@ -996,13 +1019,20 @@ impl Mempool {
             }
         }
 
-        true
+        // Keep the queue consistent with the pool: the evicted txs were removed from the pool, so
+        // drop their (now-orphaned) queue references too. In fee mode gap accounts are never
+        // queued, so this is a no-op there; in Echonet/FIFO mode they are, and skipping this leaves
+        // a dangling reference that panics the next `get_txs`.
+        self.tx_queue.remove_txs(&evicted_txs);
+
+        total_space_freed >= required_space
     }
 
     fn handle_capacity_overflow(
         &mut self,
         tx: &InternalRpcTransaction,
         account_nonce: Nonce,
+        freed_bytes: u64,
     ) -> Result<(), MempoolError> {
         let address = tx.contract_address();
 
@@ -1011,7 +1041,10 @@ impl Mempool {
         let closing_gap = tx.nonce() == account_nonce;
         let creating_gap = (account_has_gap || !account_has_txs) && !closing_gap;
 
-        if !creating_gap && self.try_make_space(tx.total_bytes()) {
+        // Only the net growth must be evicted: an accompanying replacement removal frees
+        // `freed_bytes` (0 when there is no replacement).
+        let required_space = tx.total_bytes().saturating_sub(freed_bytes);
+        if !creating_gap && self.try_make_space(required_space) {
             return Ok(());
         }
 

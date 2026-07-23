@@ -308,7 +308,7 @@ async fn prove_and_verify_multicall_tx() {
 }
 
 /// Generates proof fixtures for the proof-flow integration test.
-/// To run manually: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// To run manually: `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -345,7 +345,7 @@ async fn generate_proof_fixtures() {
 /// Guards against drift between the STRK fee token address used by the proof-flow integration
 /// test and the one produced by the virtual OS test pipeline. Run with `UPDATE_EXPECT=1` to refresh
 /// the constant in `blockifier_test_utils::fee_token_addresses`, then regenerate the proof fixtures
-/// by running `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// by running `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
 #[test]
 fn proof_flow_chain_info_matches_virtual_os_test() {
@@ -359,7 +359,7 @@ fn proof_flow_chain_info_matches_virtual_os_test() {
 /// Guards against drift between the genesis global root the proof-flow integration test seeds into
 /// storage and the initial global root produced by the virtual OS test pipeline. Run with
 /// `UPDATE_EXPECT=1` to refresh the constant in `apollo_integration_tests::state_reader`, then
-/// regenerate the proof fixtures by running `cargo +nightly-2025-07-14 test -p
+/// regenerate the proof fixtures by running `cargo +nightly-2026-01-15 test -p
 /// starknet_os_flow_tests --features starknet_transaction_prover/stwo_proving --release
 /// generate_proof_fixtures -- --ignored`.
 #[tokio::test(flavor = "multi_thread")]

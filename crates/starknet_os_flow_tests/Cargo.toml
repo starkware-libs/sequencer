@@ -10,6 +10,7 @@ description = "Integration tests for Starknet OS execution and state commitment 
 exhaustive_fuzz_test = []
 fuzz_test_debug = []
 long_fuzz_test = []
+os_input = ["apollo_integration_tests/os_input", "blockifier/os_input"]
 
 [dev-dependencies]
 apollo_integration_tests.workspace = true
@@ -21,11 +22,13 @@ cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 chrono.workspace = true
 expect-test.workspace = true
+indexmap.workspace = true
 itertools.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
+shared_execution_objects.workspace = true
 starknet-core.workspace = true
 starknet-crypto.workspace = true
 starknet-types-core.workspace = true
@@ -35,7 +38,7 @@ starknet_os = { workspace = true, features = ["include_program_output", "testing
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 starknet_proof_verifier.workspace = true
-starknet_transaction_prover.workspace = true
+starknet_transaction_prover = { workspace = true, features = ["os_input"] }
 strum.workspace = true
 tokio.workspace = true
 

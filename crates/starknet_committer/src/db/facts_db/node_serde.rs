@@ -31,8 +31,6 @@ pub(crate) const BINARY_BYTES: usize = 2 * SERIALIZE_HASH_BYTES;
 pub(crate) const EDGE_LENGTH_BYTES: usize = 1;
 pub(crate) const EDGE_PATH_BYTES: usize = 32;
 pub(crate) const EDGE_BYTES: usize = SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES + EDGE_LENGTH_BYTES;
-#[allow(dead_code)]
-pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
 
 pub const FACT_LAYOUT_DB_KEY_SEPARATOR: &[u8] = DEFAULT_DB_KEY_SEPARATOR;
 

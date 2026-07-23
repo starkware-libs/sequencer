@@ -21,6 +21,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -89,6 +90,7 @@ pub struct RawVersionedConstants {
     pub enable_reverts: bool,
     pub enable_casm_hash_migration: bool,
     pub block_casm_hash_v1_declares: bool,
+    pub strip_vm_frames_in_sierra_gas: bool,
     pub min_sierra_version_for_sierra_gas: SierraVersion,
     pub enable_tip: bool,
     pub segment_arena_cells: bool,
@@ -98,9 +100,9 @@ pub struct RawVersionedConstants {
     pub os_resources: RawOsResources,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "testing"))]
 impl RawVersionedConstants {
-    fn to_string_pretty(&self) -> String {
+    pub fn to_string_pretty(&self) -> String {
         let mut buffer = Vec::new();
         let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
         let mut serializer = serde_json::Serializer::with_formatter(&mut buffer, formatter);
@@ -115,6 +117,9 @@ impl RawVersionedConstants {
 pub struct RawOsConstants {
     // Allowed virtual OS program hashes for client-side proving.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+
+    // Proof fact version markers (felts) accepted under this protocol version.
+    pub allowed_proof_versions: Vec<Felt>,
 
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
@@ -290,6 +295,7 @@ pub struct VersionedConstants {
     pub enable_stateful_compression: bool,
     pub enable_casm_hash_migration: bool,
     pub block_casm_hash_v1_declares: bool,
+    pub strip_vm_frames_in_sierra_gas: bool,
     pub comprehensive_state_diff: bool,
     pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
@@ -343,6 +349,7 @@ impl From<RawVersionedConstants> for VersionedConstants {
             enable_reverts: raw_vc.enable_reverts,
             enable_casm_hash_migration: raw_vc.enable_casm_hash_migration,
             block_casm_hash_v1_declares: raw_vc.block_casm_hash_v1_declares,
+            strip_vm_frames_in_sierra_gas: raw_vc.strip_vm_frames_in_sierra_gas,
             os_constants: Arc::new(os_constants),
             vm_resource_fee_cost: Arc::new(raw_vc.vm_resource_fee_cost),
             enable_tip: raw_vc.enable_tip,
@@ -488,6 +495,8 @@ impl VersionedConstants {
     // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`, and
     // squashing the functions together.
     /// Returns the latest versioned constants, applying the given overrides.
+    /// In Echonet mode, "latest" is the version set via
+    /// `starknet_api::versioned_constants_logic::set_effective_latest_version`.
     pub fn get_versioned_constants(
         versioned_constants_overrides: Option<VersionedConstantsOverrides>,
     ) -> Self {
@@ -552,9 +561,11 @@ pub struct CairoNativeStackConfig {
 
 impl CairoNativeStackConfig {
     /// Rounds up the given size to the nearest multiple of MB.
+    /// Saturates to the largest multiple of MB that fits in a `u64` to avoid wrapping to 0 for
+    /// sizes close to `u64::MAX` (a 0-byte stack size would crash Cairo Native).
     pub fn round_up_to_mb(size: u64) -> u64 {
         const MB: u64 = 1024 * 1024;
-        size.div_ceil(MB) * MB
+        size.div_ceil(MB).checked_mul(MB).unwrap_or(u64::MAX / MB * MB)
     }
 
     /// Returns the stack size sufficient for running Cairo Native.
@@ -1067,9 +1078,18 @@ impl GasCosts {
         let base_costs = BaseGasCosts {
             step_gas_cost,
             memory_hole_gas_cost: os_constants.memory_hole_gas_cost.0,
-            default_initial_gas_cost: step_gas_cost * default_initial_gas_cost_in_steps.0,
-            entry_point_initial_budget: step_gas_cost * entry_point_initial_budget_in_steps.0,
-            syscall_base_gas_cost: step_gas_cost * syscall_base_gas_cost_in_steps.0,
+            default_initial_gas_cost: default_initial_gas_cost_in_steps
+                .checked_factor_mul(step_gas_cost)
+                .expect("The default initial gas cost should not overflow.")
+                .0,
+            entry_point_initial_budget: entry_point_initial_budget_in_steps
+                .checked_factor_mul(step_gas_cost)
+                .expect("The entry point initial budget should not overflow.")
+                .0,
+            syscall_base_gas_cost: syscall_base_gas_cost_in_steps
+                .checked_factor_mul(step_gas_cost)
+                .expect("The syscall base gas cost should not overflow.")
+                .0,
         };
 
         let summarize = |selector: SyscallSelector| match os_constants.syscall_gas_costs {
@@ -1195,6 +1215,9 @@ pub struct OsConstants {
     // Allowed virtual OS program hashes for client-side proving.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
 
+    // Proof fact version markers (felts) accepted under this protocol version.
+    pub allowed_proof_versions: Vec<Felt>,
+
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
     pub default_entry_point_selector: EntryPointSelector,
@@ -1278,6 +1301,7 @@ impl OsConstants {
             allowed_virtual_os_program_hashes: raw_constants
                 .allowed_virtual_os_program_hashes
                 .clone(),
+            allowed_proof_versions: raw_constants.allowed_proof_versions.clone(),
             constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
             default_entry_point_selector: raw_constants.default_entry_point_selector,
             execute_entry_point_selector: raw_constants.execute_entry_point_selector,

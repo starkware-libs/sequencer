@@ -1003,9 +1003,7 @@ impl From<starknet_api::execution_resources::ExecutionResources> for Computation
             builtin_instance_counter: value
                 .builtin_instance_counter
                 .into_iter()
-                .filter_map(|(k, v)| {
-                    v.try_into().ok().and_then(|v| k.try_into().ok().map(|k| (k, v)))
-                })
+                .filter_map(|(k, v)| k.try_into().ok().zip(v.try_into().ok()))
                 .collect(),
             memory_holes: value.memory_holes.try_into().ok(),
         }

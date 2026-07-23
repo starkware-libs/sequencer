@@ -2,7 +2,9 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
+    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
 };
@@ -42,5 +44,12 @@ impl<'a, S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<
             }
         }
         Ok(values)
+    }
+
+    /// `ReadsCollectorStorage` is only used as a wrapper to collect reads during concurrent tasks
+    /// running with CacheStorage (to cache reads retroactively). Since we never use it as the
+    /// underlying storage for concurrent tasks, we return `None` here.
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        None::<&mut NullStorage>
     }
 }

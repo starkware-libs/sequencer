@@ -118,6 +118,7 @@ fn generate_invoke_txs_tests_for_deploy_contract(
         felt!(2_u64),                     // constructor calldata length
         constructor_calldata_arg1,        // constructor arg1
         constructor_calldata_arg2,        // constructor arg2
+        false.into(),                     // deploy_from_zero
     ];
     let calldata =
         create_calldata(account_tx_generator.sender_address(), "deploy_contract", &deploy_calldata);

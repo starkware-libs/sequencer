@@ -26,10 +26,10 @@ use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
 
 /// Events that the handler can send to the behaviour.
+///
+/// Units are delivered directly to the engine via the bounded channel (not through the behaviour).
 #[derive(Debug)]
 pub enum HandlerOut {
-    /// A unit was received from the remote peer.
-    Unit(PropellerUnit),
     /// An error occurred while sending a message.
     SendError(String),
 }
@@ -73,6 +73,14 @@ pub struct Handler {
     events_to_emit: VecDeque<HandlerOut>,
     /// Maximum wire message size for batching.
     max_wire_message_size: usize,
+    /// Bounded channel for sending received units directly to the engine, bypassing the Swarm's
+    /// event path. Provides back-pressure: when the channel is full, the handler stops reading
+    /// from the network.
+    unit_sender: futures::channel::mpsc::Sender<PropellerUnit>,
+    /// Units decoded from a wire batch that haven't been delivered yet.
+    /// Holds at most one batch worth of units (bounded by `max_wire_message_size`).
+    /// The handler only reads new batches from the wire when this buffer is empty.
+    unsent_units: VecDeque<PropellerUnit>,
     /// The most recent waker from [`ConnectionHandler::poll`], used for waking the task when
     /// new messages are enqueued via `on_behaviour_event`.
     waker: Option<Waker>,
@@ -109,7 +117,10 @@ enum OutboundSubstreamState {
 
 impl Handler {
     /// Builds a new [`Handler`].
-    pub fn new(config: &Config) -> Self {
+    pub fn new(
+        config: &Config,
+        unit_sender: futures::channel::mpsc::Sender<PropellerUnit>,
+    ) -> Self {
         let protocol =
             PropellerProtocol::new(config.stream_protocol.clone(), config.max_wire_message_size);
         Handler {
@@ -119,6 +130,8 @@ impl Handler {
             send_queue: VecDeque::new(),
             events_to_emit: VecDeque::new(),
             max_wire_message_size: config.max_wire_message_size,
+            unit_sender,
+            unsent_units: VecDeque::new(),
             waker: None,
         }
     }
@@ -126,7 +139,7 @@ impl Handler {
     /// Polls a single inbound substream for incoming messages.
     fn poll_single_inbound_substream(
         inbound_substream: &mut Option<InboundSubstreamState>,
-        events_to_emit: &mut VecDeque<HandlerOut>,
+        unsent_units: &mut VecDeque<PropellerUnit>,
         cx: &mut Context<'_>,
     ) {
         loop {
@@ -135,7 +148,7 @@ impl Handler {
                     if Self::poll_single_inbound_substream_waiting_input(
                         inbound_substream,
                         substream,
-                        events_to_emit,
+                        unsent_units,
                         cx,
                     )
                     .is_break()
@@ -157,13 +170,13 @@ impl Handler {
     fn poll_single_inbound_substream_waiting_input(
         inbound_substream: &mut Option<InboundSubstreamState>,
         mut substream: Framed<Stream, PropellerCodec>,
-        events_to_emit: &mut VecDeque<HandlerOut>,
+        unsent_units: &mut VecDeque<PropellerUnit>,
         cx: &mut Context<'_>,
     ) -> ControlFlow<()> {
         match substream.poll_next_unpin(cx) {
             Poll::Ready(Some(Ok(batch))) => {
                 *inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
-                Self::handle_received_batch(batch, events_to_emit);
+                Self::handle_received_batch(batch, unsent_units);
                 // Continue the loop in case there are more messages ready
                 ControlFlow::Continue(())
             }
@@ -205,12 +218,12 @@ impl Handler {
         }
     }
 
-    /// Handles a received batch of units.
-    fn handle_received_batch(batch: ProtoBatch, events_to_emit: &mut VecDeque<HandlerOut>) {
+    /// Decodes a received batch and buffers the units in `unsent_units` for delivery.
+    fn handle_received_batch(batch: ProtoBatch, unsent_units: &mut VecDeque<PropellerUnit>) {
         for proto_unit in batch.batch {
             match PropellerUnit::try_from(proto_unit) {
                 Ok(unit) => {
-                    events_to_emit.push_back(HandlerOut::Unit(unit));
+                    unsent_units.push_back(unit);
                 }
                 Err(e) => {
                     // TODO(AndrewL): Either remove this warning or make it once every N ms.
@@ -425,6 +438,29 @@ impl Handler {
         }
     }
 
+    /// Drains `unsent_units` into the bounded channel to the engine.
+    /// Returns `ControlFlow::Break` when the channel is full (back-pressure) and the caller
+    /// should return `Poll::Pending`. Returns `ControlFlow::Continue` when all units are sent.
+    fn drain_unsent_units(&mut self, cx: &mut Context<'_>) -> ControlFlow<()> {
+        while !self.unsent_units.is_empty() {
+            match self.unit_sender.poll_ready(cx) {
+                Poll::Ready(Ok(())) => {
+                    let unit = self.unsent_units.pop_front().expect("checked non-empty");
+                    self.unit_sender.start_send(unit).expect("poll_ready succeeded");
+                }
+                Poll::Ready(Err(_)) => {
+                    warn!("Unit channel closed, dropping {} unsent units", self.unsent_units.len());
+                    self.unsent_units.clear();
+                    break;
+                }
+                Poll::Pending => {
+                    return ControlFlow::Break(());
+                }
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
     fn poll_inner(
         &mut self,
         cx: &mut Context<'_>,
@@ -437,35 +473,46 @@ impl Handler {
     > {
         if self.send_queue.len() > QUEUE_WARNING_THRESHOLD
             || self.events_to_emit.len() > QUEUE_WARNING_THRESHOLD
+            || self.unsent_units.len() > QUEUE_WARNING_THRESHOLD
         {
             warn_every_n_ms!(
                 QUEUE_WARNING_INTERVAL_MS,
                 "Backlog in propeller handler. This indicates the peer is not consuming messages \
                  fast enough or the network is congested. Send queue length: {}, Events to emit \
-                 queue length: {}",
+                 queue length: {}, Unsent units queue length: {}",
                 self.send_queue.len(),
-                self.events_to_emit.len()
+                self.events_to_emit.len(),
+                self.unsent_units.len()
             );
         }
 
-        // Drain any queued events first (received units, errors from DialUpgradeError, etc.)
+        // Drain any queued events first (errors from DialUpgradeError, etc.)
         if let Some(event) = self.events_to_emit.pop_front() {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
         }
 
-        // Process outbound stream
+        // Process outbound stream — always attempt sends regardless of inbound back-pressure.
         if let Poll::Ready(event) = self.poll_send(cx) {
             return Poll::Ready(event);
         }
 
-        // Handle inbound messages
-        for inbound_substream in self.inbound_substream.iter_mut() {
-            Self::poll_single_inbound_substream(inbound_substream, &mut self.events_to_emit, cx);
+        // Drain unsent units into the bounded channel to the engine.
+        if self.drain_unsent_units(cx).is_break() {
+            return Poll::Pending;
         }
 
-        // Check the queue again — poll_single_inbound_substream may have enqueued new events
-        if let Some(event) = self.events_to_emit.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
+        // Read from the wire only when the unsent buffer is empty (the previous batch has been
+        // fully delivered). This prevents unbounded accumulation: a malicious peer cannot force
+        // memory growth by sending batches faster than the engine drains the channel.
+        if self.unsent_units.is_empty() {
+            for inbound_substream in self.inbound_substream.iter_mut() {
+                Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
+            }
+        }
+
+        // Send newly-decoded units to the engine channel.
+        if self.drain_unsent_units(cx).is_break() {
+            return Poll::Pending;
         }
 
         Poll::Pending

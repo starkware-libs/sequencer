@@ -33,6 +33,9 @@ class BlockStoreTuning:
     """
 
     max_blocks_to_keep_in_memory: int = 100
+    # Blob bodies dominate memory and are rarely read back; keep a much tighter
+    # window than block docs — older bodies are archived to disk.
+    max_blob_bodies_to_keep_in_memory: int = 30
 
 
 class ResyncTriggerPayload(TypedDict):
@@ -137,6 +140,17 @@ class BlockRangeDefaults:
 
 
 @dataclass(frozen=True, slots=True)
+class ResyncConfig:
+    """Behavior of the resync revert-and-restore flow."""
+
+    # When True, the revert step rewinds only to `max(start_block, next_start_block -
+    # revert_lookback_blocks)` instead of all the way back to the previous start block,
+    # bounding how many blocks must be re-synced from the feeder gateway.
+    bounded_revert_enabled: bool = False
+    revert_lookback_blocks: int = 100
+
+
+@dataclass(frozen=True, slots=True)
 class SleepConfig:
     """Sleep/delay settings for block streaming and special transaction pacing."""
 
@@ -158,6 +172,36 @@ class PathsConfig:
 
     log_dir: Path = Path("/data/echonet")
     block_hash_cli_path: Path = Path("/data/echonet/bin/starknet_committer_and_os_cli")
+
+
+@dataclass(frozen=True, slots=True)
+class OsRunnerConfig:
+    """
+    Configuration for running the Starknet OS over each received blob, via the
+    block-hash CLI binary's `os run-os-stateless` subcommand (which must be
+    built with the `os_input` and `transaction_serde` features).
+    """
+
+    enabled: bool = True
+    layout: str = "all_cairo"
+    cli_timeout_secs: int = 600
+    chain_id: str = "SN_MAIN"
+    strk_fee_token_address: str = (
+        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+    )
+    # Bounded backlog of OS-run tasks; tasks beyond it are dropped (logged) so the
+    # Flask handler never blocks blob storage.
+    queue_size: int = 30
+    # Worker threads draining the queue, one OS CLI subprocess each. At ~5 runs/min
+    # per worker vs ~26 mainnet blocks/min, ≥6 are needed; 8 also uses the pod's
+    # cpu-limit headroom under burst while staying within the memory limit.
+    parallelism: int = 8
+    # Width of the blob's `recent_state_commitment_infos` vector
+    # (N_BLOCK_HASHES_BACK_IN_BLOB): a block's commit info is only reachable from
+    # blobs at most this many heights newer.
+    recent_state_commitment_window: int = 10
+    # Most-recent failed-OS-run input dumps to keep on the PVC for debugging.
+    max_failed_dumps: int = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,18 +228,28 @@ class GcpLogsConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class NotificationsConfig:
+    """Outbound alerting. Empty `slack_webhook_url` disables Slack notifications."""
+
+    slack_webhook_url: str
+
+
+@dataclass(frozen=True, slots=True)
 class EchonetConfig:
     feeder: FeederGatewayConfig
     sequencer: SequencerGatewayConfig
     blocks: BlockRangeDefaults
+    resync: ResyncConfig
     sleep: SleepConfig
     tx_sender: TxSenderTuning
     block_store: BlockStoreTuning
     severity: SeverityConfig
     paths: PathsConfig
+    os_runner: OsRunnerConfig
     tx_filter: TxFilterConfig
     l1: L1Config
     gcp_logs: GcpLogsConfig
+    notifications: NotificationsConfig
 
     @classmethod
     def from_files(cls, keys_path: Path, secrets_path: Path) -> "EchonetConfig":
@@ -221,6 +275,8 @@ class EchonetConfig:
         gcp_location = str(secrets.get("gcp_location", ""))
         gke_cluster_name = str(secrets.get("gke_cluster_name", ""))
 
+        slack_webhook_url = str(secrets.get("slack_webhook_url", "")).strip()
+
         return cls(
             feeder=FeederGatewayConfig(
                 base_url=str(
@@ -237,6 +293,10 @@ class EchonetConfig:
                 start_block=start_block,
                 end_block=int(keys.get("end_block_default", MAX_BLOCK_NUMBER)),
             ),
+            resync=ResyncConfig(
+                bounded_revert_enabled=bool(keys.get("resync_bounded_revert_enabled", False)),
+                revert_lookback_blocks=int(keys.get("resync_revert_lookback_blocks", 100)),
+            ),
             sleep=SleepConfig(),
             tx_sender=TxSenderTuning(
                 max_pending_txs_before_pausing=max_pending_txs_before_pausing,
@@ -249,6 +309,7 @@ class EchonetConfig:
             ),
             severity=SeverityConfig(),
             paths=PathsConfig(),
+            os_runner=OsRunnerConfig(),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
             ),
@@ -259,6 +320,9 @@ class EchonetConfig:
                 project_id=gcp_project_id,
                 location=gcp_location,
                 gke_cluster_name=gke_cluster_name,
+            ),
+            notifications=NotificationsConfig(
+                slack_webhook_url=slack_webhook_url,
             ),
         )
 

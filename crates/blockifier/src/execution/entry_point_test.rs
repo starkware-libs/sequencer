@@ -584,7 +584,9 @@ fn test_call_view_entry_point_non_existing_function() {
         Calldata(vec![].into()),
     );
 
-    let EntryPointExecutionError::ExecutionFailed { error_trace } = call_info.unwrap_err() else {
+    let EntryPointExecutionError::ExecutionFailed { error_trace } =
+        call_info.unwrap_err().into_unannotated()
+    else {
         panic!("Expected ExecutionFailed error");
     };
     assert_eq!(error_trace.last_retdata.0, vec![ENTRYPOINT_NOT_FOUND_ERROR_FELT]);

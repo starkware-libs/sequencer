@@ -292,11 +292,16 @@ impl ConsensusManager {
         SequencerConsensusContext::new(
             self.config.context_config.clone(),
             SequencerConsensusContextDeps {
-                transaction_converter: Arc::new(TransactionConverter::new(
-                    Arc::clone(&self.class_manager_client),
-                    Arc::clone(&self.proof_manager_client),
-                    self.config.context_config.static_config.chain_id.clone(),
-                )),
+                transaction_converter: Arc::new(
+                    TransactionConverter::new(
+                        Arc::clone(&self.class_manager_client),
+                        Arc::clone(&self.proof_manager_client),
+                        self.config.context_config.static_config.chain_id.clone(),
+                    )
+                    .with_behavior_mode(
+                        self.config.context_config.static_config.behavior_mode.clone(),
+                    ),
+                ),
                 state_sync_client: Arc::clone(&self.state_sync_client),
                 batcher: Arc::clone(&self.batcher_client),
                 cende_ambassador: Arc::new(CendeAmbassador::new(
@@ -382,6 +387,7 @@ pub fn create_committee_provider(
     let staking_manager_config = config.staking_manager_config.clone();
     // TODO(Asmaa/Dafna): Create StakingContract according to config.
     let mock_staking_contract = Arc::new(MockStakingContract::new(
+        batcher_client.clone(),
         state_sync_client.clone(),
         staking_manager_config.dynamic_config.clone(),
     ));
@@ -394,31 +400,6 @@ pub fn create_committee_provider(
         Some(config_manager_client),
     );
     Arc::new(staking_manager)
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn create_consensus_manager(
-    config: ConsensusManagerConfig,
-    batcher_client: SharedBatcherClient,
-    state_sync_client: SharedStateSyncClient,
-    class_manager_client: SharedClassManagerClient,
-    proof_manager_client: SharedProofManagerClient,
-    signature_manager_client: SharedSignatureManagerClient,
-    config_manager_client: SharedConfigManagerClient,
-    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    committee_provider: Arc<dyn CommitteeProvider>,
-) -> ConsensusManager {
-    ConsensusManager::new(ConsensusManagerArgs {
-        config,
-        batcher_client,
-        state_sync_client,
-        class_manager_client,
-        proof_manager_client,
-        signature_manager_client,
-        config_manager_client,
-        l1_gas_price_provider,
-        committee_provider,
-    })
 }
 
 #[async_trait]

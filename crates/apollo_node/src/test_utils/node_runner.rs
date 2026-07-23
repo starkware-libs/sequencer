@@ -76,10 +76,10 @@ pub fn spawn_run_node(
         // Obtain handles, as the processes and task are terminated when their handles are dropped.
         let (mut node_handle, _pipe_task) =
             spawn_node_child_process(node_config_paths, node_runner.clone()).await;
-        let _node_run_result = node_handle.
+        let exit_status = node_handle.
             wait(). // Runs the node until completion, should be running indefinitely.
             await; // Awaits the completion of the node.
-        panic!("Node {node_runner:?} stopped unexpectedly.");
+        panic!("Node {node_runner:?} stopped unexpectedly. Exit status: {exit_status:?}.");
     }))
 }
 

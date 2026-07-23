@@ -112,7 +112,6 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug> Table<'env>
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn append(
         &'env self,
         txn: &DbTransaction<'env, RW>,

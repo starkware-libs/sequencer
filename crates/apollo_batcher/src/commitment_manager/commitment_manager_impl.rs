@@ -6,12 +6,16 @@ use apollo_batcher_config::config::{
     CommitmentManagerConfig,
     FirstBlockWithPartialBlockHash,
 };
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::ReadPathsAndCommitBlockRequest;
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
     RevertBlockRequest,
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::AccessedKeys as StorageAccessedKeys;
 use lru::LruCache;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
@@ -91,6 +95,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Adds a commitment task to the state committer. If the task height does not match the
     /// task offset, an error is returned.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn add_commitment_task<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
@@ -102,6 +107,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
         storage_reader: Arc<R>,
         storage_writer: &mut Box<W>,
+        // When present, the task issues `ReadPathsAndCommitBlock` to also fetch the Patricia
+        // witnesses; otherwise it falls back to `CommitBlock`.
+        #[cfg(feature = "os_input")] accessed_keys: Option<StorageAccessedKeys>,
     ) -> CommitmentManagerResult<()> {
         if height != self.commitment_task_offset {
             return Err(CommitmentManagerError::WrongCommitmentTaskHeight {
@@ -110,26 +118,35 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 state_diff_commitment,
             });
         }
-        let commitment_task_input = CommitterTaskInput::Commit(CommitBlockRequest {
-            height,
-            state_diff,
-            state_diff_commitment,
-        });
+        let commit_request = CommitBlockRequest { height, state_diff, state_diff_commitment };
+        #[cfg(feature = "os_input")]
+        let task_input = match accessed_keys {
+            Some(accessed_keys) => {
+                CommitterTaskInput::ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest {
+                    commit: commit_request,
+                    accessed_keys,
+                })
+            }
+            None => CommitterTaskInput::Commit(commit_request),
+        };
+        #[cfg(not(feature = "os_input"))]
+        let task_input = CommitterTaskInput::Commit(commit_request);
+        let commit_label = task_input.task_type();
         self.add_task_with_retries(
-            commitment_task_input,
+            task_input,
             first_block_with_partial_block_hash,
             storage_reader,
             storage_writer,
         )
         .await?;
-        self.successfully_added_commitment_task(height, state_diff_commitment);
+        self.successfully_added_commitment_task(height, state_diff_commitment, commit_label);
         Ok(())
     }
 
     /// Adds a task to the tasks channel. If the tasks channel is full, the behavior depends on the
     /// config: if `panic_if_task_channel_full` is true, it will panic; otherwise, it will retry
-    /// after reading results from the tasks channel. Any other error when sending the task will
-    /// also cause a panic.
+    /// after reading results from the tasks channel.
+    /// Any other error when sending the task will also cause a panic.
     async fn add_task_with_retries<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
@@ -183,11 +200,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         loop {
             match self.results_receiver.try_recv() {
                 Ok(result) => {
+                    let task_label = result.task_label();
                     let commitment_task_output = result.expect_commitment();
-                    self.update_task_duration_metric(
-                        CommitterRequestLabelValue::CommitBlock,
-                        commitment_task_output.height,
-                    );
+                    self.update_task_duration_metric(task_label, commitment_task_output.height);
                     results.push(commitment_task_output)
                 }
                 Err(TryRecvError::Empty) => break,
@@ -213,22 +228,22 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let mut commitment_results = Vec::new();
         loop {
             // Sleep until a message is sent or the channel is closed.
-            match self.results_receiver.recv().await {
-                Some(CommitterTaskOutput::Commit(commitment_task_result)) => {
-                    self.update_task_duration_metric(
-                        CommitterRequestLabelValue::CommitBlock,
-                        commitment_task_result.height,
-                    );
+            let result =
+                self.results_receiver.recv().await.unwrap_or_else(|| {
+                    panic!("Channel closed while waiting for commitment results.")
+                });
+            self.update_task_duration_metric(result.task_label(), result.height());
+            match result {
+                CommitterTaskOutput::Commit(commitment_task_result) => {
                     commitment_results.push(commitment_task_result)
                 }
-                Some(CommitterTaskOutput::Revert(revert_task_result)) => {
-                    self.update_task_duration_metric(
-                        CommitterRequestLabelValue::RevertBlock,
-                        revert_task_result.height,
-                    );
+                #[cfg(feature = "os_input")]
+                CommitterTaskOutput::ReadPathsAndCommitBlock(read_path_and_commit_task_result) => {
+                    commitment_results.push(read_path_and_commit_task_result)
+                }
+                CommitterTaskOutput::Revert(revert_task_result) => {
                     return (commitment_results, revert_task_result);
                 }
-                None => panic!("Channel closed while waiting for revert results."),
             }
         }
     }
@@ -256,12 +271,17 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             };
 
             // Get the final commitment.
-            let FinalBlockCommitment { height, block_hash, global_root } =
-                Self::finalize_commitment_output(
-                    storage_reader.clone(),
-                    commitment_task_output,
-                    should_finalize_block_hash,
-                )?;
+            let FinalBlockCommitment {
+                height,
+                block_hash,
+                global_root,
+                #[cfg(feature = "os_input")]
+                state_commitment_infos,
+            } = Self::finalize_commitment_output(
+                storage_reader.clone(),
+                commitment_task_output,
+                should_finalize_block_hash,
+            )?;
 
             // Verify the first new block hash matches the configured block hash.
             if let Some(FirstBlockWithPartialBlockHash {
@@ -289,7 +309,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
 
             // Write the block hash and global root to storage.
-            storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
+            storage_writer.set_global_root_and_block_hash(
+                height,
+                global_root,
+                block_hash,
+                #[cfg(feature = "os_input")]
+                state_commitment_infos,
+            )?;
             GLOBAL_ROOT_HEIGHT.increment(1);
         }
 
@@ -322,11 +348,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         &mut self,
         height: BlockNumber,
         state_diff_commitment: Option<StateDiffCommitment>,
+        commit_label: CommitterRequestLabelValue,
     ) {
-        self.task_timer.start_timer(CommitterRequestLabelValue::CommitBlock, height);
+        self.task_timer.start_timer(commit_label, height);
         debug!(
-            "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
-             state committer."
+            "Sent {commit_label:?} task for block {height} and state diff \
+             {state_diff_commitment:?} to state committer."
         );
         self.increase_commitment_task_offset();
     }
@@ -401,6 +428,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 Err(err) => panic!("Failed to read hash commitment for height {height}: {err}"),
             }
         };
+        // If accessed keys were persisted for this height, the task fetches the Patricia witnesses
+        // via `ReadPathsAndCommitBlock`; otherwise it falls back to `CommitBlock`.
+        #[cfg(feature = "os_input")]
+        let accessed_keys =
+            batcher_storage_reader.get_accessed_keys(height).unwrap_or_else(|err| {
+                panic!("Failed to read accessed keys for height {height}: {err}")
+            });
         self.add_commitment_task(
             height,
             state_diff,
@@ -408,6 +442,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             &batcher_config.static_config.first_block_with_partial_block_hash,
             batcher_storage_reader,
             storage_writer,
+            #[cfg(feature = "os_input")]
+            accessed_keys,
         )
         .await
         .unwrap();
@@ -490,13 +526,18 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // TODO(Amos): Test blocks [0,10] in OS flow tests.
     fn finalize_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
-        CommitmentTaskOutput { response: CommitBlockResponse { global_root }, height }: CommitmentTaskOutput,
+        CommitmentTaskOutput {
+            response: CommitBlockResponse { global_root },
+            height,
+            #[cfg(feature = "os_input")]
+            state_commitment_infos,
+        }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
-        match should_finalize_block_hash {
+        let block_hash = match should_finalize_block_hash {
             false => {
                 debug!("Finalized commitment for block {height} without calculating block hash.");
-                Ok(FinalBlockCommitment { height, block_hash: None, global_root })
+                None
             }
             true => {
                 debug!("Finalizing commitment for block {height} with calculating block hash.");
@@ -517,14 +558,20 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 debug!(
                     "Global root: {global_root:?}, previous block hash: {previous_block_hash:?}"
                 );
-                let block_hash = calculate_block_hash(
+                Some(calculate_block_hash(
                     &partial_block_hash_components,
                     global_root,
                     previous_block_hash,
-                )?;
-                Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
+                )?)
             }
-        }
+        };
+        Ok(FinalBlockCommitment {
+            height,
+            block_hash,
+            global_root,
+            #[cfg(feature = "os_input")]
+            state_commitment_infos,
+        })
     }
 
     fn update_task_duration_metric(
@@ -532,17 +579,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         task_type: CommitterRequestLabelValue,
         height: BlockNumber,
     ) {
-        let task_duration = self.task_timer.stop_timer(task_type, height);
-        if let Some(task_duration) = task_duration {
-            let task_duration = u64::try_from(task_duration)
-                .expect("Duration (in microseconds) is not more than 500,000 years.");
+        if let Some(task_duration) = self.task_timer.stop_timer(task_type, height) {
             match task_type {
+                // Both commit endpoints (`CommitBlock` and, under `os_input`,
+                // `ReadPathsAndCommitBlock`) share the commit metric.
                 CommitterRequestLabelValue::CommitBlock => {
-                    debug!(
-                        "Commit block latency for block {height}: {task_duration} milliseconds."
-                    );
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
+                    record_commit_block_metric(task_duration, height, task_type)
                 }
                 CommitterRequestLabelValue::RevertBlock => {
                     debug!(
@@ -551,7 +593,23 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.increment(task_duration);
                     COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.increment(1);
                 }
+                #[cfg(feature = "os_input")]
+                CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
+                    // TODO(Ariel): Add dedicated metrics once we use os_input in prod.
+                    record_commit_block_metric(task_duration, height, task_type)
+                }
             }
         }
     }
+}
+
+/// Records the latency and count metrics for a commit task. Shared by both commit endpoints.
+fn record_commit_block_metric(
+    task_duration: u64,
+    height: BlockNumber,
+    task_type: CommitterRequestLabelValue,
+) {
+    debug!("{task_type:?} latency for block {height}: {task_duration} milliseconds.");
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
+    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
 }

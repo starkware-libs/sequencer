@@ -15,7 +15,7 @@ mod TestContract {
     use core::pedersen::PedersenTrait;
     use core::poseidon::PoseidonTrait;
     use core::sha256::{SHA256_INITIAL_STATE, compute_sha256_u32_array, sha256_state_handle_init};
-    use core::sha512::compute_sha512_u64_array;
+    use core::sha512::{compute_sha512_u64_array, u3};
     use dict::Felt252DictTrait;
     use ec::EcPointTrait;
     use starknet::class_hash::ClassHashZero;
@@ -24,8 +24,11 @@ mod TestContract {
     use starknet::info::v2::{ExecutionInfo, ResourceBounds, TxInfo as TxInfoV2};
     use starknet::info::v3::TxInfo as TxInfoV3;
     use starknet::info::{BlockInfo, SyscallResultTrait, get_contract_address};
-    use starknet::secp256_trait::{Signature, is_valid_signature};
-    use starknet::secp256r1::{Secp256r1Impl, Secp256r1Point};
+    use starknet::secp256_trait::{Secp256Trait, Signature, is_valid_signature};
+    use starknet::secp256r1::{
+        Secp256r1Impl, Secp256r1Point, secp256r1_add_syscall, secp256r1_get_xy_syscall,
+        secp256r1_mul_syscall, secp256r1_new_syscall,
+    };
     use starknet::storage_access::{
         storage_address_from_base_and_offset, storage_base_address_from_felt252,
     };
@@ -709,7 +712,7 @@ mod TestContract {
     }
 
     fn test_sha512_helper(
-        input: Array<u64>, last_word: u64, last_num_bytes: u32, expected_first_word: u64,
+        input: Array<u64>, last_word: u64, last_num_bytes: u3, expected_first_word: u64,
     ) {
         let [res, _, _, _, _, _, _, _] = compute_sha512_u64_array(input, last_word, last_num_bytes);
         assert(res == expected_first_word, 'Wrong hash value');
@@ -972,6 +975,34 @@ mod TestContract {
         let generator = starknet::secp256_trait::Secp256Trait::get_generator_point();
 
         starknet::secp256r1::secp256r1_mul_syscall(p: generator, :scalar).unwrap_syscall();
+    }
+
+    // Adds (x, y) to the generator and asserts the result equals (expected_x, expected_y).
+    #[external(v0)]
+    fn test_add_secp256r1_checked(
+        ref self: ContractState, x: u256, y: u256, expected_x: u256, expected_y: u256,
+    ) {
+        let p0 = secp256r1_new_syscall(x, y).unwrap_syscall().unwrap();
+        let generator = Secp256Trait::get_generator_point();
+        let sum = secp256r1_add_syscall(p0, p1: generator).unwrap_syscall();
+        let (rx, ry) = secp256r1_get_xy_syscall(sum).unwrap_syscall();
+        assert(rx == expected_x && ry == expected_y, 'unexpected add result');
+    }
+
+    // Multiplies (x, y) by scalar and asserts the result equals (expected_x, expected_y).
+    #[external(v0)]
+    fn test_mul_point_secp256r1_checked(
+        ref self: ContractState,
+        x: u256,
+        y: u256,
+        scalar: u256,
+        expected_x: u256,
+        expected_y: u256,
+    ) {
+        let p = secp256r1_new_syscall(x, y).unwrap_syscall().unwrap();
+        let prod = secp256r1_mul_syscall(:p, :scalar).unwrap_syscall();
+        let (rx, ry) = secp256r1_get_xy_syscall(prod).unwrap_syscall();
+        assert(rx == expected_x && ry == expected_y, 'unexpected mul result');
     }
 
     /// Returns a golden valid message hash and its signature, for testing.

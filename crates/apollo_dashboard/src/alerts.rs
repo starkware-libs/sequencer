@@ -108,9 +108,6 @@ pub(crate) enum AlertComparisonOp {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AlertLogicalOp {
     And,
-    // TODO(Tsabary): remove the `allow(dead_code)` once this variant is used.
-    #[allow(dead_code)]
-    Or,
 }
 
 /// Defines the condition to trigger the alert.

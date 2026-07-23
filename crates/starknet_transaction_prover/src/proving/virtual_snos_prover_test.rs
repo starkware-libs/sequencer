@@ -73,9 +73,6 @@ async fn test_prove_transfer_transaction() {
     // Run the full prover pipeline: OS execution → proof generation.
     let result = prover.prove_transaction(BlockId::Latest, rpc_tx).await;
 
-    // Finalize recording before asserting so records are saved even on failure.
-    test_mode.finalize();
-
     // Verify execution and proving succeeded.
     let output = result.expect("prove_transaction should succeed");
 
@@ -86,4 +83,6 @@ async fn test_prove_transfer_transaction() {
         .await
         .expect("proof verification task panicked")
         .expect("proof verification should succeed");
+
+    test_mode.finalize();
 }

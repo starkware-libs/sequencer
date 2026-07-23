@@ -45,6 +45,10 @@ use blockifier::fee::resources::{
     StateResources,
     TransactionResources,
 };
+#[cfg(feature = "os_input")]
+use blockifier::state::accessed_keys::AccessedKeys;
+#[cfg(feature = "os_input")]
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::cached_state::{
     CommitmentStateDiff,
     StateChangesCount,
@@ -129,6 +133,8 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommitmentInfos};
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -147,6 +153,8 @@ use super::{
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::CentralCasmContractClass;
+#[cfg(feature = "os_input")]
+use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{AerospikeBlob, BlobParameters, InternalTransactionWithReceipt};
 
 // TODO(yael, dvir): add default object serialization tests.
@@ -731,6 +739,21 @@ fn input_txs_and_mock_class_manager() -> (Vec<InternalConsensusTransaction>, Moc
     (transactions, mock_class_manager)
 }
 
+#[cfg(feature = "os_input")]
+fn recent_state_commitment_infos() -> Vec<StateCommitmentInfosAndNumber> {
+    [BlockNumber(1), BlockNumber(2)]
+        .into_iter()
+        .map(|block_number| StateCommitmentInfosAndNumber {
+            state_commitment_infos: StateCommitmentInfos {
+                contracts_trie_commitment_info: CommitmentInfo::default(),
+                classes_trie_commitment_info: CommitmentInfo::default(),
+                storage_tries_commitment_infos: HashMap::new(),
+            },
+            block_number,
+        })
+        .collect()
+}
+
 // TODO(dvir): use real blob when possible.
 fn central_blob() -> AerospikeBlob {
     let (input_txs, mock_class_manager) = input_txs_and_mock_class_manager();
@@ -745,6 +768,7 @@ fn central_blob() -> AerospikeBlob {
 
     let blob_parameters = BlobParameters {
         block_info: block_info(),
+        starknet_version: StarknetVersion::LATEST,
         state_diff: thin_state_diff(),
         compressed_state_diff: Some(commitment_state_diff()),
         transactions_with_execution_infos,
@@ -760,6 +784,12 @@ fn central_blob() -> AerospikeBlob {
             BlockHashAndNumber { number: BlockNumber(1), hash: BlockHash(felt!("0x1")) },
             BlockHashAndNumber { number: BlockNumber(2), hash: BlockHash(felt!("0x2")) },
         ],
+        #[cfg(feature = "os_input")]
+        recent_state_commitment_infos: recent_state_commitment_infos(),
+        #[cfg(feature = "os_input")]
+        accessed_keys: AccessedKeys::default(),
+        #[cfg(feature = "os_input")]
+        initial_reads: StateMaps::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -777,6 +807,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
     let mock_class_manager = MockClassManagerClient::new();
     let blob_parameters = BlobParameters {
         block_info: block_info(),
+        starknet_version: StarknetVersion::LATEST,
         state_diff: thin_state_diff(),
         compressed_state_diff: None,
         transactions_with_execution_infos: vec![],
@@ -789,6 +820,12 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         proposal_commitment: ProposalCommitment(felt!("0x80020000")),
         parent_proposal_commitment: None,
         recent_block_hashes: vec![],
+        #[cfg(feature = "os_input")]
+        recent_state_commitment_infos: vec![],
+        #[cfg(feature = "os_input")]
+        accessed_keys: AccessedKeys::default(),
+        #[cfg(feature = "os_input")]
+        initial_reads: StateMaps::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -1143,6 +1180,20 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
 fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_json_path: &str) {
     let python_json: serde_json::Value = read_json_file(python_json_path);
     let rust_json = serde_json::to_value(rust_obj).unwrap();
+
+    // `recent_state_commitment_infos`, `accessed_keys` and `initial_reads` are os_input-only and
+    // absent from the central (python) blob, so strip them before comparing.
+    // TODO(Itamar): Remove this stripping once the python blob includes the fields.
+    #[cfg(feature = "os_input")]
+    let rust_json = {
+        let mut rust_json = rust_json;
+        if let Some(object) = rust_json.as_object_mut() {
+            object.remove("recent_state_commitment_infos");
+            object.remove("accessed_keys");
+            object.remove("initial_reads");
+        }
+        rust_json
+    };
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
 }

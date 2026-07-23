@@ -25,6 +25,10 @@ use validator::Validate;
 
 use crate::ValidatorId;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 /// Dynamic configuration for consensus that can change at runtime.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusDynamicConfig {
@@ -37,6 +41,11 @@ pub struct ConsensusDynamicConfig {
     pub sync_retry_interval: Duration,
     /// Future message limits configuration.
     pub future_msg_limit: FutureMsgLimitsConfig,
+    /// If the network tip is more than this many blocks above the node's current height, the node
+    /// is considered far behind and keeps syncing instead of proposing. Must be in the range
+    /// [5, 1000].
+    #[validate(range(min = 5, max = 1000))]
+    pub far_behind_proposal_threshold: u64,
     /// When true, require the virtual proposer to have voted in favor before reaching a decision.
     pub require_virtual_proposer_vote: bool,
     /// If set, the node participates in consensus up to and including this height, then stops.
@@ -85,6 +94,14 @@ impl SerializeConfig for ConsensusDynamicConfig {
                 &self.require_virtual_proposer_vote,
                 "When true, require the virtual proposer to have voted in favor before reaching a \
                  decision.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "far_behind_proposal_threshold",
+                &self.far_behind_proposal_threshold,
+                "If the network tip exceeds the node's current height by more than this many \
+                 blocks, the node keeps syncing instead of proposing. Must be in the range [5, \
+                 1000].",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -138,6 +155,7 @@ impl Default for ConsensusDynamicConfig {
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
             future_msg_limit: FutureMsgLimitsConfig::default(),
+            far_behind_proposal_threshold: 30,
             require_virtual_proposer_vote: false,
             stop_at_height: None,
         }

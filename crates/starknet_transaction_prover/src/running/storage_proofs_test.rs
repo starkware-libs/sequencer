@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
 use rstest::rstest;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockNumber, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -67,6 +67,7 @@ fn test_get_storage_proofs_from_rpc(
         l2_to_l1_messages: Vec::new(),
         base_block_info: BaseBlockInfo {
             block_context: BlockContext::create_for_account_testing(),
+            raw_starknet_version: StarknetVersion::LATEST.to_string(),
             base_block_hash: BlockHash::default(),
             prev_base_block_hash: BlockHash::default(),
             base_block_header_commitments: BlockHeaderCommitments::default(),

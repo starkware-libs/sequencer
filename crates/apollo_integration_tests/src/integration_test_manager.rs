@@ -349,15 +349,25 @@ impl RunningNode {
             })
         });
 
-        join_all(await_alive_tasks).await;
+        // Race the health-check loop against a periodic crash detector. If any executable
+        // handle finishes (its process exited), propagate_executable_panic fires immediately
+        // rather than waiting for the full timeout to expire.
+        tokio::select! {
+            _ = join_all(await_alive_tasks) => {},
+            _ = async {
+                loop {
+                    sleep(Duration::from_millis(interval)).await;
+                    self.propagate_executable_panic();
+                }
+            } => {},
+        }
     }
 
     fn propagate_executable_panic(&self) {
-        for handle in self.executable_handles.values() {
-            // A finished handle implies a running node executable has panicked.
+        for (service, handle) in &self.executable_handles {
             if handle.is_finished() {
                 // Panic, dropping all other handles, which should drop.
-                panic!("A running node executable has unexpectedly panicked.");
+                panic!("Node service {service:?} unexpectedly stopped.");
             }
         }
     }
@@ -583,8 +593,9 @@ impl IntegrationTestManager {
         max_attempts: usize,
     ) {
         info!("Waiting for all idle nodes to finish reverting.");
-        let condition =
-            |&latest_block_number: &BlockNumber| latest_block_number == expected_block_number;
+        let condition = |latest_block_number: &Option<BlockNumber>| {
+            latest_block_number.is_some_and(|block_number| block_number == expected_block_number)
+        };
 
         let await_reverted_tasks = self.running_nodes.values().map(|running_node| async {
             let running_node_setup = &running_node.node_setup;
@@ -701,7 +712,7 @@ impl IntegrationTestManager {
         info!("All nodes have been shut down.");
 
         // Brief pause to let the OS release ports after SIGKILL before new processes bind them.
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_secs(2)).await;
     }
 
     pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
@@ -950,8 +961,9 @@ impl IntegrationTestManager {
         &mut self,
         expected_block_number: BlockNumber,
     ) {
-        let condition =
-            |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
+        let condition = |latest_block_number: &Option<BlockNumber>| {
+            latest_block_number.is_some_and(|block_number| block_number >= expected_block_number)
+        };
 
         self.perform_action_on_all_running_nodes(|running_node| async move {
             let node_setup = &running_node.node_setup;

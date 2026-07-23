@@ -35,16 +35,23 @@ fn initial_updated_skeleton(
     &[(NodeIndex::FIRST_LEAF, 1)],
     &[
         (NodeIndex::ROOT,
-        UpdatedSkeletonNode::Edge(PathToBottom::from("0".repeat(TREE_HEIGHT).as_str())))
+        UpdatedSkeletonNode::Edge {
+            path_to_bottom: PathToBottom::from("0".repeat(TREE_HEIGHT).as_str()),
+            n_new_hashes: 1,
+        })
     ],
 )]
 #[case::empty_to_binary(
     &[],
     &[(NodeIndex::FIRST_LEAF, 1), (NodeIndex::FIRST_LEAF + 1, 1)],
     &([
-        (NodeIndex::FIRST_LEAF >> 1, UpdatedSkeletonNode::Binary),
+        (NodeIndex::FIRST_LEAF >> 1,
+        UpdatedSkeletonNode::Binary { n_new_hashes: 1 }),
         (NodeIndex::ROOT,
-        UpdatedSkeletonNode::Edge(PathToBottom::from("0".repeat(TREE_HEIGHT - 1).as_str()))),
+        UpdatedSkeletonNode::Edge {
+            path_to_bottom: PathToBottom::from("0".repeat(TREE_HEIGHT - 1).as_str()),
+            n_new_hashes: 2,
+        }),
     ]),
 )]
 #[case::nonempty_to_empty_tree(
@@ -67,9 +74,13 @@ fn initial_updated_skeleton(
     &[
         (
             NodeIndex::ROOT,
-            UpdatedSkeletonNode::Edge(PathToBottom::from("0".repeat(TREE_HEIGHT - 1).as_str()))
+            UpdatedSkeletonNode::Edge {
+                path_to_bottom: PathToBottom::from("0".repeat(TREE_HEIGHT - 1).as_str()),
+                n_new_hashes: 2,
+            }
         ),
-        (NodeIndex::FIRST_LEAF >> 1, UpdatedSkeletonNode::Binary)
+        (NodeIndex::FIRST_LEAF >> 1,
+        UpdatedSkeletonNode::Binary { n_new_hashes: 1 })
     ]
 )]
 #[case::non_empty_replace_edge_bottom(
@@ -83,7 +94,10 @@ fn initial_updated_skeleton(
     ],
     &[
         (NodeIndex::ROOT,
-        UpdatedSkeletonNode::Edge(PathToBottom::from(("0".repeat(TREE_HEIGHT - 1) + "1").as_str())))
+        UpdatedSkeletonNode::Edge {
+            path_to_bottom: PathToBottom::from(("0".repeat(TREE_HEIGHT - 1) + "1").as_str()),
+            n_new_hashes: 1,
+        })
     ]
 )]
 #[case::fake_modification(
@@ -96,7 +110,10 @@ fn initial_updated_skeleton(
     ],
     &[
         (NodeIndex::ROOT,
-        UpdatedSkeletonNode::Edge(PathToBottom::from(("0".repeat(TREE_HEIGHT)).as_str())))
+        UpdatedSkeletonNode::Edge {
+            path_to_bottom: PathToBottom::from(("0".repeat(TREE_HEIGHT)).as_str()),
+            n_new_hashes: 1,
+        })
     ]
 )]
 #[case::fake_deletion(
@@ -111,7 +128,10 @@ fn initial_updated_skeleton(
     ],
     &[
         (NodeIndex::ROOT,
-        UpdatedSkeletonNode::Edge(PathToBottom::from(("0".repeat(TREE_HEIGHT)).as_str())))
+        UpdatedSkeletonNode::Edge {
+            path_to_bottom: PathToBottom::from(("0".repeat(TREE_HEIGHT)).as_str()),
+            n_new_hashes: 1,
+        })
     ]
 )]
 fn test_updated_skeleton_tree_impl_create(

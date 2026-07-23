@@ -19,6 +19,10 @@ pub mod unit;
 pub mod unit_validator;
 
 #[cfg(test)]
+mod behaviour_test;
+#[cfg(test)]
+mod behaviour_test_utils;
+#[cfg(test)]
 mod merkle_test;
 #[cfg(test)]
 mod padding_test;

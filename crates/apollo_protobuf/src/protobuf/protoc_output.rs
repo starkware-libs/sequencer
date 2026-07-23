@@ -1165,7 +1165,7 @@ pub mod events_response {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SignedBlockHeader {
-    ///   For the structure of the block hash, see <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/header/#block_hash>
+    ///   For the structure of the block hash, see <https://docs.starknet.io/learn/protocol/blocks#block-hash>
     #[prost(message, optional, tag = "1")]
     pub block_hash: ::core::option::Option<Hash>,
     #[prost(message, optional, tag = "2")]

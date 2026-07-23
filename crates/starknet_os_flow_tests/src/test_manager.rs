@@ -19,6 +19,7 @@ use blockifier::transaction::objects::{
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
@@ -29,7 +30,7 @@ use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHashComponents,
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
     ChainId,
     ClassHash,
@@ -48,22 +49,20 @@ use starknet_api::executable_transaction::{
     Transaction as ExecutableTransaction,
 };
 use starknet_api::hash::StateRoots;
-use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::test_utils::declare::{declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::constants::TRANSFER_EVENT_NAME;
 use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, Calldata, Fee, Tip};
 use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
+use starknet_api::{declare_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::db::facts_db::FactsDb;
-use starknet_committer::db::forest_trait::StorageInitializer;
-use starknet_os::commitment_infos::StateCommitmentInfos;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
@@ -77,7 +76,7 @@ use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_transaction_prover::running::committer_utils::{
-    commit_state_diff,
+    commit_state_diff_with_witnesses,
     commitment_state_diff_to_committer_state_diff,
     state_maps_to_committer_state_diff,
 };
@@ -96,7 +95,6 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     divide_vec_into_n_parts,
     execute_transactions,
-    get_extended_initial_reads,
     maybe_dummy_block_hash_and_number,
     ExecutionOutput,
 };
@@ -169,8 +167,8 @@ impl OsTestExpectedValues {
         messages_to_l2: Vec<MessageToL2>,
         committed_state_diff: StateDiff,
     ) -> Self {
-        let first_block = os_hints.os_input.os_block_inputs.first().unwrap();
-        let last_block = os_hints.os_input.os_block_inputs.last().unwrap();
+        let first_block = os_hints.first_block_input();
+        let last_block = os_hints.last_block_input();
 
         // Compute global roots from commitment infos.
         let previous_global_root = StateRoots {
@@ -186,8 +184,13 @@ impl OsTestExpectedValues {
 
         // Config hash and flags.
         let config = &os_hints.os_hints_config;
-        let config_hash =
-            config.chain_info.compute_os_config_hash(config.public_keys.as_ref()).unwrap();
+        let config_hash = config
+            .chain_info
+            .compute_os_config_hash(
+                config.public_keys.as_ref(),
+                first_block.block_info.starknet_version,
+            )
+            .unwrap();
         Self {
             previous_global_root,
             new_global_root,
@@ -389,7 +392,7 @@ impl<S: FlowTestState> TestRunner<S> {
     pub(crate) fn run(mut self) -> OsTestOutput<S> {
         // This cached state holds the diff of the entire execution.
         let entire_state_diff = self.entire_cached_state.to_state_diff().unwrap().state_maps;
-        let entire_initial_reads = get_extended_initial_reads(&self.entire_cached_state);
+        let entire_initial_reads = self.entire_cached_state.get_os_initial_reads().unwrap();
         self.entire_cached_state.state.apply_writes(
             &entire_state_diff,
             &self.entire_cached_state.class_hash_to_class.borrow(),
@@ -514,8 +517,10 @@ impl<S: FlowTestState> TestBuilder<S> {
     /// Computes the virtual OS config hash for proof facts validation using the test environment's
     /// chain info.
     pub(crate) fn compute_virtual_os_config_hash(&self) -> Felt {
-        let chain_info = self.initial_state.block_context.chain_info();
-        OsChainInfo::from(chain_info).compute_virtual_os_config_hash().unwrap()
+        let block_context = &self.initial_state.block_context;
+        OsChainInfo::from(block_context.chain_info())
+            .compute_virtual_os_config_hash(block_context.block_info().starknet_version)
+            .unwrap()
     }
 
     /// Advances the manager to the next block when adding new transactions.
@@ -569,6 +574,29 @@ impl<S: FlowTestState> TestBuilder<S> {
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
         let compiled_class_hash = casm.hash(&HashVersion::V2);
         self.execution_contracts.executed.contracts.insert(compiled_class_hash, casm.clone());
+    }
+
+    /// Given sierra and CASM, add an explicit declare transaction.
+    pub(crate) fn add_explicit_cairo1_declare_tx(
+        &mut self,
+        sierra: &SierraContractClass,
+        casm: CasmContractClass,
+        extra_args: DeclareTxArgs,
+        chain_id: &ChainId,
+    ) {
+        let class_hash = sierra.calculate_class_hash();
+        let compiled_class_hash = casm.hash(&HashVersion::V2);
+        let declare_args = declare_tx_args! { class_hash, compiled_class_hash, ..extra_args };
+        let account_declare_tx = declare_tx(declare_args);
+        let sierra_version = sierra.get_sierra_version().unwrap();
+        let class_info = ClassInfo {
+            contract_class: ContractClass::V1((casm, sierra_version.clone())),
+            sierra_program_length: sierra.sierra_program.len(),
+            abi_length: sierra.abi.len(),
+            sierra_version,
+        };
+        let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
+        self.add_cairo1_declare_tx(tx, sierra);
     }
 
     pub(crate) fn add_invoke_tx(
@@ -827,15 +855,14 @@ impl<S: FlowTestState> TestBuilder<S> {
         // TODO(Yoni): make this func sync.
         let mut os_block_inputs = vec![];
         let mut state = CachedState::new(self.initial_state.updatable_state);
-        let mut map_storage = self.initial_state.commitment_storage;
+        let mut commitment_db = self.initial_state.commitment_storage;
         let base_block_context = self.initial_state.block_context;
 
-        // The state roots updated after each block.
+        // The initial state roots, used for block-hash computation in virtual OS mode.
         let base_block_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
-        let mut previous_state_roots = base_block_state_roots;
 
         let use_kzg_da = self.os_hints_config.use_kzg_da;
         let mut current_block_hash = BlockHash::default();
@@ -874,7 +901,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &event_expectations_per_tx,
                 &execution_outputs,
             );
-            let initial_reads = get_extended_initial_reads(&final_state);
+            let mut initial_reads = final_state.get_os_initial_reads().unwrap();
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
             // Update the wrapped state.
             state = final_state.state;
@@ -901,28 +928,18 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &commitment_state_diff,
                 &accessed_keys_versioned_constants,
             );
-            // Commit the state diff.
+            // Commit the state diff, building the OS-input commitment infos from the Patricia
+            // witness paths gathered during the commit.
+            initial_reads.trim_to_accessed_keys(&accessed_keys);
             let committer_state_diff =
                 commitment_state_diff_to_committer_state_diff(commitment_state_diff);
-            let mut db = FactsDb::new(map_storage);
-            let new_state_roots = commit_state_diff(
-                &mut db,
-                previous_state_roots.contracts_trie_root_hash,
-                previous_state_roots.classes_trie_root_hash,
+            let (new_state_roots, commitment_infos) = commit_state_diff_with_witnesses(
+                &mut commitment_db,
                 committer_state_diff,
+                &accessed_keys,
             )
             .await
             .expect("Failed to commit state diff.");
-            map_storage = db.consume_storage();
-
-            let commitment_infos = StateCommitmentInfos::new(
-                &previous_state_roots,
-                &new_state_roots,
-                &mut map_storage,
-                &accessed_keys.into(),
-            )
-            .await
-            .unwrap();
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())
@@ -959,13 +976,13 @@ impl<S: FlowTestState> TestBuilder<S> {
                 prev_block_hash,
                 new_block_hash,
                 block_info,
+                starknet_version_override: None,
                 block_hash_commitments,
                 old_block_number_and_hash,
                 class_hashes_to_migrate: Vec::new(),
                 initial_reads,
             };
             os_block_inputs.push(os_block_input);
-            previous_state_roots = new_state_roots;
         }
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,

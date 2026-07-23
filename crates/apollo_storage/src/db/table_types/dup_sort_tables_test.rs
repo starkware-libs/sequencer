@@ -44,12 +44,12 @@ fn setup_boundary_test_tables() -> (
     let common_prefix_table_id =
         writer.create_common_prefix_table::<u32, u32, TableValue>("cp").unwrap();
 
-    let wtxn = writer.begin_rw_txn().unwrap();
-    let simple_handle = wtxn.open_table(&simple_table_id).unwrap();
-    let common_prefix_handle = wtxn.open_table(&common_prefix_table_id).unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    let simple_handle = wtxn.txn().open_table(&simple_table_id).unwrap();
+    let common_prefix_handle = wtxn.txn().open_table(&common_prefix_table_id).unwrap();
     for &(key, val) in &BOUNDARY_TEST_ENTRIES {
-        simple_handle.upsert(&wtxn, &key, &val).unwrap();
-        common_prefix_handle.upsert(&wtxn, &key, &val).unwrap();
+        simple_handle.upsert(wtxn.txn(), &key, &val).unwrap();
+        common_prefix_handle.upsert(wtxn.txn(), &key, &val).unwrap();
     }
     wtxn.commit().unwrap();
 
@@ -408,38 +408,38 @@ fn append_greater_sub_key_test<T>(
     let ((_reader, mut writer), _temp_dir) = get_test_env();
     let table_id = create_table(&mut writer, "table").unwrap();
 
-    let txn = writer.begin_rw_txn().unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
 
-    let handle = txn.open_table(&table_id).unwrap();
-    handle.append_greater_sub_key(&txn, &(2, 2), &22).unwrap();
-    handle.append_greater_sub_key(&txn, &(2, 3), &23).unwrap();
-    handle.append_greater_sub_key(&txn, &(1, 1), &11).unwrap();
-    handle.append_greater_sub_key(&txn, &(3, 0), &30).unwrap();
+    let handle = txn.txn().open_table(&table_id).unwrap();
+    handle.append_greater_sub_key(txn.txn(), &(2, 2), &22).unwrap();
+    handle.append_greater_sub_key(txn.txn(), &(2, 3), &23).unwrap();
+    handle.append_greater_sub_key(txn.txn(), &(1, 1), &11).unwrap();
+    handle.append_greater_sub_key(txn.txn(), &(3, 0), &30).unwrap();
 
     // For DupSort tables append with key that already exists should fail. Try append with smaller
     // bigger and equal values.
-    let result = handle.append_greater_sub_key(&txn, &(2, 2), &0);
+    let result = handle.append_greater_sub_key(txn.txn(), &(2, 2), &0);
     assert_matches!(result, Err(DbError::Append));
 
-    let result = handle.append_greater_sub_key(&txn, &(2, 2), &22);
+    let result = handle.append_greater_sub_key(txn.txn(), &(2, 2), &22);
     assert_matches!(result, Err(DbError::Append));
 
-    let result = handle.append_greater_sub_key(&txn, &(2, 2), &100);
+    let result = handle.append_greater_sub_key(txn.txn(), &(2, 2), &100);
     assert_matches!(result, Err(DbError::Append));
 
     // As before, but for the last main key.
-    let result = handle.append_greater_sub_key(&txn, &(3, 0), &0);
+    let result = handle.append_greater_sub_key(txn.txn(), &(3, 0), &0);
     assert_matches!(result, Err(DbError::Append));
 
-    let result = handle.append_greater_sub_key(&txn, &(3, 0), &30);
+    let result = handle.append_greater_sub_key(txn.txn(), &(3, 0), &30);
     assert_matches!(result, Err(DbError::Append));
 
-    let result = handle.append_greater_sub_key(&txn, &(3, 0), &100);
+    let result = handle.append_greater_sub_key(txn.txn(), &(3, 0), &100);
     assert_matches!(result, Err(DbError::Append));
 
     // Check the final database.
-    assert_eq!(handle.get(&txn, &(2, 2)).unwrap(), Some(22));
-    assert_eq!(handle.get(&txn, &(2, 3)).unwrap(), Some(23));
-    assert_eq!(handle.get(&txn, &(1, 1)).unwrap(), Some(11));
-    assert_eq!(handle.get(&txn, &(3, 0)).unwrap(), Some(30));
+    assert_eq!(handle.get(txn.txn(), &(2, 2)).unwrap(), Some(22));
+    assert_eq!(handle.get(txn.txn(), &(2, 3)).unwrap(), Some(23));
+    assert_eq!(handle.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
+    assert_eq!(handle.get(txn.txn(), &(3, 0)).unwrap(), Some(30));
 }

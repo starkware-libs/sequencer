@@ -164,7 +164,9 @@ fn generate_constants_file() -> String {
             base_only_syscall_cost(SyscallSelector::StorageWrite, os_constants),
         EMIT_EVENT_GAS_COST = base_only_syscall_cost(SyscallSelector::EmitEvent, os_constants),
         SEND_MESSAGE_TO_L1_GAS_COST =
-            base_only_syscall_cost(SyscallSelector::SendMessageToL1, os_constants),
+            os_constants.gas_costs.syscalls.send_message_to_l1.get_syscall_cost(0),
+        SEND_MESSAGE_TO_L1_PAYLOAD_FACTOR_GAS_COST =
+            os_constants.gas_costs.syscalls.send_message_to_l1.linear_syscall_cost(),
         META_TX_V0_GAS_COST = os_constants.gas_costs.syscalls.meta_tx_v0.get_syscall_cost(0),
         META_TX_V0_CALLDATA_FACTOR_GAS_COST =
             os_constants.gas_costs.syscalls.meta_tx_v0.linear_syscall_cost(),
