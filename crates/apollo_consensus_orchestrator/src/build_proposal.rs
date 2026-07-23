@@ -48,18 +48,15 @@ use crate::utils::{
     expected_version_constant_commitment,
     get_l1_prices_in_fri_and_wei,
     truncate_to_executed_txs,
+    verify_retrospective_state_commitment_infos,
     wait_for_retrospective_block_hash,
     GasPriceParams,
     L1PricesInFri,
     L1PricesInWei,
     PreviousProposalInitInfo,
     RetrospectiveBlockHashError,
-    StreamSender,
-};
-#[cfg(feature = "os_input")]
-use crate::utils::{
-    verify_retrospective_state_commitment_infos,
     RetrospectiveStateCommitmentInfosError,
+    StreamSender,
 };
 
 // Minimal wait time that avoids an immediate timeout.
@@ -106,7 +103,6 @@ pub(crate) enum BuildProposalError {
     Batcher(String, BatcherClientError),
     #[error(transparent)]
     RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
-    #[cfg(feature = "os_input")]
     #[error(transparent)]
     RetrospectiveStateCommitmentInfosError(#[from] RetrospectiveStateCommitmentInfosError),
     #[error("Failed to send proposal part: {0}")]
@@ -235,7 +231,6 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
 
     // Make sure the blob of this height will carry the next height's retrospective commitment
     // infos.
-    #[cfg(feature = "os_input")]
     verify_retrospective_state_commitment_infos(
         args.deps.batcher.as_ref(),
         args.deps.cende_ambassador.as_ref(),

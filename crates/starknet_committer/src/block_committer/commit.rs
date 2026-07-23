@@ -1,20 +1,14 @@
 use std::collections::HashMap;
-#[cfg(feature = "os_input")]
 use std::time::Instant;
 
-#[cfg(feature = "os_input")]
-use starknet_api::core::GlobalRoot;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-#[cfg(feature = "os_input")]
+use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, warn};
 
-use crate::block_committer::errors::BlockCommitmentError;
-#[cfg(feature = "os_input")]
-use crate::block_committer::errors::CommitBlockWithWitnessesError;
+use crate::block_committer::errors::{BlockCommitmentError, CommitBlockWithWitnessesError};
 use crate::block_committer::input::{
     contract_address_into_node_index,
     skeleton_storage_updates,
@@ -28,11 +22,8 @@ use crate::block_committer::measurements_util::{
     BlockModificationsCounts,
     MeasurementsTrait,
 };
-#[cfg(feature = "os_input")]
 use crate::db::forest_trait::forest_trait_witnesses::ForestStorageWithWitnesses;
-use crate::db::forest_trait::ForestReader;
-#[cfg(feature = "os_input")]
-use crate::db::forest_trait::ForestWriter;
+use crate::db::forest_trait::{ForestReader, ForestWriter};
 use crate::forest::deleted_nodes::{find_deleted_nodes, DeletedNodes};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestError;
@@ -40,11 +31,12 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-#[cfg(feature = "os_input")]
 use crate::patricia_merkle_tree::tree::SortedLeavesRequest;
-#[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::StateCommitmentInfos;
-use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
+use crate::patricia_merkle_tree::types::{
+    class_hash_into_node_index,
+    CompiledClassHash,
+    StateCommitmentInfos,
+};
 
 pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
@@ -77,11 +69,9 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
     .await
 }
 
-#[cfg(feature = "os_input")]
 pub type CommitBlockWithWitnessesResult<T> = Result<T, CommitBlockWithWitnessesError>;
 
 /// Output of [`commit_block_with_witnesses`].
-#[cfg(feature = "os_input")]
 pub struct CommitBlockWithWitnessesOutput {
     pub filled_forest: FilledForest,
     pub deleted_nodes: DeletedNodes,
@@ -100,7 +90,6 @@ pub struct CommitBlockWithWitnessesOutput {
 /// Does not persist the updated forest — the caller is responsible for writing
 /// `filled_forest`/`deleted_nodes` (together with any metadata bundle and the returned
 /// `patricia_proofs`) atomically.
-#[cfg(feature = "os_input")]
 pub async fn commit_block_with_witnesses<Storage, M>(
     input: Input<Storage::InitialReadContext>,
     sorted_leaves: &SortedLeavesRequest<'_>,

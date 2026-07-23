@@ -35,7 +35,6 @@ use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
-#[cfg(feature = "os_input")]
 use crate::cende::{CendeAmbassadorError, CendeContext};
 use crate::metrics::{
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
@@ -71,7 +70,6 @@ pub(crate) enum RetrospectiveBlockHashError {
 
 pub(crate) type RetrospectiveBlockHashResult<T> = Result<T, RetrospectiveBlockHashError>;
 
-#[cfg(feature = "os_input")]
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum RetrospectiveStateCommitmentInfosError {
     #[error(transparent)]
@@ -89,7 +87,6 @@ pub(crate) enum RetrospectiveStateCommitmentInfosError {
     },
 }
 
-#[cfg(feature = "os_input")]
 pub(crate) type RetrospectiveStateCommitmentInfosResult<T> =
     Result<T, RetrospectiveStateCommitmentInfosError>;
 
@@ -490,7 +487,6 @@ pub(crate) async fn wait_for_retrospective_block_hash(
 /// Verifies that the batcher or the cende recorder has stored the state commitment infos of the
 /// next height's retrospective block. Skipped when the batcher doesn't have them and the recorder
 /// has stored none at all, for pre-feature activation.
-#[cfg(feature = "os_input")]
 pub(crate) async fn verify_retrospective_state_commitment_infos(
     batcher_client: &dyn BatcherClient,
     cende_ambassador: &dyn CendeContext,

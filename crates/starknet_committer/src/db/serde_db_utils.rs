@@ -1,15 +1,11 @@
-#[cfg(feature = "os_input")]
 use blake2::Blake2s256;
-#[cfg(feature = "os_input")]
 use digest::Digest;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-#[cfg(feature = "os_input")]
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::storage_trait::DbValue;
 use starknet_types_core::felt::Felt;
 
-#[cfg(feature = "os_input")]
 use crate::patricia_merkle_tree::tree::SortedLeavesRequest;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Serialize)]
@@ -43,7 +39,6 @@ pub fn deserialize_felt_no_packing(value: &DbValue) -> Felt {
 /// 3. Storage tries — `len(storage_sorted)` then, for each contract index in ascending order: the
 ///    contract index, `len(storage slot indices)` for that contract, then each storage slot index
 ///    (already sorted within the contract).
-#[cfg(feature = "os_input")]
 pub fn accessed_keys_digest(sorted: &SortedLeavesRequest<'_>) -> [u8; 32] {
     let mut payload = Vec::new();
 
@@ -76,7 +71,6 @@ pub fn accessed_keys_digest(sorted: &SortedLeavesRequest<'_>) -> [u8; 32] {
     Blake2s256::digest(&payload).into()
 }
 
-#[cfg(feature = "os_input")]
 fn encode_usize(n: usize) -> [u8; 8] {
     u64::try_from(n).expect("accessed leaf count exceeds u64::MAX").to_be_bytes()
 }

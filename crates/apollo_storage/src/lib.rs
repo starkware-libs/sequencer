@@ -76,7 +76,6 @@
 //! [`Starknet`]: https://starknet.io/
 //! [`libmdbx`]: https://docs.rs/libmdbx/latest/libmdbx/
 
-#[cfg(feature = "os_input")]
 pub mod accessed_keys;
 pub mod base_layer;
 pub mod block_hash;
@@ -91,7 +90,6 @@ pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
-#[cfg(feature = "os_input")]
 pub mod state_commitment_infos;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
@@ -165,7 +163,6 @@ use tracing::{debug, info, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
 
-#[cfg(feature = "os_input")]
 use crate::accessed_keys::AccessedKeys;
 use crate::body::TransactionIndex;
 use crate::consensus::LastVotedMarker;
@@ -188,7 +185,6 @@ use crate::header::StorageBlockHeader;
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
-#[cfg(feature = "os_input")]
 use crate::state_commitment_infos::CompressedStateCommitmentInfos;
 use crate::storage_reader_server::{
     create_storage_reader_server,
@@ -282,9 +278,7 @@ fn open_storage_internal(
         compiled_class_hash: db_writer.create_common_prefix_table("compiled_class_hash")?,
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
-        #[cfg(feature = "os_input")]
         accessed_keys: db_writer.create_simple_table("accessed_keys")?,
-        #[cfg(feature = "os_input")]
         state_commitment_infos: db_writer.create_simple_table("state_commitment_infos")?,
     });
     let (file_writers, file_readers) = open_storage_files(
@@ -998,9 +992,7 @@ struct_field_names! {
         compiled_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
         stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
 
-        #[cfg(feature = "os_input")]
         accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
-        #[cfg(feature = "os_input")]
         state_commitment_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
     }
 }
@@ -1170,9 +1162,7 @@ struct FileHandlers<Mode: TransactionKind> {
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
-    #[cfg(feature = "os_input")]
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
-    #[cfg(feature = "os_input")]
     state_commitment_infos: FileHandler<VersionZeroWrapper<CompressedStateCommitmentInfos>, Mode>,
 }
 
@@ -1211,12 +1201,10 @@ impl FileHandlers<RW> {
         self.clone().transaction.append(transaction)
     }
 
-    #[cfg(feature = "os_input")]
     fn append_accessed_keys(&self, accessed_keys: &AccessedKeys) -> LocationInFile {
         self.clone().accessed_keys.append(accessed_keys)
     }
 
-    #[cfg(feature = "os_input")]
     fn append_state_commitment_infos(
         &self,
         state_commitment_infos: &CompressedStateCommitmentInfos,
@@ -1234,9 +1222,7 @@ impl FileHandlers<RW> {
         self.deprecated_contract_class.flush();
         self.transaction_output.flush();
         self.transaction.flush();
-        #[cfg(feature = "os_input")]
         self.accessed_keys.flush();
-        #[cfg(feature = "os_input")]
         self.state_commitment_infos.flush();
     }
 }
@@ -1251,9 +1237,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("deprecated_contract_class".to_string(), self.deprecated_contract_class.stats()),
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
-            #[cfg(feature = "os_input")]
             ("accessed_keys".to_string(), self.accessed_keys.stats()),
-            #[cfg(feature = "os_input")]
             ("state_commitment_infos".to_string(), self.state_commitment_infos.stats()),
         ])
     }
@@ -1314,7 +1298,6 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         })
     }
 
-    #[cfg(feature = "os_input")]
     // Returns the accessed-key set at the given location or an error in case it doesn't exist.
     pub(crate) fn get_accessed_keys_unchecked(
         &self,
@@ -1325,7 +1308,6 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         })
     }
 
-    #[cfg(feature = "os_input")]
     // Returns the compressed commitment infos at the given location or an error in case they don't
     // exist.
     pub(crate) fn get_state_commitment_infos_unchecked(
@@ -1371,10 +1353,8 @@ fn open_storage_files(
     let (transaction_output_writer, transaction_output_reader) =
         open_storage_file!("transaction_output", TransactionOutput)?;
     let (transaction_writer, transaction_reader) = open_storage_file!("transaction", Transaction)?;
-    #[cfg(feature = "os_input")]
     let (accessed_keys_writer, accessed_keys_reader) =
         open_storage_file!("accessed_keys", AccessedKeys)?;
-    #[cfg(feature = "os_input")]
     let (state_commitment_infos_writer, state_commitment_infos_reader) =
         open_storage_file!("state_commitment_infos", StateCommitmentInfos)?;
 
@@ -1386,9 +1366,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_writer,
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
-            #[cfg(feature = "os_input")]
             accessed_keys: accessed_keys_writer,
-            #[cfg(feature = "os_input")]
             state_commitment_infos: state_commitment_infos_writer,
         },
         FileHandlers {
@@ -1398,9 +1376,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_reader,
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,
-            #[cfg(feature = "os_input")]
             accessed_keys: accessed_keys_reader,
-            #[cfg(feature = "os_input")]
             state_commitment_infos: state_commitment_infos_reader,
         },
     ))
@@ -1422,9 +1398,7 @@ pub enum OffsetKind {
     /// A transaction file.
     Transaction,
     /// An accessed-keys file.
-    #[cfg(feature = "os_input")]
     AccessedKeys,
     /// A state-commitment-infos file.
-    #[cfg(feature = "os_input")]
     StateCommitmentInfos,
 }
