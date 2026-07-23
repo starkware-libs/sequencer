@@ -196,10 +196,8 @@ fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
     state_diffs
 }
 
-/// Expects a single `commit_proposal` call with the given arguments. Under `os_input`,
-/// `expect_accessed_keys` states whether accessed keys should be written with the state diff
-/// (ignored otherwise).
-#[cfg_attr(not(feature = "os_input"), allow(unused_variables))]
+/// Expects a single `commit_proposal` call with the given arguments; `expect_accessed_keys`
+/// states whether accessed keys should be written with the state diff.
 fn expect_commit_proposal_once(
     storage_writer: &mut MockBatcherStorageWriter,
     expected_height: BlockNumber,
@@ -207,17 +205,6 @@ fn expect_commit_proposal_once(
     expected_storage_commitment_block_hash: StorageCommitmentBlockHash,
     expect_accessed_keys: bool,
 ) {
-    #[cfg(not(feature = "os_input"))]
-    storage_writer
-        .expect_commit_proposal()
-        .times(1)
-        .with(
-            eq(expected_height),
-            eq(expected_state_diff),
-            eq(expected_storage_commitment_block_hash),
-        )
-        .returning(|_, _, _| Ok(()));
-    #[cfg(feature = "os_input")]
     storage_writer
         .expect_commit_proposal()
         .times(1)
@@ -231,9 +218,6 @@ fn expect_commit_proposal_once(
 }
 
 fn expect_commit_proposal_success(storage_writer: &mut MockBatcherStorageWriter) {
-    #[cfg(not(feature = "os_input"))]
-    storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
-    #[cfg(feature = "os_input")]
     storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
 }
 
@@ -244,7 +228,6 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
             height,
             state_diff.clone(),
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
-            #[cfg(feature = "os_input")]
             None,
         )
         .expect("set_state_diff failed");
@@ -1861,11 +1844,6 @@ async fn get_block_hash_after_reading_commitment_results() {
     let set_global_root_expectation =
         mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
     set_global_root_expectation.times(1);
-    #[cfg(not(feature = "os_input"))]
-    set_global_root_expectation
-        .with(eq(INITIAL_HEIGHT), eq(global_root), always())
-        .returning(|_, _, _| Ok(()));
-    #[cfg(feature = "os_input")]
     set_global_root_expectation
         .with(eq(INITIAL_HEIGHT), eq(global_root), always(), always())
         .returning(|_, _, _, _| Ok(()));

@@ -4,16 +4,14 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::time::Instant;
 
-#[cfg(feature = "os_input")]
-use apollo_committer_types::committer_types::ReadPathsAndCommitBlockRequest;
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
+    ReadPathsAndCommitBlockRequest,
     RevertBlockRequest,
     RevertBlockResponse,
 };
 use apollo_committer_types::communication::CommitterRequestLabelValue;
-#[cfg(feature = "os_input")]
 use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
@@ -24,7 +22,6 @@ use tracing::warn;
 #[cfg_attr(test, derive(Clone))]
 pub(crate) enum CommitterTaskInput {
     Commit(CommitBlockRequest),
-    #[cfg(feature = "os_input")]
     ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
     Revert(RevertBlockRequest),
 }
@@ -33,7 +30,6 @@ impl CommitterTaskInput {
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
             Self::Commit(request) => request.height,
-            #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(request) => request.commit.height,
             Self::Revert(request) => request.height,
         }
@@ -43,7 +39,6 @@ impl CommitterTaskInput {
     pub(crate) fn task_type(&self) -> CommitterRequestLabelValue {
         match self {
             Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
-            #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(_) => CommitterRequestLabelValue::ReadPathsAndCommitBlock,
             Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
         }
@@ -58,7 +53,6 @@ impl Display for CommitterTaskInput {
                 "Commit(height={}, state_diff_commitment={:?})",
                 request.height, request.state_diff_commitment
             ),
-            #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(request) => write!(
                 f,
                 "ReadPathsAndCommitBlock(height={}, state_diff_commitment={:?}, \
@@ -78,7 +72,6 @@ pub(crate) struct CommitmentTaskOutput {
     pub(crate) height: BlockNumber,
     // Compressed commitment infos from the committer. `None` when the block was committed via
     // `CommitBlock` (no accessed keys to request the Patricia witnesses).
-    #[cfg(feature = "os_input")]
     pub(crate) state_commitment_infos: Option<CompressedStateCommitmentInfos>,
 }
 
@@ -91,7 +84,6 @@ pub(crate) struct RevertTaskOutput {
 #[derive(Clone, Debug)]
 pub(crate) enum CommitterTaskOutput {
     Commit(CommitmentTaskOutput),
-    #[cfg(feature = "os_input")]
     ReadPathsAndCommitBlock(CommitmentTaskOutput),
     Revert(RevertTaskOutput),
 }
@@ -100,7 +92,6 @@ impl CommitterTaskOutput {
     pub(crate) fn expect_commitment(self) -> CommitmentTaskOutput {
         match self {
             Self::Commit(commitment_task_output) => commitment_task_output,
-            #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(commitment_task_output) => commitment_task_output,
             Self::Revert(_) => panic!("Got revert output: {self:?}"),
         }
@@ -109,7 +100,6 @@ impl CommitterTaskOutput {
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
             Self::Commit(output) => output.height,
-            #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(output) => output.height,
             Self::Revert(output) => output.height,
         }
@@ -118,7 +108,6 @@ impl CommitterTaskOutput {
     pub(crate) fn task_label(&self) -> CommitterRequestLabelValue {
         match self {
             Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
-            #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(_) => CommitterRequestLabelValue::ReadPathsAndCommitBlock,
             Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
         }
@@ -133,13 +122,11 @@ pub(crate) struct FinalBlockCommitment {
     pub(crate) global_root: GlobalRoot,
     // Compressed commitment infos from the committer. `None` when the block was committed via
     // `CommitBlock` (no accessed keys to request the Patricia witnesses).
-    #[cfg(feature = "os_input")]
     pub(crate) state_commitment_infos: Option<CompressedStateCommitmentInfos>,
 }
 
 pub(crate) struct TaskTimer {
     pub(crate) commit: HashMap<BlockNumber, Instant>,
-    #[cfg(feature = "os_input")]
     pub(crate) read_paths_and_commit_block: HashMap<BlockNumber, Instant>,
     pub(crate) revert: HashMap<BlockNumber, Instant>,
 }
@@ -148,7 +135,6 @@ impl TaskTimer {
     pub(crate) fn new() -> Self {
         Self {
             commit: HashMap::new(),
-            #[cfg(feature = "os_input")]
             read_paths_and_commit_block: HashMap::new(),
             revert: HashMap::new(),
         }
@@ -161,7 +147,6 @@ impl TaskTimer {
     ) -> &mut HashMap<BlockNumber, Instant> {
         match task {
             CommitterRequestLabelValue::CommitBlock => &mut self.commit,
-            #[cfg(feature = "os_input")]
             CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
                 &mut self.read_paths_and_commit_block
             }

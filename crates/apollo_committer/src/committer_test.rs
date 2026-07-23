@@ -24,7 +24,6 @@ use super::Committer;
 use crate::committer::StorageConstructor;
 use crate::metrics::{register_metrics, COMMITTER_BLOCK_COMMIT_LATENCY};
 
-#[cfg(feature = "os_input")]
 #[path = "request_paths_and_commit_block_tests.rs"]
 mod request_paths_and_commit_block_tests;
 

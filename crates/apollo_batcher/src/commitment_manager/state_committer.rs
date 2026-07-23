@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use apollo_committer_types::committer_types::{CommitBlockRequest, RevertBlockRequest};
-#[cfg(feature = "os_input")]
 use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
     CommitBlockResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
+    RevertBlockRequest,
 };
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_committer_types::errors::CommitterClientResult;
@@ -96,7 +96,6 @@ async fn perform_task(
             CommitterTaskInput::Commit(commit_block_request) => {
                 perform_commit_block_task(commit_block_request.clone(), committer_client).await
             }
-            #[cfg(feature = "os_input")]
             CommitterTaskInput::ReadPathsAndCommitBlock(read_paths_and_commit_block_request) => {
                 perform_read_paths_and_commit_block_task(
                     read_paths_and_commit_block_request.clone(),
@@ -128,14 +127,12 @@ async fn perform_commit_block_task(
     Ok(CommitterTaskOutput::Commit(CommitmentTaskOutput {
         response,
         height,
-        #[cfg(feature = "os_input")]
         state_commitment_infos: None,
     }))
 }
 
 /// Commits the block and fetches the Patricia witnesses for the accessed keys via
 /// `ReadPathsAndCommitBlock`.
-#[cfg(feature = "os_input")]
 async fn perform_read_paths_and_commit_block_task(
     request: ReadPathsAndCommitBlockRequest,
     committer_client: &SharedCommitterClient,
