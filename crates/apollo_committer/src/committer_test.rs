@@ -22,7 +22,6 @@ use tracing_test::traced_test;
 use super::Committer;
 use crate::committer::StorageConstructor;
 
-#[cfg(feature = "os_input")]
 #[path = "request_paths_and_commit_block_tests.rs"]
 mod request_paths_and_commit_block_tests;
 

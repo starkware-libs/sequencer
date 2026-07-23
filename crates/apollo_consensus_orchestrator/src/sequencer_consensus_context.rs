@@ -80,12 +80,12 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{
     BlobParameters,
+    CendeAmbassadorResult,
     CendeContext,
     InternalTransactionWithReceipt,
+    StateCommitmentInfosAndNumber,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
-#[cfg(feature = "os_input")]
-use crate::cende::{CendeAmbassadorResult, StateCommitmentInfosAndNumber};
 use crate::dynamic_gas_price::{
     compute_fee_actual,
     compute_fee_proposal,
@@ -592,8 +592,6 @@ impl SequencerConsensusContext {
             .prev()
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
-
-        #[cfg(feature = "os_input")]
         let recent_state_commitment_infos =
             self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
                 // `finalize_decision` must not fail, so continue with an empty vector.
@@ -632,9 +630,7 @@ impl SequencerConsensusContext {
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
-                #[cfg(feature = "os_input")]
                 recent_state_commitment_infos,
-                #[cfg(feature = "os_input")]
                 initial_reads: central_objects.initial_reads,
             })
             .await
@@ -704,7 +700,6 @@ impl SequencerConsensusContext {
         recent_block_hashes
     }
 
-    #[cfg(feature = "os_input")]
     async fn collect_recent_state_commitment_infos(
         &self,
         height: BlockNumber,

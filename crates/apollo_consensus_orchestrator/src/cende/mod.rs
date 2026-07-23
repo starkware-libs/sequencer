@@ -12,9 +12,7 @@ use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
-use blockifier::state::cached_state::CommitmentStateDiff;
-#[cfg(feature = "os_input")]
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
     process_transactions,
@@ -43,7 +41,6 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
-#[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -78,7 +75,6 @@ pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
-#[cfg(feature = "os_input")]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct StateCommitmentInfosAndNumber {
     pub state_commitment_infos: CompressedStateCommitmentInfos,
@@ -107,9 +103,11 @@ pub struct AerospikeBlob {
     proposal_commitment: ProposalCommitment,
     parent_proposal_commitment: Option<ProposalCommitment>,
     recent_block_hashes: Vec<BlockHashAndNumber>,
-    #[cfg(feature = "os_input")]
+    // Defaulted on (testing-only) deserialization: blobs recorded before witness production omit
+    // these fields.
+    #[cfg_attr(any(feature = "testing", test), serde(default))]
     recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
-    #[cfg(feature = "os_input")]
+    #[cfg_attr(any(feature = "testing", test), serde(default))]
     initial_reads: StateMaps,
 }
 
@@ -131,7 +129,6 @@ pub trait CendeContext: Send + Sync {
     /// The recorder's commitment infos height offset: the first height whose commitment infos the
     /// recorder has not stored yet.
     /// `Ok(None)` when the recorder has stored nothing; `Err` on query failure.
-    #[cfg(feature = "os_input")]
     async fn commitment_infos_height_offset(&self) -> CendeAmbassadorResult<Option<BlockNumber>>;
 }
 
@@ -143,7 +140,6 @@ pub struct CendeAmbassador {
     prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
     write_blob_url: Url,
     get_latest_received_block_url: Url,
-    #[cfg(feature = "os_input")]
     commitment_infos_height_offset_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
@@ -159,7 +155,6 @@ pub const RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH: &str =
     concatcp!(RECORDER_PREFIX, "/get_latest_received_block");
 /// The path to get the recorder's commitment infos height offset (the first height whose commitment
 /// infos the recorder has not stored yet). Returns null when the recorder has stored nothing.
-#[cfg(feature = "os_input")]
 pub const RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH: &str =
     concatcp!(RECORDER_PREFIX, "/get_witness_height_offset");
 
@@ -185,7 +180,6 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
                 .expect("Failed to construct get latest received block URL"),
-            #[cfg(feature = "os_input")]
             commitment_infos_height_offset_url: cende_config
                 .recorder_url
                 .join(RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH)
@@ -362,8 +356,6 @@ impl CendeContext for CendeAmbassador {
         CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
     }
-
-    #[cfg(feature = "os_input")]
     async fn commitment_infos_height_offset(&self) -> CendeAmbassadorResult<Option<BlockNumber>> {
         fetch_block_number(
             &self.client,
@@ -444,9 +436,7 @@ pub struct BlobParameters {
     pub proposal_commitment: ProposalCommitment,
     pub parent_proposal_commitment: Option<ProposalCommitment>,
     pub recent_block_hashes: Vec<BlockHashAndNumber>,
-    #[cfg(feature = "os_input")]
     pub recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
-    #[cfg(feature = "os_input")]
     pub initial_reads: StateMaps,
 }
 
@@ -503,9 +493,7 @@ impl AerospikeBlob {
             proposal_commitment: blob_parameters.proposal_commitment,
             parent_proposal_commitment: blob_parameters.parent_proposal_commitment,
             recent_block_hashes: blob_parameters.recent_block_hashes,
-            #[cfg(feature = "os_input")]
             recent_state_commitment_infos: blob_parameters.recent_state_commitment_infos,
-            #[cfg(feature = "os_input")]
             initial_reads: blob_parameters.initial_reads,
         })
     }

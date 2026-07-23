@@ -56,7 +56,6 @@ pub type CompiledClassHashesForMigration = Vec<CompiledClassHashV2ToV1>;
 pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
-    #[cfg(feature = "os_input")]
     pub initial_reads: StateMaps,
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
@@ -274,7 +273,6 @@ pub(crate) fn finalize_block<S: StateReader>(
 
     let state_diff = block_state.to_state_diff()?.state_maps;
 
-    #[cfg(feature = "os_input")]
     let initial_reads = block_state.get_os_initial_reads()?;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
@@ -304,7 +302,6 @@ pub(crate) fn finalize_block<S: StateReader>(
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
         compressed_state_diff,
-        #[cfg(feature = "os_input")]
         initial_reads,
         bouncer_weights: *bouncer.get_bouncer_weights(),
         casm_hash_computation_data_sierra_gas,
