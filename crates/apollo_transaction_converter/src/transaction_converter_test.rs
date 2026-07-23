@@ -4,7 +4,6 @@ use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
-use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{
     declare_tx,
@@ -17,7 +16,7 @@ use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
-use starknet_api::test_utils::{path_in_resources, read_json_file};
+use starknet_api::test_utils::{path_in_resources, read_json_file, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 
 use crate::transaction_converter::{
@@ -54,7 +53,7 @@ fn create_transaction_converter(
     TransactionConverter::new(
         Arc::new(MockClassManagerClient::new()),
         Arc::new(mock_proof_manager_client),
-        ChainInfo::create_for_testing().chain_id,
+        CHAIN_ID_FOR_TESTS.clone(),
     )
 }
 
@@ -102,7 +101,7 @@ async fn test_compiled_class_hash_mismatch() {
     let transaction_converter = TransactionConverter::new(
         Arc::new(mock_class_manager_client),
         Arc::new(mock_proof_manager_client),
-        ChainInfo::create_for_testing().chain_id,
+        CHAIN_ID_FOR_TESTS.clone(),
     );
 
     let err =
