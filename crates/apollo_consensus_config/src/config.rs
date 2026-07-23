@@ -16,7 +16,6 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_storage::db::DbConfig;
 use apollo_storage::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
@@ -147,6 +146,11 @@ impl SerializeConfig for ConsensusConfig {
         config
     }
 }
+
+/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
+/// Kept in sync with `apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID`.
+// TODO(Matan): Remove this once we have a proper validator set.
+const DEFAULT_VALIDATOR_ID: u64 = 100;
 
 impl Default for ConsensusDynamicConfig {
     fn default() -> Self {

@@ -1341,7 +1341,6 @@ name = "apollo_consensus_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_protobuf",
  "apollo_storage",
  "serde",
  "starknet_api",
