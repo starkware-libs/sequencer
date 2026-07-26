@@ -2,15 +2,18 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 
+use super::{validate_entry_point_builtins, CAIRO1_SUPPORTED_BUILTINS};
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallInfo, ExtendedExecutionResources};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::errors::PreExecutionError;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};
@@ -96,4 +99,35 @@ fn test_charged_resources_computation(
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
 
     assert_charged_resource_as_expected_rec(&call_info);
+}
+
+#[rstest]
+// The full supported list, in canonical order.
+#[case(CAIRO1_SUPPORTED_BUILTINS.to_vec())]
+// A proper (non-contiguous) ordered subsequence.
+#[case(vec![BuiltinName::pedersen, BuiltinName::range_check, BuiltinName::poseidon])]
+#[case(vec![BuiltinName::range_check, BuiltinName::add_mod, BuiltinName::mul_mod])]
+// No builtins is a (trivially valid) subsequence.
+#[case(vec![])]
+fn validate_entry_point_builtins_accepts_supported_ordered(#[case] builtins: Vec<BuiltinName>) {
+    validate_entry_point_builtins(&builtins).unwrap();
+}
+
+#[rstest]
+// Supported builtins in a non-canonical order.
+#[case(vec![BuiltinName::range_check, BuiltinName::pedersen])]
+// A duplicated builtin cannot be a subsequence of the (duplicate-free) supported list.
+#[case(vec![BuiltinName::range_check, BuiltinName::range_check])]
+// Cairo 0 builtins that are never emitted for Cairo 1 contracts.
+#[case(vec![BuiltinName::ecdsa])]
+#[case(vec![BuiltinName::output, BuiltinName::pedersen])]
+// A builtin outside the selectable set.
+#[case(vec![BuiltinName::range_check, BuiltinName::keccak])]
+fn validate_entry_point_builtins_rejects_invalid(#[case] builtins: Vec<BuiltinName>) {
+    match validate_entry_point_builtins(&builtins) {
+        Err(PreExecutionError::UnsupportedCairo1Builtins(returned_builtins)) => {
+            assert_eq!(returned_builtins, builtins)
+        }
+        other => panic!("Expected UnsupportedCairo1Builtins({builtins:?}), got {other:?}."),
+    }
 }

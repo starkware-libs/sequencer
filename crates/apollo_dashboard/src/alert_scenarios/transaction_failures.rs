@@ -1,6 +1,5 @@
 use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_DEPRECATED_ERROR,
-    ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_TOTAL,
 };
@@ -32,24 +31,6 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.1, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
-        AlertSeverity::Informational,
-        ObserverApplicability::NotApplicable,
-    )
-}
-
-pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
-    Alert::new(
-        "http_server_high_transaction_failure_ratio",
-        "http server high transaction failure ratio",
-        EvaluationRate::Default,
-        format!(
-            "(increase({}[1h]) - increase({}[1h])) / clamp_min(increase({}[1h]), 1)",
-            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
-            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
-            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
-        ),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.5, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,

@@ -15,6 +15,7 @@ define_metrics!(
         MetricCounter { CONSENSUS_L1_GAS_MISMATCH, "consensus_l1_gas_mismatch", "The number of times the L1 gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricCounter { CONSENSUS_L1_DATA_GAS_MISMATCH, "consensus_l1_data_gas_mismatch", "The number of times the L1 data gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricGauge { CONSENSUS_L2_GAS_PRICE, "consensus_l2_gas_price", "The L2 gas price calculated in an accepted proposal" },
+        MetricGauge { CONSENSUS_L2_GAS_PRICE_AT_MINIMUM, "consensus_l2_gas_price_at_minimum", "1 when the accepted L2 gas price is clamped at the configured minimum (min_l2_gas_price_per_height, or the versioned-constants min_gas_price fallback), else 0" },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
         MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH, "consensus_retrospective_block_hash_mismatch", "Number of times the retrospective block hashes of the state sync and the batcher mismatched", init=0},
 
@@ -97,6 +98,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_L1_GAS_MISMATCH.register();
     CONSENSUS_L1_DATA_GAS_MISMATCH.register();
     CONSENSUS_L2_GAS_PRICE.register();
+    CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.register();
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.register();
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.register();
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.register();

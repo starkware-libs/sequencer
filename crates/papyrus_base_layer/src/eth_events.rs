@@ -135,9 +135,11 @@ pub fn create_l1_event_data(
         from_address: Felt::from_bytes_be_slice(from_address.0.as_slice())
             .try_into()
             .map_err(EthereumBaseLayerError::StarknetApiParsingError)?,
+        // Skip (don't abort the batch on) a to_address that's a valid felt but outside the
+        // ContractAddress bound.
         to_address: felt_from_u256(to_address)
             .try_into()
-            .map_err(EthereumBaseLayerError::StarknetApiParsingError)?,
+            .map_err(|_| EthereumBaseLayerError::CalldataValueOutOfRange(to_address))?,
         entry_point_selector: EntryPointSelector(felt_from_u256(selector)),
         payload: Calldata(Arc::new(payload.iter().map(|&x| felt_from_u256(x)).collect())),
         nonce: Nonce(felt_from_u256(nonce)),

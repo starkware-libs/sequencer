@@ -1,5 +1,6 @@
 //! Configuration for the proving service.
 
+use std::fmt::Display;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -9,6 +10,7 @@ use blockifier::bouncer::BouncerConfig;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
+use tokio::sync::Semaphore;
 use tracing::info;
 
 use crate::config::ProverConfig;
@@ -26,6 +28,10 @@ mod config_test;
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
+/// Default 8 so total in-flight (2 + 8) matches the default `max_connections` (10).
+const DEFAULT_MAX_QUEUED_REQUESTS: usize = 8;
+/// Backstop (≈ the client request timeout), not the primary shed — the queue length is.
+const DEFAULT_QUEUE_WAIT_TIMEOUT_MILLIS: u64 = 30_000;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
 /// 5 MiB — matches the convention used elsewhere in the sequencer.
@@ -86,6 +92,8 @@ struct RawServiceConfig {
     ip: IpAddr,
     port: u16,
     max_concurrent_requests: usize,
+    max_queued_requests: usize,
+    queue_wait_timeout_millis: u64,
     max_connections: u32,
     cors_allow_origin: Vec<String>,
     tls_cert_file: Option<PathBuf>,
@@ -111,13 +119,15 @@ impl Default for RawServiceConfig {
             ip: DEFAULT_IP,
             port: DEFAULT_PORT,
             max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
+            max_queued_requests: DEFAULT_MAX_QUEUED_REQUESTS,
+            queue_wait_timeout_millis: DEFAULT_QUEUE_WAIT_TIMEOUT_MILLIS,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             cors_allow_origin: Vec::new(),
             tls_cert_file: None,
             tls_key_file: None,
             blocking_check_url: None,
-            blocking_check_timeout_millis: 2000,
-            blocking_check_fail_open: true,
+            blocking_check_timeout_millis: 10000,
+            blocking_check_fail_open: false,
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             ohttp_enabled: false,
             ohttp_key_cache_max_age_secs: DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS,
@@ -136,6 +146,12 @@ pub struct ServiceConfig {
     pub port: u16,
     /// Maximum number of concurrent proving requests.
     pub max_concurrent_requests: usize,
+    /// Requests that may wait FIFO for a worker slot beyond `max_concurrent_requests`. When this
+    /// buffer is full, requests are rejected with `-32005` (busy); `0` rejects the moment all
+    /// workers are busy.
+    pub max_queued_requests: usize,
+    /// Backstop (ms) a queued request waits for a worker slot before a `-32005` rejection.
+    pub queue_wait_timeout_millis: u64,
     /// Maximum number of simultaneous JSON-RPC connections (safety net).
     pub max_connections: u32,
     /// List of allowed web origins (domains) that may call this HTTP service from a browser
@@ -152,6 +168,17 @@ pub struct ServiceConfig {
     pub ohttp_enabled: bool,
     /// Cache-Control max-age for the `GET /ohttp-keys` response (seconds).
     pub ohttp_key_cache_max_age_secs: u64,
+}
+
+/// Applies an optional CLI override to a config field, logging `old -> new` when it changes.
+/// Centralizes the repeated per-field override pattern used in `ServiceConfig::from_args`.
+fn override_field<T: PartialEq + Display>(name: &str, current: &mut T, new: Option<T>) {
+    if let Some(value) = new {
+        if value != *current {
+            info!("CLI override: {}: {} -> {}", name, *current, value);
+            *current = value;
+        }
+    }
 }
 
 impl ServiceConfig {
@@ -198,12 +225,7 @@ impl ServiceConfig {
                 config.chain_id = new_chain_id;
             }
         }
-        if let Some(port) = args.port {
-            if port != config.port {
-                info!("CLI override: port: {} -> {}", config.port, port);
-                config.port = port;
-            }
-        }
+        override_field("port", &mut config.port, args.port);
         if let Some(ip) = args.ip {
             let new_ip: IpAddr = ip
                 .parse()
@@ -213,21 +235,22 @@ impl ServiceConfig {
                 config.ip = new_ip;
             }
         }
-        if let Some(max) = args.max_concurrent_requests {
-            if max != config.max_concurrent_requests {
-                info!(
-                    "CLI override: max_concurrent_requests: {} -> {}",
-                    config.max_concurrent_requests, max
-                );
-                config.max_concurrent_requests = max;
-            }
-        }
-        if let Some(max) = args.max_connections {
-            if max != config.max_connections {
-                info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
-                config.max_connections = max;
-            }
-        }
+        override_field(
+            "max_concurrent_requests",
+            &mut config.max_concurrent_requests,
+            args.max_concurrent_requests,
+        );
+        override_field(
+            "max_queued_requests",
+            &mut config.max_queued_requests,
+            args.max_queued_requests,
+        );
+        override_field(
+            "queue_wait_timeout_millis",
+            &mut config.queue_wait_timeout_millis,
+            args.queue_wait_timeout_millis,
+        );
+        override_field("max_connections", &mut config.max_connections, args.max_connections);
         if let Some(tls_cert_file) = args.tls_cert_file {
             if Some(&tls_cert_file) != config.tls_cert_file.as_ref() {
                 info!(
@@ -289,35 +312,19 @@ impl ServiceConfig {
             }
         }
 
-        if let Some(prefetch_state) = args.prefetch_state {
-            if prefetch_state != config.prefetch_state {
-                info!(
-                    "CLI override: prefetch_state: {} -> {}",
-                    config.prefetch_state, prefetch_state
-                );
-                config.prefetch_state = prefetch_state;
-            }
-        }
+        override_field("prefetch_state", &mut config.prefetch_state, args.prefetch_state);
 
-        if let Some(use_latest) = args.use_latest_versioned_constants {
-            if use_latest != config.use_latest_versioned_constants {
-                info!(
-                    "CLI override: use_latest_versioned_constants: {} -> {}",
-                    config.use_latest_versioned_constants, use_latest
-                );
-                config.use_latest_versioned_constants = use_latest;
-            }
-        }
+        override_field(
+            "use_latest_versioned_constants",
+            &mut config.use_latest_versioned_constants,
+            args.use_latest_versioned_constants,
+        );
 
-        if let Some(compiled_class_cache_size) = args.compiled_class_cache_size {
-            if compiled_class_cache_size != config.compiled_class_cache_size {
-                info!(
-                    "CLI override: compiled_class_cache_size: {} -> {}",
-                    config.compiled_class_cache_size, compiled_class_cache_size
-                );
-                config.compiled_class_cache_size = compiled_class_cache_size;
-            }
-        }
+        override_field(
+            "compiled_class_cache_size",
+            &mut config.compiled_class_cache_size,
+            args.compiled_class_cache_size,
+        );
         if let Some(url) = args.blocking_check_url {
             if Some(&url) != config.blocking_check_url.as_ref() {
                 info!(
@@ -331,24 +338,16 @@ impl ServiceConfig {
                 config.blocking_check_url = Some(url);
             }
         }
-        if let Some(timeout) = args.blocking_check_timeout_millis {
-            if timeout != config.blocking_check_timeout_millis {
-                info!(
-                    "CLI override: blocking_check_timeout_millis: {} -> {}",
-                    config.blocking_check_timeout_millis, timeout
-                );
-                config.blocking_check_timeout_millis = timeout;
-            }
-        }
-        if let Some(fail_open) = args.blocking_check_fail_open {
-            if fail_open != config.blocking_check_fail_open {
-                info!(
-                    "CLI override: blocking_check_fail_open: {} -> {}",
-                    config.blocking_check_fail_open, fail_open
-                );
-                config.blocking_check_fail_open = fail_open;
-            }
-        }
+        override_field(
+            "blocking_check_timeout_millis",
+            &mut config.blocking_check_timeout_millis,
+            args.blocking_check_timeout_millis,
+        );
+        override_field(
+            "blocking_check_fail_open",
+            &mut config.blocking_check_fail_open,
+            args.blocking_check_fail_open,
+        );
 
         // Validate blocking check URL early so an invalid value surfaces as a clean config error
         // instead of a panic at prover construction time.
@@ -357,29 +356,21 @@ impl ServiceConfig {
                 ConfigError::InvalidArgument(format!("Invalid blocking_check_url: {e}"))
             })?;
         }
-        if let Some(max_request_body_size) = args.max_request_body_size {
-            if max_request_body_size != config.max_request_body_size {
-                info!(
-                    "CLI override: max_request_body_size: {} -> {}",
-                    config.max_request_body_size, max_request_body_size
-                );
-                config.max_request_body_size = max_request_body_size;
-            }
-        }
+        override_field(
+            "max_request_body_size",
+            &mut config.max_request_body_size,
+            args.max_request_body_size,
+        );
 
         if args.ohttp_enabled && !config.ohttp_enabled {
             info!("CLI override: ohttp_enabled: false -> true");
             config.ohttp_enabled = true;
         }
-        if let Some(secs) = args.ohttp_key_cache_max_age_secs {
-            if secs != config.ohttp_key_cache_max_age_secs {
-                info!(
-                    "CLI override: ohttp_key_cache_max_age_secs: {} -> {}",
-                    config.ohttp_key_cache_max_age_secs, secs
-                );
-                config.ohttp_key_cache_max_age_secs = secs;
-            }
-        }
+        override_field(
+            "ohttp_key_cache_max_age_secs",
+            &mut config.ohttp_key_cache_max_age_secs,
+            args.ohttp_key_cache_max_age_secs,
+        );
 
         // Validate required fields.
         if config.rpc_node_url.is_empty() {
@@ -397,9 +388,40 @@ impl ServiceConfig {
                 "max_connections must be at least 1".to_string(),
             ));
         }
+        // max_concurrent_requests + max_queued_requests sizes the admission semaphore, which
+        // panics if built with more than `Semaphore::MAX_PERMITS`. Reject an oversized or
+        // overflowing sum with a clean error instead of crashing at startup.
+        let max_in_flight = config
+            .max_concurrent_requests
+            .checked_add(config.max_queued_requests)
+            .filter(|&total| total <= Semaphore::MAX_PERMITS)
+            .ok_or_else(|| {
+                ConfigError::InvalidArgument(format!(
+                    "max_concurrent_requests ({}) + max_queued_requests ({}) must not exceed {}",
+                    config.max_concurrent_requests,
+                    config.max_queued_requests,
+                    Semaphore::MAX_PERMITS,
+                ))
+            })?;
+        // Waiting requests hold a connection, so queue depth is capped by max_connections.
+        if max_in_flight > usize::try_from(config.max_connections).unwrap_or(usize::MAX) {
+            info!(
+                "max_concurrent_requests ({}) + max_queued_requests ({}) exceeds max_connections \
+                 ({}); queue depth is effectively capped by max_connections",
+                config.max_concurrent_requests, config.max_queued_requests, config.max_connections,
+            );
+        }
         if config.max_request_body_size == 0 {
             return Err(ConfigError::InvalidArgument(
                 "max_request_body_size must be at least 1".to_string(),
+            ));
+        }
+        // A zero backstop makes an admitted request time out immediately instead of waiting for a
+        // worker slot, silently defeating the queue. Reject it when a queue is configured.
+        if config.queue_wait_timeout_millis == 0 && config.max_queued_requests > 0 {
+            return Err(ConfigError::InvalidArgument(
+                "queue_wait_timeout_millis must be at least 1 when max_queued_requests > 0"
+                    .to_string(),
             ));
         }
         let transport = TransportMode::new(config.tls_cert_file, config.tls_key_file)?;
@@ -458,6 +480,8 @@ impl ServiceConfig {
             ip: config.ip,
             port: config.port,
             max_concurrent_requests: config.max_concurrent_requests,
+            max_queued_requests: config.max_queued_requests,
+            queue_wait_timeout_millis: config.queue_wait_timeout_millis,
             max_connections: config.max_connections,
             cors_allow_origin,
             transport,
@@ -496,6 +520,15 @@ pub struct CliArgs {
     /// Maximum number of concurrent proving requests (default: 1).
     #[arg(long, value_name = "N", env = "MAX_CONCURRENT_REQUESTS")]
     pub max_concurrent_requests: Option<usize>,
+
+    /// Requests that may wait for a worker slot beyond --max-concurrent-requests (default: 8; 0 =
+    /// reject immediately).
+    #[arg(long, value_name = "N", env = "MAX_QUEUED_REQUESTS")]
+    pub max_queued_requests: Option<usize>,
+
+    /// Backstop ms a queued request waits for a slot before a busy rejection (default: 30000).
+    #[arg(long, value_name = "MILLIS", env = "QUEUE_WAIT_TIMEOUT_MILLIS")]
+    pub queue_wait_timeout_millis: Option<u64>,
 
     /// Maximum number of simultaneous JSON-RPC connections (default: 10).
     #[arg(long, value_name = "N", env = "MAX_CONNECTIONS")]
@@ -586,11 +619,11 @@ pub struct CliArgs {
     pub blocking_check_url: Option<String>,
 
     /// Milliseconds to wait for the blocking check response before applying the
-    /// fail-open/fail-close policy (default: 2000).
+    /// fail-open/fail-close policy (default: 10000).
     #[arg(long, value_name = "MILLIS", env = "BLOCKING_CHECK_TIMEOUT_MILLIS")]
     pub blocking_check_timeout_millis: Option<u64>,
 
-    /// Fail-open when blocking check is inconclusive (default: true). Set to false for
+    /// Fail-open when blocking check is inconclusive (default: false). Set to false for
     /// fail-close.
     #[arg(long, env = "BLOCKING_CHECK_FAIL_OPEN")]
     pub blocking_check_fail_open: Option<bool>,

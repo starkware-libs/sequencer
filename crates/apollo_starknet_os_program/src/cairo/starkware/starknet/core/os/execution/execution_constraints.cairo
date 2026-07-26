@@ -50,7 +50,7 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     let proof_header = cast(proof_facts, ProofHeader*);
     assert proof_header.proof_variant = VIRTUAL_SNOS;
     assert is_program_hash_allowed(proof_header.program_hash) = TRUE;
-    // Proof version may be V0 (legacy) or V1 (current).
+    // Only proof version V1 is accepted.
     with_attr error_message("Unsupported proof version") {
         assert proof_header.proof_version = PROOF_VERSION_V1;
     }

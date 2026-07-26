@@ -382,7 +382,13 @@ fn initialize_papyrus_test_state(
 /// `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
 pub const EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT: Expect =
+<<<<<<< HEAD
     expect!["0x666a2f8531136a0ec2c57389f2495c5f873560ea789e3543c77415e021c1210"];
+||||||| 9f78ee7cef
+    expect!["0x1f494e26800f29ed05504531c6591aea214c6e64f3ea2fcf9d896060fd141e7"];
+=======
+    expect!["0x336450f02378f1a783e9d5fbf034e14bbb35fa0c19ca08026fbc38b6177a1f7"];
+>>>>>>> origin/main-v0.14.3
 
 pub fn integration_test_genesis_global_root() -> GlobalRoot {
     GlobalRoot(Felt::from_hex_unchecked(EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT.data()))

@@ -40,3 +40,24 @@ fn proof_version_str_encodes_to_felt() {
         assert_eq!(from_short_string, version.as_felt());
     }
 }
+
+#[test]
+fn proof_facts_debug_decodes_snos_without_dumping_felts() {
+    let debug = format!("{:?}", ProofFacts::snos_proof_facts_for_testing());
+    // Decoded via the variant's derived `Debug`, not the raw-felt length fallback.
+    assert!(debug.starts_with("ProofFacts(Snos(SnosProofFacts {"), "got: {debug}");
+    assert!(debug.contains("proof_version: V1"), "got: {debug}");
+    assert!(debug.contains("block_number: BlockNumber("), "got: {debug}");
+    assert!(!debug.contains("elements"), "should not hit the fallback: {debug}");
+}
+
+#[test]
+fn proof_facts_debug_empty() {
+    assert_eq!(format!("{:?}", ProofFacts::default()), "ProofFacts(Empty)");
+}
+
+#[test]
+fn proof_facts_debug_falls_back_for_unparseable() {
+    let facts = ProofFacts(Arc::new(vec![Felt::from_hex_unchecked("0xDEAD")]));
+    assert_eq!(format!("{:?}", facts), "ProofFacts([<1 elements>])");
+}

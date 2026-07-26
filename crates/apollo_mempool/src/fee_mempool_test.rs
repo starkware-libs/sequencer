@@ -2207,6 +2207,66 @@ fn stuck_txs_counter_expiry_decrements_count() {
 }
 
 #[test]
+fn stuck_txs_counter_expiry_removes_emptied_gap_account() {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+
+    // Gap account with a single stuck tx (nonce 2, gap at 0 and 1).
+    let tx_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_2);
+    assert_gap_metrics(&mempool, 1, 1);
+
+    // Expire the account's only stuck tx, then trigger the expiry sweep via a tx for another
+    // address.
+    fake_clock.advance(Duration::from_secs(61));
+    let trigger = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &trigger);
+
+    // The stuck tx is non-queued, so it never re-enters update_accounts_with_gap; the emptied gap
+    // account must still leave accounts_with_gap so both counters return to zero.
+    assert_gap_metrics(&mempool, 0, 0);
+}
+
+#[test]
+fn stuck_txs_counter_expiry_removes_gap_account_with_multiple_stuck_txs() {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+
+    // Gap account with two stuck txs (nonces 2 and 3, gap at 0 and 1), submitted at the same time
+    // so they expire together in a single sweep.
+    let tx_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    for tx in [&tx_nonce_2, &tx_nonce_3] {
+        add_tx(&mut mempool, tx);
+    }
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Expire both stuck txs, then trigger the sweep via a tx for another address.
+    fake_clock.advance(Duration::from_secs(61));
+    let trigger = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &trigger);
+
+    // All of the account's stuck txs expired in one sweep, so both counters must reach zero. This
+    // guards the two-phase structure of remove_expired_txs: the account must stay in
+    // accounts_with_gap until every stuck tx is decremented (decrement_stuck_txs_if_gap_account
+    // only acts while the account is tracked), and only then be removed. Merging decrement and
+    // removal into one loop would no-op the second tx's decrement and leave stuck_txs == 1.
+    assert_gap_metrics(&mempool, 0, 0);
+}
+
+#[test]
 fn stuck_txs_counter_eviction_decrements_count() {
     let tx_gap = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 0);
     let capacity = tx_gap.tx.total_bytes();

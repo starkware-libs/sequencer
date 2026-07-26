@@ -11,6 +11,12 @@ use tracing::debug;
 use crate::errors::OhttpError;
 use crate::OHTTP_RESPONSE_CONTENT_TYPE;
 
+/// Correlation-id header stripped from decapsulated inner requests. A
+/// client-chosen id inside the encrypted envelope would otherwise reach
+/// gateway logs as a stable, attacker-chosen join key, undermining OHTTP
+/// unlinkability; downstream layers mint their own id instead.
+const REQUEST_ID_HEADER: &[u8] = b"x-request-id";
+
 /// Rebuild a standard `http::Request<Full<Bytes>>` from a parsed Binary HTTP
 /// message.
 ///
@@ -18,7 +24,9 @@ use crate::OHTTP_RESPONSE_CONTENT_TYPE;
 /// missing either is rejected with `OhttpError::InvalidFormat` rather than
 /// silently defaulted. All BHTTP header fields are forwarded to the inner
 /// request — this includes `content-type`, `accept-encoding`, and anything
-/// else the client specified inside the encrypted envelope.
+/// else the client specified inside the encrypted envelope — except
+/// `content-length` (recomputed from the body) and `x-request-id` (stripped;
+/// see `REQUEST_ID_HEADER`).
 pub fn rebuild_request(
     bhttp_message: &bhttp::Message,
 ) -> Result<http::Request<Full<Bytes>>, OhttpError> {
@@ -50,7 +58,9 @@ pub fn rebuild_request(
     // CompressionLayer to compress the response before OHTTP encryption.
     // Skip Content-Length — we set it from the body length above.
     for field in bhttp_message.header().fields() {
-        if field.name().eq_ignore_ascii_case(b"content-length") {
+        if field.name().eq_ignore_ascii_case(b"content-length")
+            || field.name().eq_ignore_ascii_case(REQUEST_ID_HEADER)
+        {
             continue;
         }
         builder = builder.header(field.name(), field.value());

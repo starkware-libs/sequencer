@@ -70,7 +70,7 @@ use starknet_committer::patricia_merkle_tree::types::{CommitmentInfo, StateCommi
 use crate::cende::StateCommitmentInfosAndNumber;
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::dynamic_gas_price::proposal_commitment_from;
-use crate::metrics::CONSENSUS_L2_GAS_PRICE;
+use crate::metrics::{CONSENSUS_L2_GAS_PRICE, CONSENSUS_L2_GAS_PRICE_AT_MINIMUM};
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
@@ -864,6 +864,9 @@ async fn decision_reached_sends_correct_values() {
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+    // The price landed at the configured minimum (empty `min_l2_gas_price_per_height` → the
+    // versioned-constants fallback), so the "at minimum" gauge must report 1.
+    CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.assert_eq(&metrics, 1);
 }
 
 // The blob's `parent_proposal_commitment` must bind the parent block's `fee_proposal_fri`, which

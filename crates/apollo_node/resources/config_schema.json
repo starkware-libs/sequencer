@@ -59,6 +59,11 @@
     "privacy": "Public",
     "value": 1500
   },
+  "batcher_config.dynamic_config.results_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between polls for completed execution results, applied while previously added transactions are still executing. Must be in [1, tx_polling_interval_millis].",
+    "privacy": "Public",
+    "value": 10
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
@@ -2482,7 +2487,7 @@
   "config_manager_config.config_update_interval_secs": {
     "description": "Update interval in seconds for config updates",
     "privacy": "Public",
-    "value": 60.0
+    "value": 20.0
   },
   "config_manager_config.enable_config_updates": {
     "description": "Enables the resampling of the config every `config_update_interval_secs` seconds",

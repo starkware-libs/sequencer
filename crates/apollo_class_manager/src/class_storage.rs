@@ -450,7 +450,17 @@ impl FsClassStorage {
         class.write_to_file(concat_sierra_filename(&tmp_dir))?;
         executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
+<<<<<<< HEAD
         self.rename_to_persistent_dir(tmp_dir, persistent_dir)
+||||||| 9f78ee7cef
+        // Atomically rename directory to persistent one.
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        std::fs::rename(tmp_dir, persistent_dir)?;
+
+        Ok(())
+=======
+        self.rename_to_persistent_dir(tmp_dir, class_id)
+>>>>>>> origin/main-v0.14.3
     }
 
     fn write_deprecated_class_atomically(
@@ -462,8 +472,39 @@ impl FsClassStorage {
         let (_tmp_root, tmp_dir, persistent_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
+<<<<<<< HEAD
         self.rename_to_persistent_dir(tmp_dir, persistent_dir)
     }
+||||||| 9f78ee7cef
+        // Atomically rename directory to persistent one.
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        std::fs::rename(tmp_dir, persistent_dir)?;
+=======
+        self.rename_to_persistent_dir(tmp_dir, class_id)
+    }
+
+    /// Atomically moves the staged class directory `tmp_dir` into its content-addressed persistent
+    /// directory.
+    ///
+    /// Recovers from a previous partial write: a crash between this rename and committing the
+    /// existence marker (see `FsClassStorage::set_class`) can leave an orphaned, non-empty
+    /// persistent directory. `std::fs::rename` refuses to replace a non-empty directory and fails
+    /// with `ENOTEMPTY`, which permanently wedges sync on the class. Callers reach this only when
+    /// the existence marker is absent, and the directory is named by the class hash, so an existing
+    /// directory holds the same class; removing it lets the rename proceed and the marker get
+    /// written, restoring filesystem/marker consistency.
+    fn rename_to_persistent_dir(
+        &self,
+        tmp_dir: PathBuf,
+        class_id: ClassId,
+    ) -> FsClassStorageResult<()> {
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        if persistent_dir.exists() {
+            warn!("Recovering orphaned class dir from a prior partial write: {persistent_dir:?}");
+            std::fs::remove_dir_all(&persistent_dir)?;
+        }
+        std::fs::rename(tmp_dir, persistent_dir)?;
+>>>>>>> origin/main-v0.14.3
 
     /// Atomically moves the staged class directory into its content-addressed persistent directory.
     ///

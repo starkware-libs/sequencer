@@ -7,6 +7,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::expect;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash};
@@ -37,6 +38,7 @@ use crate::execution::call_info::{
     OpcodeCounterMap,
 };
 use crate::fee::resources::{ComputationResources, TransactionResources};
+use crate::metrics::{BLOCKS_FULL_BY_RESOURCE, LABEL_NAME_BLOCK_FULL_RESOURCE};
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContractData;
@@ -229,7 +231,8 @@ fn test_block_weights_has_room_n_txs(
     class_hashes_to_migrate: HashMap::from([
         (class_hash!(0_u128), (CompiledClassHash(felt!(2_u128)), CompiledClassHash(felt!(1_u128)))),
     ]),
-}
+},
+    block_full_recorded: false,
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     // TODO(Aviv): Use expect! to avoid magic numbers.
@@ -393,6 +396,90 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         }
         _ => panic!("Unexpected scenario: {scenario}"),
     }
+}
+
+#[rstest]
+fn test_block_full_metric_recorded_once_per_block(block_context: BlockContext) {
+    // A single bouncer is shared across all chunks of a block, so `try_update` is invoked for many
+    // candidate txs after the block is already full. Regression test: the
+    // `blockifier_blocks_full_by_resource` counter must be incremented once per block, not once per
+    // rejected tx.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
+    let mut transactional_state = TransactionalState::create_transactional(state);
+
+    // Block already near its (small) sierra_gas cap; proving_gas keeps its large default cap so the
+    // overflowing tx exceeds sierra_gas only.
+    let block_max_capacity = BouncerWeights {
+        l1_gas: 20,
+        message_segment_length: 20,
+        n_events: 20,
+        state_diff_size: 20,
+        n_txs: 20,
+        sierra_gas: GasAmount(20),
+        proving_gas: BouncerWeights::default().proving_gas,
+        receipt_l2_gas: GasAmount(20),
+    };
+    let bouncer_config = BouncerConfig {
+        block_max_capacity,
+        builtin_instance_limits: BuiltinInstanceLimits::default(),
+    };
+    let accumulated_weights = TxWeights {
+        bouncer_weights: BouncerWeights {
+            l1_gas: 10,
+            message_segment_length: 10,
+            n_events: 10,
+            state_diff_size: 10,
+            sierra_gas: GasAmount(10),
+            n_txs: 10,
+            proving_gas: GasAmount(10),
+            receipt_l2_gas: GasAmount(0),
+        },
+        ..Default::default()
+    };
+    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
+
+    let execution_summary = ExecutionSummary::default();
+    // Accumulated sierra_gas 10 + tx sierra_gas (11 + builtins) exceeds the cap of 20.
+    let tx_resources = TransactionResources {
+        computation: ComputationResources { sierra_gas: GasAmount(11), ..Default::default() },
+        ..Default::default()
+    };
+    let tx_state_changes_keys = transactional_state.to_state_diff().unwrap().state_maps.keys();
+
+    // Simulate five post-full candidate txs hitting the same (shared) bouncer.
+    for _ in 0..5 {
+        let result = bouncer.try_update(
+            &transactional_state,
+            &tx_state_changes_keys,
+            &execution_summary,
+            &cairo_primitive_counter_map([(BuiltinName::range_check, 1)]),
+            &tx_resources,
+            &block_context.versioned_constants,
+            GasAmount::ZERO,
+        );
+        assert_matches!(result, Err(TransactionExecutorError::BlockFull));
+    }
+
+    // Despite five rejected txs, sierra_gas is counted exactly once, and proving_gas — never the
+    // binding dimension — is not counted at all.
+    let metrics_string = recorder.handle().render();
+    assert_eq!(
+        BLOCKS_FULL_BY_RESOURCE.parse_numeric_metric::<u64>(
+            &metrics_string,
+            &[(LABEL_NAME_BLOCK_FULL_RESOURCE, "sierra_gas")]
+        ),
+        Some(1)
+    );
+    assert_eq!(
+        BLOCKS_FULL_BY_RESOURCE.parse_numeric_metric::<u64>(
+            &metrics_string,
+            &[(LABEL_NAME_BLOCK_FULL_RESOURCE, "proving_gas")]
+        ),
+        None
+    );
 }
 
 #[rstest]
