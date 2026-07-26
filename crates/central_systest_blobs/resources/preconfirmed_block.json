@@ -15,18 +15,18 @@
       "price_in_wei": "0x1"
     },
     "sequencer_address": "0x1000",
-    "starknet_version": "0.14.3",
+    "starknet_version": "0.14.4",
     "status": "PRE_CONFIRMED",
     "timestamp": 1013,
     "transaction_receipts": [
       {
-        "actual_fee": "0x1089a9",
+        "actual_fee": "0x11ab1d",
         "events": [
           {
             "data": [
               "0x13d6b532f09c37f9ac45c8f9e753cd849da1756e8c818a1b92d050f3fb4babf",
               "0x1000",
-              "0x1089a9",
+              "0x11ab1d",
               "0x0"
             ],
             "from_address": "0x65817bf44eff5f4b06cc781d5f236bdc8a38fb9a915d4e0ccd9bd6037ab6b31",
@@ -38,8 +38,8 @@
         "execution_resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
-            "poseidon_builtin": 15,
-            "range_check_builtin": 90
+            "poseidon_builtin": 14,
+            "range_check_builtin": 110
           },
           "data_availability": {
             "l1_data_gas": 0,
@@ -47,11 +47,11 @@
             "l2_gas": 0
           },
           "n_memory_holes": 0,
-          "n_steps": 4381,
+          "n_steps": 4812,
           "total_gas_consumed": {
             "l1_data_gas": 0,
             "l1_gas": 1652,
-            "l2_gas": 1082165
+            "l2_gas": 1156265
           }
         },
         "execution_status": "SUCCEEDED",
@@ -74,11 +74,11 @@
           "0x65817bf44eff5f4b06cc781d5f236bdc8a38fb9a915d4e0ccd9bd6037ab6b31": [
             {
               "key": "0xa5c8cc51233db9c1a93c16a6ff586fb2b4fef1f866b468ffd46347b810baa",
-              "value": "0xfffffffffffffffffffffffff98f3243"
+              "value": "0xfffffffffffffffffffffffff985880b"
             },
             {
               "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
-              "value": "0x670cdbc"
+              "value": "0x67a77f4"
             }
           ]
         }
