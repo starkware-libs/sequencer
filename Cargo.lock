@@ -1434,6 +1434,7 @@ dependencies = [
  "cairo-lang-utils",
  "cairo-vm",
  "chrono",
+ "const_format",
  "ethnum",
  "futures",
  "indexmap 2.14.0",
