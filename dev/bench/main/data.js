@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784758704939,
+  "lastUpdate": 1785091581967,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -6935,6 +6935,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1753.0875368499999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d06bfa0a2621d8213efa29390f15e324196a7aa4",
+          "message": "apollo_consensus_orchestrator: factor recorder queries into a generic fetch helper (#14810)\n\nReplace fetch_latest_received_block with a generic fetch_block_number returning\nResult<Option<BlockNumber>>, add a RecorderRequestFailed error, and build the recorder paths from a\nshared RECORDER_PREFIX via concatcp.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-26T18:33:11Z",
+          "tree_id": "859ba3323e17eeaa63a5e17ef39d5368d403a1d1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d06bfa0a2621d8213efa29390f15e324196a7aa4"
+        },
+        "date": 1785091581515,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 762.60067365,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1229.72764753,
             "unit": "ms"
           }
         ]
