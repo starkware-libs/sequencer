@@ -1897,8 +1897,10 @@ pub trait BatcherStorageWriter: Send + Sync {
         storage_commitment_block_hash: StorageCommitmentBlockHash,
     ) -> StorageResult<()>;
 
+    // clippy suggests eliding `'a`, but elision fails to compile under `#[automock]` (E0106 /
+    // E0637): the reference is nested inside `Option`, which the macro's codegen can't handle
+    // without a named lifetime.
     #[cfg(feature = "os_input")]
-    // The explicit lifetime is required by `#[automock]`'s codegen; it cannot use an elided one.
     #[allow(clippy::needless_lifetimes)]
     fn commit_proposal<'a>(
         &mut self,
@@ -1939,13 +1941,12 @@ pub trait BatcherStorageWriter: Send + Sync {
 }
 
 impl BatcherStorageWriter for StorageWriter {
-    #[allow(clippy::needless_lifetimes)]
-    fn commit_proposal<#[cfg(feature = "os_input")] 'a>(
+    fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        #[cfg(feature = "os_input")] accessed_keys: Option<&'a AccessedKeys>,
+        #[cfg(feature = "os_input")] accessed_keys: Option<&AccessedKeys>,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
