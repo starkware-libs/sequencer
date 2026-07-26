@@ -115,84 +115,6 @@ pub(crate) fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
         ObserverApplicability::NotApplicable,
     )
 }
-<<<<<<< HEAD
-
-/// Alert if an exchange-rate oracle had no successful query in the last hour.
-///
-/// Uses `sum_increase` instead of bare `increase` to avoid false positives on spot eviction: when
-/// a pod is evicted and rescheduled, the new pod's counter resets to 0, so a bare `increase([1h])`
-/// would return 0 until the first success. `sum` aggregates across all pod series, and the
-/// evicted pod's data points remain in the TSDB for the full 1h window, keeping the sum ≥ 1.
-fn oracle_success_count_alert(
-    name: &str,
-    title: &str,
-    success_count_metric: &dyn MetricQueryName,
-    severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
-    Alert::new(
-        name,
-        title,
-        EvaluationRate::Default,
-        sum_increase(success_count_metric, "1h"),
-        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
-        severity,
-        ObserverApplicability::NotApplicable,
-    )
-}
-
-/// Alert if an exchange-rate oracle exceeded the failure threshold in the last hour.
-///
-/// `or vector(0)` keeps the query defined (evaluating to 0) when the metric has no samples yet,
-/// so the alert stays silent instead of going to no-data before the first error is recorded.
-fn oracle_error_count_alert(
-    name: &str,
-    title: &str,
-    error_count_metric: &dyn MetricQueryName,
-    severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
-    Alert::new(
-        name,
-        title,
-        EvaluationRate::Default,
-        format!("{} or vector(0)", sum_increase(error_count_metric, "1h")),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
-        "1m",
-        severity,
-        ObserverApplicability::NotApplicable,
-    )
-}
-
-/// Alert if an exchange-rate oracle's rate gauge has not changed at all in the last hour.
-///
-/// Detects a *frozen feed*: the oracle keeps resolving successfully (so the success count and
-/// last-success timestamp stay healthy) while serving a stale, unchanging price. `changes` over 1h
-/// is 0 only when the value never moved across the ~4 update buckets in that window — effectively
-/// impossible for a live 18-decimal rate. Unlike the error-count alert there is deliberately no
-/// `or vector(0)`: an absent gauge must stay no-data (so an oracle that never resolves doesn't look
-/// "frozen"); only a present-but-flat gauge trips this.
-///
-/// Applies to observers too: a frozen upstream feed is env-wide and observer nodes run the same
-/// oracle client, so the alert should fire regardless of node role.
-fn oracle_rate_frozen_alert(
-    name: &str,
-    title: &str,
-    rate_metric: &dyn MetricQueryName,
-    severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
-    Alert::new(
-        name,
-        title,
-        EvaluationRate::Default,
-        format!("sum(changes({}[1h]))", rate_metric.get_name_with_filter()),
-        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
-        severity,
-        ObserverApplicability::Applicable,
-    )
-}
-||||||| 9f78ee7cef
-=======
 
 /// Alert when the accepted L2 gas price sits at the configured minimum for a sustained window,
 /// i.e. the EIP-1559 fee market has clamped the price at its floor (demand bottomed out).
@@ -289,4 +211,3 @@ fn oracle_rate_frozen_alert(
         ObserverApplicability::Applicable,
     )
 }
->>>>>>> origin/main-v0.14.3

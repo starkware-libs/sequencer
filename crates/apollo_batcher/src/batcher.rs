@@ -536,17 +536,11 @@ impl Batcher {
                     tx_polling_interval_millis: self
                         .config
                         .dynamic_config
-<<<<<<< HEAD
-                        .validate_tx_polling_interval_millis,
-||||||| 9f78ee7cef
-                        .tx_polling_interval_millis,
-=======
                         .validate_tx_polling_interval_millis,
                     results_polling_interval_millis: self
                         .config
                         .dynamic_config
                         .results_polling_interval_millis,
->>>>>>> origin/main-v0.14.3
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),

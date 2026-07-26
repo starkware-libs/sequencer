@@ -42,16 +42,8 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing_test::traced_test;
 
-<<<<<<< HEAD
 use super::{run_consensus, ConsensusCache, MultiHeightManager, RunHeightRes, NUM_VOTE_TYPES};
 use crate::manager::{CONSENSUS_RUNNING_PAST_STOP_HEIGHT, SKIPPED_PROPOSER_FAR_BEHIND};
-||||||| 9f78ee7cef
-use super::{run_consensus, MultiHeightManager, RunHeightRes};
-use crate::manager::CONSENSUS_RUNNING_PAST_STOP_HEIGHT;
-=======
-use super::{run_consensus, ConsensusCache, MultiHeightManager, RunHeightRes, NUM_VOTE_TYPES};
-use crate::manager::CONSENSUS_RUNNING_PAST_STOP_HEIGHT;
->>>>>>> origin/main-v0.14.3
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
     precommit,

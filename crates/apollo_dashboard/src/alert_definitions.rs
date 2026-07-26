@@ -75,17 +75,10 @@ use crate::alert_scenarios::l1_gas_prices::{
     get_eth_to_strk_success_count_alert,
     get_l1_gas_price_provider_insufficient_history_alert,
     get_l1_gas_price_scraper_success_count_alert,
-<<<<<<< HEAD
-    get_strk_to_usd_error_count_alert,
-    get_strk_to_usd_rate_frozen_alert,
-    get_strk_to_usd_success_count_alert,
-||||||| 9f78ee7cef
-=======
     get_l2_gas_price_at_minimum_alert,
     get_strk_to_usd_error_count_alert,
     get_strk_to_usd_rate_frozen_alert,
     get_strk_to_usd_success_count_alert,
->>>>>>> origin/main-v0.14.3
 };
 use crate::alert_scenarios::l1_handlers::{
     get_l1_handler_transaction_waiting_in_l1_alert,

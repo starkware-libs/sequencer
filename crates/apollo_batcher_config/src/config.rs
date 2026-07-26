@@ -327,13 +327,6 @@ pub struct BatcherDynamicConfig {
     /// a few ms earlier (i.e. by sitting geographically close to our node). It also reduces
     /// mempool polling load.
     pub tx_polling_interval_millis: u64,
-<<<<<<< HEAD
-    /// Same as `tx_polling_interval_millis`, but applied when validating a proposal. Here the tx
-    /// order is already fixed by the proposer, so a short interval is safe and simply reduces the
-    /// delay before streamed txs are executed.
-    pub validate_tx_polling_interval_millis: u64,
-||||||| 9f78ee7cef
-=======
     /// Same as `tx_polling_interval_millis`, but applied when validating a proposal. Here the tx
     /// order is already fixed by the proposer, so a short interval is safe and simply reduces the
     /// delay before streamed txs are executed.
@@ -343,7 +336,6 @@ pub struct BatcherDynamicConfig {
     /// `[1, tx_polling_interval_millis]` (0 would busy-loop; a value above the mempool poll is
     /// moot).
     pub results_polling_interval_millis: u64,
->>>>>>> origin/main-v0.14.3
     /// Minimum time (in milliseconds) that must pass since block creation started before checking
     /// for idle state. If this delay has passed AND no transactions are currently being executed,
     /// the proposer will finish building the current block.
@@ -361,13 +353,8 @@ impl Default for BatcherDynamicConfig {
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig::default(),
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
-<<<<<<< HEAD
-            validate_tx_polling_interval_millis: 10,
-||||||| 9f78ee7cef
-=======
             validate_tx_polling_interval_millis: 10,
             results_polling_interval_millis: 10,
->>>>>>> origin/main-v0.14.3
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
         }
     }
@@ -387,22 +374,6 @@ impl SerializeConfig for BatcherDynamicConfig {
                 "tx_polling_interval_millis",
                 &self.tx_polling_interval_millis,
                 "Time to wait (in milliseconds) between transaction requests when the previous \
-<<<<<<< HEAD
-                 request returned no transactions. Applies when proposing (polls the mempool). \
-                 Kept intentionally high so txs accumulate between polls and ordering is decided \
-                 by tip/priority fee rather than by arrival latency (geographic proximity).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "validate_tx_polling_interval_millis",
-                &self.validate_tx_polling_interval_millis,
-                "Time to wait (in milliseconds) between transaction requests when the previous \
-                 request returned no transactions. Applies when validating a proposal, where the \
-                 tx order is already fixed; a short interval reduces the delay before streamed \
-                 txs are executed.",
-||||||| 9f78ee7cef
-                 request returned no transactions.",
-=======
                  request returned no transactions. Applies when proposing (polls the mempool). \
                  Kept intentionally high so txs accumulate between polls and ordering is decided \
                  by tip/priority fee rather than by arrival latency (geographic proximity).",
@@ -423,7 +394,6 @@ impl SerializeConfig for BatcherDynamicConfig {
                 "Time to wait (in milliseconds) between polls for completed execution results, \
                  applied while previously added transactions are still executing. Must be in [1, \
                  tx_polling_interval_millis].",
->>>>>>> origin/main-v0.14.3
                 ParamPrivacyInput::Public,
             ),
             ser_param(
