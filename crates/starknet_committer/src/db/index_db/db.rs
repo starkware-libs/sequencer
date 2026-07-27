@@ -371,8 +371,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
     ) -> ForestResult<Option<CompressedStateCommitmentInfos>> {
         let db_key = DbKey(block_number_based_key(&PATRICIA_PATHS_PREFIX, DbBlockNumber(height)));
 
-        // Stored pre-compressed; return as-is instead of decompressing just to have the caller
-        // recompress it for the response.
+        // Values are stored already compressed; return them as-is.
         Ok(self
             .get_from_storage(db_key)
             .await?

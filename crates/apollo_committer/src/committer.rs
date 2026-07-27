@@ -534,13 +534,16 @@ where
                         expected: digest,
                     });
                 }
-                let state_commitment_infos = self
+                let compressed_state_commitment_infos = self
                     .forest_storage
                     .read_commitment_infos(height)
                     .await
                     .map_err(|error| self.map_internal_error_at_height(height, error))?
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root,
+                    state_commitment_infos: compressed_state_commitment_infos,
+                })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -584,10 +587,10 @@ where
                     commitment_facts_count = state_commitment_infos.n_commitment_facts(),
                     deleted_nodes_count = deleted_nodes.len(),
                 );
-                // Compress once and reuse for both the DB write and the response, instead of
-                // compressing the (cloned) commitment infos twice.
-                let compressed_state_commitment_infos = state_commitment_infos.compress()?;
                 block_measurements.start_measurement(Action::Write);
+                // The same compressed payload is persisted to the forest DB and returned to the
+                // caller, so it's computed once here rather than once per consumer.
+                let compressed_state_commitment_infos = state_commitment_infos.compress()?;
                 let n_write_entries = self
                     .forest_storage
                     .write_with_metadata_and_commitment_infos(
