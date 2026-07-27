@@ -8,8 +8,12 @@ use blockifier_test_utils::contracts::get_raw_contract_class;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
-#[cfg(feature = "cairo_native")]
+#[cfg(all(feature = "cairo_native", not(feature = "sierra-emu")))]
 use cairo_native::executor::AotContractExecutor;
+#[cfg(all(feature = "with-libfunc-profiling", not(feature = "sierra-emu")))]
+use cairo_native::executor::AotWithProgram;
+#[cfg(feature = "sierra-emu")]
+use cairo_native::executor::EmuContractExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_address;
@@ -297,7 +301,9 @@ impl NativeCompiledClassV1 {
         let sierra_version = SierraVersion::extract_from_program(&sierra_version_values)
             .expect("Cannot extract sierra version from sierra program");
 
-        let executor = AotContractExecutor::new(
+        // Executor construction matches the build's `NativeContractExecutor` resolution.
+        #[cfg(not(feature = "sierra-emu"))]
+        let aot_executor = AotContractExecutor::new(
             &extracted.program,
             &sierra_contract_class.entry_points_by_type,
             sierra_version.clone().into(),
@@ -307,6 +313,18 @@ impl NativeCompiledClassV1 {
             None,
         )
         .expect("Cannot compile sierra into native");
+
+        #[cfg(feature = "sierra-emu")]
+        let executor = EmuContractExecutor {
+            program: Arc::new(extracted.program.clone()),
+            entry_points: sierra_contract_class.entry_points_by_type.clone(),
+            sierra_version: sierra_version.clone().into(),
+        };
+        #[cfg(all(feature = "with-libfunc-profiling", not(feature = "sierra-emu")))]
+        let executor =
+            AotWithProgram { executor: aot_executor, program: Arc::new(extracted.program.clone()) };
+        #[cfg(not(any(feature = "sierra-emu", feature = "with-libfunc-profiling")))]
+        let executor = aot_executor;
 
         // Compile the sierra contract class into casm.
         let casm_contract_class = CasmContractClass::from_contract_class(

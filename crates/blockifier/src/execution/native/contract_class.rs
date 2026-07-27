@@ -2,7 +2,12 @@ use std::borrow::Cow;
 use std::ops::Deref;
 use std::sync::Arc;
 
+#[cfg(not(any(feature = "sierra-emu", feature = "with-libfunc-profiling")))]
 use cairo_native::executor::AotContractExecutor;
+#[cfg(all(feature = "with-libfunc-profiling", not(feature = "sierra-emu")))]
+use cairo_native::executor::AotWithProgram;
+#[cfg(feature = "sierra-emu")]
+use cairo_native::executor::EmuContractExecutor;
 use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::core::EntryPointSelector;
 use starknet_types_core::felt::Felt;
@@ -10,6 +15,20 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, NestedFeltCounts};
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::errors::PreExecutionError;
+
+/// The executor backing native contract classes, resolved per build. All three types
+/// expose the same `run` shape, so call sites are identical across builds.
+///
+/// Production builds use cairo-native's AOT executor. The `sierra-emu` feature
+/// (testing / benchmarking) swaps in the sierra-emu interpreter and takes precedence
+/// over `with-libfunc-profiling`, which pairs the AOT executor with its Sierra program
+/// so libfunc profiling samples can be resolved.
+#[cfg(feature = "sierra-emu")]
+pub type NativeContractExecutor = EmuContractExecutor;
+#[cfg(all(feature = "with-libfunc-profiling", not(feature = "sierra-emu")))]
+pub type NativeContractExecutor = AotWithProgram;
+#[cfg(not(any(feature = "sierra-emu", feature = "with-libfunc-profiling")))]
+pub type NativeContractExecutor = AotContractExecutor;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
 impl Deref for NativeCompiledClassV1 {
@@ -28,8 +47,9 @@ impl NativeCompiledClassV1 {
     /// Initialize a compiled class for native.
     ///
     /// executor must be derived from sierra_program which in turn must be derived from
-    /// sierra_contract_class.
-    pub fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
+    /// sierra_contract_class. The executor's type -- and therefore this constructor's
+    /// signature -- follows the build's [`NativeContractExecutor`] resolution.
+    pub fn new(executor: NativeContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
         let contract = NativeCompiledClassV1Inner::new(executor, casm);
 
         Self(Arc::new(contract))
@@ -71,12 +91,12 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
-    pub executor: AotContractExecutor,
+    pub executor: NativeContractExecutor,
     casm: CompiledClassV1,
 }
 
 impl NativeCompiledClassV1Inner {
-    fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
+    fn new(executor: NativeContractExecutor, casm: CompiledClassV1) -> Self {
         NativeCompiledClassV1Inner { executor, casm }
     }
 }

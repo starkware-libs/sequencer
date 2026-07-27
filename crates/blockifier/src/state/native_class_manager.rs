@@ -7,6 +7,13 @@ use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compile_to_native::compiler::SierraToNativeCompiler;
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
+#[cfg(feature = "sierra-emu")]
+use cairo_lang_starknet_classes::contract_class::{
+    version_id_from_serialized_sierra_program,
+    ContractClass as CairoLangContractClass,
+};
+#[cfg(feature = "sierra-emu")]
+use cairo_native::executor::EmuContractExecutor;
 use log;
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::{ClassHash, CompiledClassHash};
@@ -273,7 +280,9 @@ fn run_compilation_worker(
 /// Processes a compilation request and caches the result.
 fn process_compilation_request(
     class_cache: RawClassCache,
-    compiler: Arc<SierraToNativeCompiler>,
+    #[cfg_attr(feature = "sierra-emu", allow(unused_variables))] compiler: Arc<
+        SierraToNativeCompiler,
+    >,
     compilation_request: CompilationRequest,
     panic_on_compilation_failure: bool,
 ) -> Result<(), CompilationUtilError> {
@@ -283,7 +292,16 @@ fn process_compilation_request(
         return Ok(());
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
+
     let start = Instant::now();
+    // The construction below matches the build's `NativeContractExecutor` resolution:
+    // sierra-emu (no native compilation; the interpreter consumes the Sierra program
+    // directly), AOT paired with its Sierra program (libfunc profiling), or plain AOT.
+    #[cfg(feature = "sierra-emu")]
+    let compilation_result = emu_contract_executor(sierra_for_compilation);
+    #[cfg(all(feature = "with-libfunc-profiling", not(feature = "sierra-emu")))]
+    let compilation_result = compiler.compile_with_program(sierra_for_compilation);
+    #[cfg(not(any(feature = "with-libfunc-profiling", feature = "sierra-emu")))]
     let compilation_result = compiler.compile(sierra_for_compilation);
     let duration = start.elapsed();
     log::info!(
@@ -292,8 +310,8 @@ fn process_compilation_request(
         duration.as_secs_f32()
     );
     match compilation_result {
-        Ok(executor) => {
-            let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
+        Ok(compiled) => {
+            let native_compiled_class = NativeCompiledClassV1::new(compiled, casm);
             class_cache.set(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
@@ -317,4 +335,33 @@ fn process_compilation_request(
             Err(err)
         }
     }
+}
+
+/// Builds a sierra-emu-backed executor from the Sierra class. Nothing is compiled --
+/// the interpreter consumes the Sierra program directly.
+#[cfg(feature = "sierra-emu")]
+fn emu_contract_executor(
+    contract_class: CairoLangContractClass,
+) -> Result<EmuContractExecutor, CompilationUtilError> {
+    let (sierra_version, _compiler_version) = version_id_from_serialized_sierra_program(
+        &contract_class.sierra_program,
+    )
+    .map_err(|err| {
+        CompilationUtilError::UnexpectedError(format!(
+            "Failed to extract Sierra version for sierra-emu execution: {err}"
+        ))
+    })?;
+    let program = contract_class
+        .extract_sierra_program(false)
+        .map(|extracted| Arc::new(extracted.program))
+        .map_err(|err| {
+            CompilationUtilError::UnexpectedError(format!(
+                "Failed to extract Sierra program for sierra-emu execution: {err}"
+            ))
+        })?;
+    Ok(EmuContractExecutor {
+        program,
+        entry_points: contract_class.entry_points_by_type,
+        sierra_version,
+    })
 }

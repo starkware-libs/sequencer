@@ -23,6 +23,10 @@ node_api = []
 only-native = ["cairo_native"]
 os_input = []
 reexecution = ["transaction_serde"]
+# Backs native contract classes with the sierra-emu interpreter instead of the AOT
+# executor (testing / benchmarking builds only). Takes precedence over
+# `with-libfunc-profiling` in the `NativeContractExecutor` resolution.
+sierra-emu = ["cairo-native/sierra-emu", "cairo_native"]
 testing = [
   "blockifier_test_utils",
   "expect-test",
@@ -33,6 +37,15 @@ testing = [
 ]
 tracing = []
 transaction_serde = []
+# Enables libfunc-level profiling for native execution. Pulls in cairo-native's
+# `with-libfunc-profiling` so `AotWithProgram::run_with_profile` is available,
+# and apollo_compile_to_native's matching feature so `SierraToNativeCompiler` can
+# pair the compiled executor with its Sierra program in one call.
+with-libfunc-profiling = [
+  "apollo_compile_to_native/with-libfunc-profiling",
+  "cairo-native/with-libfunc-profiling",
+  "cairo_native",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
