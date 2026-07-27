@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
 
@@ -51,7 +51,7 @@ jobs:
     steps:
       - name: Run merge-gatekeeper-new on pull request
         if: github.event_name == 'pull_request'
-        uses: starkware-libs/merge-gatekeeper@v1
+        uses: starkware-libs/merge-gatekeeper@c0535e7c50a3fc70a0f4857afd37ccd6cfcc59de # v1
         with:
           self: merge-gatekeeper-new
           timeout: 3600
@@ -60,7 +60,7 @@ jobs:
 
       - name: Run merge-gatekeeper-new on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
-        uses: starkware-libs/merge-gatekeeper@v1
+        uses: starkware-libs/merge-gatekeeper@c0535e7c50a3fc70a0f4857afd37ccd6cfcc59de # v1
         with:
           self: merge-gatekeeper-new
           ref: ${{github.ref}}

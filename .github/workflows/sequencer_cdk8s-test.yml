@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Optimize CI
         id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
+        uses: withgraphite/graphite-ci-action@9bc969adfd43bb790da3b64b543c78c75cef9689 # v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
@@ -67,16 +67,16 @@ jobs:
 
     steps:
       - name: Checkout sequencer
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup python
-        uses: actions/setup-python@v5.4.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: "3.10"
           cache: "pip"
 
       - name: Setup Node
-        uses: actions/setup-node@v4.2.0
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 22
 
@@ -102,7 +102,7 @@ jobs:
           cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay2 }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist2
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cdk8s-artifacts
           path: |
@@ -121,7 +121,7 @@ jobs:
       crds_path: ./cdk8s-artifacts/resources/crds
     steps:
       - name: Setup go lang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "stable"
 
@@ -129,7 +129,7 @@ jobs:
         run: go install sigs.k8s.io/kubectl-validate@latest
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: cdk8s-artifacts
           path: cdk8s-artifacts
@@ -195,16 +195,16 @@ jobs:
       service_path: ${{ github.workspace }}/deployments/${{ matrix.service }}
     steps:
       - name: Checkout sequencer
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup python
-        uses: actions/setup-python@v5.4.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: "3.10"
           cache: "pip"
 
       - name: Setup Node
-        uses: actions/setup-node@v4.2.0
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 22
 
@@ -225,7 +225,7 @@ jobs:
           cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }}"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cdk8s-${{ matrix.service }}-artifacts
           path: ${{ env.service_path }}/dist
@@ -240,7 +240,7 @@ jobs:
         service: [anvil, dummy_eth2strk_oracle, dummy_recorder]
     steps:
       - name: Setup go lang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "stable"
 
@@ -248,7 +248,7 @@ jobs:
         run: go install sigs.k8s.io/kubectl-validate@latest
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: cdk8s-${{ matrix.service }}-artifacts
           path: dist

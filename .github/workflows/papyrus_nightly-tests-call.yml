@@ -23,7 +23,7 @@ jobs:
   GW-integration-test-call:
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -49,7 +49,7 @@ jobs:
       - name: In case of a failure - post to a Slack channel.
         id: slack
         if: ${{ steps.run_test.outputs.retVal != 0 }}
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           channel-id: ${{ secrets.SLACK_ALERT_CHANNEL }}
           slack-message: >
