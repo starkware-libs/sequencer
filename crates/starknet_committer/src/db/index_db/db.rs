@@ -84,7 +84,11 @@ use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::{fetch_all_patricia_paths, SortedLeafIndices};
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 #[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
+use crate::patricia_merkle_tree::types::{
+    CompressedStateCommitmentInfos,
+    StarknetForestProofs,
+    StateCommitmentInfos,
+};
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
 pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
@@ -378,7 +382,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
         Ok(match self.get_from_storage(db_key).await? {
             None => None,
             Some(DbValue(bytes)) => {
-                Some(StateCommitmentInfos::decompress(&bytes).map_err(|e| {
+                Some(CompressedStateCommitmentInfos(bytes).decompress().map_err(|e| {
                     ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
                         DeserializationError::ValueError(Box::new(e)),
                     ))
@@ -459,7 +463,7 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
                 keys_digest,
                 commitment_infos,
             }) => {
-                let encoded = DbValue(commitment_infos.compress()?);
+                let encoded = DbValue(commitment_infos.compress()?.0);
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
                         block_number,

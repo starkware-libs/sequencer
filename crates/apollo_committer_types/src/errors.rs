@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_committer::db::forest_trait::ForestMetadataType;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfosCodecError;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Deserialize, Error, Serialize)]
@@ -62,6 +64,16 @@ pub enum CommitterError {
     #[cfg(feature = "os_input")]
     #[error("Missing Patricia paths for block {height}")]
     MissingPatriciaPaths { height: BlockNumber },
+    #[cfg(feature = "os_input")]
+    #[error("Failed to compress state commitment infos: {0}")]
+    StateCommitmentInfosCompression(String),
+}
+
+#[cfg(feature = "os_input")]
+impl From<StateCommitmentInfosCodecError> for CommitterError {
+    fn from(error: StateCommitmentInfosCodecError) -> Self {
+        CommitterError::StateCommitmentInfosCompression(error.to_string())
+    }
 }
 
 pub type CommitterResult<T> = Result<T, CommitterError>;

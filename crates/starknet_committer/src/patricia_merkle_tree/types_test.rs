@@ -4,7 +4,10 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{contract_address_into_node_index, StarknetStorageKey};
-use crate::patricia_merkle_tree::types::fixed_hex_string_no_prefix;
+use crate::patricia_merkle_tree::types::{
+    fixed_hex_string_no_prefix,
+    CompressedStateCommitmentInfos,
+};
 
 #[rstest]
 fn test_cast_to_node_index(
@@ -29,4 +32,13 @@ fn test_fixed_hex_string_no_prefix(
     let fixed_hex = fixed_hex_string_no_prefix(&value);
     assert_eq!(fixed_hex.len(), 64);
     assert_eq!(Felt::from_hex(&fixed_hex).unwrap(), value);
+}
+
+#[test]
+fn test_compressed_state_commitment_infos_json_form_is_base64_string() {
+    let compressed = CompressedStateCommitmentInfos(vec![40, 181, 47, 253, 0, 88]);
+    let json_value = serde_json::to_value(&compressed).unwrap();
+    assert_eq!(json_value, serde_json::Value::String("KLUv/QBY".to_string()));
+    let roundtripped: CompressedStateCommitmentInfos = serde_json::from_value(json_value).unwrap();
+    assert_eq!(roundtripped, compressed);
 }
