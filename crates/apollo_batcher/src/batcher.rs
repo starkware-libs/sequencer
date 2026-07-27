@@ -1011,7 +1011,7 @@ impl Batcher {
             state_diff.clone(), // TODO(Nimrod): Remove the clone here.
             Some(state_diff_commitment),
             #[cfg(feature = "os_input")]
-            Some(accessed_keys.clone()),
+            Some(accessed_keys),
         )
         .await?;
 
@@ -1040,8 +1040,6 @@ impl Batcher {
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
                 parent_proposal_commitment,
-                #[cfg(feature = "os_input")]
-                accessed_keys,
                 #[cfg(feature = "os_input")]
                 initial_reads,
             },
