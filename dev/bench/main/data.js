@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785142192723,
+  "lastUpdate": 1785152812862,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7003,6 +7003,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1349.78077427,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "195f6bb2cc11f1f19de269fa669fc96f97be1b4b",
+          "message": "starknet_committer,apollo_committer,apollo_batcher: compress state commitment infos (#14884)\n\nIntroduce CompressedStateCommitmentInfos: the OS-input state commitment infos\nbincode-serialized and zstd-compressed, serializing as a base64 string. The\ncommitter compresses the witness once after committing a block, and the\ncompressed payload is forwarded verbatim through the committer->batcher\nresponse, batcher storage, and the cende blob, keeping it within the RPC\nresponse size cap.\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-27T11:32:33Z",
+          "tree_id": "350300db113f16a8ffe15861dd2eaf2bff817e27",
+          "url": "https://github.com/starkware-libs/sequencer/commit/195f6bb2cc11f1f19de269fa669fc96f97be1b4b"
+        },
+        "date": 1785152812469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 884.60255512,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1275.9895488299999,
             "unit": "ms"
           }
         ]
