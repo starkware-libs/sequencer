@@ -572,6 +572,7 @@ pub struct Bouncer {
     pub state_changes_keys: StateChangesKeys,
     pub bouncer_config: BouncerConfig,
     accumulated_weights: TxWeights,
+    block_full_recorded: bool,
 }
 
 impl Bouncer {
@@ -585,6 +586,7 @@ impl Bouncer {
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: TxWeights::empty(),
+            block_full_recorded: false,
         }
     }
 
@@ -677,7 +679,13 @@ impl Bouncer {
                 self.get_bouncer_weights(),
                 exceeded_weights
             );
-            record_exceeded_bouncer_resources(&exceeded_weights);
+            // Record the block-full metric only once per block. Later candidate txs that also do
+            // not fit (subsequent chunks / executor invocations share this bouncer) would otherwise
+            // inflate the counter into a per-rejected-tx count instead of a per-block count.
+            if !self.block_full_recorded {
+                record_exceeded_bouncer_resources(&exceeded_weights);
+                self.block_full_recorded = true;
+            }
             Err(TransactionExecutorError::BlockFull)?
         }
 

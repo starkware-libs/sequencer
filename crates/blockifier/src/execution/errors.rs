@@ -52,6 +52,8 @@ pub enum PreExecutionError {
     UninitializedStorageAddress(ContractAddress),
     #[error("Called builtins: {0:?} are unsupported in a Cairo0 contract")]
     UnsupportedCairo0Builtin(HashSet<BuiltinName>),
+    #[error("Entry point uses unsupported builtins or an invalid builtin order: {0:?}.")]
+    UnsupportedCairo1Builtins(Vec<BuiltinName>),
     #[error(
         "Insufficient entry point initial gas, must be greater than the entry point initial \
          budget."

@@ -438,6 +438,10 @@ impl Batcher {
                         .config
                         .dynamic_config
                         .tx_polling_interval_millis,
+                    results_polling_interval_millis: self
+                        .config
+                        .dynamic_config
+                        .results_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),
@@ -530,6 +534,10 @@ impl Batcher {
                         .config
                         .dynamic_config
                         .validate_tx_polling_interval_millis,
+                    results_polling_interval_millis: self
+                        .config
+                        .dynamic_config
+                        .results_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),

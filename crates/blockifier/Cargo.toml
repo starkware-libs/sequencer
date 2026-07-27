@@ -90,6 +90,7 @@ thiserror.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_metrics = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
@@ -97,6 +98,8 @@ expect-test.workspace = true
 glob.workspace = true
 hex.workspace = true
 itertools.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true

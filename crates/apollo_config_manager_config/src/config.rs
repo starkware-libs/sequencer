@@ -32,7 +32,7 @@ impl SerializeConfig for ConfigManagerConfig {
 
 impl Default for ConfigManagerConfig {
     fn default() -> Self {
-        Self { enable_config_updates: false, config_update_interval_secs: 60.0 }
+        Self { enable_config_updates: false, config_update_interval_secs: 20.0 }
     }
 }
 

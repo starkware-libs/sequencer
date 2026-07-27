@@ -70,12 +70,12 @@
       "name": "batcher_l1_events_provider_errors",
       "title": "Batcher L1 events provider errors",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(batcher_l1_events_provider_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(batcher_l1_events_provider_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              10.0
+              0.0
             ],
             "type": "gt"
           },
@@ -89,8 +89,8 @@
           "type": "query"
         }
       ],
-      "for": "30s",
-      "severity": "p4"
+      "for": "3m",
+      "severity": "p2"
     },
     {
       "name": "batcher_remote_server_number_of_connections",
@@ -564,12 +564,12 @@
       "name": "consensus_l1_gas_price_provider_failure",
       "title": "Consensus L1 gas price provider failure",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              5.0
+              0.0
             ],
             "type": "gt"
           },
@@ -583,7 +583,7 @@
           "type": "query"
         }
       ],
-      "for": "30s",
+      "for": "3m",
       "severity": "p4"
     },
     {
@@ -611,6 +611,32 @@
       ],
       "for": "30s",
       "severity": "p5"
+    },
+    {
+      "name": "consensus_l2_gas_price_at_minimum",
+      "title": "L2 gas price at configured minimum",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(max(consensus_l2_gas_price_at_minimum{cluster=~\"$cluster\", namespace=~\"$namespace\"})) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "2m",
+      "severity": "p3"
     },
     {
       "name": "consensus_p2p_disconnections",
@@ -954,7 +980,7 @@
       "name": "gateway_add_tx_idle_p2p_rpc",
       "title": "Gateway add_tx idle (p2p+rpc)",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -1133,32 +1159,6 @@
       "severity": "p5"
     },
     {
-      "name": "http_server_high_transaction_failure_ratio",
-      "title": "http server high transaction failure ratio",
-      "ruleGroup": "evaluation_rate_default",
-      "expr": "((increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              0.5
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "severity": "p5"
-    },
-    {
       "name": "http_server_internal_error_once",
       "title": "http server internal error once",
       "ruleGroup": "evaluation_rate_default",
@@ -1240,7 +1240,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$http_server_no_successful_transactions-sampling_window_secs-expression$$$s])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$http_server_no_successful_transactions-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -1552,7 +1552,7 @@
       "name": "mempool_add_tx_idle_p2p_rpc",
       "title": "Mempool add_tx idle (p2p+rpc)",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$mempool_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$mempool_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
