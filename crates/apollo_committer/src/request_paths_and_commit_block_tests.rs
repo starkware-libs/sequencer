@@ -35,6 +35,7 @@ use starknet_committer::patricia_merkle_tree::types::{
     class_hash_into_node_index,
     CommitmentInfo,
     CompiledClassHash as CommitterCompiledClassHash,
+    CompressedStateCommitmentInfos,
     StateCommitmentInfos,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -295,7 +296,7 @@ fn verify_witness_patricia_paths(
 async fn assert_witnesses_and_digest_present(
     committer: &mut ApolloTestCommitter,
     height: BlockNumber,
-    expected_commitment_infos: &StateCommitmentInfos,
+    expected_commitment_infos: &CompressedStateCommitmentInfos,
 ) {
     assert_eq!(
         committer.load_witnesses_digest(height).await.unwrap(),
@@ -372,8 +373,12 @@ async fn read_paths_and_commit_block_happy_flow() {
     let replay_response = committer.read_paths_and_commit_block(request).await.unwrap();
     assert_eq!(response.global_root, replay_response.global_root);
     assert_eq!(commitment_infos, decompress_response_commitment_infos(&replay_response));
-    assert_witnesses_and_digest_present(&mut committer, BlockNumber(height), &commitment_infos)
-        .await;
+    assert_witnesses_and_digest_present(
+        &mut committer,
+        BlockNumber(height),
+        &response.state_commitment_infos,
+    )
+    .await;
 }
 
 /// Flow overview:
@@ -402,7 +407,7 @@ async fn revert_removes_witnesses_and_digest() {
     assert_witnesses_and_digest_present(
         &mut committer,
         BlockNumber(height_1),
-        &decompress_response_commitment_infos(&block_1_response),
+        &block_1_response.state_commitment_infos,
     )
     .await;
 

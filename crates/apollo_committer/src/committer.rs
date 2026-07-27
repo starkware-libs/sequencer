@@ -540,10 +540,7 @@ where
                     .await
                     .map_err(|error| self.map_internal_error_at_height(height, error))?
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse {
-                    global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
-                })
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -587,6 +584,9 @@ where
                     commitment_facts_count = state_commitment_infos.n_commitment_facts(),
                     deleted_nodes_count = deleted_nodes.len(),
                 );
+                // Compress once and reuse for both the DB write and the response, instead of
+                // compressing the (cloned) commitment infos twice.
+                let compressed_state_commitment_infos = state_commitment_infos.compress()?;
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
                     .forest_storage
@@ -597,7 +597,7 @@ where
                         CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                             block_number: height,
                             keys_digest: digest,
-                            commitment_infos: state_commitment_infos.clone(),
+                            commitment_infos: compressed_state_commitment_infos.clone(),
                         }),
                     )
                     .await
@@ -608,7 +608,7 @@ where
                 self.update_offset(next_offset);
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
+                    state_commitment_infos: compressed_state_commitment_infos,
                 })
             }
         }
