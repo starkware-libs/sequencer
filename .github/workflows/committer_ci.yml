@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: Optimize CI
         id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
+        uses: withgraphite/graphite-ci-action@9bc969adfd43bb790da3b64b543c78c75cef9689 # v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
@@ -69,7 +69,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && needs.optimize_ci.outputs.skip == 'false' }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - uses: ./.github/actions/bootstrap
         with:
@@ -77,7 +77,7 @@ jobs:
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-pypy
         with:
           python-version: "pypy3.9"
@@ -88,10 +88,10 @@ jobs:
       - run: pip install -r scripts/requirements.txt
 
       - id: auth
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed" # v2
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: "google-github-actions/setup-gcloud@v2"
+      - uses: "google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f" # v2
       - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
@@ -131,14 +131,14 @@ jobs:
       # are deleted before the runner reaches this step.
       - name: Checkout base branch (PR only)
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ github.event.pull_request.base.sha }}
 
       # Push/dispatch: Checkout the specified or current branch.
       - name: Checkout repository (push/dispatch)
         if: github.event_name != 'pull_request'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ inputs.branch || github.ref }}
 
@@ -148,7 +148,7 @@ jobs:
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-pypy
         with:
           python-version: "pypy3.9"
@@ -160,10 +160,10 @@ jobs:
 
       # Auth with GCS for bench_tools to download inputs.
       - id: auth
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed" # v2
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: "google-github-actions/setup-gcloud@v2"
+      - uses: "google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f" # v2
 
       # PR-only: Benchmark the base branch code.
       - name: Benchmark base branch (PR only)
@@ -179,7 +179,7 @@ jobs:
       # the base branch's composite action files at the workspace root.
       - name: Checkout current branch (PR only)
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           path: pr-${{ github.run_id }}
 
@@ -239,7 +239,7 @@ jobs:
       # Push/dispatch: Store benchmark results to GitHub Pages.
       - name: Store benchmark results (push/dispatch)
         if: github.event_name != 'pull_request'
-        uses: starkware-libs/github-action-benchmark@v1
+        uses: starkware-libs/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
         with:
           tool: "customSmallerIsBetter"
           output-file-path: benchmark_output.json
@@ -257,7 +257,7 @@ jobs:
       # always() ensures artifacts are uploaded even if benchmarks fail, to help diagnose issues.
       - name: Upload benchmark artifacts (push/dispatch)
         if: github.event_name != 'pull_request' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: benchmark-results-${{ steps.branch.outputs.name }}-${{ github.sha }}
           path: target/criterion/*/new/estimates.json

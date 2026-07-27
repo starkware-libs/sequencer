@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Optimize CI
         id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
+        uses: withgraphite/graphite-ci-action@9bc969adfd43bb790da3b64b543c78c75cef9689 # v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
@@ -51,16 +51,16 @@ jobs:
     outputs:
       should_run: ${{ steps.system_check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "pypy3.9"
 
       - name: Set up pip dependency caching
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
         with:
           cache: python
 
@@ -102,10 +102,10 @@ jobs:
           - svc: dummy_exchange_rate_oracle
             dockerfile: dummy_exchange_rate_oracle.Dockerfile
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Build ${{ matrix.svc }} image remotely
-        uses: docker/build-push-action@v6.18.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
           file: ${{ env.dockerfile_base_path }}/${{ matrix.dockerfile }}
@@ -121,7 +121,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Create registries.yaml for nscr.io
         run: |
@@ -145,7 +145,7 @@ jobs:
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
       - name: Create k3d cluster (Local k8s)
-        uses: AbsaOSS/k3d-action@v2.4.0
+        uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
         with:
           # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
           # asset that the current k3d install.sh fetches (with --fail), so its install 404s. v5.5.0
@@ -197,7 +197,7 @@ jobs:
           kubectl get storageclass
 
       - name: Setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.10"
           cache: pipenv
@@ -286,7 +286,7 @@ jobs:
           echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
 
       - name: Install Anvil
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
         with:
           version: v1.5.1
 

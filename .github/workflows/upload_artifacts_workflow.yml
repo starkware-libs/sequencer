@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Optimize CI
         id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
+        uses: withgraphite/graphite-ci-action@9bc969adfd43bb790da3b64b543c78c75cef9689 # v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
@@ -66,7 +66,7 @@ jobs:
     if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update
@@ -92,7 +92,7 @@ jobs:
       # Comment with a link to the workflow (or update existing comment on rerun).
       - name: Find Comment
         if: github.event_name == 'pull_request'
-        uses: starkware-libs/find-comment@v3
+        uses: starkware-libs/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
         id: find-comment
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -103,7 +103,7 @@ jobs:
       - name: Create comment
         # If the PR number is found and the comment is not found, create a new comment.
         if: github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id == ''
-        uses: starkware-libs/create-or-update-comment@v4
+        uses: starkware-libs/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
@@ -114,7 +114,7 @@ jobs:
       - name: Update comment
         # If the PR number is found and the comment exists, update it.
         if: github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id != ''
-        uses: starkware-libs/create-or-update-comment@v4
+        uses: starkware-libs/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
@@ -135,20 +135,20 @@ jobs:
             target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so
 
       - name: Authenticate with GCS
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed" # v2
         with:
           credentials_json: ${{ secrets.SA_NATIVE_BLOCKIFIER_ARTIFACTS_BUCKET_WRITER_ACCESS_KEY }}
 
       - name: Upload native blockifier shared object to GCP
         id: upload_nb_file
-        uses: "google-github-actions/upload-cloud-storage@v2"
+        uses: "google-github-actions/upload-cloud-storage@c0f6160ff80057923ff50e5e567695cea181ec23" # v2
         with:
           path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
 
       - name: Upload starknet-native-compile to GCP
         id: upload_snc_file
-        uses: "google-github-actions/upload-cloud-storage@v2"
+        uses: "google-github-actions/upload-cloud-storage@c0f6160ff80057923ff50e5e567695cea181ec23" # v2
         with:
           path: "target/release/shared_executables/starknet-native-compile"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
