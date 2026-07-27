@@ -139,15 +139,17 @@ impl<'de> Deserialize<'de> for CompressedStateCommitmentInfos {
 
 #[cfg(feature = "os_input")]
 impl CompressedStateCommitmentInfos {
-    /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
+    /// Reverses [`StateCommitmentInfos::compress`]: streams the zstd-decompressed bytes straight
+    /// into bincode deserialization, without materializing the decompressed payload in full.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
-        let bincode_payload = zstd::decode_all(self.0.as_slice())?;
-        Ok(bincode::deserialize(&bincode_payload)?)
+        let decoder = zstd::Decoder::new(self.0.as_slice())?;
+        Ok(bincode::deserialize_from(decoder)?)
     }
 }
 
 impl StateCommitmentInfos {
-    /// Bincode-serializes and zstd-compresses the commitment infos.
+    /// Bincode-serializes and zstd-compresses the commitment infos, streaming the bincode output
+    /// directly into the zstd encoder so the uncompressed payload is never fully materialized.
     ///
     /// Bincode encodes each hash-map as an 8-byte length followed by its entries, and each `Felt`
     /// as an 8-byte length followed by its value, so the payload is dominated by leading zeros
@@ -156,11 +158,9 @@ impl StateCommitmentInfos {
     pub fn compress(
         &self,
     ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
-        let bincode_payload = bincode::serialize(self)?;
-        Ok(CompressedStateCommitmentInfos(zstd::encode_all(
-            bincode_payload.as_slice(),
-            zstd::DEFAULT_COMPRESSION_LEVEL,
-        )?))
+        let mut encoder = zstd::Encoder::new(Vec::new(), zstd::DEFAULT_COMPRESSION_LEVEL)?;
+        bincode::serialize_into(&mut encoder, self)?;
+        Ok(CompressedStateCommitmentInfos(encoder.finish()?))
     }
 
     /// Builds the commitment infos directly from the pre- and post-commit state roots and the
