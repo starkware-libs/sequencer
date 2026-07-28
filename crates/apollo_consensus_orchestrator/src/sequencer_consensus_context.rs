@@ -55,9 +55,9 @@ use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 #[cfg(feature = "os_input")]
 use futures::stream::FuturesOrdered;
+use futures::SinkExt;
 #[cfg(feature = "os_input")]
 use futures::StreamExt;
-use futures::SinkExt;
 use starknet_api::block::{
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
