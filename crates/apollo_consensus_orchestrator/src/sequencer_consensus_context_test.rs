@@ -65,7 +65,11 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 
 #[cfg(feature = "os_input")]
-use crate::cende::{CendeAmbassadorError, StateCommitmentInfosAndNumber};
+use crate::cende::{
+    CendeAmbassadorError,
+    StateCommitmentInfosAndNumber,
+    MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS,
+};
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::{CONSENSUS_L2_GAS_PRICE, CONSENSUS_L2_GAS_PRICE_AT_MINIMUM};
@@ -1034,6 +1038,39 @@ async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() 
         matches!(&result, Err(CendeAmbassadorError::RecorderRequestFailed { .. })),
         "expected the offset query error to propagate, got {result:?}"
     );
+}
+
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_caps_backfill_for_stale_offset() {
+    // A cende recorder reporting an offset far behind the tip (e.g. after being offline for a
+    // long time, or a bug reporting a bogus low offset) must not force backfilling from that
+    // offset all the way to the tip: that would mean an unbounded number of sequential batcher
+    // round-trips on the consensus-critical `finalize_decision` path.
+    let height = BlockNumber(50_000);
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| Ok(Some(default_state_commitment_infos())));
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(|| Ok(Some(BlockNumber(0))));
+
+    let context = deps.build_context();
+    let recent_state_commitment_infos = context
+        .collect_recent_state_commitment_infos(height)
+        .await
+        .expect("offset query should succeed");
+
+    assert!(
+        recent_state_commitment_infos.len() as u64 <= MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS + 1,
+        "a stale recorder offset must not force backfilling the entire chain; got {} entries",
+        recent_state_commitment_infos.len()
+    );
+    let lowest_sent_height =
+        recent_state_commitment_infos.iter().map(|info| info.block_number.0).min().unwrap();
+    assert_eq!(lowest_sent_height, height.0 - MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS);
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:

@@ -85,7 +85,11 @@ use crate::cende::{
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
 #[cfg(feature = "os_input")]
-use crate::cende::{CendeAmbassadorResult, StateCommitmentInfosAndNumber};
+use crate::cende::{
+    CendeAmbassadorResult,
+    StateCommitmentInfosAndNumber,
+    MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS,
+};
 use crate::dynamic_gas_price::{
     compute_fee_actual,
     compute_fee_proposal,
@@ -713,7 +717,22 @@ impl SequencerConsensusContext {
         // lower end by the cende recorder's commitment infos height offset.
         let (lowest_height, cende_recorder_is_empty) =
             match self.deps.cende_ambassador.commitment_infos_height_offset().await? {
-                Some(commitment_infos_height_offset) => (commitment_infos_height_offset.0, false),
+                Some(commitment_infos_height_offset) => {
+                    // The offset is an external, recorder-reported value with no upper bound on
+                    // how stale it can be; clamp it so a lagging or malfunctioning recorder can't
+                    // force backfilling all the way from an arbitrarily old height.
+                    let min_lowest_height =
+                        height.0.saturating_sub(MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS);
+                    if commitment_infos_height_offset.0 < min_lowest_height {
+                        warn!(
+                            "Cende recorder's commitment infos height offset \
+                             {commitment_infos_height_offset} is more than \
+                             {MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS} heights behind {height}; \
+                             capping the backfill instead of resending the entire missing range."
+                        );
+                    }
+                    (commitment_infos_height_offset.0.max(min_lowest_height), false)
+                }
                 // The cende recorder has stored nothing yet: fall back to block hashes window
                 // size.
                 None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
