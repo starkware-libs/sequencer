@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784741168024,
+  "lastUpdate": 1785235395936,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -883,6 +883,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 2055.12526317,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "25fa3982c33ade7fbb1f6b858d175ab017268624",
+          "message": "workspace: emit line-tables-only debuginfo in dev profile (#14877)\n\nAdds `[profile.dev] debug = \"line-tables-only\"` to keep panic/backtrace\nfile:line and tracing call-site info while dropping the full DWARF\nvariable/type info that dominates codegen time, linker memory, and\ntarget/ disk. A `dev-debug` profile (`cargo build --profile dev-debug`)\nrestores full debug info on demand.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-28T10:15:27Z",
+          "tree_id": "5a00f8ffc8fc9e5c5fe3a67ac8cb2dca846329f5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/25fa3982c33ade7fbb1f6b858d175ab017268624"
+        },
+        "date": 1785235395539,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.4493133200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1398.79883181,
             "unit": "ms"
           }
         ]
