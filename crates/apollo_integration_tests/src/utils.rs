@@ -130,6 +130,7 @@ use starknet_committer::db::forest_trait::{
 };
 use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::DbBlockNumber;
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use starknet_patricia_storage::storage_trait::{DbOperation, DbValue};
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
@@ -1206,6 +1207,60 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_reverted_transactions,
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
+    verify_witnesses_flow(&sequencers).await;
+}
+
+/// Verifies that every consensus-decided height persisted Patricia witnesses
+/// (`StateCommitmentInfos`), and that the per-trie roots chain across consecutive heights.
+async fn verify_witnesses_flow(sequencers: &[&FlowSequencerSetup]) {
+    for sequencer in sequencers {
+        // Validation-only nodes may commit via the state sync path, which stores no witnesses.
+        let is_proposing_sequencer = sequencer.add_tx_http_client.is_some();
+        let global_root_height = sequencer.get_global_root_height().await;
+        let mut previous_state_commitment_infos: Option<StateCommitmentInfos> = None;
+        let mut prior_block_witnesses_found = false;
+        let mut num_heights_with_witnesses = 0;
+        for block_number in (0..global_root_height.0).map(BlockNumber) {
+            let state_commitment_infos = sequencer.get_state_commitment_infos(block_number).await;
+            match state_commitment_infos.as_ref() {
+                Some(_) => {
+                    prior_block_witnesses_found = true;
+                    num_heights_with_witnesses += 1;
+                }
+                // Seeded-genesis heights are committed without execution and store no witnesses,
+                // but on a proposing sequencer every consensus-decided height commits through the
+                // batcher path and persists them — so witness-less heights must form a prefix.
+                None => assert!(
+                    !(is_proposing_sequencer && prior_block_witnesses_found),
+                    "Block {block_number} on a proposing sequencer is missing witnesses although \
+                     an earlier block has them.",
+                ),
+            }
+            if let (Some(previous_infos), Some(current_infos)) =
+                (&previous_state_commitment_infos, &state_commitment_infos)
+            {
+                assert_eq!(
+                    current_infos.contracts_trie_commitment_info.previous_root,
+                    previous_infos.contracts_trie_commitment_info.updated_root,
+                    "Block {block_number}: contracts-trie root does not chain from the previous \
+                     block.",
+                );
+                assert_eq!(
+                    current_infos.classes_trie_commitment_info.previous_root,
+                    previous_infos.classes_trie_commitment_info.updated_root,
+                    "Block {block_number}: classes-trie root does not chain from the previous \
+                     block.",
+                );
+            }
+            previous_state_commitment_infos = state_commitment_infos;
+        }
+        if is_proposing_sequencer {
+            assert!(
+                num_heights_with_witnesses > 0,
+                "A proposing sequencer persisted witnesses for no committed height.",
+            );
+        }
+    }
 }
 
 async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
