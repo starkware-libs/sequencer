@@ -127,6 +127,12 @@ pub trait CendeContext: Send + Sync {
         &self,
         blob_parameters: BlobParameters,
     ) -> CendeAmbassadorResult<()>;
+
+    /// The recorder's commitment infos height offset: the first height whose commitment infos the
+    /// recorder has not stored yet.
+    /// `Ok(None)` when the recorder has stored nothing; `Err` on query failure.
+    #[cfg(feature = "os_input")]
+    async fn commitment_infos_height_offset(&self) -> CendeAmbassadorResult<Option<BlockNumber>>;
 }
 
 #[derive(Clone)]
@@ -137,6 +143,8 @@ pub struct CendeAmbassador {
     prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
     write_blob_url: Url,
     get_latest_received_block_url: Url,
+    #[cfg(feature = "os_input")]
+    commitment_infos_height_offset_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -149,6 +157,11 @@ pub const RECORDER_WRITE_BLOB_PATH: &str = concatcp!(RECORDER_PREFIX, "/write_bl
 /// to DB. returns null when no blocks exist).
 pub const RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH: &str =
     concatcp!(RECORDER_PREFIX, "/get_latest_received_block");
+/// The path to get the recorder's commitment infos height offset (the first height whose commitment
+/// infos the recorder has not stored yet). Returns null when the recorder has stored nothing.
+#[cfg(feature = "os_input")]
+pub const RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH: &str =
+    concatcp!(RECORDER_PREFIX, "/get_witness_height_offset");
 
 #[derive(Debug, Deserialize)]
 struct BlockNumberResponse {
@@ -172,6 +185,11 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
                 .expect("Failed to construct get latest received block URL"),
+            #[cfg(feature = "os_input")]
+            commitment_infos_height_offset_url: cende_config
+                .recorder_url
+                .join(RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH)
+                .expect("Failed to construct get commitment infos height offset URL"),
             // Bound each attempt by the max retry interval. Without a per-attempt timeout
             // `RetryTransientMiddleware` only retries attempts that *return* a transient error, so
             // a request that hangs against a slow recorder would block until the build deadline
@@ -343,6 +361,16 @@ impl CendeContext for CendeAmbassador {
         info!("Blob for block number {block_number} is ready.");
         CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn commitment_infos_height_offset(&self) -> CendeAmbassadorResult<Option<BlockNumber>> {
+        fetch_block_number(
+            &self.client,
+            &self.commitment_infos_height_offset_url,
+            RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH,
+        )
+        .await
     }
 }
 
