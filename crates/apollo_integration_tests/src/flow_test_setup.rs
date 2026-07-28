@@ -73,6 +73,7 @@ use crate::utils::{
     spawn_local_success_recorder,
     AccumulatedTransactions,
     NodeDescriptor,
+    RecorderStats,
 };
 
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
@@ -245,6 +246,9 @@ pub struct FlowSequencerSetup {
     // Monitoring client.
     pub monitoring_client: MonitoringClient,
 
+    // Counters of the cende blobs received by this sequencer's dummy recorder.
+    pub recorder_stats: Arc<RecorderStats>,
+
     // Retain clients to avoid closing communication channels, which crashes the server and
     // subsequently the test. This occurs for components who are wrapped by servers, but no other
     // component has their client, usually due to these clients being added in a later date.
@@ -272,7 +276,7 @@ impl FlowSequencerSetup {
         let StorageTestSetup { storage_config, storage_handles } =
             StorageTestSetup::new(accounts, &chain_info, path, PresetTestContracts::new(), None);
 
-        let (recorder_url, _join_handle) =
+        let (recorder_url, _join_handle, recorder_stats) =
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
@@ -354,6 +358,7 @@ impl FlowSequencerSetup {
             storage_handles,
             node_config,
             monitoring_client,
+            recorder_stats,
             clients,
         }
     }
