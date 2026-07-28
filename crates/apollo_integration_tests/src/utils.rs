@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::ops::RangeInclusive;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -94,7 +96,7 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerStaticConfig,
 };
 use apollo_storage::StorageConfig;
-use axum::extract::Query;
+use axum::extract::{DefaultBodyLimit, Query};
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
@@ -137,7 +139,7 @@ use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
-use tracing::{debug, info, Instrument};
+use tracing::{debug, info, warn, Instrument};
 use url::Url;
 
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -580,16 +582,106 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .collect()
 }
 
-// Creates a local recorder server that always returns a success status.
+/// The commitment infos heights a dummy recorder stored.
+#[derive(Debug, Default)]
+struct StoredCommitmentInfosHeights {
+    /// The first height whose commitment infos the recorder has not stored yet; `None` while the
+    /// recorder is empty (the production recorder's height-offset contract).
+    offset: Option<u64>,
+    /// The heights of the last stored blob, used to recognize its retried write.
+    last_stored_range: Option<RangeInclusive<u64>>,
+}
+
+/// What a dummy recorder tracks about the cende blobs it received.
+#[derive(Debug, Default)]
+pub struct RecorderStats {
+    pub num_blobs_received: AtomicUsize,
+    pub num_blobs_with_state_commitment_infos: AtomicUsize,
+    pub num_invalid_blobs: AtomicUsize,
+    /// Blobs whose commitment infos skipped heights, repeated stored ones or arrived out of
+    /// order, breaking the exactly-once delta the served height offset defines.
+    pub num_blobs_with_unexpected_delta: AtomicUsize,
+    stored_commitment_infos_heights: Mutex<StoredCommitmentInfosHeights>,
+}
+
+impl RecorderStats {
+    /// Stores the heights of a blob's commitment infos, counting the blob as unexpected unless
+    /// they are the contiguous ascending continuation of the heights already stored.
+    fn store_commitment_infos_heights(&self, heights: &[u64]) {
+        let mut stored = self.stored_commitment_infos_heights.lock().unwrap();
+        let (first_height, last_height) = (heights[0], heights[heights.len() - 1]);
+        let is_contiguous_ascending =
+            heights.windows(2).all(|heights| heights[1] == heights[0] + 1);
+        let continues_stored_heights = match stored.offset {
+            // The sender falls back to its whole recent-blocks window while the recorder is
+            // empty, so the first blob may start at any height.
+            None => true,
+            Some(offset) => first_height == offset,
+        };
+        // The cende client retries a write it considers transiently failed, resending a blob the
+        // recorder already stored.
+        let is_retried_write =
+            stored.last_stored_range.as_ref() == Some(&(first_height..=last_height));
+        if !is_contiguous_ascending || !(continues_stored_heights || is_retried_write) {
+            warn!(
+                "Blob carries commitment infos for heights {heights:?}, which do not continue the \
+                 heights stored up to offset {:?}.",
+                stored.offset,
+            );
+            self.num_blobs_with_unexpected_delta.fetch_add(1, AtomicOrdering::Relaxed);
+        }
+        stored.offset = stored.offset.max(Some(last_height + 1));
+        stored.last_stored_range = Some(first_height..=last_height);
+    }
+}
+
+// Creates a local recorder server, discarding the received-blob counters.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
-    tokio::spawn(async move {
+    spawn_success_recorder_with_stats(socket_address).0
+}
+
+/// Creates a local recorder server that stores the commitment infos of every received blob, serves
+/// their height offset, and exposes counters of what it received. A blob whose commitment infos do
+/// not continue the stored heights is counted but still accepted, so the flow reaches the
+/// assertion that reports it.
+pub fn spawn_success_recorder_with_stats(
+    socket_address: SocketAddr,
+) -> (JoinHandle<()>, Arc<RecorderStats>) {
+    let recorder_stats = Arc::new(RecorderStats::default());
+    let handler_recorder_stats = recorder_stats.clone();
+    let offset_recorder_stats = recorder_stats.clone();
+    let join_handle = tokio::spawn(async move {
         let router = Router::new()
             .route(
                 RECORDER_WRITE_BLOB_PATH,
-                post(move || {
-                    async {
+                post(move |Json(blob): Json<serde_json::Value>| {
+                    let recorder_stats = handler_recorder_stats.clone();
+                    async move {
                         debug!("Received a request to write a blob.");
-                        StatusCode::OK.to_string()
+                        recorder_stats.num_blobs_received.fetch_add(1, AtomicOrdering::Relaxed);
+                        let state_commitment_infos = blob["recent_state_commitment_infos"]
+                            .as_array()
+                            .cloned()
+                            .unwrap_or_default();
+                        if state_commitment_infos.is_empty() {
+                            // A blob is prepared before its own height's commitment completes, so
+                            // early blobs legitimately carry no commitment infos.
+                            return (StatusCode::OK, StatusCode::OK.to_string());
+                        }
+                        recorder_stats
+                            .num_blobs_with_state_commitment_infos
+                            .fetch_add(1, AtomicOrdering::Relaxed);
+                        let Some(heights) = state_commitment_infos
+                            .iter()
+                            .map(|entry| entry.get("block_number").and_then(|value| value.as_u64()))
+                            .collect::<Option<Vec<u64>>>()
+                        else {
+                            recorder_stats.num_invalid_blobs.fetch_add(1, AtomicOrdering::Relaxed);
+                            warn!("Blob carries state commitment infos without a block number.");
+                            return (StatusCode::OK, StatusCode::OK.to_string());
+                        };
+                        recorder_stats.store_commitment_infos_heights(&heights);
+                        (StatusCode::OK, StatusCode::OK.to_string())
                     }
                     .instrument(tracing::debug_span!("success recorder write_blob"))
                 }),
@@ -616,28 +708,37 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
             )
             .route(
                 RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH,
-                get(|| {
-                    async {
+                get(move || {
+                    let recorder_stats = offset_recorder_stats.clone();
+                    async move {
                         debug!("Received a request for commitment_infos_height_offset.");
-                        // `null` marks an empty recorder, letting proposals pass the
-                        // retrospective commitment-infos check before any blob is stored.
-                        Json(serde_json::json!({ "block_number": null }))
+                        // `null` while empty: proposals pass the retrospective commitment-infos
+                        // check and the blob sender falls back to its recent-blocks window. Once
+                        // witnesses arrive, serving the first unstored height makes the sender
+                        // ship each witness exactly once, as against a production recorder.
+                        let height_offset =
+                            recorder_stats.stored_commitment_infos_heights.lock().unwrap().offset;
+                        Json(serde_json::json!({ "block_number": height_offset }))
                     }
                     .instrument(tracing::debug_span!(
                         "success recorder commitment_infos_height_offset"
                     ))
                 }),
-            );
+            )
+            // Blobs carrying declared classes and execution infos can exceed axum's 2MB default
+            // body limit; accept any size, as the pre-validation recorder did.
+            .layer(DefaultBodyLimit::disable());
         let listener = TcpListener::bind(socket_address).await.unwrap();
         serve(listener, router).await.unwrap();
-    })
+    });
+    (join_handle, recorder_stats)
 }
 
-pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>, Arc<RecorderStats>) {
     let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
-    let join_handle = spawn_success_recorder(socket_address);
-    (url, join_handle)
+    let (join_handle, recorder_stats) = spawn_success_recorder_with_stats(socket_address);
+    (url, join_handle, recorder_stats)
 }
 
 /// Fake eth to strk oracle endpoint.
