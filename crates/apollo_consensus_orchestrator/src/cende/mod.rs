@@ -76,11 +76,14 @@ pub enum CendeAmbassadorError {
 /// Number of recent block hashes to include in the blob.
 pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 
-/// Hard cap on how many heights `collect_recent_state_commitment_infos` will backfill below the
-/// recorder's reported commitment infos height offset. The offset comes from an HTTP response
-/// from the recorder, so without this cap a stale or malfunctioning recorder could force
-/// backfilling from an arbitrarily old height, stalling the consensus-critical
-/// `finalize_decision` path with an unbounded number of sequential batcher round-trips.
+/// Hard cap on how many heights *below the current height* `collect_recent_state_commitment_infos`
+/// will backfill, however far behind the recorder reports itself to be. The recorder's offset
+/// comes from an HTTP response, so without this cap a stale or malfunctioning recorder could force
+/// backfilling from an arbitrarily old height, stalling the consensus-critical `finalize_decision`
+/// path with an unbounded number of sequential batcher round-trips.
+///
+/// Clamping is lossy: commitment infos for heights below the cap are never delivered to the
+/// recorder. Keeping the consensus path responsive is deliberately preferred over closing that gap.
 #[cfg(feature = "os_input")]
 pub(crate) const MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS: u64 = 1_000;
 

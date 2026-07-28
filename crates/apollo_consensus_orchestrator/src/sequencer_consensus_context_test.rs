@@ -1040,14 +1040,38 @@ async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() 
     );
 }
 
+/// Tip used by the backfill-cap cases. Far enough above the cap that clamping is observable.
 #[cfg(feature = "os_input")]
+const BACKFILL_CAP_TEST_HEIGHT: u64 = 50_000;
+#[cfg(feature = "os_input")]
+const BACKFILL_CAP_LOWEST_HEIGHT: u64 =
+    BACKFILL_CAP_TEST_HEIGHT - MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS;
+
+// A cende recorder reporting an offset far behind the tip (e.g. after being offline for a long
+// time, or a bug reporting a bogus low offset) must not force backfilling from that offset all the
+// way to the tip: that would mean an unbounded number of sequential batcher round-trips on the
+// consensus-critical `finalize_decision` path. The batcher is mocked as having commitment infos
+// for every height, so without the clamp the whole chain would be collected.
+#[cfg(feature = "os_input")]
+#[rstest]
+#[case::genesis_offset_is_capped(0, BACKFILL_CAP_LOWEST_HEIGHT)]
+#[case::one_height_past_the_cap_is_capped(
+    BACKFILL_CAP_LOWEST_HEIGHT - 1,
+    BACKFILL_CAP_LOWEST_HEIGHT
+)]
+// Exactly at the cap must be left untouched: guards the off-by-one on the clamp comparison and on
+// the inclusive `lowest_height..=height` range.
+#[case::exactly_at_the_cap_is_not_capped(BACKFILL_CAP_LOWEST_HEIGHT, BACKFILL_CAP_LOWEST_HEIGHT)]
+#[case::offset_between_the_cap_and_the_tip_is_not_capped(
+    BACKFILL_CAP_LOWEST_HEIGHT + 1,
+    BACKFILL_CAP_LOWEST_HEIGHT + 1
+)]
 #[tokio::test]
-async fn collect_recent_state_commitment_infos_caps_backfill_for_stale_offset() {
-    // A cende recorder reporting an offset far behind the tip (e.g. after being offline for a
-    // long time, or a bug reporting a bogus low offset) must not force backfilling from that
-    // offset all the way to the tip: that would mean an unbounded number of sequential batcher
-    // round-trips on the consensus-critical `finalize_decision` path.
-    let height = BlockNumber(50_000);
+async fn collect_recent_state_commitment_infos_caps_backfill_for_stale_offset(
+    #[case] cende_offset: u64,
+    #[case] expected_lowest_sent_height: u64,
+) {
+    let height = BlockNumber(BACKFILL_CAP_TEST_HEIGHT);
     let (mut deps, _network) = create_test_and_network_deps();
     deps.batcher
         .expect_get_state_commitment_infos()
@@ -1055,24 +1079,21 @@ async fn collect_recent_state_commitment_infos_caps_backfill_for_stale_offset() 
     deps.cende_ambassador
         .expect_commitment_infos_height_offset()
         .times(1)
-        .return_once(|| Ok(Some(BlockNumber(0))));
+        .return_once(move || Ok(Some(BlockNumber(cende_offset))));
 
     let context = deps.build_context();
-    let recent_state_commitment_infos = context
+    let sent_heights: Vec<u64> = context
         .collect_recent_state_commitment_infos(height)
         .await
-        .expect("offset query should succeed");
+        .expect("offset query should succeed")
+        .iter()
+        .map(|info| info.block_number.0)
+        .collect();
 
-    let max_backfilled_infos = usize::try_from(MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS + 1)
-        .expect("max backfill count should fit in usize");
-    assert!(
-        recent_state_commitment_infos.len() <= max_backfilled_infos,
-        "a stale recorder offset must not force backfilling the entire chain; got {} entries",
-        recent_state_commitment_infos.len()
+    assert_eq!(
+        sent_heights,
+        (expected_lowest_sent_height..=BACKFILL_CAP_TEST_HEIGHT).collect::<Vec<_>>()
     );
-    let lowest_sent_height =
-        recent_state_commitment_infos.iter().map(|info| info.block_number.0).min().unwrap();
-    assert_eq!(lowest_sent_height, height.0 - MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS);
 }
 
 /// Verify that when `stop_at_height` is set and decision is reached at that height:
