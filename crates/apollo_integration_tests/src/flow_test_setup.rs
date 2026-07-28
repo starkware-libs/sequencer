@@ -56,6 +56,7 @@ use starknet_api::transaction::{
     TransactionHasher,
     TransactionVersion,
 };
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
@@ -403,6 +404,21 @@ impl FlowSequencerSetup {
             StorageReaderResponse::Markers(block_number) => block_number,
             other => panic!("Expected Markers response, got: {other:?}"),
         }
+    }
+
+    pub async fn get_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> Option<StateCommitmentInfos> {
+        self.clients
+            .get_batcher_shared_client()
+            .unwrap()
+            .get_state_commitment_infos(block_number)
+            .await
+            .unwrap()
+            .map(|compressed_infos| {
+                compressed_infos.decompress().expect("stored state commitment infos decompress")
+            })
     }
 }
 
