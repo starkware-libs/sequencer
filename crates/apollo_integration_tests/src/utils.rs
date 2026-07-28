@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -137,7 +138,7 @@ use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
-use tracing::{debug, info, Instrument};
+use tracing::{debug, error, info, Instrument};
 use url::Url;
 
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -580,16 +581,64 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .collect()
 }
 
-// Creates a local recorder server that always returns a success status.
+/// Wire-contract keys the recorder requires in every cende blob; the Python recorder relies on
+/// these field names.
+const REQUIRED_BLOB_WITNESS_KEYS: [&str; 2] = ["recent_state_commitment_infos", "initial_reads"];
+
+/// Counters of the cende blobs a dummy recorder received.
+#[derive(Debug, Default)]
+pub struct RecorderStats {
+    pub num_blobs_received: AtomicUsize,
+    pub num_blobs_with_state_commitment_infos: AtomicUsize,
+    pub num_invalid_blobs: AtomicUsize,
+}
+
+// Creates a local recorder server, discarding the received-blob counters.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
-    tokio::spawn(async move {
+    spawn_success_recorder_with_stats(socket_address).0
+}
+
+/// Creates a local recorder server that validates the witness fields of every received blob and
+/// exposes counters of what it received. A blob missing a required field is rejected with an
+/// error status, failing the sender's cende write.
+pub fn spawn_success_recorder_with_stats(
+    socket_address: SocketAddr,
+) -> (JoinHandle<()>, Arc<RecorderStats>) {
+    let recorder_stats = Arc::new(RecorderStats::default());
+    let handler_recorder_stats = recorder_stats.clone();
+    let join_handle = tokio::spawn(async move {
         let router = Router::new()
             .route(
                 RECORDER_WRITE_BLOB_PATH,
-                post(move || {
-                    async {
+                post(move |Json(blob): Json<serde_json::Value>| {
+                    let recorder_stats = handler_recorder_stats.clone();
+                    async move {
                         debug!("Received a request to write a blob.");
-                        StatusCode::OK.to_string()
+                        recorder_stats.num_blobs_received.fetch_add(1, AtomicOrdering::Relaxed);
+                        let missing_keys: Vec<&str> = REQUIRED_BLOB_WITNESS_KEYS
+                            .into_iter()
+                            .filter(|key| blob.get(key).is_none())
+                            .collect();
+                        if !missing_keys.is_empty() {
+                            recorder_stats.num_invalid_blobs.fetch_add(1, AtomicOrdering::Relaxed);
+                            error!("Blob is missing required witness fields: {missing_keys:?}.");
+                            return (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                format!("Blob is missing required fields: {missing_keys:?}."),
+                            );
+                        }
+                        if blob
+                            .get("recent_state_commitment_infos")
+                            .and_then(|value| value.as_array())
+                            .is_some_and(|state_commitment_infos| {
+                                !state_commitment_infos.is_empty()
+                            })
+                        {
+                            recorder_stats
+                                .num_blobs_with_state_commitment_infos
+                                .fetch_add(1, AtomicOrdering::Relaxed);
+                        }
+                        (StatusCode::OK, StatusCode::OK.to_string())
                     }
                     .instrument(tracing::debug_span!("success recorder write_blob"))
                 }),
@@ -619,8 +668,9 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
                 get(|| {
                     async {
                         debug!("Received a request for commitment_infos_height_offset.");
-                        // `null` marks an empty recorder, letting proposals pass the
-                        // retrospective commitment-infos check before any blob is stored.
+                        // `null` marks an empty recorder: proposals pass the retrospective
+                        // commitment-infos check and the blob sender falls back to its
+                        // recent-blocks window.
                         Json(serde_json::json!({ "block_number": null }))
                     }
                     .instrument(tracing::debug_span!(
@@ -630,14 +680,15 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
             );
         let listener = TcpListener::bind(socket_address).await.unwrap();
         serve(listener, router).await.unwrap();
-    })
+    });
+    (join_handle, recorder_stats)
 }
 
-pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>, Arc<RecorderStats>) {
     let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
-    let join_handle = spawn_success_recorder(socket_address);
-    (url, join_handle)
+    let (join_handle, recorder_stats) = spawn_success_recorder_with_stats(socket_address);
+    (url, join_handle, recorder_stats)
 }
 
 /// Fake eth to strk oracle endpoint.
@@ -1223,6 +1274,51 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
     verify_witnesses_flow(&sequencers).await;
+    verify_recorder_blobs_flow(&sequencers, scenario_timeout).await;
+}
+
+/// Verifies that the dummy recorders accepted every cende blob and that state commitment infos
+/// were carried in at least one blob.
+async fn verify_recorder_blobs_flow(
+    sequencers: &[&FlowSequencerSetup],
+    scenario_timeout: Duration,
+) {
+    let total_blobs_with_state_commitment_infos = |sequencers: &[&FlowSequencerSetup]| {
+        sequencers
+            .iter()
+            .map(|sequencer| {
+                sequencer
+                    .recorder_stats
+                    .num_blobs_with_state_commitment_infos
+                    .load(AtomicOrdering::Relaxed)
+            })
+            .sum::<usize>()
+    };
+    // A blob is prepared before its own height's commitment completes, so early blobs may
+    // legitimately carry no infos; consensus keeps deciding heights, so wait for a later blob to
+    // carry the previously committed heights' infos.
+    timeout(scenario_timeout, async {
+        while total_blobs_with_state_commitment_infos(sequencers) == 0 {
+            info!("Waiting for a cende blob carrying state commitment infos.");
+            sleep(TIME_BETWEEN_CHECKS).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("No cende blob carried state commitment infos."));
+
+    let mut total_blobs_received = 0;
+    for sequencer in sequencers {
+        let recorder_stats = &sequencer.recorder_stats;
+        assert_eq!(
+            recorder_stats.num_invalid_blobs.load(AtomicOrdering::Relaxed),
+            0,
+            "The recorder received cende blobs with missing witness fields.",
+        );
+        total_blobs_received += recorder_stats.num_blobs_received.load(AtomicOrdering::Relaxed);
+    }
+    // Only the sequencer that actually proposed a height writes its blob, so positivity is
+    // only guaranteed across all sequencers.
+    assert!(total_blobs_received > 0, "No cende blob was sent to any recorder.");
 }
 
 /// Verifies that every consensus-decided height persisted Patricia witnesses
