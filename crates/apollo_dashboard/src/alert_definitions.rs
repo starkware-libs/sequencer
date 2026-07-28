@@ -45,6 +45,7 @@ use apollo_storage::metrics::{
 };
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alert_scenarios::block_production_delay::{
     consensus_block_number_progress_is_slow,
     get_cende_write_blob_failure_alert,
@@ -409,8 +410,9 @@ fn get_l1_events_provider_errors_alert() -> Alert {
 }
 
 fn get_native_compilation_error_increase() -> Alert {
+    const ALERT_NAME: &str = "native_compilation_error";
     Alert::new(
-        "native_compilation_error",
+        ALERT_NAME,
         "Native compilation alert",
         EvaluationRate::Default,
         format!(
@@ -419,7 +421,7 @@ fn get_native_compilation_error_increase() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        AlertSeverity::WorkingHours,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
 }
