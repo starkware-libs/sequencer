@@ -50,6 +50,7 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{
     L1HandlerTransaction,
     TransactionHash,
@@ -424,6 +425,27 @@ impl FlowSequencerSetup {
             .map(|compressed_infos| {
                 compressed_infos.decompress().expect("stored state commitment infos decompress")
             })
+    }
+
+    pub async fn get_thin_state_diff(&self, block_number: BlockNumber) -> ThinStateDiff {
+        let response = self
+            .send_batcher_storage_reader_request(StorageReaderRequest::StateDiffsLocation(
+                block_number,
+            ))
+            .await;
+        let state_diff_location = match response {
+            StorageReaderResponse::StateDiffsLocation(location) => location,
+            other => panic!("Expected StateDiffsLocation response, got: {other:?}"),
+        };
+        let response = self
+            .send_batcher_storage_reader_request(StorageReaderRequest::StateDiffsFromLocation(
+                state_diff_location,
+            ))
+            .await;
+        match response {
+            StorageReaderResponse::StateDiffsFromLocation(thin_state_diff) => thin_state_diff,
+            other => panic!("Expected StateDiffsFromLocation response, got: {other:?}"),
+        }
     }
 }
 
