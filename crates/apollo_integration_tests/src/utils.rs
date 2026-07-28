@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -94,7 +95,7 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerStaticConfig,
 };
 use apollo_storage::StorageConfig;
-use axum::extract::Query;
+use axum::extract::{DefaultBodyLimit, Query};
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
@@ -580,15 +581,57 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .collect()
 }
 
-// Creates a local recorder server that always returns a success status.
+/// What a dummy recorder tracks about the cende blobs it received.
+#[derive(Debug, Default)]
+pub struct RecorderStats {
+    pub num_blobs_received: AtomicUsize,
+    pub num_blobs_with_state_commitment_infos: AtomicUsize,
+    /// The first height whose commitment infos the recorder has not stored yet; `None` while the
+    /// recorder is empty (the production recorder's height-offset contract).
+    commitment_infos_height_offset: Mutex<Option<u64>>,
+}
+
+// Creates a local recorder server, discarding the received-blob counters.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
-    tokio::spawn(async move {
+    spawn_success_recorder_with_stats(socket_address).0
+}
+
+/// Creates a local recorder server that stores the heights of the commitment infos it receives and
+/// serves their offset, so the sender ships each height's witnesses once instead of resending its
+/// whole recent-blocks window. Also exposes counters of the blobs it received.
+pub fn spawn_success_recorder_with_stats(
+    socket_address: SocketAddr,
+) -> (JoinHandle<()>, Arc<RecorderStats>) {
+    let recorder_stats = Arc::new(RecorderStats::default());
+    let handler_recorder_stats = recorder_stats.clone();
+    let offset_recorder_stats = recorder_stats.clone();
+    let join_handle = tokio::spawn(async move {
         let router = Router::new()
             .route(
                 RECORDER_WRITE_BLOB_PATH,
-                post(move || {
-                    async {
+                post(move |Json(blob): Json<serde_json::Value>| {
+                    let recorder_stats = handler_recorder_stats.clone();
+                    async move {
                         debug!("Received a request to write a blob.");
+                        recorder_stats.num_blobs_received.fetch_add(1, AtomicOrdering::Relaxed);
+                        // A blob is prepared before its own height's commitment completes, so
+                        // early blobs legitimately carry no commitment infos.
+                        if let Some(max_stored_height) = blob["recent_state_commitment_infos"]
+                            .as_array()
+                            .and_then(|state_commitment_infos| {
+                                state_commitment_infos
+                                    .iter()
+                                    .filter_map(|entry| entry["block_number"].as_u64())
+                                    .max()
+                            })
+                        {
+                            recorder_stats
+                                .num_blobs_with_state_commitment_infos
+                                .fetch_add(1, AtomicOrdering::Relaxed);
+                            let mut height_offset =
+                                recorder_stats.commitment_infos_height_offset.lock().unwrap();
+                            *height_offset = (*height_offset).max(Some(max_stored_height + 1));
+                        }
                         StatusCode::OK.to_string()
                     }
                     .instrument(tracing::debug_span!("success recorder write_blob"))
@@ -616,28 +659,35 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
             )
             .route(
                 RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH,
-                get(|| {
-                    async {
+                get(move || {
+                    let recorder_stats = offset_recorder_stats.clone();
+                    async move {
                         debug!("Received a request for commitment_infos_height_offset.");
-                        // `null` marks an empty recorder, letting proposals pass the
-                        // retrospective commitment-infos check before any blob is stored.
-                        Json(serde_json::json!({ "block_number": null }))
+                        // `null` while empty: proposals pass the retrospective commitment-infos
+                        // check and the blob sender falls back to its recent-blocks window.
+                        let height_offset =
+                            *recorder_stats.commitment_infos_height_offset.lock().unwrap();
+                        Json(serde_json::json!({ "block_number": height_offset }))
                     }
                     .instrument(tracing::debug_span!(
                         "success recorder commitment_infos_height_offset"
                     ))
                 }),
-            );
+            )
+            // Blobs carrying declared classes and execution infos can exceed axum's 2MB default
+            // body limit; accept any size, as the pre-validation recorder did.
+            .layer(DefaultBodyLimit::disable());
         let listener = TcpListener::bind(socket_address).await.unwrap();
         serve(listener, router).await.unwrap();
-    })
+    });
+    (join_handle, recorder_stats)
 }
 
-pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>, Arc<RecorderStats>) {
     let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
-    let join_handle = spawn_success_recorder(socket_address);
-    (url, join_handle)
+    let (join_handle, recorder_stats) = spawn_success_recorder_with_stats(socket_address);
+    (url, join_handle, recorder_stats)
 }
 
 /// Fake eth to strk oracle endpoint.
