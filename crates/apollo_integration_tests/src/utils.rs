@@ -131,6 +131,7 @@ use starknet_committer::db::forest_trait::{
 };
 use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::DbBlockNumber;
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use starknet_patricia_storage::storage_trait::{DbOperation, DbValue};
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
@@ -1221,6 +1222,45 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_reverted_transactions,
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
+    verify_witnesses_flow(&sequencers).await;
+}
+
+/// Verifies that every sequencer persisted Patricia witnesses (`StateCommitmentInfos`) for every
+/// committed height above genesis, and that the contracts- and classes-trie roots chain across
+/// consecutive heights.
+async fn verify_witnesses_flow(sequencers: &[&FlowSequencerSetup]) {
+    for sequencer in sequencers {
+        let node_index = sequencer.node_index;
+        let global_root_height = sequencer.get_global_root_height().await;
+        // The seeded genesis block is the only height committed without execution; every other
+        // height commits through the batcher path, which persists witnesses.
+        assert!(
+            sequencer.get_state_commitment_infos(BlockNumber(0)).await.is_none(),
+            "Sequencer {node_index} persisted witnesses for the genesis block.",
+        );
+        let mut previous_state_commitment_infos: Option<StateCommitmentInfos> = None;
+        for block_number in (1..global_root_height.0).map(BlockNumber) {
+            let state_commitment_infos =
+                sequencer.get_state_commitment_infos(block_number).await.unwrap_or_else(|| {
+                    panic!("Sequencer {node_index} is missing witnesses for block {block_number}.")
+                });
+            if let Some(previous_infos) = &previous_state_commitment_infos {
+                assert_eq!(
+                    state_commitment_infos.contracts_trie_commitment_info.previous_root,
+                    previous_infos.contracts_trie_commitment_info.updated_root,
+                    "Sequencer {node_index}, block {block_number}: contracts-trie root does not \
+                     chain from the previous block.",
+                );
+                assert_eq!(
+                    state_commitment_infos.classes_trie_commitment_info.previous_root,
+                    previous_infos.classes_trie_commitment_info.updated_root,
+                    "Sequencer {node_index}, block {block_number}: classes-trie root does not \
+                     chain from the previous block.",
+                );
+            }
+            previous_state_commitment_infos = Some(state_commitment_infos);
+        }
+    }
 }
 
 async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
