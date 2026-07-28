@@ -1063,8 +1063,10 @@ async fn collect_recent_state_commitment_infos_caps_backfill_for_stale_offset() 
         .await
         .expect("offset query should succeed");
 
+    let max_backfilled_infos = usize::try_from(MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS + 1)
+        .expect("max backfill count should fit in usize");
     assert!(
-        recent_state_commitment_infos.len() as u64 <= MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS + 1,
+        recent_state_commitment_infos.len() <= max_backfilled_infos,
         "a stale recorder offset must not force backfilling the entire chain; got {} entries",
         recent_state_commitment_infos.len()
     );
