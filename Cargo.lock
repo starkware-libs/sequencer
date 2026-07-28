@@ -1803,6 +1803,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",
+ "starknet_patricia",
  "starknet_patricia_storage",
  "starknet_proof_verifier",
  "strum",
