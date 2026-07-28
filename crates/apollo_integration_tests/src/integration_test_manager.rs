@@ -1356,7 +1356,7 @@ async fn get_sequencer_setup_configs(
 
     // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
-    let (recorder_url, _join_handle) =
+    let (recorder_url, _join_handle, _recorder_stats) =
         spawn_local_success_recorder(base_layer_ports.get_next_port());
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
