@@ -53,11 +53,7 @@ use apollo_versioned_constants::VersionedConstants;
 use async_trait::async_trait;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
-#[cfg(feature = "os_input")]
-use futures::stream::FuturesOrdered;
 use futures::SinkExt;
-#[cfg(feature = "os_input")]
-use futures::StreamExt;
 use starknet_api::block::{
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
@@ -695,33 +691,20 @@ impl SequencerConsensusContext {
         recent_block_hashes
     }
 
-    /// Fetches state commitment infos for the blocks in `[height - N_BLOCK_HASHES_BACK_IN_BLOB,
-    /// height]` concurrently (each is an independent batcher lookup), then returns the
-    /// contiguous prefix starting from the lowest height, stopping at the first missing or
-    /// failed block.
     #[cfg(feature = "os_input")]
     async fn collect_recent_state_commitment_infos(
         &self,
         height: BlockNumber,
     ) -> Vec<StateCommitmentInfosAndNumber> {
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        let mut state_commitment_infos_futures: FuturesOrdered<_> = (lowest_height..=height.0)
-            .map(|height| {
-                let block_number = BlockNumber(height);
-                let batcher = self.deps.batcher.clone();
-                async move {
-                    (block_number, batcher.get_state_commitment_infos(block_number).await)
-                }
-            })
-            .collect();
-
         let mut recent_state_commitment_infos = Vec::with_capacity(
             usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
                 .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
                 + 1,
         );
-        while let Some((block_number, result)) = state_commitment_infos_futures.next().await {
-            match result {
+        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        for height in lowest_height..=height.0 {
+            let block_number = BlockNumber(height);
+            match self.deps.batcher.get_state_commitment_infos(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
                 // We passed the latest block with state commitment infos.
