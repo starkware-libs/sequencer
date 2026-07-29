@@ -19,6 +19,10 @@ WORKDIR /app
 ARG BUILD_MODE=release
 ENV BUILD_MODE=${BUILD_MODE}
 
+# Comma-separated cargo features for the apollo_node build; extended (e.g. with os_input) to
+# publish feature-variant images without affecting the default build.
+ARG CARGO_FEATURES=cairo_native
+
 # Validate BUILD_MODE value.
 RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ] && [ "$BUILD_MODE" != "profiling" ]; then \
         echo "Error: BUILD_MODE must be 'release', 'debug', or 'profiling' (got '$BUILD_MODE')" >&2; \
@@ -35,7 +39,7 @@ RUN BUILD_FLAGS=""; \
     elif [ "$BUILD_MODE" = "profiling" ]; then \
         BUILD_FLAGS="--profile profiling"; \
     fi; \
-    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
+    cargo build $BUILD_FLAGS --bin apollo_node --features "$CARGO_FEATURES"
 
 # Install compiler binaries used for Sierra compilation at runtime.
 # Binaries land under $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the
