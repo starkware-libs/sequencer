@@ -72,7 +72,7 @@ impl Display for CommitterTaskInput {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct CommitmentTaskOutput {
     pub(crate) response: CommitBlockResponse,
     pub(crate) height: BlockNumber,
@@ -88,7 +88,7 @@ pub(crate) struct RevertTaskOutput {
     pub(crate) height: BlockNumber,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) enum CommitterTaskOutput {
     Commit(CommitmentTaskOutput),
     #[cfg(feature = "os_input")]
@@ -102,7 +102,9 @@ impl CommitterTaskOutput {
             Self::Commit(commitment_task_output) => commitment_task_output,
             #[cfg(feature = "os_input")]
             Self::ReadPathsAndCommitBlock(commitment_task_output) => commitment_task_output,
-            Self::Revert(_) => panic!("Got revert output: {self:?}"),
+            Self::Revert(revert_task_output) => {
+                panic!("Got revert output for height {}.", revert_task_output.height)
+            }
         }
     }
 
