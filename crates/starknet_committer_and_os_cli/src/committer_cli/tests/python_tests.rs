@@ -21,7 +21,13 @@ use starknet_committer::hash_function::hash::{
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
-use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{
+    CommitmentInfo,
+    CompiledClassHash,
+    StateCommitmentInfos,
+};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -68,6 +74,9 @@ pub enum CommitterPythonTestRunner {
     TreeHeightComparison,
     SerializeForRustCommitterFlowTest,
     ComputeHashSingleTree,
+    StateCommitmentInfosSerialize,
+    #[cfg(feature = "os_input")]
+    CompressedStateCommitmentInfosDecompress,
     MaybePanic,
     LogError,
 }
@@ -106,6 +115,11 @@ impl TryFrom<String> for CommitterPythonTestRunner {
             "compare_tree_height" => Ok(Self::TreeHeightComparison),
             "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             "tree_test" => Ok(Self::ComputeHashSingleTree),
+            "state_commitment_infos_serialize_test" => Ok(Self::StateCommitmentInfosSerialize),
+            #[cfg(feature = "os_input")]
+            "compressed_state_commitment_infos_decompress_test" => {
+                Ok(Self::CompressedStateCommitmentInfosDecompress)
+            }
             "maybe_panic" => Ok(Self::MaybePanic),
             "log_error" => Ok(Self::LogError),
             _ => Err(PythonTestError::UnknownTestName(value)),
@@ -180,6 +194,11 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 .await;
                 // 3. Serialize and return output.
                 Ok(output)
+            }
+            Self::StateCommitmentInfosSerialize => state_commitment_infos_serialize_test(),
+            #[cfg(feature = "os_input")]
+            Self::CompressedStateCommitmentInfosDecompress => {
+                compressed_state_commitment_infos_decompress_test(Self::non_optional_input(input)?)
             }
             Self::MaybePanic => {
                 let is_panic: bool = serde_json::from_str(Self::non_optional_input(input)?)?;
@@ -678,6 +697,66 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
 
     // Serialize the storage to a JSON string and handle serialization errors.
     Ok(serde_json::to_string(&rust_fact_storage)?)
+}
+
+/// Deterministic values, mirrored by `EXPECTED_STATE_COMMITMENT_INFOS` in the python
+/// serialization test.
+fn python_test_state_commitment_infos() -> StateCommitmentInfos {
+    let commitment_info =
+        |previous_root: u128, updated_root: u128, commitment_facts| CommitmentInfo {
+            previous_root: HashOutput(Felt::from(previous_root)),
+            updated_root: HashOutput(Felt::from(updated_root)),
+            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+            commitment_facts,
+        };
+    // A zero and a >16-byte felt exercise the variable-length felt encoding of the compressed
+    // (bincode) form.
+    let contracts_trie_facts = HashMap::from([(
+        HashOutput(Felt::from(0x30_u128)),
+        vec![
+            Felt::from(0x40_u128),
+            Felt::ZERO,
+            Felt::from_hex_unchecked("0x123456789abcdef0123456789abcdef0123456789abcdef"),
+        ],
+    )]);
+    let storage_trie_facts =
+        HashMap::from([(HashOutput(Felt::from(0x70_u128)), vec![Felt::from(0x80_u128)])]);
+    StateCommitmentInfos {
+        contracts_trie_commitment_info: commitment_info(1, 2, contracts_trie_facts),
+        classes_trie_commitment_info: commitment_info(3, 4, HashMap::new()),
+        storage_tries_commitment_infos: HashMap::from([
+            (ContractAddress::from(0x1234_u128), commitment_info(5, 6, storage_trie_facts)),
+            (ContractAddress::from(0x5678_u128), commitment_info(7, 8, HashMap::new())),
+        ]),
+    }
+}
+
+/// Serializes a deterministic [`StateCommitmentInfos`] in both its wire forms: plain JSON and
+/// compressed (base64 of zstd of bincode). The compressed form is `null` when built without the
+/// os_input feature, which gates `StateCommitmentInfos::compress`.
+fn state_commitment_infos_serialize_test() -> CommitterPythonTestResult {
+    let state_commitment_infos = python_test_state_commitment_infos();
+    #[cfg(feature = "os_input")]
+    let compressed = serde_json::to_value(state_commitment_infos.compress().map_err(|error| {
+        PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error.into()))
+    })?)?;
+    #[cfg(not(feature = "os_input"))]
+    let compressed = serde_json::Value::Null;
+    Ok(serde_json::to_string(&json!({
+        "state_commitment_infos": state_commitment_infos,
+        "compressed": compressed,
+    }))?)
+}
+
+/// Deserializes a compressed [`StateCommitmentInfos`] from its base64 wire form, decompresses it
+/// and returns the plain JSON form.
+#[cfg(feature = "os_input")]
+fn compressed_state_commitment_infos_decompress_test(input: &str) -> CommitterPythonTestResult {
+    let compressed: CompressedStateCommitmentInfos = serde_json::from_str(input)?;
+    let state_commitment_infos = compressed.decompress().map_err(|error| {
+        PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error.into()))
+    })?;
+    Ok(serde_json::to_string(&state_commitment_infos)?)
 }
 
 /// Generates a dummy random filled forest and serializes it to a JSON string.
