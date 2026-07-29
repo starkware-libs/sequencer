@@ -56,6 +56,11 @@ use crate::utils::{
     RetrospectiveBlockHashError,
     StreamSender,
 };
+#[cfg(feature = "os_input")]
+use crate::utils::{
+    verify_retrospective_state_commitment_infos,
+    RetrospectiveStateCommitmentInfosError,
+};
 
 // Minimal wait time that avoids an immediate timeout.
 const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
@@ -101,6 +106,9 @@ pub(crate) enum BuildProposalError {
     Batcher(String, BatcherClientError),
     #[error(transparent)]
     RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
+    #[cfg(feature = "os_input")]
+    #[error(transparent)]
+    RetrospectiveStateCommitmentInfosError(#[from] RetrospectiveStateCommitmentInfosError),
     #[error("Failed to send proposal part: {0}")]
     SendError(String),
     #[error("ExchangeRateOracle error: {0}")]
@@ -222,6 +230,16 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
         args.compare_retrospective_block_hash,
+    )
+    .await?;
+
+    // Make sure the blob of this height will carry the next height's retrospective commitment
+    // infos.
+    #[cfg(feature = "os_input")]
+    verify_retrospective_state_commitment_infos(
+        args.deps.batcher.clone(),
+        args.deps.cende_ambassador.clone(),
+        init.height,
     )
     .await?;
 
