@@ -1780,7 +1780,7 @@
         }
       ],
       "for": "30s",
-      "severity": "p4"
+      "severity": "$$$native_compilation_error-severity$$$"
     },
     {
       "name": "periodic_ping",
