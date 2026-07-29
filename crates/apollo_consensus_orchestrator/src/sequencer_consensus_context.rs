@@ -124,6 +124,10 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
+/// Maximum starting capacity of the backfilled commitment infos vector.
+#[cfg(feature = "os_input")]
+const MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS: u64 = 20;
+
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
 type ProposalContent =
@@ -718,11 +722,15 @@ impl SequencerConsensusContext {
                 // size.
                 None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
             };
-        let mut recent_state_commitment_infos = Vec::with_capacity(
-            usize::try_from(height.0.saturating_sub(lowest_height) + 1)
-                .expect("Commitment infos count should fit in usize."),
-        );
-        for block_height in lowest_height..=height.0 {
+        // The offset is an external, recorder-reported value with no upper bound on how stale it
+        // can be; cap the vector's starting capacity so a bogus offset can't trigger an
+        // arbitrarily large allocation.
+        let vec_size = usize::try_from(
+            (height.0.saturating_sub(lowest_height) + 1).min(MAX_COMMITMENT_INFOS_BACKFILL_HEIGHTS),
+        )
+        .expect("Commitment infos count should fit in usize.");
+        let mut recent_state_commitment_infos = Vec::with_capacity(vec_size);
+        for block_height in (lowest_height..=height.0).take(vec_size) {
             let block_number = BlockNumber(block_height);
             match self.deps.batcher.get_state_commitment_infos(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
