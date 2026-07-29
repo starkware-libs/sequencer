@@ -47,6 +47,7 @@ use apollo_consensus_manager::metrics::{
 };
 use apollo_consensus_orchestrator::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
+    CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER,
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
@@ -332,6 +333,15 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("Blob for block number")
+}
+
+fn get_panel_cende_last_state_commitment_infos_block_number() -> Panel {
+    Panel::new(
+        "Last State Commitment Infos Block Number",
+        "The block number of the most recent state commitment infos sent",
+        CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
 }
 
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
@@ -716,6 +726,7 @@ pub(crate) fn get_cende_row() -> Row {
             get_panel_cende_write_blob_failure(),
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_last_prepared_blob_block_number(),
+            get_panel_cende_last_state_commitment_infos_block_number(),
             get_panel_cende_write_preconfirmed_block(),
             get_panel_cende_write_preconfirmed_block_failure(),
         ],

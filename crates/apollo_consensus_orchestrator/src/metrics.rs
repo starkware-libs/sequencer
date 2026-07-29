@@ -27,6 +27,7 @@ define_metrics!(
         // TODO(dvir): add a counter for successful blob writes and failed blob writes.
         MetricHistogram { CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, "cende_write_prev_height_blob_latency", "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed." },
         MetricCounter { CENDE_WRITE_BLOB_SUCCESS , "cende_write_blob_success", "The number of successful blob writes to Aerospike", init = 0 },
+        MetricGauge { CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER, "cende_last_state_commitment_infos_block_number", "The block number of the most recent state commitment infos sent" },
         LabeledMetricCounter { CENDE_WRITE_BLOB_FAILURE , "cende_write_blob_failure", "The number of failed blob writes to Aerospike", init = 0, labels = CENDE_WRITE_BLOB_FAILURE_REASON },
 
         // Proposal build failure metrics
@@ -105,6 +106,7 @@ pub(crate) fn register_metrics() {
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.register();
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.register();
     CENDE_WRITE_BLOB_SUCCESS.register();
+    CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.register();
     CENDE_WRITE_BLOB_FAILURE.register();
     CONSENSUS_BUILD_PROPOSAL_FAILURE.register();
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE.register();

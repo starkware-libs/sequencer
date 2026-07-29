@@ -98,6 +98,8 @@ use crate::fee_market::{
     get_min_gas_price_for_height,
     FeeMarketInfo,
 };
+#[cfg(feature = "os_input")]
+use crate::metrics::CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER;
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -600,7 +602,11 @@ impl SequencerConsensusContext {
                 error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
                 Vec::new()
             });
-        // TODO(Yoav): Add metrics for most recent state commitment infos sent.
+        #[cfg(feature = "os_input")]
+        if let Some(last_state_commitment_infos) = recent_state_commitment_infos.last() {
+            CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER
+                .set_lossy(last_state_commitment_infos.block_number.0);
+        }
 
         if let Err(e) = self
             .deps
