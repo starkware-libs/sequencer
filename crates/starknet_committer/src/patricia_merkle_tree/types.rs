@@ -11,7 +11,6 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
-#[cfg(feature = "os_input")]
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
@@ -97,7 +96,6 @@ pub struct StateCommitmentInfos {
     pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
 }
 
-#[cfg(feature = "os_input")]
 #[derive(Debug, thiserror::Error)]
 pub enum StateCommitmentInfosCodecError {
     #[error(transparent)]
@@ -106,7 +104,6 @@ pub enum StateCommitmentInfosCodecError {
     Io(#[from] std::io::Error),
 }
 
-#[cfg(feature = "os_input")]
 impl From<StateCommitmentInfosCodecError> for SerializationError {
     fn from(error: StateCommitmentInfosCodecError) -> Self {
         match error {
@@ -137,7 +134,6 @@ impl<'de> Deserialize<'de> for CompressedStateCommitmentInfos {
     }
 }
 
-#[cfg(feature = "os_input")]
 impl CompressedStateCommitmentInfos {
     /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
@@ -152,7 +148,6 @@ impl StateCommitmentInfos {
     /// Bincode encodes each hash-map as an 8-byte length followed by its entries, and each `Felt`
     /// as an 8-byte length followed by its value, so the payload is dominated by leading zeros
     /// that zstd compresses efficiently.
-    #[cfg(feature = "os_input")]
     pub fn compress(
         &self,
     ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
