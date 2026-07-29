@@ -35,6 +35,8 @@ use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
+#[cfg(feature = "os_input")]
+use crate::cende::{CendeAmbassadorError, CendeContext};
 use crate::metrics::{
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
@@ -68,6 +70,30 @@ pub(crate) enum RetrospectiveBlockHashError {
 }
 
 pub(crate) type RetrospectiveBlockHashResult<T> = Result<T, RetrospectiveBlockHashError>;
+
+#[cfg(feature = "os_input")]
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum RetrospectiveStateCommitmentInfosError {
+    #[error(transparent)]
+    BatcherError(#[from] BatcherClientError),
+    #[error(transparent)]
+    CendeError(#[from] CendeAmbassadorError),
+    #[error(
+        "State commitment infos of the next height's retrospective block \
+         {retrospective_block_number} are not stored yet. Batcher commitment infos height offset: \
+         {batcher_height_offset:?}, recorder commitment infos height offset: \
+         {recorder_height_offset:?}"
+    )]
+    NotStored {
+        retrospective_block_number: BlockNumber,
+        batcher_height_offset: Option<BlockNumber>,
+        recorder_height_offset: Option<BlockNumber>,
+    },
+}
+
+#[cfg(feature = "os_input")]
+pub(crate) type RetrospectiveStateCommitmentInfosResult<T> =
+    Result<T, RetrospectiveStateCommitmentInfosError>;
 
 #[derive(Debug)]
 pub(crate) struct GasPriceParams {
@@ -461,6 +487,52 @@ pub(crate) async fn wait_for_retrospective_block_hash(
     }
 
     result
+}
+
+/// Verifies that the batcher or the cende recorder has stored the state commitment infos of the
+/// next height's retrospective block. Skipped when neither side has stored any commitment infos at
+/// all, for pre-feature activation.
+#[cfg(feature = "os_input")]
+pub(crate) async fn verify_retrospective_state_commitment_infos(
+    batcher_client: Arc<dyn BatcherClient>,
+    cende_ambassador: Arc<dyn CendeContext>,
+    height: BlockNumber,
+) -> RetrospectiveStateCommitmentInfosResult<()> {
+    let Some(retrospective_block_number) =
+        height.unchecked_next().0.checked_sub(STORED_BLOCK_HASH_BUFFER)
+    else {
+        info!(
+            "The next height is less than {STORED_BLOCK_HASH_BUFFER}, no retrospective state \
+             commitment infos are required."
+        );
+        return Ok(());
+    };
+    let retrospective_block_number = BlockNumber(retrospective_block_number);
+
+    let batcher_height_offset = batcher_client.get_state_commitment_infos_height_offset().await?;
+    let recorder_height_offset = cende_ambassador.commitment_infos_height_offset().await?;
+
+    // An offset above the retrospective block number means its commitment infos are stored;
+    // having them on one of the sources is enough.
+    match (batcher_height_offset, recorder_height_offset) {
+        (None, None) => {
+            warn!(
+                "Neither the batcher nor the recorder has stored any state commitment infos; \
+                 skipping the retrospective state commitment infos validation."
+            );
+            Ok(())
+        }
+        (Some(height_offset), _) | (_, Some(height_offset))
+            if height_offset > retrospective_block_number =>
+        {
+            Ok(())
+        }
+        _ => Err(RetrospectiveStateCommitmentInfosError::NotStored {
+            retrospective_block_number,
+            batcher_height_offset,
+            recorder_height_offset,
+        }),
+    }
 }
 
 pub(crate) fn truncate_to_executed_txs(

@@ -345,6 +345,9 @@ impl TestDeps {
         });
         #[cfg(feature = "os_input")]
         self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
+        // Default: no commitment infos stored → no retrospective requirement.
+        #[cfg(feature = "os_input")]
+        self.batcher.expect_get_state_commitment_infos_height_offset().returning(|| Ok(None));
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
