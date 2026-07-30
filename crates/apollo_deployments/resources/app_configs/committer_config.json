@@ -1,4 +1,5 @@
 {
+    "committer_config.commit_duration_warn_threshold_millis": 3000,
     "committer_config.db_path": "/data/committer",
     "committer_config.reader_config.warn_on_trivial_modifications": false,
     "committer_config.reader_config.build_storage_tries_concurrently": true,
