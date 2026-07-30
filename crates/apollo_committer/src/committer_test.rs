@@ -337,5 +337,6 @@ async fn no_warn_when_block_commit_within_duration_threshold() {
     let mut committer = new_test_committer().await;
     committer.config.commit_duration_warn_threshold_millis = Duration::from_secs(3600);
     committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
+    assert!(logs_contain("Block 0 stats"));
     assert!(!logs_contain("block commit duration above the"));
 }
