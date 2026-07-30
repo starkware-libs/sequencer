@@ -139,28 +139,34 @@ impl<'de> Deserialize<'de> for CompressedStateCommitmentInfos {
 
 #[cfg(feature = "os_input")]
 impl CompressedStateCommitmentInfos {
-    /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
+    /// Reverses [`StateCommitmentInfos::compress`]: streams the zstd-decompressed bytes straight
+    /// into bincode deserialization, without materializing the decompressed payload in full.
+    ///
+    /// Bincode reads one small field at a time; without buffering, each of those reads would
+    /// otherwise turn into a separate call into the zstd decompressor.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
-        let bincode_payload = zstd::decode_all(self.0.as_slice())?;
-        Ok(bincode::deserialize(&bincode_payload)?)
+        let decoder = std::io::BufReader::new(zstd::Decoder::new(self.0.as_slice())?);
+        Ok(bincode::deserialize_from(decoder)?)
     }
 }
 
 impl StateCommitmentInfos {
-    /// Bincode-serializes and zstd-compresses the commitment infos.
+    /// Bincode-serializes and zstd-compresses the commitment infos, streaming the bincode output
+    /// directly into the zstd encoder so the uncompressed payload is never fully materialized.
     ///
     /// Bincode encodes each hash-map as an 8-byte length followed by its entries, and each `Felt`
     /// as an 8-byte length followed by its value, so the payload is dominated by leading zeros
-    /// that zstd compresses efficiently.
+    /// that zstd compresses efficiently. Bincode also writes one small field at a time, so the
+    /// stream is buffered before reaching the encoder to avoid a separate zstd call per field.
     #[cfg(feature = "os_input")]
     pub fn compress(
         &self,
     ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
-        let bincode_payload = bincode::serialize(self)?;
-        Ok(CompressedStateCommitmentInfos(zstd::encode_all(
-            bincode_payload.as_slice(),
-            zstd::DEFAULT_COMPRESSION_LEVEL,
-        )?))
+        let encoder = zstd::Encoder::new(Vec::new(), zstd::DEFAULT_COMPRESSION_LEVEL)?;
+        let mut buffered_encoder = std::io::BufWriter::new(encoder);
+        bincode::serialize_into(&mut buffered_encoder, self)?;
+        let encoder = buffered_encoder.into_inner().map_err(std::io::IntoInnerError::into_error)?;
+        Ok(CompressedStateCommitmentInfos(encoder.finish()?))
     }
 
     /// Builds the commitment infos directly from the pre- and post-commit state roots and the
