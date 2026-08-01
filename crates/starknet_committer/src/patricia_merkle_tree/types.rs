@@ -149,6 +149,9 @@ impl CompressedStateCommitmentInfos {
 impl StateCommitmentInfos {
     /// Bincode-serializes and zstd-compresses the commitment infos.
     ///
+    /// Compression is one-shot rather than streamed so that the zstd frame header carries the
+    /// decompressed size, letting consumers allocate the output buffer without reading the frame.
+    ///
     /// Bincode encodes each hash-map as an 8-byte length followed by its entries, and each `Felt`
     /// as an 8-byte length followed by its value, so the payload is dominated by leading zeros
     /// that zstd compresses efficiently.
@@ -157,8 +160,8 @@ impl StateCommitmentInfos {
         &self,
     ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
         let bincode_payload = bincode::serialize(self)?;
-        Ok(CompressedStateCommitmentInfos(zstd::encode_all(
-            bincode_payload.as_slice(),
+        Ok(CompressedStateCommitmentInfos(zstd::bulk::compress(
+            &bincode_payload,
             zstd::DEFAULT_COMPRESSION_LEVEL,
         )?))
     }
