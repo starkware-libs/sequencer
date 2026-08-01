@@ -182,7 +182,7 @@ pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
 
         // Finalize block and read actual statediff; using non_consuming_finalize to keep the
         // block_state.
-        let actual_state_diff = transaction_executor.non_consuming_finalize()?.state_diff;
+        let actual_state_diff = transaction_executor.non_consuming_finalize(false)?.state_diff;
 
         Ok(ReexecuteBlockOutcome {
             block_state: transaction_executor.block_state,

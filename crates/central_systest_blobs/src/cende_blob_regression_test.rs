@@ -336,7 +336,7 @@ impl BlobFactory {
             transactions_with_receipts
                 .push(InternalTransactionWithReceipt { transaction: internal, execution_info });
         }
-        let summary = executor.non_consuming_finalize().unwrap();
+        let summary = executor.non_consuming_finalize(true).unwrap();
 
         // Apply changes to state and create the multitude of state-diff-like objects required...
         // The [CommitterStateDiff] type is the blockifier representation of the committer's state

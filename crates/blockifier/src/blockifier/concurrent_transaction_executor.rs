@@ -142,6 +142,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             &worker_executor.bouncer,
             &mut state_after_block,
             &self.worker_executor.block_context,
+            true,
         )
     }
 

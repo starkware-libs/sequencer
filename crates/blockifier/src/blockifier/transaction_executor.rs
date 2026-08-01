@@ -213,15 +213,23 @@ impl<S: StateReader> TransactionExecutor<S> {
             &self.bouncer,
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             &self.block_context,
+            true,
         )
     }
 
+    /// `collect_os_initial_reads` must be false when replaying against a state recording only the
+    /// values the original execution read: collecting the OS read-set force-reads beyond that
+    /// record.
     #[cfg(feature = "reexecution")]
-    pub fn non_consuming_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+    pub fn non_consuming_finalize(
+        &mut self,
+        collect_os_initial_reads: bool,
+    ) -> TransactionExecutorResult<BlockExecutionSummary> {
         finalize_block(
             &self.bouncer,
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             &self.block_context,
+            collect_os_initial_reads,
         )
     }
 }
@@ -236,6 +244,7 @@ pub(crate) fn finalize_block<S: StateReader>(
     bouncer: &Arc<Mutex<Bouncer>>,
     block_state: &mut CachedState<S>,
     block_context: &BlockContext,
+    collect_os_initial_reads: bool,
 ) -> TransactionExecutorResult<BlockExecutionSummary> {
     let bouncer = lock_bouncer(bouncer);
     log::info!(
@@ -273,7 +282,11 @@ pub(crate) fn finalize_block<S: StateReader>(
 
     let state_diff = block_state.to_state_diff()?.state_maps;
 
-    let initial_reads = block_state.get_os_initial_reads()?;
+    let initial_reads = if collect_os_initial_reads {
+        block_state.get_os_initial_reads()?
+    } else {
+        StateMaps::default()
+    };
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
         Some(compress(&state_diff, block_state, alias_contract_address)?.into())
