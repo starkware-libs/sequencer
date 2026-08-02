@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785667400217,
+  "lastUpdate": 1785697241939,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7139,6 +7139,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1213.0633636500002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45407b1ae6ba208bec1ec87abac30397163e3328",
+          "message": "apollo_committer: add per-block commit latency histogram metric (#14889)",
+          "timestamp": "2026-08-02T18:46:33Z",
+          "tree_id": "0c87897cfccdba39488566e20c4ebaea8f222651",
+          "url": "https://github.com/starkware-libs/sequencer/commit/45407b1ae6ba208bec1ec87abac30397163e3328"
+        },
+        "date": 1785697241575,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 852.4769632599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1270.4719634,
             "unit": "ms"
           }
         ]
