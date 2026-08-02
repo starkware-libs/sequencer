@@ -52,6 +52,8 @@ use url::Url;
 
 use crate::dynamic_gas_price::FeeProposalInfo;
 use crate::fee_market::FeeMarketInfo;
+#[cfg(feature = "os_input")]
+use crate::metrics::CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER;
 use crate::metrics::{
     record_write_failure,
     CendeWriteFailureReason,
@@ -388,6 +390,12 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                 );
                 print_write_blob_response(response).await;
                 CENDE_WRITE_BLOB_SUCCESS.increment(1);
+                #[cfg(feature = "os_input")]
+                if let Some(last_state_commitment_infos) = blob.recent_state_commitment_infos.last()
+                {
+                    CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER
+                        .set_lossy(last_state_commitment_infos.block_number.0);
+                }
                 true
             } else {
                 warn!(

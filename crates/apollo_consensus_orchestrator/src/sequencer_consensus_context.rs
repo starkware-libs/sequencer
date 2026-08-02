@@ -600,7 +600,6 @@ impl SequencerConsensusContext {
                 error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
                 Vec::new()
             });
-        // TODO(Yoav): Add metrics for most recent state commitment infos sent.
 
         if let Err(e) = self
             .deps
