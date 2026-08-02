@@ -7,6 +7,7 @@ use crate::blockifier::block::pre_process_block;
 use crate::blockifier::transaction_executor::{
     finalize_block,
     BlockExecutionSummary,
+    OsInitialReadsCollection,
     TransactionExecutionOutput,
     TransactionExecutorResult,
 };
@@ -142,6 +143,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             &worker_executor.bouncer,
             &mut state_after_block,
             &self.worker_executor.block_context,
+            OsInitialReadsCollection::Collect,
         )
     }
 

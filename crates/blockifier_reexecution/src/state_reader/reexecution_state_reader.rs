@@ -1,6 +1,6 @@
 use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use blockifier::blockifier::config::TransactionExecutorConfig;
-use blockifier::blockifier::transaction_executor::TransactionExecutor;
+use blockifier::blockifier::transaction_executor::{OsInitialReadsCollection, TransactionExecutor};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -182,7 +182,8 @@ pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
 
         // Finalize block and read actual statediff; using non_consuming_finalize to keep the
         // block_state.
-        let actual_state_diff = transaction_executor.non_consuming_finalize()?.state_diff;
+        let actual_state_diff =
+            transaction_executor.non_consuming_finalize(OsInitialReadsCollection::Skip)?.state_diff;
 
         Ok(ReexecuteBlockOutcome {
             block_state: transaction_executor.block_state,
