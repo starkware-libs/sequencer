@@ -17,6 +17,7 @@ use apollo_consensus_orchestrator::cende::{
     AerospikeBlob,
     BlobParameters,
     InternalTransactionWithReceipt,
+    StateCommitmentInfosAndNumber,
 };
 use apollo_consensus_orchestrator::dynamic_gas_price::FeeProposalInfo;
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
@@ -27,6 +28,7 @@ use blockifier::blockifier::transaction_executor::{OsInitialReadsCollection, Tra
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -72,7 +74,6 @@ use starknet_api::executable_transaction::{
     Transaction as ExecutableTx,
 };
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::hash::StateRoots;
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
@@ -113,12 +114,16 @@ use starknet_api::transaction::{
 };
 use starknet_api::{calldata, contract_address};
 use starknet_committer::block_committer::input::StateDiff;
-use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::index_db::IndexDb;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedStateCommitmentInfos,
+    StateCommitmentInfos,
+};
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::get_public_key;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_transaction_prover::running::committer_utils::commit_state_diff;
+use starknet_transaction_prover::running::committer_utils::commit_state_diff_with_witnesses;
 use starknet_types_core::felt::Felt;
 
 const GCS_ERROR_CODE_NOT_FOUND: u16 = 404;
@@ -187,7 +192,8 @@ struct BlockData {
     block_hash: BlockHash,
     parent_block_hash: BlockHash,
     state_maps: StateMaps,
-    state_roots: StateRoots,
+    state_commitment_infos: StateCommitmentInfos,
+    initial_reads: StateMaps,
 }
 
 impl From<BlockData> for BlobParameters {
@@ -201,6 +207,7 @@ impl From<BlockData> for BlobParameters {
             parent_partial_block_hash_components,
             parent_block_hash,
             state_maps,
+            initial_reads,
             ..
         } = block;
         let commitment_state_diff = CommitmentStateDiff::from(state_maps);
@@ -245,8 +252,9 @@ impl From<BlockData> for BlobParameters {
             proposal_commitment,
             parent_proposal_commitment,
             recent_block_hashes,
+            // Populated per blob in [BlobFactory::finalize], where all blocks are visible.
             recent_state_commitment_infos: vec![],
-            initial_reads: Default::default(),
+            initial_reads,
         }
     }
 }
@@ -264,7 +272,7 @@ struct BlobFactory {
     // Context.
     nonce_manager: NonceManager,
     state: DictStateReader,
-    committer_storage: FactsDb<MapStorage>,
+    committer_storage: IndexDb<MapStorage>,
 }
 
 impl BlobFactory {
@@ -286,7 +294,7 @@ impl BlobFactory {
             next_txs: vec![],
             nonce_manager: NonceManager::default(),
             state: DictStateReader::default(),
-            committer_storage: FactsDb::new(MapStorage::default()),
+            committer_storage: IndexDb::new(MapStorage::default()),
         }
     }
 
@@ -348,13 +356,17 @@ impl BlobFactory {
         let class_mapping = executor.block_state.unwrap().class_hash_to_class.borrow().clone();
         self.state.apply_writes(&state_maps, &class_mapping);
 
-        // Commit the block.
-        let prev_state_roots = self.last_finalized_state_roots();
-        let state_roots = commit_state_diff(
+        // Commit the block, collecting the Patricia witnesses for the accessed keys.
+        let accessed_keys = AccessedKeys::new(
+            transactions_with_receipts.iter().map(|tx| &tx.execution_info),
+            std::iter::empty(),
+            &committer_state_diff,
+            block_context.versioned_constants(),
+        );
+        let (state_roots, state_commitment_infos) = commit_state_diff_with_witnesses(
             &mut self.committer_storage,
-            prev_state_roots.contracts_trie_root_hash,
-            prev_state_roots.classes_trie_root_hash,
             state_diff,
+            &accessed_keys,
         )
         .await
         .expect("Failed to commit state diff.");
@@ -387,6 +399,14 @@ impl BlobFactory {
         )
         .unwrap();
 
+        // The OS only needs the read values for the keys it accesses; drop the extra reads
+        // (e.g. reverted-tx reads), as the batcher does before shipping to cende.
+        let initial_reads = {
+            let mut initial_reads = summary.initial_reads;
+            initial_reads.trim_to_accessed_keys(&accessed_keys);
+            initial_reads
+        };
+
         // Create and push block data.
         self.blocks.push(BlockData {
             block_context,
@@ -396,7 +416,8 @@ impl BlobFactory {
             block_hash,
             parent_block_hash,
             state_maps,
-            state_roots,
+            state_commitment_infos,
+            initial_reads,
         });
     }
 
@@ -415,10 +436,28 @@ impl BlobFactory {
             state,
         );
 
+        // A block's commitment infos are only ready once its commitment completes, so its blob —
+        // written at decision time — cannot carry them yet: like the recent block hashes, the
+        // blob of block N carries the commitment infos of block N - 1 (sent once, matching the
+        // recorder's height-offset delta), and the first blob carries none.
+        let mut previous_state_commitment_infos: Option<StateCommitmentInfosAndNumber> = None;
         for block in blocks.into_iter() {
+            let block_number = block.block_context.block_info().block_number;
+            let block_state_commitment_infos = StateCommitmentInfosAndNumber {
+                state_commitment_infos: block
+                    .state_commitment_infos
+                    .compress()
+                    .expect("Failed to compress commitment infos."),
+                block_number,
+            };
+            let mut blob_parameters: BlobParameters = block.into();
+            blob_parameters.recent_state_commitment_infos = previous_state_commitment_infos
+                .replace(block_state_commitment_infos)
+                .into_iter()
+                .collect();
             blobs.push(
                 AerospikeBlob::from_blob_parameters_and_class_manager(
-                    block.into(),
+                    blob_parameters,
                     shared_class_manager.clone(),
                 )
                 .await
@@ -435,10 +474,6 @@ impl BlobFactory {
 
     fn last_finalized_partial_block_hash_components(&self) -> Option<PartialBlockHashComponents> {
         self.blocks.last().map(|block| block.partial_block_hash_components.clone())
-    }
-
-    fn last_finalized_state_roots(&self) -> StateRoots {
-        self.blocks.last().map(|block| block.state_roots).unwrap_or(StateRoots::EMPTY)
     }
 
     // =====================
@@ -782,6 +817,22 @@ fn to_normalized_json(value: &impl serde::Serialize) -> String {
     format!("{}\n", serde_json::to_string_pretty(&json_value).unwrap())
 }
 
+/// Blob JSON with every `state_commitment_infos` entry decompressed: the compressed form
+/// bincode-encodes HashMaps, so its bytes are not stable across processes.
+fn to_comparable_blobs(blobs: &[AerospikeBlob]) -> serde_json::Value {
+    let mut blobs_json = serde_json::to_value(blobs).unwrap();
+    normalize_set_arrays(&mut blobs_json);
+    for blob_json in blobs_json.as_array_mut().unwrap() {
+        for entry in blob_json["recent_state_commitment_infos"].as_array_mut().unwrap() {
+            let compressed: CompressedStateCommitmentInfos =
+                serde_json::from_value(entry["state_commitment_infos"].take()).unwrap();
+            entry["state_commitment_infos"] =
+                serde_json::to_value(compressed.decompress().unwrap()).unwrap();
+        }
+    }
+    blobs_json
+}
+
 async fn gcs_client() -> Client {
     Client::new(ClientConfig::default().with_auth().await.expect(
         "Failed to create GCS client config. Did you run `gcloud auth application-default login`?",
@@ -791,7 +842,7 @@ async fn gcs_client() -> Client {
 async fn find_next_available_blobs_generation(client: &Client) -> usize {
     let mut next_generation = current_generation() + 1;
     loop {
-        match fetch_raw_blobs_at_generation(client, next_generation).await {
+        match fetch_raw_object(client, blobs_object_path(next_generation)).await {
             Ok(_) => next_generation += 1,
             Err(GcsError::Response(ErrorResponse { code: GCS_ERROR_CODE_NOT_FOUND, .. })) => break,
             Err(GcsError::HttpClient(error))
@@ -805,15 +856,12 @@ async fn find_next_available_blobs_generation(client: &Client) -> usize {
     next_generation
 }
 
-async fn fetch_raw_blobs_at_generation(
-    client: &Client,
-    generation: usize,
-) -> Result<Vec<u8>, GcsError> {
+async fn fetch_raw_object(client: &Client, object: String) -> Result<Vec<u8>, GcsError> {
     client
         .download_object(
             &GetObjectRequest {
                 bucket: BLOBS_BUCKET_NAME.to_string(),
-                object: blobs_object_path(generation),
+                object,
                 ..Default::default()
             },
             &Range::default(),
@@ -821,10 +869,7 @@ async fn fetch_raw_blobs_at_generation(
         .await
 }
 
-/// Pushes the blobs to GCS.
-async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: &Client) {
-    let blobs_json = to_normalized_json(&blobs);
-    let next_generation = find_next_available_blobs_generation(client).await;
+async fn upload_new_object(client: &Client, object: String, content: String) {
     client
         .upload_object(
             &UploadObjectRequest {
@@ -833,17 +878,24 @@ async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: 
                 if_generation_match: Some(0),
                 ..Default::default()
             },
-            blobs_json.into_bytes(),
-            &UploadType::Simple(Media::new(blobs_object_path(next_generation))),
+            content.into_bytes(),
+            &UploadType::Simple(Media::new(object)),
         )
         .await
         .unwrap();
+}
+
+/// Pushes the blobs to GCS.
+async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: &Client) {
+    let next_generation = find_next_available_blobs_generation(client).await;
+    upload_new_object(client, blobs_object_path(next_generation), to_normalized_json(&blobs)).await;
     fs::write(&*BLOBS_GENERATION_FILE, next_generation.to_string()).unwrap();
 }
 
 /// Fetches the blobs from GCS.
 async fn fetch_blob_file(client: &Client) -> Vec<AerospikeBlob> {
-    let blobs_json = fetch_raw_blobs_at_generation(client, current_generation()).await.unwrap();
+    let blobs_json =
+        fetch_raw_object(client, blobs_object_path(current_generation())).await.unwrap();
     serde_json::from_slice(&blobs_json).unwrap()
 }
 
@@ -975,7 +1027,8 @@ async fn test_make_data() {
     } else {
         let fetched_blobs = fetch_blob_file(&client).await;
         assert_eq!(
-            blobs, fetched_blobs,
+            to_comparable_blobs(&blobs),
+            to_comparable_blobs(&fetched_blobs),
             "Blobs mismatch. To fix, run the test with UPDATE_EXPECT=1."
         );
     }
