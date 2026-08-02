@@ -17,6 +17,7 @@ use apollo_consensus_orchestrator::cende::{
     AerospikeBlob,
     BlobParameters,
     InternalTransactionWithReceipt,
+    StateCommitmentInfosAndNumber,
 };
 use apollo_consensus_orchestrator::dynamic_gas_price::FeeProposalInfo;
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
@@ -27,6 +28,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -113,12 +115,13 @@ use starknet_api::transaction::{
 };
 use starknet_api::{calldata, contract_address};
 use starknet_committer::block_committer::input::StateDiff;
-use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::index_db::IndexDb;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::get_public_key;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_transaction_prover::running::committer_utils::commit_state_diff;
+use starknet_transaction_prover::running::committer_utils::commit_state_diff_with_witnesses;
 use starknet_types_core::felt::Felt;
 
 const GCS_ERROR_CODE_NOT_FOUND: u16 = 404;
@@ -188,6 +191,8 @@ struct BlockData {
     parent_block_hash: BlockHash,
     state_maps: StateMaps,
     state_roots: StateRoots,
+    compressed_state_commitment_infos: CompressedStateCommitmentInfos,
+    initial_reads: StateMaps,
 }
 
 impl From<BlockData> for BlobParameters {
@@ -201,6 +206,7 @@ impl From<BlockData> for BlobParameters {
             parent_partial_block_hash_components,
             parent_block_hash,
             state_maps,
+            initial_reads,
             ..
         } = block;
         let commitment_state_diff = CommitmentStateDiff::from(state_maps);
@@ -245,8 +251,9 @@ impl From<BlockData> for BlobParameters {
             proposal_commitment,
             parent_proposal_commitment,
             recent_block_hashes,
+            // Populated per blob in [BlobFactory::finalize], where all blocks are visible.
             recent_state_commitment_infos: vec![],
-            initial_reads: Default::default(),
+            initial_reads,
         }
     }
 }
@@ -264,7 +271,7 @@ struct BlobFactory {
     // Context.
     nonce_manager: NonceManager,
     state: DictStateReader,
-    committer_storage: FactsDb<MapStorage>,
+    committer_storage: IndexDb<MapStorage>,
 }
 
 impl BlobFactory {
@@ -286,7 +293,7 @@ impl BlobFactory {
             next_txs: vec![],
             nonce_manager: NonceManager::default(),
             state: DictStateReader::default(),
-            committer_storage: FactsDb::new(MapStorage::default()),
+            committer_storage: IndexDb::new(MapStorage::default()),
         }
     }
 
@@ -348,16 +355,22 @@ impl BlobFactory {
         let class_mapping = executor.block_state.unwrap().class_hash_to_class.borrow().clone();
         self.state.apply_writes(&state_maps, &class_mapping);
 
-        // Commit the block.
-        let prev_state_roots = self.last_finalized_state_roots();
-        let state_roots = commit_state_diff(
+        // Commit the block, collecting the Patricia witnesses for the accessed keys.
+        let accessed_keys = AccessedKeys::new(
+            transactions_with_receipts.iter().map(|tx| &tx.execution_info),
+            std::iter::empty(),
+            &committer_state_diff,
+            block_context.versioned_constants(),
+        );
+        let (state_roots, state_commitment_infos) = commit_state_diff_with_witnesses(
             &mut self.committer_storage,
-            prev_state_roots.contracts_trie_root_hash,
-            prev_state_roots.classes_trie_root_hash,
             state_diff,
+            &accessed_keys,
         )
         .await
         .expect("Failed to commit state diff.");
+        let compressed_state_commitment_infos =
+            state_commitment_infos.compress().expect("Failed to compress commitment infos.");
 
         // Compute the block hash.
         let transaction_hashing_data: Vec<_> = transactions_with_receipts
@@ -397,6 +410,8 @@ impl BlobFactory {
             parent_block_hash,
             state_maps,
             state_roots,
+            compressed_state_commitment_infos,
+            initial_reads: summary.initial_reads,
         });
     }
 
@@ -415,10 +430,20 @@ impl BlobFactory {
             state,
         );
 
+        // The blob of block N is written during block N+1, after block N's commitment
+        // completed, so each blob carries the commitment infos of all blocks up to its own.
+        let mut committed_state_commitment_infos = Vec::new();
         for block in blocks.into_iter() {
+            committed_state_commitment_infos.push(StateCommitmentInfosAndNumber {
+                state_commitment_infos: block.compressed_state_commitment_infos.clone(),
+                block_number: block.block_context.block_info().block_number,
+            });
+            let mut blob_parameters: BlobParameters = block.into();
+            blob_parameters.recent_state_commitment_infos =
+                committed_state_commitment_infos.clone();
             blobs.push(
                 AerospikeBlob::from_blob_parameters_and_class_manager(
-                    block.into(),
+                    blob_parameters,
                     shared_class_manager.clone(),
                 )
                 .await
