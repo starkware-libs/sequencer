@@ -143,8 +143,8 @@ impl CompressedStateCommitmentInfos {
     ///
     /// The one-shot compressor writes the decompressed size into the frame header, so the output
     /// buffer is allocated to that exact size up front instead of growing incrementally while
-    /// streaming the frame. Falls back to streaming decode if the size is absent, which should
-    /// not happen for frames produced by [`StateCommitmentInfos::compress`].
+    /// streaming the frame. Entries written before the compressor became one-shot carry no size in
+    /// their header, so those fall back to streaming decode.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
         let decompressed_size = zstd::zstd_safe::get_frame_content_size(&self.0)
             .ok()
