@@ -104,12 +104,7 @@ pub struct AerospikeBlob {
     proposal_commitment: ProposalCommitment,
     parent_proposal_commitment: Option<ProposalCommitment>,
     recent_block_hashes: Vec<BlockHashAndNumber>,
-    // Production only serializes blobs, so these defaults affect nothing outside tests: the sole
-    // deserializer is the blob-regression test, whose pinned fixture predates these fields.
-    // TODO(Itamar): Remove once the pinned regression blobs are regenerated with witness fields.
-    #[cfg_attr(any(feature = "testing", test), serde(default))]
     recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
-    #[cfg_attr(any(feature = "testing", test), serde(default))]
     initial_reads: StateMaps,
 }
 
