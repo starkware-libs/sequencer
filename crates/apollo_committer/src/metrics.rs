@@ -96,6 +96,12 @@ define_metrics!(
             "Compute written entries per second average over a block (cumulative)",
             init = 0
         },
+        MetricHistogram {
+            COMMITTER_BLOCK_COMMIT_LATENCY,
+            "committer_block_commit_latency",
+            "Latency of committing a single block, in seconds (recorded for both commits and \
+             reverts)"
+        },
     },
 );
 
@@ -115,4 +121,5 @@ pub fn register_metrics(offset: BlockNumber) {
     AVERAGE_WRITE_RATE.register();
     COMPUTE_DURATION_PER_BLOCK.register();
     AVERAGE_COMPUTE_RATE.register();
+    COMMITTER_BLOCK_COMMIT_LATENCY.register();
 }
