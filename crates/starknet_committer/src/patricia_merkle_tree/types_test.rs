@@ -4,6 +4,8 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{contract_address_into_node_index, StarknetStorageKey};
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::types::StateCommitmentInfos;
 use crate::patricia_merkle_tree::types::{
     fixed_hex_string_no_prefix,
     CompressedStateCommitmentInfos,
@@ -32,6 +34,23 @@ fn test_fixed_hex_string_no_prefix(
     let fixed_hex = fixed_hex_string_no_prefix(&value);
     assert_eq!(fixed_hex.len(), 64);
     assert_eq!(Felt::from_hex(&fixed_hex).unwrap(), value);
+}
+
+/// Consumers one-shot decompress the payload, which requires the decompressed size to be readable
+/// from the frame header rather than only by streaming the frame to its end.
+#[cfg(feature = "os_input")]
+#[test]
+fn test_compressed_state_commitment_infos_frame_header_declares_decompressed_size() {
+    let commitment_infos = StateCommitmentInfos::default();
+    let bincode_payload_length = bincode::serialize(&commitment_infos).unwrap().len();
+
+    let compressed = commitment_infos.compress().unwrap();
+
+    assert_eq!(
+        zstd::zstd_safe::get_frame_content_size(&compressed.0).unwrap(),
+        Some(u64::try_from(bincode_payload_length).unwrap())
+    );
+    assert_eq!(compressed.decompress().unwrap(), commitment_infos);
 }
 
 #[test]
