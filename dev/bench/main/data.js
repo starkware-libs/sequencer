@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785426339173,
+  "lastUpdate": 1785667400217,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7105,6 +7105,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1338.93591321,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0afb3f5b1622e76aef736c6bd5c555ebdcdfd33a",
+          "message": "starknet_committer: compress state commitment infos into a size-carrying zstd frame (#14906)",
+          "timestamp": "2026-08-02T10:29:23Z",
+          "tree_id": "f1afd9a35837446ab7522a2874413ff3bbb7f28c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0afb3f5b1622e76aef736c6bd5c555ebdcdfd33a"
+        },
+        "date": 1785667399846,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 815.97882579,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1213.0633636500002,
             "unit": "ms"
           }
         ]
