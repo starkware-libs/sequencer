@@ -49,12 +49,15 @@ fn revert_state_commitment_infos() {
         .unwrap()
         .append_state_commitment_infos(height, &dummy_state_commitment_infos())
         .unwrap()
-        .revert_state_commitment_infos(height)
-        .unwrap()
         .commit()
         .unwrap();
 
+    assert!(reader.begin_ro_txn().unwrap().has_state_commitment_infos(height).unwrap());
+
+    writer.begin_rw_txn().unwrap().revert_state_commitment_infos(height).unwrap().commit().unwrap();
+
     assert_eq!(reader.begin_ro_txn().unwrap().get_state_commitment_infos(height).unwrap(), None);
+    assert!(!reader.begin_ro_txn().unwrap().has_state_commitment_infos(height).unwrap());
 
     // Reverting a height with no stored infos is a no-op.
     writer
