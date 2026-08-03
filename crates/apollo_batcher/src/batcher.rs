@@ -992,7 +992,7 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
             #[cfg(feature = "os_input")]
-            Some(accessed_keys.clone()),
+            Some(&accessed_keys),
         )
         .await?;
 
@@ -1080,7 +1080,7 @@ impl Batcher {
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        #[cfg(feature = "os_input")] accessed_keys: Option<AccessedKeys>,
+        #[cfg(feature = "os_input")] accessed_keys: Option<&AccessedKeys>,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -1899,13 +1899,17 @@ pub trait BatcherStorageWriter: Send + Sync {
         storage_commitment_block_hash: StorageCommitmentBlockHash,
     ) -> StorageResult<()>;
 
+    // clippy suggests eliding `'a`, but elision fails to compile under `#[automock]` (E0106 /
+    // E0637): the reference is nested inside `Option`, which the macro's codegen can't handle
+    // without a named lifetime.
     #[cfg(feature = "os_input")]
-    fn commit_proposal(
+    #[allow(clippy::needless_lifetimes)]
+    fn commit_proposal<'a>(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<&'a AccessedKeys>,
     ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1944,7 +1948,7 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        #[cfg(feature = "os_input")] accessed_keys: Option<AccessedKeys>,
+        #[cfg(feature = "os_input")] accessed_keys: Option<&AccessedKeys>,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
@@ -1961,7 +1965,7 @@ impl BatcherStorageWriter for StorageWriter {
         }
         #[cfg(feature = "os_input")]
         if let Some(accessed_keys) = accessed_keys {
-            txn = txn.append_accessed_keys(height, &accessed_keys)?;
+            txn = txn.append_accessed_keys(height, accessed_keys)?;
         }
         txn.commit()
     }
