@@ -544,7 +544,7 @@ where
                         expected: digest,
                     });
                 }
-                let state_commitment_infos = self
+                let compressed_state_commitment_infos = self
                     .forest_storage
                     .read_commitment_infos(height)
                     .await
@@ -552,7 +552,7 @@ where
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
+                    state_commitment_infos: compressed_state_commitment_infos,
                 })
             }
             // Flow overview:
@@ -598,6 +598,9 @@ where
                     deleted_nodes_count = deleted_nodes.len(),
                 );
                 block_measurements.start_measurement(Action::Write);
+                // The same compressed payload is persisted to the forest DB and returned to the
+                // caller, so it's computed once here rather than once per consumer.
+                let compressed_state_commitment_infos = state_commitment_infos.compress()?;
                 let n_write_entries = self
                     .forest_storage
                     .write_with_metadata_and_commitment_infos(
@@ -607,7 +610,7 @@ where
                         CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                             block_number: height,
                             keys_digest: digest,
-                            commitment_infos: state_commitment_infos.clone(),
+                            commitment_infos: compressed_state_commitment_infos.clone(),
                         }),
                     )
                     .await
@@ -622,7 +625,7 @@ where
                 self.update_offset(next_offset);
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
+                    state_commitment_infos: compressed_state_commitment_infos,
                 })
             }
         }

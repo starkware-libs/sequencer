@@ -24,8 +24,6 @@ use starknet_patricia_storage::storage_trait::AsyncStorage;
 use starknet_patricia_storage::storage_trait::DbOperation;
 #[cfg(feature = "os_input")]
 use starknet_patricia_storage::storage_trait::ImmutableReadOnlyStorage;
-#[cfg(feature = "os_input")]
-use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
@@ -74,8 +72,6 @@ use crate::db::index_db::types::{
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
-#[cfg(feature = "os_input")]
-use crate::forest::forest_errors::ForestError;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::hash_function::hash::TreeHashFunctionImpl;
@@ -84,11 +80,7 @@ use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::{fetch_all_patricia_paths, SortedLeafIndices};
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 #[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::{
-    CompressedStateCommitmentInfos,
-    StarknetForestProofs,
-    StateCommitmentInfos,
-};
+use crate::patricia_merkle_tree::types::{CompressedStateCommitmentInfos, StarknetForestProofs};
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
 pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
@@ -376,19 +368,14 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
     async fn read_commitment_infos(
         &mut self,
         height: BlockNumber,
-    ) -> ForestResult<Option<StateCommitmentInfos>> {
+    ) -> ForestResult<Option<CompressedStateCommitmentInfos>> {
         let db_key = DbKey(block_number_based_key(&PATRICIA_PATHS_PREFIX, DbBlockNumber(height)));
 
-        Ok(match self.get_from_storage(db_key).await? {
-            None => None,
-            Some(DbValue(bytes)) => {
-                Some(CompressedStateCommitmentInfos(bytes).decompress().map_err(|e| {
-                    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
-                        DeserializationError::ValueError(Box::new(e)),
-                    ))
-                })?)
-            }
-        })
+        // Values are stored already compressed; return them as-is.
+        Ok(self
+            .get_from_storage(db_key)
+            .await?
+            .map(|DbValue(bytes)| CompressedStateCommitmentInfos(bytes)))
     }
 
     async fn fetch_patricia_witnesses(
@@ -463,7 +450,7 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
                 keys_digest,
                 commitment_infos,
             }) => {
-                let encoded = DbValue(commitment_infos.compress()?.0);
+                let encoded = DbValue(commitment_infos.0);
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
                         block_number,
