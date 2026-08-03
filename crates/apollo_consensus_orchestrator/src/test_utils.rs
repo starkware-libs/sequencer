@@ -344,6 +344,8 @@ impl TestDeps {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
         });
         #[cfg(feature = "os_input")]
+        self.batcher.expect_has_state_commitment_infos().returning(|_block_number| Ok(false));
+        #[cfg(feature = "os_input")]
         self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
     }
 
