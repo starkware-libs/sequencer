@@ -13,6 +13,8 @@ use apollo_batcher_types::batcher_types::{
     SendTxsForProposalStatus,
 };
 use apollo_batcher_types::communication::BatcherClientError;
+#[cfg(feature = "os_input")]
+use apollo_batcher_types::communication::BatcherClientResult;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
@@ -63,6 +65,8 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 #[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+#[cfg(feature = "os_input")]
+use tracing_test::traced_test;
 
 #[cfg(feature = "os_input")]
 use crate::cende::{CendeAmbassadorError, StateCommitmentInfosAndNumber};
@@ -1036,6 +1040,35 @@ async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() 
     );
 }
 
+#[cfg(feature = "os_input")]
+#[traced_test]
+#[rstest]
+#[case::batcher_has_infos(Ok(true), "has the state commitment infos of the stop height 100")]
+#[case::batcher_missing_infos(
+    Ok(false),
+    "Stopping at height 100, but the batcher has no state commitment infos for it"
+)]
+#[case::check_fails(
+    Err(BatcherClientError::BatcherError(BatcherError::InternalError)),
+    "Failed to check whether the batcher has the state commitment infos of the stop height 100"
+)]
+#[tokio::test]
+async fn state_commitment_infos_check_at_stop_height_logs_storage_status(
+    #[case] has_infos_result: BatcherClientResult<bool>,
+    #[case] expected_log: &str,
+) {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_has_state_commitment_infos()
+        .withf(|block_number| block_number.0 == 100)
+        .times(1)
+        .return_once(move |_| has_infos_result);
+
+    let context = deps.build_context();
+    context.warn_on_missing_state_commitment_infos_at_stop_height(BlockNumber(100)).await;
+    assert!(logs_contain(expected_log), "expected a log containing: {expected_log}");
+}
+
 /// Verify that when `stop_at_height` is set and decision is reached at that height:
 /// 1. `wait_for_block_hash` retries until the batcher has computed the hash.
 /// 2. The blob contains the block hash of that height.
@@ -1083,6 +1116,15 @@ async fn decision_reached_at_stop_height_writes_blob_immediately() {
         .withf(move |h| *h == STOP_HEIGHT.unchecked_next())
         .times(1)
         .return_once(|_| tokio::spawn(ready(true)));
+
+    // Once the block hash wait is over, the stop-height check queries the batcher for the stop
+    // height's state commitment infos.
+    #[cfg(feature = "os_input")]
+    deps.batcher
+        .expect_has_state_commitment_infos()
+        .withf(move |block_number| *block_number == STOP_HEIGHT)
+        .times(1)
+        .returning(|_| Ok(true));
 
     deps.setup_deps_for_validate(SetupDepsArgs {
         start_block_number: STOP_HEIGHT,
