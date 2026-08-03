@@ -127,7 +127,7 @@ pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
 
 fn create_inner_node_patricia_key(val: Felt) -> DbKey {
     create_db_key(
-        DbKeyPrefix::new(DEFAULT_PATRICIA_NODE_PREFIX.into()),
+        &DbKeyPrefix::new(DEFAULT_PATRICIA_NODE_PREFIX.into()),
         DEFAULT_DB_KEY_SEPARATOR,
         &val.to_bytes_be(),
     )
@@ -135,7 +135,7 @@ fn create_inner_node_patricia_key(val: Felt) -> DbKey {
 
 pub fn create_leaf_patricia_key<L: LeafWithEmptyKeyContext>(val: u128) -> DbKey {
     create_db_key(
-        L::get_static_prefix(&EmptyKeyContext),
+        &L::get_static_prefix(&EmptyKeyContext),
         DEFAULT_DB_KEY_SEPARATOR,
         &U256::from(val).to_be_bytes(),
     )
@@ -214,7 +214,7 @@ pub fn create_root_edge_entry(old_root: u128, subtree_height: SubTreeHeight) -> 
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
     let key = create_db_key(
-        DbKeyPrefix::new(DEFAULT_PATRICIA_NODE_PREFIX.into()),
+        &DbKeyPrefix::new(DEFAULT_PATRICIA_NODE_PREFIX.into()),
         DEFAULT_DB_KEY_SEPARATOR,
         &Felt::from(new_root).to_bytes_be(),
     );

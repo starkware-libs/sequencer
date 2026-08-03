@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use async_recursion::async_recursion;
 use starknet_api::hash::HashOutput;
-use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
+use starknet_patricia_storage::db_object::{DBObject, HasDynamicPrefix, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::DbHashMap;
 
@@ -361,13 +361,18 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         &self,
         key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
     ) -> SerializationResult<DbHashMap> {
+        // All nodes in this call share `key_context` (e.g. one contract's storage trie shares
+        // its contract address), so the db key prefix, when it doesn't depend on node data, is
+        // computed once here instead of once per node.
+        let prefix_hint = Layout::NodeDbObject::static_prefix_hint(key_context);
+
         // This function iterates over each node in the tree, using the node's `db_key` as the
         // hashmap key and the result of the node's `serialize` method as the value.
         self.get_all_nodes()
             .iter()
             .map(|(index, node)| {
                 let (db_key, node_db_object) =
-                    Layout::get_db_object(*index, key_context, node.clone());
+                    Layout::get_db_object(*index, key_context, node.clone(), prefix_hint.as_ref());
                 let db_value = node_db_object.serialize()?;
                 Ok((db_key, db_value))
             })

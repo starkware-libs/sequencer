@@ -14,6 +14,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
+    DbKeyPrefix,
     DbOperationMap,
     PatriciaStorageResult,
     Storage,
@@ -68,6 +69,9 @@ impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout {
         _node_index: NodeIndex,
         key_context: &<L as HasStaticPrefix>::KeyContext,
         filled_node: FilledNode<LeafBase, HashOutput>,
+        // In facts layout the prefix depends on the node's type (inner node vs. leaf), so it
+        // can't be hoisted out of the per-node loop; always recompute it from `key_context`.
+        _prefix_hint: Option<&DbKeyPrefix>,
     ) -> (DbKey, Self::NodeDbObject) {
         let hash_filled_node = Self::convert_node_data_and_leaf(filled_node);
 

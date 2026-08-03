@@ -186,7 +186,7 @@ fn insert_inner_nodes<S: std::hash::BuildHasher>(
         let filled_node = FactDbFilledNode::<StarknetStorageValue>::from((HashOutput(*hash), node));
         let value = filled_node.serialize()?;
         let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
-        let key = create_db_key(node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &hash.to_bytes_be());
+        let key = create_db_key(&node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &hash.to_bytes_be());
         db_map.insert(key, value);
     }
 
@@ -281,7 +281,7 @@ fn add_dummy_node_for_orphan_child(
     if !has_preimage.contains(child_hash) {
         let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
         let key =
-            create_db_key(node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &child_hash.to_bytes_be());
+            create_db_key(&node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &child_hash.to_bytes_be());
         db_map.entry(key).or_insert_with(|| dummy_value.clone());
     }
 }

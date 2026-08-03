@@ -214,6 +214,17 @@ pub(crate) fn get_node_index_db_key<L: Leaf>(
     node_index: NodeIndex,
 ) -> DbKey {
     let prefix = L::get_static_prefix(key_context);
+    get_node_index_db_key_with_prefix::<L>(&prefix, node_index)
+}
+
+/// Like `get_node_index_db_key`, but takes an already-computed prefix (see
+/// `HasDynamicPrefix::static_prefix_hint`) instead of deriving it from a key context. Useful when
+/// building keys for many node indices that share the same prefix, to avoid recomputing it for
+/// each one.
+pub(crate) fn get_node_index_db_key_with_prefix<L: Leaf>(
+    prefix: &DbKeyPrefix,
+    node_index: NodeIndex,
+) -> DbKey {
     let suffix = node_index.0.to_be_bytes();
     create_db_key(prefix, L::DB_KEY_SEPARATOR, &suffix)
 }
