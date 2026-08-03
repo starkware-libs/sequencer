@@ -64,7 +64,9 @@ pub trait BatcherClient: Send + Sync {
         block_number: BlockNumber,
     ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>>;
     /// Returns whether the compressed state commitment infos for a block are stored, without
-    /// transferring the (potentially large) stored blob.
+    /// transferring the (potentially large) stored blob. `false` carries the same meaning as
+    /// `get_state_commitment_infos` returning `None`: the block may not be committed yet, may
+    /// have been added via sync, or its commitment infos may have been reverted.
     #[cfg(feature = "os_input")]
     async fn has_state_commitment_infos(
         &self,

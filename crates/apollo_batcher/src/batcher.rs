@@ -1767,7 +1767,8 @@ pub trait BatcherStorageReader: Send + Sync {
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
 
     /// Returns whether the state commitment infos for the given height are stored, without
-    /// reading the stored blob.
+    /// reading the stored blob. `false` carries the same meaning as `get_state_commitment_infos`
+    /// returning `None`.
     #[cfg(feature = "os_input")]
     fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool>;
 

@@ -12,6 +12,7 @@ mod state_commitment_infos_test;
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::{OffsetKind, StorageResult, StorageTransaction};
 
 // Stores the raw compressed bytes.
@@ -27,14 +28,18 @@ impl StorageSerde for CompressedStateCommitmentInfos {
 
 /// Interface for reading the OS-input commitment infos from storage.
 pub trait StateCommitmentInfosStorageReader<Mode: TransactionKind> {
-    /// Returns the compressed commitment infos for the given block, or `None` if not stored.
+    /// Returns the compressed commitment infos for the given block, or `None` if not stored (e.g.
+    /// the block was added via sync, or its commitment infos were reverted).
     fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
 
     /// Returns whether the compressed commitment infos for the given block are stored, without
-    /// reading the stored blob.
+    /// reading the stored blob. `false` carries the same meaning as `get_state_commitment_infos`
+    /// returning `None`; unlike `get_state_commitment_infos`, this does not detect a stored entry
+    /// whose blob is unreadable (e.g. on-disk corruption), since that would require reading the
+    /// blob and defeat the purpose of this cheaper check.
     fn has_state_commitment_infos(&self, block_number: BlockNumber) -> StorageResult<bool>;
 }
 
@@ -62,16 +67,33 @@ impl<T: StorageTransaction> StateCommitmentInfosStorageReader<<T as StorageTrans
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>> {
-        let table = self.open_table(&self.tables().state_commitment_infos)?;
-        let Some(location) = table.get(self.txn(), &block_number)? else {
+        let Some(location) = self.state_commitment_infos_location(block_number)? else {
             return Ok(None);
         };
         Ok(Some(self.file_handlers().get_state_commitment_infos_unchecked(location)?))
     }
 
     fn has_state_commitment_infos(&self, block_number: BlockNumber) -> StorageResult<bool> {
+        Ok(self.state_commitment_infos_location(block_number)?.is_some())
+    }
+}
+
+trait StateCommitmentInfosLocationReader {
+    /// Looks up the stored location of the given block's compressed commitment infos, without
+    /// reading the blob itself.
+    fn state_commitment_infos_location(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<LocationInFile>>;
+}
+
+impl<T: StorageTransaction> StateCommitmentInfosLocationReader for T {
+    fn state_commitment_infos_location(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<LocationInFile>> {
         let table = self.open_table(&self.tables().state_commitment_infos)?;
-        Ok(table.get(self.txn(), &block_number)?.is_some())
+        Ok(table.get(self.txn(), &block_number)?)
     }
 }
 
