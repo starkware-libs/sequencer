@@ -51,6 +51,16 @@ pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 pub type CompiledClassHashV2ToV1 = (CompiledClassHash, CompiledClassHash);
 pub type CompiledClassHashesForMigration = Vec<CompiledClassHashV2ToV1>;
 
+/// Whether block finalization collects the OS initial reads (see `get_os_initial_reads`).
+#[derive(Clone, Copy, Debug)]
+pub enum OsInitialReadsCollection {
+    Collect,
+    /// Skips collection, leaving `BlockExecutionSummary::initial_reads` empty. Required when the
+    /// state reader serves a read-set pre os_input feature.
+    #[cfg(feature = "reexecution")]
+    Skip,
+}
+
 #[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
 pub struct BlockExecutionSummary {
@@ -214,15 +224,22 @@ impl<S: StateReader> TransactionExecutor<S> {
             &self.bouncer,
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             &self.block_context,
+            OsInitialReadsCollection::Collect,
         )
     }
 
     #[cfg(feature = "reexecution")]
-    pub fn non_consuming_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+    pub fn non_consuming_finalize(
+        &mut self,
+        os_initial_reads_collection: OsInitialReadsCollection,
+    ) -> TransactionExecutorResult<BlockExecutionSummary> {
         finalize_block(
             &self.bouncer,
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             &self.block_context,
+            // TODO(Yoav): Change this to `OsInitialReadsCollection::Skip` once the blob
+            // regression test is ready.
+            os_initial_reads_collection,
         )
     }
 }
@@ -237,6 +254,7 @@ pub(crate) fn finalize_block<S: StateReader>(
     bouncer: &Arc<Mutex<Bouncer>>,
     block_state: &mut CachedState<S>,
     block_context: &BlockContext,
+    os_initial_reads_collection: OsInitialReadsCollection,
 ) -> TransactionExecutorResult<BlockExecutionSummary> {
     let bouncer = lock_bouncer(bouncer);
     log::info!(
@@ -275,7 +293,13 @@ pub(crate) fn finalize_block<S: StateReader>(
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     #[cfg(feature = "os_input")]
-    let initial_reads = block_state.get_os_initial_reads()?;
+    let initial_reads = match os_initial_reads_collection {
+        OsInitialReadsCollection::Collect => block_state.get_os_initial_reads()?,
+        #[cfg(feature = "reexecution")]
+        OsInitialReadsCollection::Skip => StateMaps::default(),
+    };
+    #[cfg(not(feature = "os_input"))]
+    let _ = os_initial_reads_collection;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
         Some(compress(&state_diff, block_state, alias_contract_address)?.into())

@@ -23,7 +23,7 @@ use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
-use blockifier::blockifier::transaction_executor::TransactionExecutor;
+use blockifier::blockifier::transaction_executor::{OsInitialReadsCollection, TransactionExecutor};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
@@ -338,7 +338,7 @@ impl BlobFactory {
             transactions_with_receipts
                 .push(InternalTransactionWithReceipt { transaction: internal, execution_info });
         }
-        let summary = executor.non_consuming_finalize().unwrap();
+        let summary = executor.non_consuming_finalize(OsInitialReadsCollection::Collect).unwrap();
 
         // Apply changes to state and create the multitude of state-diff-like objects required...
         // The [CommitterStateDiff] type is the blockifier representation of the committer's state
