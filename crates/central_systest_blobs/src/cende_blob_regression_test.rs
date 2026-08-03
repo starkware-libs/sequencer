@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock};
 use std::{env, fs};
@@ -130,6 +131,10 @@ const GCS_ERROR_CODE_NOT_FOUND: u16 = 404;
 
 const BLOBS_BUCKET_NAME: &str = "apollo-central-systest-blobs";
 const BLOBS_FILE_NAME: &str = "blobs.json";
+// Plain-JSON form of each block's StateCommitmentInfos, keyed by block number; lets the python
+// side cross-check its bincode reader against the compressed entries in the blobs, in lockstep
+// with the blob generation.
+const DECODED_STATE_COMMITMENT_INFOS_FILE_NAME: &str = "state_commitment_infos_decoded.json";
 static BLOBS_GENERATION_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
     PathBuf::from(compile_time_cargo_manifest_dir!()).join("resources/blob_file_generation")
 });
@@ -182,6 +187,10 @@ fn current_generation() -> usize {
 
 fn blobs_object_path(generation: usize) -> String {
     format!("{generation}/{BLOBS_FILE_NAME}")
+}
+
+fn decoded_state_commitment_infos_object_path(generation: usize) -> String {
+    format!("{generation}/{DECODED_STATE_COMMITMENT_INFOS_FILE_NAME}")
 }
 
 struct BlockData {
@@ -423,7 +432,11 @@ impl BlobFactory {
 
     /// Creates blobs for all finalized blocks, and a preconfirmed block with the remaining txs that
     /// were not included in a block. See [Self::close_block] for details on how to close a block.
-    async fn finalize(self) -> (Vec<AerospikeBlob>, CendeWritePreconfirmedBlock) {
+    /// Also returns a per-block map of the decoded commitment infos, published beside the blobs.
+    async fn finalize(
+        self,
+    ) -> (Vec<AerospikeBlob>, BTreeMap<u64, StateCommitmentInfos>, CendeWritePreconfirmedBlock)
+    {
         let preconfirmed_block_context = self.next_block_context();
         let Self { blocks, class_manager, next_txs, state, .. } = self;
         let mut blobs = vec![];
@@ -441,8 +454,11 @@ impl BlobFactory {
         // blob of block N carries the commitment infos of block N - 1 (sent once, matching the
         // recorder's height-offset delta), and the first blob carries none.
         let mut previous_state_commitment_infos: Option<StateCommitmentInfosAndNumber> = None;
+        let mut decoded_state_commitment_infos = BTreeMap::new();
         for block in blocks.into_iter() {
             let block_number = block.block_context.block_info().block_number;
+            decoded_state_commitment_infos
+                .insert(block_number.0, block.state_commitment_infos.clone());
             let block_state_commitment_infos = StateCommitmentInfosAndNumber {
                 state_commitment_infos: block
                     .state_commitment_infos
@@ -465,7 +481,7 @@ impl BlobFactory {
             );
         }
 
-        (blobs, preconfirmed_block)
+        (blobs, decoded_state_commitment_infos, preconfirmed_block)
     }
 
     fn last_finalized_block_hash(&self) -> BlockHash {
@@ -885,10 +901,20 @@ async fn upload_new_object(client: &Client, object: String, content: String) {
         .unwrap();
 }
 
-/// Pushes the blobs to GCS.
-async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: &Client) {
+/// Pushes the blobs and their decoded commitment-infos companion to GCS at the same generation.
+async fn bump_generation_and_store_blob_files(
+    blobs: Vec<AerospikeBlob>,
+    decoded_state_commitment_infos: &BTreeMap<u64, StateCommitmentInfos>,
+    client: &Client,
+) {
     let next_generation = find_next_available_blobs_generation(client).await;
     upload_new_object(client, blobs_object_path(next_generation), to_normalized_json(&blobs)).await;
+    upload_new_object(
+        client,
+        decoded_state_commitment_infos_object_path(next_generation),
+        to_normalized_json(decoded_state_commitment_infos),
+    )
+    .await;
     fs::write(&*BLOBS_GENERATION_FILE, next_generation.to_string()).unwrap();
 }
 
@@ -897,6 +923,15 @@ async fn fetch_blob_file(client: &Client) -> Vec<AerospikeBlob> {
     let blobs_json =
         fetch_raw_object(client, blobs_object_path(current_generation())).await.unwrap();
     serde_json::from_slice(&blobs_json).unwrap()
+}
+
+/// Fetches the decoded commitment-infos companion from GCS.
+async fn fetch_decoded_state_commitment_infos_file(client: &Client) -> serde_json::Value {
+    let decoded_json =
+        fetch_raw_object(client, decoded_state_commitment_infos_object_path(current_generation()))
+            .await
+            .expect("Missing the decoded commitment infos.");
+    serde_json::from_slice(&decoded_json).unwrap()
 }
 
 // =====================
@@ -1016,20 +1051,27 @@ async fn test_make_data() {
         false, // should not revert (inner error is caught)
     );
 
-    let (blobs, preconfirmed_block) = blob_factory.finalize().await;
+    let (blobs, decoded_state_commitment_infos, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
     expect_file![PRECONFIRMED_BLOCK_PATH].assert_eq(&to_normalized_json(&preconfirmed_block));
 
     // Upload or download blobs depending on the fix mode.
     let client = gcs_client().await;
     if env::var("UPDATE_EXPECT").is_ok() {
-        bump_generation_and_store_blob_file(blobs, &client).await;
+        bump_generation_and_store_blob_files(blobs, &decoded_state_commitment_infos, &client).await;
     } else {
         let fetched_blobs = fetch_blob_file(&client).await;
         assert_eq!(
             to_comparable_blobs(&blobs),
             to_comparable_blobs(&fetched_blobs),
             "Blobs mismatch. To fix, run the test with UPDATE_EXPECT=1."
+        );
+        let fetched_decoded_state_commitment_infos =
+            fetch_decoded_state_commitment_infos_file(&client).await;
+        assert_eq!(
+            serde_json::to_value(&decoded_state_commitment_infos).unwrap(),
+            fetched_decoded_state_commitment_infos,
+            "Decoded state commitment infos mismatch. To fix, run the test with UPDATE_EXPECT=1."
         );
     }
 }
