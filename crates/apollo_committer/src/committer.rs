@@ -762,43 +762,50 @@ fn log_block_measurements(
     commit_duration_warn_threshold: Duration,
     #[cfg(feature = "os_input")] fetched_witnesses_count: usize,
 ) {
-    #[cfg(feature = "os_input")]
-    let witness_log = format!(
-        "witness fetch ms (pre-commit/post-commit): {:.0}/{:.0}, witness entries: {}",
-        durations.fetch_witnesses_first_pass * 1000.0,
-        durations.fetch_witnesses_second_pass * 1000.0,
-        fetched_witnesses_count,
-    );
-    #[cfg(not(feature = "os_input"))]
-    let witness_log = String::new();
+    // Building the message is deferred to a closure, invoked from inside the warn!/debug! macro
+    // args, so tracing's per-callsite level check can skip formatting entirely (this runs on
+    // every committed block, and only one of the two branches below is ever enabled at a time).
+    let format_block_stats = || {
+        #[cfg(feature = "os_input")]
+        let witness_log = format!(
+            "witness fetch ms (pre-commit/post-commit): {:.0}/{:.0}, witness entries: {}",
+            durations.fetch_witnesses_first_pass * 1000.0,
+            durations.fetch_witnesses_second_pass * 1000.0,
+            fetched_witnesses_count,
+        );
+        #[cfg(not(feature = "os_input"))]
+        let witness_log = String::new();
 
-    let stats = format!(
-        "Block {height} stats: durations in ms (total/read/compute/write): \
-         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates in \
-         entries/sec (read/compute/write): {}/{}/{}, modifications count \
-         (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}, \
-         {witness_log}",
-        durations.block * 1000.0,
-        durations.read * 1000.0,
-        durations.compute * 1000.0,
-        durations.write * 1000.0,
-        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.0}µs")),
-        read_rate.map_or(String::new(), |r| format!("{r:.0}")),
-        compute_rate.map_or(String::new(), |r| format!("{r:.0}")),
-        write_rate.map_or(String::new(), |r| format!("{r:.0}")),
-        modifications_counts.storage_tries,
-        modifications_counts.contracts_trie,
-        modifications_counts.classes_trie,
-        modifications_counts.emptied_storage_leaves,
-        emptied_leaves_percentage.map_or(String::new(), |p| format!(" ({p:.2}%)")),
-        witness_log = witness_log,
-    );
+        format!(
+            "Block {height} stats: durations in ms (total/read/compute/write): \
+             {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates in \
+             entries/sec (read/compute/write): {}/{}/{}, modifications count \
+             (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}, \
+             {witness_log}",
+            durations.block * 1000.0,
+            durations.read * 1000.0,
+            durations.compute * 1000.0,
+            durations.write * 1000.0,
+            total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.0}µs")),
+            read_rate.map_or(String::new(), |r| format!("{r:.0}")),
+            compute_rate.map_or(String::new(), |r| format!("{r:.0}")),
+            write_rate.map_or(String::new(), |r| format!("{r:.0}")),
+            modifications_counts.storage_tries,
+            modifications_counts.contracts_trie,
+            modifications_counts.classes_trie,
+            modifications_counts.emptied_storage_leaves,
+            emptied_leaves_percentage.map_or(String::new(), |p| format!(" ({p:.2}%)")),
+        )
+    };
 
     // A slow committer eventually stalls consensus (proposer waits on the N-10 hash).
-    let threshold_millis = commit_duration_warn_threshold.as_millis();
     if Duration::from_secs_f64(durations.block) > commit_duration_warn_threshold {
-        warn!("{stats}, block commit duration above the {threshold_millis} ms warn threshold");
+        warn!(
+            "{}, block commit duration above the {} ms warn threshold",
+            format_block_stats(),
+            commit_duration_warn_threshold.as_millis(),
+        );
     } else {
-        debug!("{stats}");
+        debug!("{}", format_block_stats());
     }
 }
