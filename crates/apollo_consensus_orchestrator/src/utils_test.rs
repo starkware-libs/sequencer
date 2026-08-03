@@ -10,8 +10,6 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 #[cfg(feature = "os_input")]
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use starknet_types_core::felt::Felt;
 
 use crate::build_proposal::ProposalBuildArguments;
@@ -358,10 +356,9 @@ async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
 #[cfg(feature = "os_input")]
 fn mock_batcher_commitment_infos(batcher_has_infos: bool) -> MockBatcherClient {
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_get_state_commitment_infos().times(1).returning(move |block_number| {
+    batcher.expect_has_state_commitment_infos().times(1).returning(move |block_number| {
         assert_eq!(block_number, NEXT_HEIGHT_RETRO_BLOCK_NUMBER);
-        Ok(batcher_has_infos
-            .then(|| CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())))
+        Ok(batcher_has_infos)
     });
     batcher
 }

@@ -63,6 +63,13 @@ pub trait BatcherClient: Send + Sync {
         &self,
         block_number: BlockNumber,
     ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>>;
+    /// Returns whether the compressed state commitment infos for a block are stored, without
+    /// transferring the (potentially large) stored blob.
+    #[cfg(feature = "os_input")]
+    async fn has_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<bool>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -122,6 +129,8 @@ pub enum BatcherRequest {
     GetBlockHash(BlockNumber),
     #[cfg(feature = "os_input")]
     GetStateCommitmentInfos(BlockNumber),
+    #[cfg(feature = "os_input")]
+    HasStateCommitmentInfos(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -150,6 +159,8 @@ pub enum BatcherResponse {
     GetBlockHash(BatcherResult<BlockHash>),
     #[cfg(feature = "os_input")]
     GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
+    #[cfg(feature = "os_input")]
+    HasStateCommitmentInfos(BatcherResult<bool>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -215,6 +226,23 @@ where
             request,
             BatcherResponse,
             GetStateCommitmentInfos,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    #[cfg(feature = "os_input")]
+    async fn has_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<bool> {
+        let request = BatcherRequest::HasStateCommitmentInfos(block_number);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            HasStateCommitmentInfos,
             BatcherClientError,
             BatcherError,
             Direct

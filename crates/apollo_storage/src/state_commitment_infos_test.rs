@@ -40,6 +40,26 @@ fn append_and_get_state_commitment_infos() {
 }
 
 #[test]
+fn has_state_commitment_infos() {
+    let (reader, mut writer) = get_test_storage().0;
+    let height = BlockNumber(5);
+
+    assert!(!reader.begin_ro_txn().unwrap().has_state_commitment_infos(height).unwrap());
+
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_commitment_infos(height, &dummy_state_commitment_infos())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    assert!(reader.begin_ro_txn().unwrap().has_state_commitment_infos(height).unwrap());
+    // A different height is still empty.
+    assert!(!reader.begin_ro_txn().unwrap().has_state_commitment_infos(BlockNumber(6)).unwrap());
+}
+
+#[test]
 fn revert_state_commitment_infos() {
     let (reader, mut writer) = get_test_storage().0;
     let height = BlockNumber(5);

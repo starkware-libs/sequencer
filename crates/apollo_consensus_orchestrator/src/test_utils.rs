@@ -344,7 +344,7 @@ impl TestDeps {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
         });
         #[cfg(feature = "os_input")]
-        self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
+        self.batcher.expect_has_state_commitment_infos().returning(|_block_number| Ok(false));
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
