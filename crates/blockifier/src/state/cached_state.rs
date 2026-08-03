@@ -305,7 +305,7 @@ impl<S: StateReader> CachedState<S> {
         self.update_initial_values_of_write_only_access()?;
         // Collect only the keys needed below, instead of cloning the entire (potentially large)
         // initial-reads map twice per block.
-        let (contract_addresses, declared_class_hashes) = {
+        let (contract_addresses, accessed_class_hashes) = {
             let cache = self.cache.borrow();
             let initial_reads = &cache.initial_reads;
             (
@@ -319,7 +319,7 @@ impl<S: StateReader> CachedState<S> {
             self.get_class_hash_at(contract_address)?;
             self.get_nonce_at(contract_address)?;
         }
-        for class_hash in declared_class_hashes {
+        for class_hash in accessed_class_hashes {
             self.get_compiled_class_hash(class_hash)?;
         }
         let mut os_initial_reads = self.get_initial_reads()?;
