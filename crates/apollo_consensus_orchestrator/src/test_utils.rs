@@ -342,6 +342,7 @@ impl TestDeps {
         self.batcher.expect_get_block_hash().returning(|block_number| {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
         });
+        self.batcher.expect_has_state_commitment_infos().returning(|_block_number| Ok(false));
         self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
     }
 
