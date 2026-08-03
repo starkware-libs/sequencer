@@ -1,14 +1,22 @@
 use apollo_batcher_types::communication::BatcherClientError;
+#[cfg(feature = "os_input")]
+use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_protobuf::consensus::ProposalInit;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+#[cfg(feature = "os_input")]
+use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use starknet_types_core::felt::Felt;
 
 use crate::build_proposal::ProposalBuildArguments;
+#[cfg(feature = "os_input")]
+use crate::cende::MockCendeContext;
 use crate::test_utils::create_proposal_build_arguments;
 use crate::utils::{
     get_l1_prices_in_fri_and_wei,
@@ -16,9 +24,24 @@ use crate::utils::{
     wait_for_retrospective_block_hash,
     RetrospectiveBlockHashError,
 };
+#[cfg(feature = "os_input")]
+use crate::utils::{
+    verify_retrospective_state_commitment_infos,
+    RetrospectiveStateCommitmentInfosError,
+};
 
 const CURRENT_BLOCK_NUMBER: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER);
 const RETRO_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
+#[cfg(feature = "os_input")]
+const NEXT_HEIGHT_RETRO_BLOCK_NUMBER: BlockNumber =
+    BlockNumber(CURRENT_BLOCK_NUMBER.0 + 1 - STORED_BLOCK_HASH_BUFFER);
+// A recorder offset above the next height's retrospective block number means its commitment infos
+// are stored; an offset equal to it means they are missing.
+#[cfg(feature = "os_input")]
+const STORED_HEIGHT_OFFSET: Option<BlockNumber> =
+    Some(BlockNumber(NEXT_HEIGHT_RETRO_BLOCK_NUMBER.0 + 1));
+#[cfg(feature = "os_input")]
+const BEHIND_HEIGHT_OFFSET: Option<BlockNumber> = Some(NEXT_HEIGHT_RETRO_BLOCK_NUMBER);
 const MUST_HAVE_BLOCK_HASH_FOR: BlockNumber = BlockNumber(1);
 const RETRO_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0x1234567890abcdef"));
 
@@ -330,4 +353,71 @@ async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
         res,
         Some(BlockHashAndNumber { number: RETRO_BLOCK_NUMBER, hash: RETRO_BLOCK_HASH })
     );
+}
+
+#[cfg(feature = "os_input")]
+fn mock_batcher_commitment_infos(batcher_has_infos: bool) -> MockBatcherClient {
+    let mut batcher = MockBatcherClient::new();
+    batcher.expect_get_state_commitment_infos().times(1).returning(move |block_number| {
+        assert_eq!(block_number, NEXT_HEIGHT_RETRO_BLOCK_NUMBER);
+        Ok(batcher_has_infos
+            .then(|| CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())))
+    });
+    batcher
+}
+
+#[cfg(feature = "os_input")]
+fn mock_cende_recorder_height_offset(height_offset: Option<BlockNumber>) -> MockCendeContext {
+    let mut cende_ambassador = MockCendeContext::new();
+    cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .returning(move || Ok(height_offset));
+    cende_ambassador
+}
+
+#[cfg(feature = "os_input")]
+#[rstest]
+#[case::stored_on_batcher(true, None, true)]
+#[case::stored_only_on_cende(false, STORED_HEIGHT_OFFSET, true)]
+#[case::both_sides_empty_skip_validation(false, None, true)]
+#[case::missing_on_batcher_and_recorder_behind(false, BEHIND_HEIGHT_OFFSET, false)]
+#[tokio::test]
+async fn retrospective_state_commitment_infos(
+    #[case] batcher_has_infos: bool,
+    #[case] cende_recorder_height_offset: Option<BlockNumber>,
+    #[case] validation_passes: bool,
+) {
+    // When the batcher has the commitment infos, the cende recorder must not be queried.
+    let cende_ambassador = if batcher_has_infos {
+        MockCendeContext::new()
+    } else {
+        mock_cende_recorder_height_offset(cende_recorder_height_offset)
+    };
+    let res = verify_retrospective_state_commitment_infos(
+        &mock_batcher_commitment_infos(batcher_has_infos),
+        &cende_ambassador,
+        CURRENT_BLOCK_NUMBER,
+    )
+    .await;
+
+    if validation_passes {
+        res.unwrap();
+    } else {
+        assert_matches!(res.unwrap_err(), RetrospectiveStateCommitmentInfosError::NotStored { .. });
+    }
+}
+
+#[cfg(feature = "os_input")]
+#[tokio::test]
+async fn retrospective_state_commitment_infos_next_height_below_buffer() {
+    // No queries are expected: heights whose next height is below the buffer have no
+    // retrospective block.
+    verify_retrospective_state_commitment_infos(
+        &MockBatcherClient::new(),
+        &MockCendeContext::new(),
+        BlockNumber(STORED_BLOCK_HASH_BUFFER - 2),
+    )
+    .await
+    .unwrap();
 }
