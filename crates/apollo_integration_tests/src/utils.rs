@@ -1301,6 +1301,39 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
     verify_witnesses_flow(&sequencers).await;
+    verify_recorder_blobs_flow(&sequencers, scenario_timeout).await;
+}
+
+/// Verifies that the sequencers sent the recorders cende blobs carrying state commitment infos,
+/// whose heights continued the offset each recorder served.
+async fn verify_recorder_blobs_flow(
+    sequencers: &[&FlowSequencerSetup],
+    scenario_timeout: Duration,
+) {
+    // A blob is prepared before its own height's commitment completes, so early blobs may
+    // legitimately carry no infos; consensus keeps deciding heights, so wait for a later blob to
+    // carry the previously committed heights' infos.
+    timeout(scenario_timeout, async {
+        while sequencers
+            .iter()
+            .all(|sequencer| sequencer.recorder_stats.commitment_infos_height_offset().is_none())
+        {
+            info!("Waiting for a cende blob carrying state commitment infos.");
+            sleep(TIME_BETWEEN_CHECKS).await;
+        }
+    })
+    .await
+    .expect("No cende blob carried state commitment infos.");
+
+    for sequencer in sequencers {
+        let invalid_heights = sequencer.recorder_stats.invalid_heights();
+        assert!(
+            invalid_heights.is_empty(),
+            "The recorder of sequencer {} stored commitment infos for unexpected heights: \
+             {invalid_heights:?}",
+            sequencer.node_index,
+        );
+    }
 }
 
 /// Verifies that every sequencer persisted Patricia witnesses (`StateCommitmentInfos`) for every
