@@ -1273,6 +1273,37 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
     verify_witnesses_flow(&sequencers).await;
+    verify_recorder_blobs_flow(&sequencers, scenario_timeout).await;
+}
+
+/// Verifies that the sequencers sent the recorders cende blobs carrying state commitment infos.
+async fn verify_recorder_blobs_flow(
+    sequencers: &[&FlowSequencerSetup],
+    scenario_timeout: Duration,
+) {
+    let total_across_sequencers = |counter: fn(&RecorderStats) -> &AtomicUsize| {
+        sequencers
+            .iter()
+            .map(|sequencer| counter(&sequencer.recorder_stats).load(AtomicOrdering::Relaxed))
+            .sum::<usize>()
+    };
+    // A blob is prepared before its own height's commitment completes, so early blobs may
+    // legitimately carry no infos; consensus keeps deciding heights, so wait for a later blob to
+    // carry the previously committed heights' infos.
+    timeout(scenario_timeout, async {
+        while total_across_sequencers(|stats| &stats.num_blobs_with_state_commitment_infos) == 0 {
+            info!("Waiting for a cende blob carrying state commitment infos.");
+            sleep(TIME_BETWEEN_CHECKS).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "No cende blob carried state commitment infos, out of the {} blobs the recorders \
+             received.",
+            total_across_sequencers(|stats| &stats.num_blobs_received),
+        )
+    });
 }
 
 /// Verifies that every sequencer persisted Patricia witnesses (`StateCommitmentInfos`) for every
