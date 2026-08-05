@@ -791,7 +791,7 @@ async fn gcs_client() -> Client {
 async fn find_next_available_blobs_generation(client: &Client) -> usize {
     let mut next_generation = current_generation() + 1;
     loop {
-        match fetch_raw_blobs_at_generation(client, next_generation).await {
+        match fetch_raw_object(client, blobs_object_path(next_generation)).await {
             Ok(_) => next_generation += 1,
             Err(GcsError::Response(ErrorResponse { code: GCS_ERROR_CODE_NOT_FOUND, .. })) => break,
             Err(GcsError::HttpClient(error))
@@ -805,15 +805,12 @@ async fn find_next_available_blobs_generation(client: &Client) -> usize {
     next_generation
 }
 
-async fn fetch_raw_blobs_at_generation(
-    client: &Client,
-    generation: usize,
-) -> Result<Vec<u8>, GcsError> {
+async fn fetch_raw_object(client: &Client, object: String) -> Result<Vec<u8>, GcsError> {
     client
         .download_object(
             &GetObjectRequest {
                 bucket: BLOBS_BUCKET_NAME.to_string(),
-                object: blobs_object_path(generation),
+                object,
                 ..Default::default()
             },
             &Range::default(),
@@ -821,10 +818,7 @@ async fn fetch_raw_blobs_at_generation(
         .await
 }
 
-/// Pushes the blobs to GCS.
-async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: &Client) {
-    let blobs_json = to_normalized_json(&blobs);
-    let next_generation = find_next_available_blobs_generation(client).await;
+async fn upload_new_object(client: &Client, object: String, content: String) {
     client
         .upload_object(
             &UploadObjectRequest {
@@ -833,17 +827,24 @@ async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: 
                 if_generation_match: Some(0),
                 ..Default::default()
             },
-            blobs_json.into_bytes(),
-            &UploadType::Simple(Media::new(blobs_object_path(next_generation))),
+            content.into_bytes(),
+            &UploadType::Simple(Media::new(object)),
         )
         .await
         .unwrap();
+}
+
+/// Pushes the blobs to GCS.
+async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: &Client) {
+    let next_generation = find_next_available_blobs_generation(client).await;
+    upload_new_object(client, blobs_object_path(next_generation), to_normalized_json(&blobs)).await;
     fs::write(&*BLOBS_GENERATION_FILE, next_generation.to_string()).unwrap();
 }
 
 /// Fetches the blobs from GCS.
 async fn fetch_blob_file(client: &Client) -> Vec<AerospikeBlob> {
-    let blobs_json = fetch_raw_blobs_at_generation(client, current_generation()).await.unwrap();
+    let blobs_json =
+        fetch_raw_object(client, blobs_object_path(current_generation())).await.unwrap();
     serde_json::from_slice(&blobs_json).unwrap()
 }
 
