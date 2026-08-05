@@ -35,6 +35,7 @@ use apollo_consensus_config::config::{
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::{
+    RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH,
     RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
     RECORDER_WRITE_BLOB_PATH,
 };
@@ -610,6 +611,20 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
                         Json(serde_json::json!({ "block_number": 0 }))
                     }
                     .instrument(tracing::debug_span!("success recorder get_latest_received_block"))
+                }),
+            )
+            .route(
+                RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH,
+                get(|| {
+                    async {
+                        debug!("Received a request for commitment_infos_height_offset.");
+                        // `null` marks an empty recorder, letting proposals pass the
+                        // retrospective commitment-infos check before any blob is stored.
+                        Json(serde_json::json!({ "block_number": null }))
+                    }
+                    .instrument(tracing::debug_span!(
+                        "success recorder commitment_infos_height_offset"
+                    ))
                 }),
             );
         let listener = TcpListener::bind(socket_address).await.unwrap();

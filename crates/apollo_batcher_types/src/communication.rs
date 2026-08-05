@@ -15,7 +15,6 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, ReplayBlockMetadata};
-#[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
@@ -58,7 +57,6 @@ pub trait BatcherClient: Send + Sync {
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
     /// Gets the compressed state commitment infos for a block. Returns `Ok(None)` when the block
     /// is not committed yet.
-    #[cfg(feature = "os_input")]
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,
@@ -120,7 +118,6 @@ pub trait BatcherClient: Send + Sync {
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetBlockHash(BlockNumber),
-    #[cfg(feature = "os_input")]
     GetStateCommitmentInfos(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
@@ -148,7 +145,6 @@ generate_permutation_labels! {
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
-    #[cfg(feature = "os_input")]
     GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
@@ -204,7 +200,6 @@ where
         )
     }
 
-    #[cfg(feature = "os_input")]
     async fn get_state_commitment_infos(
         &self,
         block_number: BlockNumber,

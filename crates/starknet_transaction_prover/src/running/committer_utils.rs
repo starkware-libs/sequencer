@@ -1,15 +1,13 @@
 use std::collections::HashSet;
 use std::hash::BuildHasher;
 
-#[cfg(feature = "os_input")]
 use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps, StorageDiff, StorageView};
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_committer::block_committer::commit::commit_block;
-#[cfg(feature = "os_input")]
 use starknet_committer::block_committer::commit::{
+    commit_block,
     commit_block_with_witnesses,
     CommitBlockWithWitnessesOutput,
 };
@@ -25,15 +23,11 @@ use starknet_committer::db::facts_db::db::{FactDbFilledNode, FactsDb};
 use starknet_committer::db::facts_db::node_serde::{PatriciaPrefix, FACT_LAYOUT_DB_KEY_SEPARATOR};
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
-#[cfg(feature = "os_input")]
 use starknet_committer::db::index_db::{IndexDb, IndexDbReadContext};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-#[cfg(feature = "os_input")]
 use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
-use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
-#[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{CompiledClassHash, StateCommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
@@ -350,7 +344,6 @@ pub async fn commit_state_diff(
 
 /// Commits the state diff, collects the OS-input Patricia witness paths, and returns the new state
 /// roots together with the [`StateCommitmentInfos`] needed by the OS.
-#[cfg(feature = "os_input")]
 pub async fn commit_state_diff_with_witnesses(
     index_db: &mut IndexDb<MapStorage>,
     state_diff: StateDiff,
@@ -383,7 +376,6 @@ pub async fn commit_state_diff_with_witnesses(
 
 /// Commits the state diff (without collecting witnesses), persists the new forest, and returns the
 /// new state roots.
-#[cfg(feature = "os_input")]
 pub async fn commit_state_diff_to_index_db(
     index_db: &mut IndexDb<MapStorage>,
     state_diff: StateDiff,

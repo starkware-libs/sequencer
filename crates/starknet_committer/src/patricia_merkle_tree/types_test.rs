@@ -4,11 +4,10 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{contract_address_into_node_index, StarknetStorageKey};
-#[cfg(feature = "os_input")]
-use crate::patricia_merkle_tree::types::StateCommitmentInfos;
 use crate::patricia_merkle_tree::types::{
     fixed_hex_string_no_prefix,
     CompressedStateCommitmentInfos,
+    StateCommitmentInfos,
 };
 
 #[rstest]
@@ -38,7 +37,6 @@ fn test_fixed_hex_string_no_prefix(
 
 /// Consumers one-shot decompress the payload, which requires the decompressed size to be readable
 /// from the frame header rather than only by streaming the frame to its end.
-#[cfg(feature = "os_input")]
 #[test]
 fn test_compressed_state_commitment_infos_frame_header_declares_decompressed_size() {
     let commitment_infos = StateCommitmentInfos::default();
