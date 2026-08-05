@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785697241939,
+  "lastUpdate": 1785933640490,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7173,6 +7173,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1270.4719634,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "16e5ac413ecc6ef78baf6da3644139954766ed5f",
+          "message": "workspace,ci: remove the os_input feature (make it unconditional) (#14902)",
+          "timestamp": "2026-08-05T12:26:41Z",
+          "tree_id": "ff718377f519fed5c1267de6be4a7cb3ba427021",
+          "url": "https://github.com/starkware-libs/sequencer/commit/16e5ac413ecc6ef78baf6da3644139954766ed5f"
+        },
+        "date": 1785933640016,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 885.11975407,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1381.1399983699998,
             "unit": "ms"
           }
         ]
