@@ -159,29 +159,26 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
             None => "".to_string(),
         };
 
+        // `value` is owned and not used again, so entry points can be moved out of the map
+        // instead of cloned.
+        let mut entry_points_by_type = value.entry_points_by_type;
         protobuf::Cairo0Class {
-            constructors: value
-                .entry_points_by_type
-                .get(&EntryPointType::Constructor)
-                .unwrap_or(&vec![])
-                .iter()
-                .cloned()
+            constructors: entry_points_by_type
+                .remove(&EntryPointType::Constructor)
+                .unwrap_or_default()
+                .into_iter()
                 .map(protobuf::EntryPoint::from)
                 .collect(),
-            externals: value
-                .entry_points_by_type
-                .get(&EntryPointType::External)
-                .unwrap_or(&vec![])
-                .iter()
-                .cloned()
+            externals: entry_points_by_type
+                .remove(&EntryPointType::External)
+                .unwrap_or_default()
+                .into_iter()
                 .map(protobuf::EntryPoint::from)
                 .collect(),
-            l1_handlers: value
-                .entry_points_by_type
-                .get(&EntryPointType::L1Handler)
-                .unwrap_or(&vec![])
-                .iter()
-                .cloned()
+            l1_handlers: entry_points_by_type
+                .remove(&EntryPointType::L1Handler)
+                .unwrap_or_default()
+                .into_iter()
                 .map(protobuf::EntryPoint::from)
                 .collect(),
             abi: encoded_abi,
@@ -201,8 +198,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
         let contract_class_version = value.contract_class_version;
 
         let mut entry_points_by_type = HashMap::new();
-        let entry_points =
-            value.entry_points.clone().ok_or(missing("Cairo1Class::entry_points"))?;
+        let entry_points = value.entry_points.ok_or(missing("Cairo1Class::entry_points"))?;
         if !entry_points.constructors.is_empty() {
             entry_points_by_type.insert(
                 EntryPointType::Constructor,
@@ -249,36 +245,26 @@ impl From<state::SierraContractClass> for protobuf::Cairo1Class {
     fn from(value: state::SierraContractClass) -> Self {
         let abi = value.abi;
 
-        let program =
-            value.sierra_program.clone().into_iter().map(protobuf::Felt252::from).collect();
+        let program = value.sierra_program.into_iter().map(protobuf::Felt252::from).collect();
 
+        // `value` is owned and not used again, so entry points can be moved out of
+        // `entry_points_by_type` directly instead of round-tripping through a cloned
+        // `HashMap` per entry-point kind (`to_hash_map` clones all three vectors on every call).
+        let entry_points_by_type = value.entry_points_by_type;
         let entry_points = Some(protobuf::Cairo1EntryPoints {
-            constructors: value
-                .entry_points_by_type
-                .to_hash_map()
-                .get(&EntryPointType::Constructor)
-                .unwrap_or(&vec![])
-                .iter()
-                .cloned()
+            constructors: entry_points_by_type
+                .constructor
+                .into_iter()
                 .map(protobuf::SierraEntryPoint::from)
                 .collect(),
-
-            externals: value
-                .entry_points_by_type
-                .to_hash_map()
-                .get(&EntryPointType::External)
-                .unwrap_or(&vec![])
-                .iter()
-                .cloned()
+            externals: entry_points_by_type
+                .external
+                .into_iter()
                 .map(protobuf::SierraEntryPoint::from)
                 .collect(),
-            l1_handlers: value
-                .entry_points_by_type
-                .to_hash_map()
-                .get(&EntryPointType::L1Handler)
-                .unwrap_or(&vec![])
-                .iter()
-                .cloned()
+            l1_handlers: entry_points_by_type
+                .l1handler
+                .into_iter()
                 .map(protobuf::SierraEntryPoint::from)
                 .collect(),
         });
