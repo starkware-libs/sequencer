@@ -77,13 +77,18 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, OnceLock<HashFilledNode<L>>> {
-        updated_skeleton
-            .get_nodes()
-            .filter_map(|(index, node)| match node {
-                UpdatedSkeletonNode::UnmodifiedSubTree(_) => None,
-                _ => Some((*index, OnceLock::new())),
-            })
-            .collect()
+        let nodes = updated_skeleton.get_nodes();
+        // `filter_map`'s size hint has a lower bound of 0 (the predicate can reject
+        // everything), so collecting directly from it allocates with no capacity hint and
+        // rehashes as the map grows. Read the exact node count from the underlying iterator
+        // first and pre-allocate with it instead: it is a safe upper bound for the filtered
+        // map (some nodes are unmodified subtrees and get dropped), so no rehash is needed.
+        let mut filled_tree_output_map = HashMap::with_capacity(nodes.size_hint().0);
+        filled_tree_output_map.extend(nodes.filter_map(|(index, node)| match node {
+            UpdatedSkeletonNode::UnmodifiedSubTree(_) => None,
+            _ => Some((*index, OnceLock::new())),
+        }));
+        filled_tree_output_map
     }
 
     fn initialize_leaf_output_map_with_placeholders(
