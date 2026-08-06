@@ -1,6 +1,6 @@
 # Layout and Overlay Configuration Guide
 
-This guide explains how the layout and overlay mechanism works for managing Kubernetes deployment configurations across different environments.
+This guide explains how the layout and overlay mechanism works for managing Kubernetes deployment configurations across environments.
 
 ## Overview
 
@@ -552,7 +552,7 @@ This ensures that fields with default values (like `updateStrategy`, `toleration
 
 ## Best Practices
 
-1. **Keep layouts comprehensive**: Define all configuration keys in layouts, even with default values
+1. **Keep layouts complete**: Define all configuration keys in layouts, even with default values
 2. **Use overlays sparingly**: Only override what's necessary for each environment
 3. **Document overrides**: Add comments in overlay files explaining why certain overrides exist
 4. **Test merges**: Run `cdk8s synth` to verify overlays work correctly before deploying
