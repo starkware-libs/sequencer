@@ -72,11 +72,12 @@ impl StateCommitter {
             );
             let output = perform_task(request, &committer_client).await;
             let height = output.height();
-            match results_sender.send(output.clone()).await {
+            let task_label = output.task_label();
+            match results_sender.send(output).await {
                 Ok(_) => {
                     debug!(
-                        "Successfully sent the committer result to the results channel: \
-                         {output:?}."
+                        "Successfully sent the {task_label:?} committer result for height \
+                         {height} to the results channel."
                     );
                 }
                 Err(err) => panic!("Failed to send results for height {height}. error: {err}"),
