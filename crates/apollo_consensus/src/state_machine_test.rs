@@ -430,6 +430,37 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
     assert_no_more_requests(&mut wrapper);
 }
 
+// Regression test: while building a proposal, a `FinishedValidation` for another round is buffered
+// in `events_queue` and not yet applied to `proposals`. `has_proposal_for_round` must still report
+// that round as handled, otherwise SHC would start a duplicate validation whose second
+// `FinishedValidation` panics on the `proposals` insert once the queue is flushed.
+#[test]
+fn has_proposal_for_round_sees_buffered_finished_validation() {
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
+        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+
+    // Enter the building state: `awaiting_finished_building` is now true, so subsequent events
+    // (other than FinishedBuilding for the current round) are buffered in `events_queue`.
+    advance_proposer_after_start(&mut wrapper);
+
+    let other_round = ROUND + 1;
+    assert!(!wrapper.state_machine.has_proposal_for_round(other_round));
+
+    // A validation for a different round completes and is buffered rather than applied.
+    wrapper.send_finished_validation(PROPOSAL_ID, other_round);
+    assert_no_more_requests(&mut wrapper);
+
+    // Even though the proposal is not yet in `proposals`, the buffered event marks the round as
+    // handled, so a replayed proposal for it would be rejected instead of double-validated.
+    assert!(wrapper.state_machine.has_proposal_for_round(other_round));
+}
+
 #[test]
 fn only_send_precommit_with_prevote_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
