@@ -15,7 +15,6 @@ apollo_protobuf.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
-apollo_test_utils.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
@@ -27,7 +26,9 @@ papyrus_common.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 starknet-types-core.workspace = true
-starknet_api.workspace = true
+# The placeholder transactions in client/transaction.rs are built with testing-gated constructors
+# (see the TODO there about using real transactions); drop this feature together with that TODO.
+starknet_api = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
@@ -38,6 +39,7 @@ apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_protobuf = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 assert_matches.workspace = true
 lazy_static.workspace = true
 mockall.workspace = true

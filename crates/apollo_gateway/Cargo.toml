@@ -39,7 +39,6 @@ blockifier.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 clap.workspace = true
 google-cloud-storage.workspace = true
-mempool_test_utils.workspace = true
 mockall.workspace = true
 num-rational.workspace = true
 reqwest.workspace = true
@@ -70,6 +69,7 @@ blockifier_test_utils.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
 expect-test.workspace = true
+mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
