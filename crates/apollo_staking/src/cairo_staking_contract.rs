@@ -87,7 +87,7 @@ impl StakingContract for CairoStakingContract {
     async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>> {
         info!("Calling staking contract {GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT}.");
         let retdata = self.call_view(GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT, vec![]).await?;
-        let epoch = CairoOption::<Epoch>::try_from(retdata)?.0;
+        let epoch = CairoOption::<Epoch>::try_from(retdata.0)?.0;
         info!("Retrieved previous epoch from contract: {epoch:?}.");
         Ok(epoch)
     }
