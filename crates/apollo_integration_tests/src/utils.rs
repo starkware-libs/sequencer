@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -94,7 +95,7 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerStaticConfig,
 };
 use apollo_storage::StorageConfig;
-use axum::extract::Query;
+use axum::extract::{DefaultBodyLimit, Query};
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
@@ -137,7 +138,7 @@ use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
-use tracing::{debug, info, Instrument};
+use tracing::{debug, info, warn, Instrument};
 use url::Url;
 
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -580,16 +581,82 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .collect()
 }
 
-// Creates a local recorder server that always returns a success status.
+/// Wire-contract keys the recorder requires in every cende blob; the Python recorder relies on
+/// these field names.
+const REQUIRED_BLOB_WITNESS_KEYS: [&str; 2] = ["recent_state_commitment_infos", "initial_reads"];
+
+/// Counters of the cende blobs a dummy recorder received.
+#[derive(Debug, Default)]
+pub struct RecorderStats {
+    pub num_blobs_received: AtomicUsize,
+    pub num_blobs_with_state_commitment_infos: AtomicUsize,
+    pub num_invalid_blobs: AtomicUsize,
+    /// The first height whose commitment infos the recorder has not stored yet; `None` while the
+    /// recorder is empty (the production recorder's height-offset contract).
+    pub commitment_infos_height_offset: Mutex<Option<u64>>,
+}
+
+// Creates a local recorder server, discarding the received-blob counters.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
-    tokio::spawn(async move {
+    spawn_success_recorder_with_stats(socket_address).0
+}
+
+/// Creates a local recorder server that validates the witness fields of every received blob and
+/// exposes counters of what it received. A blob missing a required field is rejected with an
+/// error status, failing the sender's cende write.
+pub fn spawn_success_recorder_with_stats(
+    socket_address: SocketAddr,
+) -> (JoinHandle<()>, Arc<RecorderStats>) {
+    let recorder_stats = Arc::new(RecorderStats::default());
+    let handler_recorder_stats = recorder_stats.clone();
+    let offset_recorder_stats = recorder_stats.clone();
+    let join_handle = tokio::spawn(async move {
         let router = Router::new()
             .route(
                 RECORDER_WRITE_BLOB_PATH,
-                post(move || {
-                    async {
+                post(move |Json(blob): Json<serde_json::Value>| {
+                    let recorder_stats = handler_recorder_stats.clone();
+                    async move {
                         debug!("Received a request to write a blob.");
-                        StatusCode::OK.to_string()
+                        recorder_stats.num_blobs_received.fetch_add(1, AtomicOrdering::Relaxed);
+                        let missing_keys: Vec<&str> = REQUIRED_BLOB_WITNESS_KEYS
+                            .into_iter()
+                            .filter(|key| blob.get(key).is_none())
+                            .collect();
+                        if !missing_keys.is_empty() {
+                            recorder_stats.num_invalid_blobs.fetch_add(1, AtomicOrdering::Relaxed);
+                            warn!("Blob is missing required witness fields: {missing_keys:?}.");
+                            // A validation failure is permanent: reply with a client error so
+                            // the cende client's transient-retry middleware fails fast.
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                format!("Blob is missing required fields: {missing_keys:?}."),
+                            );
+                        }
+                        if let Some(state_commitment_infos) = blob
+                            .get("recent_state_commitment_infos")
+                            .and_then(|value| value.as_array())
+                            .filter(|state_commitment_infos| !state_commitment_infos.is_empty())
+                        {
+                            recorder_stats
+                                .num_blobs_with_state_commitment_infos
+                                .fetch_add(1, AtomicOrdering::Relaxed);
+                            if let Some(max_stored_block_number) = state_commitment_infos
+                                .iter()
+                                .filter_map(|entry| {
+                                    entry.get("block_number").and_then(|value| value.as_u64())
+                                })
+                                .max()
+                            {
+                                let mut commitment_infos_height_offset = recorder_stats
+                                    .commitment_infos_height_offset
+                                    .lock()
+                                    .unwrap();
+                                *commitment_infos_height_offset = (*commitment_infos_height_offset)
+                                    .max(Some(max_stored_block_number + 1));
+                            }
+                        }
+                        (StatusCode::OK, StatusCode::OK.to_string())
                     }
                     .instrument(tracing::debug_span!("success recorder write_blob"))
                 }),
@@ -616,28 +683,39 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
             )
             .route(
                 RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH,
-                get(|| {
-                    async {
+                get(move || {
+                    let recorder_stats = offset_recorder_stats.clone();
+                    async move {
                         debug!("Received a request for commitment_infos_height_offset.");
-                        // `null` marks an empty recorder, letting proposals pass the
-                        // retrospective commitment-infos check before any blob is stored.
-                        Json(serde_json::json!({ "block_number": null }))
+                        // `null` while empty: proposals pass the retrospective commitment-infos
+                        // check and the blob sender falls back to its recent-blocks window. Once
+                        // witnesses arrive, serving the first unstored height makes the sender
+                        // ship each witness exactly once, as against a production recorder.
+                        let commitment_infos_height_offset =
+                            *recorder_stats.commitment_infos_height_offset.lock().unwrap();
+                        Json(serde_json::json!({
+                            "block_number": commitment_infos_height_offset
+                        }))
                     }
                     .instrument(tracing::debug_span!(
                         "success recorder commitment_infos_height_offset"
                     ))
                 }),
-            );
+            )
+            // Blobs carrying declared classes and execution infos can exceed axum's 2MB default
+            // body limit; accept any size, as the pre-validation recorder did.
+            .layer(DefaultBodyLimit::disable());
         let listener = TcpListener::bind(socket_address).await.unwrap();
         serve(listener, router).await.unwrap();
-    })
+    });
+    (join_handle, recorder_stats)
 }
 
-pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>, Arc<RecorderStats>) {
     let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
-    let join_handle = spawn_success_recorder(socket_address);
-    (url, join_handle)
+    let (join_handle, recorder_stats) = spawn_success_recorder_with_stats(socket_address);
+    (url, join_handle, recorder_stats)
 }
 
 /// Fake eth to strk oracle endpoint.
