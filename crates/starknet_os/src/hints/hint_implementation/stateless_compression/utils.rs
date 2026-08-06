@@ -575,7 +575,7 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
     let unique_value_bucket_lengths: Vec<usize> = header[2..2 + N_UNIQUE_BUCKETS].to_vec();
     let n_repeating_values = &header[2 + N_UNIQUE_BUCKETS];
 
-    let mut unique_values = Vec::new();
+    let mut unique_values = Vec::with_capacity(unique_value_bucket_lengths.iter().sum());
     unique_values.extend(compressed.take(unique_value_bucket_lengths[0])); // 252 bucket.
     unique_values.extend(unpack_chunk::<125>(compressed, unique_value_bucket_lengths[1]));
     unique_values.extend(unpack_chunk::<83>(compressed, unique_value_bucket_lengths[2]));
@@ -605,7 +605,7 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
 
     let mut bucket_offset_trackers: Vec<_> = bucket_offsets;
 
-    let mut result = Vec::new();
+    let mut result = Vec::with_capacity(*data_len);
     for bucket_index in bucket_index_per_elm {
         let offset = &mut bucket_offset_trackers[bucket_index];
         let value = all_values[*offset];
