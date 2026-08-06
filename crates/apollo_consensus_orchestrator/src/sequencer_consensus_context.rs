@@ -582,6 +582,7 @@ impl SequencerConsensusContext {
         // At stop height, block N's hash may not yet be available; wait before preparing the blob.
         if wait_for_last_commitment {
             self.wait_for_block_hash(height).await;
+            self.warn_on_missing_state_commitment_infos_at_stop_height(height).await;
         }
 
         // The parent block's `fee_proposal_fri` is needed to reconstruct its V0_14_3 commitment
@@ -744,6 +745,34 @@ impl SequencerConsensusContext {
             }
         }
         Ok(recent_state_commitment_infos)
+    }
+
+    /// Checks at the stop height, once its block hash is available, that the batcher has stored
+    /// the stop height's state commitment infos.
+    async fn warn_on_missing_state_commitment_infos_at_stop_height(
+        &self,
+        stop_height: BlockNumber,
+    ) {
+        match self.deps.batcher.has_state_commitment_infos(stop_height).await {
+            Ok(true) => {
+                info!(
+                    "The batcher has the state commitment infos of the stop height {stop_height}."
+                );
+            }
+            Ok(false) => {
+                warn!(
+                    "Stopping at height {stop_height}, but the batcher has no state commitment \
+                     infos for it; the final blob will not carry them."
+                );
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to check whether the batcher has the state commitment infos of the \
+                     stop height {stop_height}: {err:?}. Cannot verify the final blob will carry \
+                     them."
+                );
+            }
+        }
     }
 }
 
