@@ -236,7 +236,7 @@ impl TestDeps {
                 });
             block_number = block_number.unchecked_next();
         }
-        self.setup_default_batcher_get_block_hash();
+        self.setup_default_batcher_storage_queries();
     }
 
     pub(crate) fn setup_deps_for_validate(&mut self, args: SetupDepsArgs) {
@@ -297,7 +297,7 @@ impl TestDeps {
                 });
             block_number = block_number.unchecked_next();
         }
-        self.setup_default_batcher_get_block_hash();
+        self.setup_default_batcher_storage_queries();
     }
 
     pub(crate) fn setup_default_transaction_converter(&mut self) {
@@ -338,10 +338,12 @@ impl TestDeps {
         self.state_sync_client.expect_get_block().returning(|_| Ok(SyncBlock::default()));
     }
 
-    pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {
+    pub(crate) fn setup_default_batcher_storage_queries(&mut self) {
         self.batcher.expect_get_block_hash().returning(|block_number| {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
         });
+        // has_state_commitment_infos backs verify_retrospective_state_commitment_infos;
+        // get_state_commitment_infos backs collect_recent_state_commitment_infos.
         self.batcher.expect_has_state_commitment_infos().returning(|_block_number| Ok(false));
         self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
     }
