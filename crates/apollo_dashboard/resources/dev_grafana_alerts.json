@@ -275,6 +275,58 @@
       "severity": "p4"
     },
     {
+      "name": "committer_block_commit_latency_too_high",
+      "title": "Committer block commit latency too high",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "((sum(rate(committer_block_commit_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)) / clamp_min(sum(rate(committer_block_commit_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0), 0.0000001)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              9.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "p4"
+    },
+    {
+      "name": "committer_block_number_lag",
+      "title": "Committer block number lag",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(max by (namespace) (consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - max by (namespace) (committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\"})) and on (namespace) (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0) and on (namespace) (increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              9.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "severity": "p2"
+    },
+    {
       "name": "committer_remote_server_number_of_connections",
       "title": "committer - Remote server number of connections exceeds 80",
       "ruleGroup": "evaluation_rate_default",
