@@ -74,6 +74,11 @@ pub trait BaseLayerContract {
     ) -> Result<Option<L1BlockReference>, Self::Error>;
 
     /// Get specific events from the Starknet base contract between two L1 block numbers.
+    ///
+    /// Returns all matching events for the entire `block_range`. An implementation may split the
+    /// range internally (for example when a provider rejects an oversized query or times out), but
+    /// must return the complete set for the range with no events dropped. Callers may rely on this
+    /// completeness, so no separate upstream event-count cap is required.
     async fn events<'a>(
         &'a mut self,
         block_range: RangeInclusive<L1BlockNumber>,
