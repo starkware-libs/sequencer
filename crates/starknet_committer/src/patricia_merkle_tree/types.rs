@@ -135,8 +135,20 @@ impl<'de> Deserialize<'de> for CompressedStateCommitmentInfos {
 }
 impl CompressedStateCommitmentInfos {
     /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
+    ///
+    /// The one-shot compressor writes the decompressed size into the frame header, so the output
+    /// buffer is allocated to that exact size up front instead of growing incrementally while
+    /// streaming the frame. Entries written before the compressor became one-shot carry no size in
+    /// their header, so those fall back to streaming decode.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
-        let bincode_payload = zstd::decode_all(self.0.as_slice())?;
+        let decompressed_size = zstd::zstd_safe::get_frame_content_size(&self.0)
+            .ok()
+            .flatten()
+            .and_then(|size| usize::try_from(size).ok());
+        let bincode_payload = match decompressed_size {
+            Some(size) => zstd::bulk::decompress(&self.0, size)?,
+            None => zstd::decode_all(self.0.as_slice())?,
+        };
         Ok(bincode::deserialize(&bincode_payload)?)
     }
 }

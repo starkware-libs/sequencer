@@ -51,6 +51,24 @@ fn test_compressed_state_commitment_infos_frame_header_declares_decompressed_siz
     assert_eq!(compressed.decompress().unwrap(), commitment_infos);
 }
 
+/// Entries written before `compress` became one-shot carry no decompressed size in their frame
+/// header; they must still decompress.
+#[cfg(feature = "os_input")]
+#[test]
+fn test_decompress_frame_without_declared_decompressed_size() {
+    let commitment_infos = StateCommitmentInfos::default();
+    let streamed_frame = CompressedStateCommitmentInfos(
+        zstd::encode_all(
+            bincode::serialize(&commitment_infos).unwrap().as_slice(),
+            zstd::DEFAULT_COMPRESSION_LEVEL,
+        )
+        .unwrap(),
+    );
+
+    assert_eq!(zstd::zstd_safe::get_frame_content_size(&streamed_frame.0).unwrap(), None);
+    assert_eq!(streamed_frame.decompress().unwrap(), commitment_infos);
+}
+
 #[test]
 fn test_compressed_state_commitment_infos_json_form_is_base64_string() {
     let compressed = CompressedStateCommitmentInfos(vec![40, 181, 47, 253, 0, 88]);
