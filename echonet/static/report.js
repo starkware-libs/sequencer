@@ -991,10 +991,20 @@
 
     function csvEscape(value) {
         const s = (value == null ? "" : String(value));
-        if (/[",\n\r]/.test(s)) {
-            return `"${s.replace(/"/g, '""')}"`;
+        // Neutralize formula injection: a leading =, +, -, @, tab, or CR makes
+        // Excel/Sheets/LibreOffice evaluate the cell as a formula on open, even
+        // though quoting alone (below) only protects CSV grammar, not spreadsheet
+        // semantics. Report data (revert reasons, gateway errors, OS-run output)
+        // can carry attacker-influenced text, so guard every exported field.
+        const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+        if (/[",\n\r]/.test(guarded)) {
+            return `"${guarded.replace(/"/g, '""')}"`;
         }
-        return s;
+        return guarded;
+    }
+
+    if (typeof module !== "undefined" && module.exports) {
+        module.exports = { csvEscape };
     }
 
     function tableToCsv(table) {
