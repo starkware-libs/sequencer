@@ -118,7 +118,7 @@ curl -s -X POST http://localhost:3000 \
   and `tip` must be `"0x0"`. Disable this check with `SKIP_FEE_FIELD_VALIDATION=true`.
 - **`l2_gas.max_amount` must be non-zero**: this value is the gas limit the OS enforces on the
   transaction. Set it to the value returned by `starknet_estimateFee`, or use `"0x5f5e100"`
-  (100,000,000) as a safe upper bound — this is sufficient for approximately 1 million Cairo steps.
+  (100,000,000) as a safe upper bound — this is enough for about 1 million Cairo steps.
 - **`l1_gas.max_amount` and `l1_data_gas.max_amount`** do not affect OS execution and can be any
   value (including zero).
 - The `proof` and `proof_facts` fields are output-only and must be absent from the request (they
