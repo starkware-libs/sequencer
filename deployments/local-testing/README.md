@@ -10,7 +10,7 @@ This environment can be deployed in two ways:
 
 ### Option 1: Vagrant VM (Recommended)
 
-The Vagrant setup provides a fully isolated development environment with all prerequisites pre-installed. This is the recommended approach for consistent, reproducible environments.
+The Vagrant setup provides an isolated development environment with all prerequisites pre-installed. This is the recommended approach for consistent, reproducible environments.
 
 #### Vagrant Prerequisites
 
