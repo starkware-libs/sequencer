@@ -322,16 +322,48 @@ impl TryFrom<StarkHash> for ContractAddress {
     }
 }
 
-// TODO(Noa): Add a hash_function as a parameter
+/// The hash function used to derive a contract address.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AddressDerivationHash {
+    Pedersen,
+    Blake2,
+}
+
 pub fn calculate_contract_address(
     salt: ContractAddressSalt,
     class_hash: ClassHash,
     constructor_calldata: &Calldata,
     deployer_address: ContractAddress,
+    address_derivation_hash: AddressDerivationHash,
 ) -> Result<ContractAddress, StarknetApiError> {
-    let constructor_calldata_hash = Pedersen::hash_array(&constructor_calldata.0);
+    match address_derivation_hash {
+        AddressDerivationHash::Pedersen => calculate_contract_address_inner::<Pedersen>(
+            salt,
+            class_hash,
+            constructor_calldata,
+            deployer_address,
+        ),
+        // Provisional: the Blake2 preimage must be frozen in the SNIP before activation. It uses
+        // the optimized `Blake2Felt252` encoding, verified bit-identical to the Cairo OS
+        // `get_contract_address_blake` by the parity test in starknet_os' blake2s_test.
+        AddressDerivationHash::Blake2 => calculate_contract_address_inner::<Blake2Felt252>(
+            salt,
+            class_hash,
+            constructor_calldata,
+            deployer_address,
+        ),
+    }
+}
+
+fn calculate_contract_address_inner<H: CoreStarkHash>(
+    salt: ContractAddressSalt,
+    class_hash: ClassHash,
+    constructor_calldata: &Calldata,
+    deployer_address: ContractAddress,
+) -> Result<ContractAddress, StarknetApiError> {
+    let constructor_calldata_hash = H::hash_array(&constructor_calldata.0);
     let contract_address_prefix = format!("0x{}", hex::encode(CONTRACT_ADDRESS_PREFIX));
-    let address = Pedersen::hash_array(&[
+    let address = H::hash_array(&[
         Felt::from_hex(contract_address_prefix.as_str()).map_err(|_| {
             StarknetApiError::OutOfRange { string: contract_address_prefix.clone() }
         })?,

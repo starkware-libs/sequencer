@@ -10,6 +10,7 @@ use starknet_types_core::felt::Felt;
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ChainId,
     ClassHash,
     CompiledClassHash,
@@ -158,7 +159,8 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
         let tx_hash = tx.calculate_transaction_hash(chain_id)?;
         match tx {
             Transaction::DeployAccount(tx) => {
-                let contract_address = tx.calculate_contract_address()?;
+                let contract_address =
+                    tx.calculate_contract_address(AddressDerivationHash::Pedersen)?;
                 Ok(executable_transaction::Transaction::Account(
                     executable_transaction::AccountTransaction::DeployAccount(
                         executable_transaction::DeployAccountTransaction {
@@ -426,7 +428,10 @@ impl TransactionHasher for DeclareTransaction {
 }
 
 pub trait CalculateContractAddress {
-    fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress>;
+    fn calculate_contract_address(
+        &self,
+        address_derivation_hash: AddressDerivationHash,
+    ) -> StarknetApiResult<ContractAddress>;
 }
 
 /// A trait intended for deploy account transactions. Structs implementing this trait derive the
@@ -460,7 +465,10 @@ impl<T: DeployTransactionTrait> CalculateContractAddress for T {
     /// Calculates the contract address for the contract deployed by a deploy account transaction.
     /// For more details see:
     /// <https://docs.starknet.io/learn/cheatsheets/transactions-reference#deploy-account-v3>
-    fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress> {
+    fn calculate_contract_address(
+        &self,
+        address_derivation_hash: AddressDerivationHash,
+    ) -> StarknetApiResult<ContractAddress> {
         // When the contract is deployed via a deploy-account transaction, the deployer address is
         // zero.
         const DEPLOYER_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::ZERO);
@@ -469,6 +477,7 @@ impl<T: DeployTransactionTrait> CalculateContractAddress for T {
             self.class_hash(),
             self.constructor_calldata(),
             DEPLOYER_ADDRESS,
+            address_derivation_hash,
         )
     }
 }
@@ -492,7 +501,13 @@ impl TransactionHasher for DeployAccountTransactionV1 {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
-        get_deploy_account_transaction_v1_hash(self, chain_id, transaction_version)
+        let contract_address = self.calculate_contract_address(AddressDerivationHash::Pedersen)?;
+        get_deploy_account_transaction_v1_hash(
+            self,
+            chain_id,
+            transaction_version,
+            contract_address,
+        )
     }
 }
 
@@ -517,7 +532,13 @@ impl TransactionHasher for DeployAccountTransactionV3 {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
-        get_deploy_account_transaction_v3_hash(self, chain_id, transaction_version)
+        let contract_address = self.calculate_contract_address(AddressDerivationHash::Pedersen)?;
+        get_deploy_account_transaction_v3_hash(
+            self,
+            chain_id,
+            transaction_version,
+            contract_address,
+        )
     }
 }
 
@@ -532,10 +553,17 @@ pub enum DeployAccountTransaction {
 }
 
 impl CalculateContractAddress for DeployAccountTransaction {
-    fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress> {
+    fn calculate_contract_address(
+        &self,
+        address_derivation_hash: AddressDerivationHash,
+    ) -> StarknetApiResult<ContractAddress> {
         match self {
-            DeployAccountTransaction::V1(tx) => tx.calculate_contract_address(),
-            DeployAccountTransaction::V3(tx) => tx.calculate_contract_address(),
+            DeployAccountTransaction::V1(tx) => {
+                tx.calculate_contract_address(address_derivation_hash)
+            }
+            DeployAccountTransaction::V3(tx) => {
+                tx.calculate_contract_address(address_derivation_hash)
+            }
         }
     }
 }
@@ -611,7 +639,8 @@ impl TransactionHasher for DeployTransaction {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
-        get_deploy_transaction_hash(self, chain_id, transaction_version)
+        let contract_address = self.calculate_contract_address(AddressDerivationHash::Pedersen)?;
+        get_deploy_transaction_hash(self, chain_id, transaction_version, contract_address)
     }
 }
 
