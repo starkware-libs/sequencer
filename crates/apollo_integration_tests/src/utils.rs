@@ -120,10 +120,12 @@ use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::HashOutput;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::staking::StakingWeight;
 use starknet_api::transaction::fields::{ContractAddressSalt, Proof, ProofFacts};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
+use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
@@ -132,7 +134,11 @@ use starknet_committer::db::forest_trait::{
 };
 use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::DbBlockNumber;
+use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{Preimage, PreimageMap};
+use starknet_patricia::patricia_merkle_tree::storage_proof_verification::verify_patricia_proof;
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::storage_trait::{DbOperation, DbValue};
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
@@ -1301,7 +1307,70 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
     verify_witnesses_flow(&sequencers).await;
+    verify_witness_storage_proofs_flow(&sequencers).await;
     verify_recorder_blobs_flow(&sequencers, scenario_timeout).await;
+}
+
+/// Verifies that for every contract with storage writes in a block's state diff, the persisted
+/// witnesses contain valid Patricia paths from the updated storage root to every written leaf.
+async fn verify_witness_storage_proofs_flow(sequencers: &[&FlowSequencerSetup]) {
+    for sequencer in sequencers {
+        let global_root_height = sequencer.get_global_root_height().await;
+        for block_number in (0..global_root_height.0).map(BlockNumber) {
+            let Some(state_commitment_infos) =
+                sequencer.get_state_commitment_infos(block_number).await
+            else {
+                // Heights committed without witnesses (e.g. seeded genesis) have nothing to prove.
+                continue;
+            };
+            let thin_state_diff = sequencer.get_thin_state_diff(block_number).await;
+            for (contract_address, storage_writes) in &thin_state_diff.storage_diffs {
+                let commitment_info = state_commitment_infos
+                    .storage_tries_commitment_infos
+                    .get(contract_address)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Block {block_number}: contract {contract_address} has storage writes \
+                             but no storage-trie witnesses."
+                        )
+                    });
+                let preimages: PreimageMap = commitment_info
+                    .commitment_facts
+                    .iter()
+                    .map(|(fact_hash, raw_preimage)| {
+                        let preimage = Preimage::try_from(raw_preimage).unwrap_or_else(|err| {
+                            panic!(
+                                "Block {block_number}: invalid preimage for fact {fact_hash:?}: \
+                                 {err:?}"
+                            )
+                        });
+                        (*fact_hash, preimage)
+                    })
+                    .collect();
+                // A zero value marks a deleted (absent) leaf; the verifier only proves leaf
+                // presence, so deletions are skipped.
+                // TODO(Itamar): consider verifying absence paths for deleted leaves.
+                let requested_leaves: HashMap<NodeIndex, HashOutput> = storage_writes
+                    .iter()
+                    .filter(|(_, value)| **value != Felt::ZERO)
+                    .map(|(key, value)| {
+                        (NodeIndex::from_leaf_felt(key.0.key()), HashOutput(*value))
+                    })
+                    .collect();
+                verify_patricia_proof::<StarknetStorageValue, TreeHashFunctionImpl>(
+                    commitment_info.updated_root,
+                    &preimages,
+                    &requested_leaves,
+                )
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "Block {block_number}: witness storage proof failed for contract \
+                         {contract_address}: {err:?}"
+                    )
+                });
+            }
+        }
+    }
 }
 
 /// Verifies that the dummy recorders accepted every cende blob and that state commitment infos
