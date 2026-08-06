@@ -10,6 +10,10 @@ config:
     batcher_config.static_config.first_block_with_partial_block_hash.block_number: 86311
     batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash: '0x5c980ea7747167d2ae98fa7ef7d62f52243e924c453b4934045443d977458d3'
     consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height: ''
+    consensus_manager_config.network_config.advertised_multiaddr: ''
+    consensus_manager_config.network_config.advertised_multiaddr.#is_none: true
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr: /dns/sequencer-core-service.apollo-sepolia-alpha-0.starknet.io/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5,/dns/sequencer-core-service.apollo-sepolia-alpha-1.starknet.io/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe,/dns/sequencer-core-service.apollo-sepolia-alpha-2.starknet.io/tcp/53080/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp,/dns/sequencer-core-service.apollo-sepolia-alpha-3.starknet.io/tcp/53080/p2p/12D3KooWFdTjV6DXVJfQFisTXadCsqGzCbEnJJWzc6mXSPwy9g54,/dns/sequencer-core-service.apollo-sepolia-alpha-4.starknet.io/tcp/53080/p2p/12D3KooWJMukrrip9sUyto28eiofqxyXiw9sfTJuZeQfHUujWPX8,/dns/sequencer-core-service.apollo-sepolia-alpha-5.starknet.io/tcp/53080/p2p/12D3KooWMqkzSDGNQg9WDDPdu7nQgAPpqTY3YqZ2XUYqJzmUhmVu
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: false
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: 0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true
     state_sync_config.static_config.central_sync_client_config.#is_none: false
     state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold: 0
