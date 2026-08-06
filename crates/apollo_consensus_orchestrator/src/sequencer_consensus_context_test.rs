@@ -10,6 +10,7 @@ use apollo_batcher_types::batcher_types::{
     FinishedProposalInfo,
     FinishedProposalInfoWithoutParent,
     ProposalCommitment as BatcherProposalCommitment,
+    ProposalId,
     SendTxsForProposalStatus,
 };
 use apollo_batcher_types::communication::BatcherClientError;
@@ -72,6 +73,7 @@ use crate::cende::{
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::{CONSENSUS_L2_GAS_PRICE, CONSENSUS_L2_GAS_PRICE_AT_MINIMUM};
 use crate::sequencer_consensus_context::{
+    BuiltProposals,
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
@@ -2027,4 +2029,83 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             "phase {phase_idx}: fee_actual did not reach fee_target after {n_blocks} blocks",
         );
     }
+}
+
+fn make_finished_info() -> FinishedProposalInfo {
+    FinishedProposalInfo {
+        artifact: FinishedProposalInfoWithoutParent {
+            proposal_commitment: BatcherProposalCommitment {
+                partial_block_hash: PARTIAL_BLOCK_HASH,
+            },
+            final_n_executed_txs: 0,
+            block_header_commitments: BlockHeaderCommitments::default(),
+            l2_gas_used: GasAmount::default(),
+        },
+        parent_proposal_commitment: None,
+    }
+}
+
+#[test]
+fn take_proposal_returns_content_and_removes_entry() {
+    let height = BlockNumber(0);
+    let round = 0_u32;
+    let init = proposal_init(height, round);
+    let transactions = vec![INTERNAL_TX_BATCH.clone()];
+    let proposal_id = ProposalId(0);
+    let finished_info = make_finished_info();
+    let commitment = proposal_commitment_from(PARTIAL_BLOCK_HASH, init.fee_proposal_fri);
+
+    let mut built_proposals = BuiltProposals::new();
+    built_proposals.insert_proposal(
+        init.clone(),
+        transactions.clone(),
+        &proposal_id,
+        finished_info,
+    );
+
+    let (returned_init, returned_txs, returned_id, _) =
+        built_proposals.take_proposal(&height, &round, &commitment);
+    assert_eq!(returned_init.height, init.height);
+    assert_eq!(returned_init.round, init.round);
+    assert_eq!(returned_txs, transactions);
+    assert_eq!(returned_id, proposal_id);
+}
+
+#[test]
+#[should_panic(expected = "No proposals found for height")]
+fn take_proposal_panics_on_missing_height() {
+    let mut built_proposals = BuiltProposals::new();
+    let commitment = proposal_commitment_from(PARTIAL_BLOCK_HASH, None);
+    built_proposals.take_proposal(&BlockNumber(99), &0_u32, &commitment);
+}
+
+#[test]
+#[should_panic(expected = "No proposal found for height")]
+fn take_proposal_panics_on_missing_round() {
+    let height = BlockNumber(0);
+    let round = 0_u32;
+    let init = proposal_init(height, round);
+    let finished_info = make_finished_info();
+    let commitment = proposal_commitment_from(PARTIAL_BLOCK_HASH, init.fee_proposal_fri);
+
+    let mut built_proposals = BuiltProposals::new();
+    built_proposals.insert_proposal(init, vec![], &ProposalId(0), finished_info);
+    // Try to take from round 1, which was never inserted.
+    built_proposals.take_proposal(&height, &1_u32, &commitment);
+}
+
+#[test]
+#[should_panic(expected = "Proposal commitment mismatch")]
+fn take_proposal_panics_on_commitment_mismatch() {
+    let height = BlockNumber(0);
+    let round = 0_u32;
+    let init = proposal_init(height, round);
+    let finished_info = make_finished_info();
+
+    let mut built_proposals = BuiltProposals::new();
+    built_proposals.insert_proposal(init, vec![], &ProposalId(0), finished_info);
+
+    // A different commitment — mismatches the one stored.
+    let wrong_commitment = ProposalCommitment(StarkHash::ONE);
+    built_proposals.take_proposal(&height, &round, &wrong_commitment);
 }

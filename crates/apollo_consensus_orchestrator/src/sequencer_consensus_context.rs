@@ -174,6 +174,29 @@ impl BuiltProposals {
         stored_content
     }
 
+    /// Removes the entry for `(height, round, commitment)` from the map and returns its content.
+    /// Panics if no matching entry is found or if the stored commitment does not match.
+    fn take_proposal(
+        &mut self,
+        height: &BlockNumber,
+        round: &Round,
+        commitment: &ProposalCommitment,
+    ) -> ProposalContent {
+        let by_round = self
+            .data
+            .get_mut(height)
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"));
+        let (stored_commitment, stored_content) = by_round
+            .remove(round)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and round {round}"));
+        assert_eq!(
+            &stored_commitment, commitment,
+            "Proposal commitment mismatch for height {height} round {round}: \
+             stored={stored_commitment}, requested={commitment}"
+        );
+        stored_content
+    }
+
     fn remove_proposals_below_or_at_height(&mut self, height: &BlockNumber) {
         self.data.retain(|&h, _| h > *height);
     }
@@ -1019,10 +1042,11 @@ impl ConsensusContext for SequencerConsensusContext {
         self.interrupt_active_proposal().await;
         let (init, transactions, proposal_id, finished_info) = {
             let mut proposals = self.valid_proposals.lock().unwrap();
-            let (init, transactions, proposal_id, finished_info) =
-                proposals.get_proposal(&height, &round, &commitment).clone();
+            // take_proposal moves ownership out of the map instead of cloning, avoiding an
+            // O(num_transactions) allocation while holding the mutex on every finalized block.
+            let proposal_content = proposals.take_proposal(&height, &round, &commitment);
             proposals.remove_proposals_below_or_at_height(&height);
-            (init, transactions, proposal_id, finished_info)
+            proposal_content
         };
 
         let decision_reached_response =
