@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_config::converters::UrlAndHeaders;
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
@@ -297,4 +297,74 @@ async fn eth_to_fri_rate_non_success_status_code() {
         }
         tokio::task::yield_now().await;
     }
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_timestamp_below_lag_interval_errors() {
+    const LAG_INTERVAL_SECONDS: u64 = 60;
+
+    let url_and_headers = UrlAndHeaders {
+        url: Url::parse("http://localhost:1234").unwrap(),
+        headers: BTreeMap::new(),
+    };
+    let config = ExchangeRateOracleConfig {
+        url_header_list: Some(vec![url_and_headers.into()]),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS,
+        ..Default::default()
+    };
+    let client = ExchangeRateOracleClient::new(config, ETH_TO_STRK_ORACLE_METRICS);
+
+    // A timestamp smaller than lag_interval_seconds would underflow the quantization
+    // subtraction; it must surface as an error rather than panic.
+    assert!(matches!(
+        client.fetch_rate(LAG_INTERVAL_SECONDS - 1).await,
+        Err(ExchangeRateOracleClientError::InvalidTimestampError(_))
+    ));
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_stale_prev_cache_not_substituted() {
+    const EXPECTED_RATE: u128 = 123456;
+    let expected_rate_hex = format!("0x{EXPECTED_RATE:x}");
+    const LAG_INTERVAL_SECONDS: u64 = 60;
+    const TIMESTAMP1: u64 = 1234567890;
+    // Next quantized bucket, so its not-ready fallback looks one bucket back at TIMESTAMP1's rate.
+    const TIMESTAMP2: u64 = TIMESTAMP1 + LAG_INTERVAL_SECONDS;
+
+    let quantized_timestamp1 = (TIMESTAMP1 - LAG_INTERVAL_SECONDS) / LAG_INTERVAL_SECONDS;
+
+    let mut server = mockito::Server::new_async().await;
+    let _mock_response =
+        make_server(&mut server, json!({"price": expected_rate_hex, "decimals": 18})).await;
+    let url_and_headers =
+        UrlAndHeaders { url: Url::parse(&server.url()).unwrap(), headers: BTreeMap::new() };
+    let config = ExchangeRateOracleConfig {
+        url_header_list: Some(vec![url_and_headers.into()]),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS,
+        ..Default::default()
+    };
+    let client = ExchangeRateOracleClient::new(config, ETH_TO_STRK_ORACLE_METRICS);
+
+    // Resolve and cache the rate for the first quantized bucket.
+    while client.fetch_rate(TIMESTAMP1).await.is_err() {
+        tokio::task::yield_now().await;
+    }
+
+    // Age the cached entry past the freshness bound (max_fallback_rate_age ==
+    // lag_interval_seconds), so it is no longer a valid substitute for the next bucket.
+    {
+        let mut cache = client.cached_prices.lock().unwrap();
+        let (rate, _) = *cache.get(&quantized_timestamp1).expect("first bucket should be cached");
+        let stale_cached_at = Instant::now()
+            .checked_sub(Duration::from_secs(LAG_INTERVAL_SECONDS * 10))
+            .expect("stale instant");
+        cache.put(quantized_timestamp1, (rate, stale_cached_at));
+    }
+
+    // The next bucket's query is still pending, and the only prior rate is now too stale to
+    // substitute, so fetch_rate must report the query as not ready rather than serve a stale rate.
+    assert!(matches!(
+        client.fetch_rate(TIMESTAMP2).await,
+        Err(ExchangeRateOracleClientError::QueryNotReadyError(_))
+    ));
 }
