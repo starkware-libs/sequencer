@@ -1,6 +1,6 @@
 # Configuration Documentation
 
-This directory contains comprehensive documentation for all Kubernetes manifest configurations available in the Sequencer deployment system.
+This directory contains documentation for all Kubernetes manifest configurations available in the Sequencer deployment system.
 
 ## Configuration System
 
