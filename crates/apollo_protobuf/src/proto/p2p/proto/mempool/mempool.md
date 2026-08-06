@@ -15,7 +15,7 @@ Once a node receives a transaction, it should verify it against the current stat
 `validate` before continuing its propagation to other nodes.
 This is to prevent giving scale for a DDoS attack.
 
-Our choice of using Gossipsub might change in the future if we encounter performance issues with it.
+Our choice of using Gossipsub might change if we encounter performance issues with it.
 
 ## Transaction
 The object that we're passing is a [MempoolTransaction](./transaction.proto). A few notes about it:
