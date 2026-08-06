@@ -9,8 +9,6 @@ pub mod py_invoke_function;
 pub mod py_l1_handler;
 pub mod py_objects;
 pub mod py_state_diff;
-#[cfg(any(feature = "testing", test))]
-pub mod py_test_utils;
 // TODO(Dori, 1/4/2023): If and when supported in the Python build environment, use #[cfg(test)].
 pub mod py_testing_wrappers;
 pub mod py_transaction;
