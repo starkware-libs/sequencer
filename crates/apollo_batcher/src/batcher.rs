@@ -1535,6 +1535,13 @@ impl Batcher {
         })
     }
 
+    pub fn has_state_commitment_infos(&self, block_number: BlockNumber) -> BatcherResult<bool> {
+        self.storage_reader.has_state_commitment_infos(block_number).map_err(|err| {
+            error!("Failed to check state commitment infos existence in storage: {err}");
+            BatcherError::InternalError
+        })
+    }
+
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -1738,6 +1745,10 @@ pub trait BatcherStorageReader: Send + Sync {
         height: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
 
+    /// Returns whether the compressed commitment infos for the given height are stored, without
+    /// reading the stored blob.
+    fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool>;
+
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -1836,6 +1847,10 @@ impl BatcherStorageReader for StorageReader {
         height: BlockNumber,
     ) -> StorageResult<Option<CompressedStateCommitmentInfos>> {
         self.begin_ro_txn()?.get_state_commitment_infos(height)
+    }
+
+    fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool> {
+        self.begin_ro_txn()?.has_state_commitment_infos(height)
     }
 
     fn get_parent_hash_and_partial_block_hash_components(
