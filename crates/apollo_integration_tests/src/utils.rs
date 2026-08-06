@@ -1301,6 +1301,51 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     );
     verify_block_hash_flow(&sequencers, scenario_timeout).await;
     verify_witnesses_flow(&sequencers).await;
+    verify_recorder_blobs_flow(&sequencers, scenario_timeout).await;
+}
+
+/// Verifies that the dummy recorders accepted every cende blob and that state commitment infos
+/// were carried in at least one blob.
+async fn verify_recorder_blobs_flow(
+    sequencers: &[&FlowSequencerSetup],
+    scenario_timeout: Duration,
+) {
+    let total_blobs_with_state_commitment_infos = |sequencers: &[&FlowSequencerSetup]| {
+        sequencers
+            .iter()
+            .map(|sequencer| {
+                sequencer
+                    .recorder_stats
+                    .num_blobs_with_state_commitment_infos
+                    .load(AtomicOrdering::Relaxed)
+            })
+            .sum::<usize>()
+    };
+    // A blob is prepared before its own height's commitment completes, so early blobs may
+    // legitimately carry no infos; consensus keeps deciding heights, so wait for a later blob to
+    // carry the previously committed heights' infos.
+    timeout(scenario_timeout, async {
+        while total_blobs_with_state_commitment_infos(sequencers) == 0 {
+            info!("Waiting for a cende blob carrying state commitment infos.");
+            sleep(TIME_BETWEEN_CHECKS).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("No cende blob carried state commitment infos."));
+
+    let mut total_blobs_received = 0;
+    for sequencer in sequencers {
+        let recorder_stats = &sequencer.recorder_stats;
+        assert_eq!(
+            recorder_stats.num_invalid_blobs.load(AtomicOrdering::Relaxed),
+            0,
+            "The recorder received cende blobs with missing witness fields.",
+        );
+        total_blobs_received += recorder_stats.num_blobs_received.load(AtomicOrdering::Relaxed);
+    }
+    // Only the sequencer that actually proposed a height writes its blob, so positivity is
+    // only guaranteed across all sequencers.
+    assert!(total_blobs_received > 0, "No cende blob was sent to any recorder.");
 }
 
 /// Verifies that every consensus-decided height persisted Patricia witnesses
