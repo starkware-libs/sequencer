@@ -29,7 +29,9 @@ jobs:
             target_cpu: znver5
           - platform: linux/arm64
             runner: namespace-profile-small-ubuntu-24-04-arm64
-            target_cpu: neoverse-v2
+            # The release tag must run on the generic AArch64 baseline, including
+            # Linux containers on Apple Silicon hosts.
+            target_cpu: ""
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
