@@ -992,7 +992,7 @@ async fn collected_heights_for(
 #[rstest]
 #[case::delta_above_cende_recorder(Some(BlockNumber(98)), (90..=100).collect(), vec![98, 99, 100])]
 #[case::single_new_block(Some(BlockNumber(100)), (90..=100).collect(), vec![100])]
-#[case::fallback_window_when_cende_recorder_empty(None, (90..=100).collect(), (90..=100).collect())]
+#[case::fallback_window_when_cende_recorder_empty(None, (90..=100).collect(), (90..=99).collect())]
 #[case::nothing_when_cende_recorder_caught_up(Some(BlockNumber(101)), (90..=100).collect(), vec![])]
 #[case::empty_cende_recorder_skips_leading_gap(None, (93..=100).collect(), (93..=100).collect())]
 #[case::empty_cende_recorder_stops_at_trailing_gap(None, (90..=95).collect(), (90..=95).collect())]

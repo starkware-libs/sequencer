@@ -124,6 +124,10 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
+/// Maximum number of commitment infos backfilled to the cende recorder per blob.
+#[cfg(feature = "os_input")]
+const MAX_COMMITMENT_INFOS_BACKFILL: usize = 10;
+
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
 type ProposalContent =
@@ -712,11 +716,12 @@ impl SequencerConsensusContext {
                 // size.
                 None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
             };
-        let mut recent_state_commitment_infos = Vec::with_capacity(
-            usize::try_from(height.0.saturating_sub(lowest_height) + 1)
-                .expect("Commitment infos count should fit in usize."),
-        );
+        let mut recent_state_commitment_infos = Vec::with_capacity(MAX_COMMITMENT_INFOS_BACKFILL);
         for block_height in lowest_height..=height.0 {
+            // Stop at the cap, so sending commitment infos won't stall block production.
+            if recent_state_commitment_infos.len() >= MAX_COMMITMENT_INFOS_BACKFILL {
+                break;
+            }
             let block_number = BlockNumber(block_height);
             match self.deps.batcher.get_state_commitment_infos(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
