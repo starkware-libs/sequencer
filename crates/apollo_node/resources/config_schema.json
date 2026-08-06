@@ -3769,6 +3769,11 @@
     "privacy": "Public",
     "value": 20
   },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_classes_to_store_in_memory": {
+    "description": "Maximum number of classes (downloaded or pending download) to hold in memory at a given time, bounding the class backlog of a single state diff.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "state_sync_config.static_config.central_sync_client_config.central_source_config.max_state_updates_to_download": {
     "description": "Maximum number of state updates to download at a given time.",
     "privacy": "Public",

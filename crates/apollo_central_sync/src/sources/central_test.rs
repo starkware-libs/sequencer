@@ -681,6 +681,7 @@ fn state_update_stream_config_for_test() -> StateUpdateStreamConfig {
         max_state_updates_to_download: 10,
         max_state_updates_to_store_in_memory: 10,
         max_classes_to_download: 10,
+        max_classes_to_store_in_memory: 10,
     }
 }
 
