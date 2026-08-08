@@ -3,13 +3,13 @@ use std::future::pending;
 use std::path::{Path, PathBuf};
 
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::validate_path_exists;
+use apollo_config::validators::{config_validate, validate_path_exists};
 use apollo_config::{CONFIG_FILE_ARG, CONFIG_FILE_SHORT_ARG_NAME};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
-use apollo_node_config::config_utils::load_and_validate_config;
+use apollo_node_config::config_utils::load_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -124,12 +124,20 @@ impl ConfigManagerRunner {
     pub(crate) async fn update_config(
         &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
-        let config = load_and_validate_config(self.cli_args.clone(), false).map_err(|e| {
+        // Only the dynamic config can change while the node runs, so only it is revalidated here.
+        // Validating the full config would also resolve every component url over DNS on each
+        // tick, failing the update on a transient resolver blip.
+        let config = load_config(self.cli_args.clone()).map_err(|e| {
             CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
             error!("ConfigManagerRunner: failed to update config: {e}");
             e
         })?;
         let node_dynamic_config = NodeDynamicConfig::from(&config);
+        config_validate(&node_dynamic_config).map_err(|e| {
+            CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
+            error!("ConfigManagerRunner: failed to validate dynamic config: {e}");
+            e
+        })?;
 
         // Compare the previous and the newly read node dynamic config.
         if self.latest_node_dynamic_config == node_dynamic_config {

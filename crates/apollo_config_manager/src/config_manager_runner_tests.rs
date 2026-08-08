@@ -9,7 +9,8 @@ use apollo_config_manager_types::communication::{
     SharedConfigManagerClient,
 };
 use apollo_consensus_config::config::ConsensusDynamicConfig;
-use apollo_node_config::config_utils::DeploymentBaseAppConfig;
+use apollo_node_config::component_execution_config::ReactiveComponentExecutionConfig;
+use apollo_node_config::config_utils::{load_and_validate_config, DeploymentBaseAppConfig};
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use serde_json::Value;
@@ -25,6 +26,9 @@ use crate::config_manager_runner::ConfigManagerRunner;
 // An arbitrary hex-str config entry to be replaced.
 const VALIDATOR_ID_CONFIG_ENTRY: &str = "validator_id";
 const TEST_TIMEOUT_SECS: u64 = 1;
+// RFC 2606 reserves `.invalid`, so this never resolves and the test needs no network.
+const UNRESOLVABLE_URL: &str = "sequencer-core-service.invalid";
+const ARBITRARY_PORT: u16 = 8080;
 
 /// Creates a temporary config file with specific test values and returns CLI args pointing to it.
 fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
@@ -53,6 +57,22 @@ fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
     ];
 
     (temp_file, cli_args, current_validator_id)
+}
+
+/// Dumps `config` to a temporary file and returns it with CLI args pointing to it.
+fn dump_config_and_args(config: SequencerNodeConfig) -> (NamedTempFile, Vec<String>) {
+    let base_app_config =
+        DeploymentBaseAppConfig::new(config, ConfigPointersMap::create_for_testing());
+    let temp_file = NamedTempFile::new().expect("Failed to create temporary config file");
+    base_app_config.dump_config_file(temp_file.path());
+
+    let cli_args = vec![
+        "test_node".to_string(),
+        CONFIG_FILE_ARG.to_string(),
+        temp_file.path().to_string_lossy().to_string(),
+    ];
+
+    (temp_file, cli_args)
 }
 
 fn update_config_file(temp_file: &NamedTempFile) -> String {
@@ -141,6 +161,36 @@ async fn config_manager_runner_update_config_with_changed_values() {
         second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
+}
+
+/// The refresh must not resolve component urls; boot must still reject an unresolvable one.
+#[tokio::test]
+async fn update_config_ignores_unresolvable_component_url() {
+    let mut config = SequencerNodeConfig::default();
+    config.components.batcher =
+        ReactiveComponentExecutionConfig::remote(UNRESOLVABLE_URL.to_string(), ARBITRARY_PORT);
+    // The batcher no longer runs locally, so its config must be unset.
+    config.batcher_config = None;
+
+    let (_temp_file, cli_args) = dump_config_and_args(config);
+
+    let boot_error = load_and_validate_config(cli_args.clone(), false)
+        .expect_err("Boot-time loading should reject an unresolvable component url")
+        .to_string();
+    // Pin the rejection reason, so this stays a test about url resolution.
+    assert!(boot_error.contains("Failed to resolve url"), "Unexpected boot error: {boot_error}");
+
+    let mut mock_client = MockConfigManagerClient::new();
+    mock_client.expect_set_node_dynamic_config().return_const(Ok(()));
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(mock_client),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    runner.update_config().await.expect("Refresh should not resolve component urls");
 }
 
 #[tokio::test]
