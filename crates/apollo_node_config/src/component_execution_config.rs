@@ -168,6 +168,20 @@ impl ReactiveComponentExecutionConfig {
         self.port != DEFAULT_INVALID_PORT
     }
 
+    /// Resolves the component's url, for modes that connect to it remotely.
+    ///
+    /// Kept out of the `Validate` derive because it performs DNS resolution: the derive runs on
+    /// every config refresh, where a transient resolver failure would reject a valid config.
+    pub fn validate_url(&self) -> Result<(), ValidationError> {
+        match (&self.execution_mode, self.is_valid_socket()) {
+            (ReactiveComponentExecutionMode::Remote, true)
+            | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => {
+                resolve_url(&self.url)
+            }
+            _ => Ok(()),
+        }
+    }
+
     pub fn with_idle_connections(mut self, idle_connections: usize) -> Self {
         self.remote_client_config
             .as_mut()
@@ -244,8 +258,8 @@ impl ActiveComponentExecutionConfig {
     }
 }
 
-// Validates the configured URL. If the URL is invalid, it returns an error.
-fn validate_url(url: &str) -> Result<(), ValidationError> {
+// Resolves the configured URL. If the URL cannot be resolved, it returns an error.
+fn resolve_url(url: &str) -> Result<(), ValidationError> {
     let arbitrary_port: u16 = 0;
     let socket_addrs = (url, arbitrary_port).to_socket_addrs().map_err(|e| {
         create_url_validation_error(format!("Failed to resolve url: {url}, error: {e:?}"))
@@ -259,7 +273,16 @@ fn validate_url(url: &str) -> Result<(), ValidationError> {
 }
 
 fn create_url_validation_error(error_msg: String) -> ValidationError {
-    create_validation_error(error_msg, "Failed to resolve url", "Ensure the url is valid.")
+    let mut error = create_validation_error(
+        error_msg.clone(),
+        "Failed to resolve url",
+        "Ensure the url is valid.",
+    );
+    // Carry the resolver's own error, rather than only logging it: it separates a typo'd url
+    // (NXDOMAIN) from a transient resolution failure, which is the first thing to check when a
+    // node fails to boot.
+    error.message = Some(error_msg.into());
+    error
 }
 
 fn check_presence(
@@ -317,13 +340,13 @@ fn validate_reactive_component_execution_config(
         return Err(error);
     }
 
-    // Validate the execution mode matches socket validity.
+    // Validate the execution mode matches socket validity. Resolving the url is deliberately not
+    // done here: it is network I/O, and this validator runs on every config refresh. See
+    // `ReactiveComponentExecutionConfig::validate_url`.
     match (&component_config.execution_mode, component_config.is_valid_socket()) {
         (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
         (ReactiveComponentExecutionMode::Remote, true)
-        | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => {
-            validate_url(&component_config.url)
-        }
+        | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => Ok(()),
         (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, _) => Ok(()),
         (mode, socket) => {
             error!(

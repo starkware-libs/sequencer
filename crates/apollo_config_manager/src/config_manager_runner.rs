@@ -9,7 +9,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
-use apollo_node_config::config_utils::load_and_validate_config;
+use apollo_node_config::config_utils::load_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -124,9 +124,15 @@ impl ConfigManagerRunner {
     pub(crate) async fn update_config(
         &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
-        let config = load_and_validate_config(self.cli_args.clone(), false).map_err(|e| {
+        let config = load_config(self.cli_args.clone()).map_err(|e| {
             CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
             error!("ConfigManagerRunner: failed to update config: {e}");
+            e
+        })?;
+        // Everything except component url resolution, which is network I/O on a 20s timer.
+        config.validate_node_config_without_urls().map_err(|e| {
+            CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
+            error!("ConfigManagerRunner: failed to validate config: {e}");
             e
         })?;
         let node_dynamic_config = NodeDynamicConfig::from(&config);

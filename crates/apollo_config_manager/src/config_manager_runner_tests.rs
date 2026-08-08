@@ -9,7 +9,8 @@ use apollo_config_manager_types::communication::{
     SharedConfigManagerClient,
 };
 use apollo_consensus_config::config::ConsensusDynamicConfig;
-use apollo_node_config::config_utils::DeploymentBaseAppConfig;
+use apollo_node_config::component_execution_config::ReactiveComponentExecutionConfig;
+use apollo_node_config::config_utils::{load_and_validate_config, DeploymentBaseAppConfig};
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use serde_json::Value;
@@ -25,6 +26,9 @@ use crate::config_manager_runner::ConfigManagerRunner;
 // An arbitrary hex-str config entry to be replaced.
 const VALIDATOR_ID_CONFIG_ENTRY: &str = "validator_id";
 const TEST_TIMEOUT_SECS: u64 = 1;
+// RFC 2606 reserves `.invalid`, so this never resolves and the test needs no network.
+const UNRESOLVABLE_URL: &str = "sequencer-core-service.invalid";
+const ARBITRARY_PORT: u16 = 8080;
 
 /// Creates a temporary config file with specific test values and returns CLI args pointing to it.
 fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
@@ -53,6 +57,22 @@ fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
     ];
 
     (temp_file, cli_args, current_validator_id)
+}
+
+/// Dumps `config` to a temporary file and returns it with CLI args pointing to it.
+fn dump_config_and_args(config: SequencerNodeConfig) -> (NamedTempFile, Vec<String>) {
+    let base_app_config =
+        DeploymentBaseAppConfig::new(config, ConfigPointersMap::create_for_testing());
+    let temp_file = NamedTempFile::new().expect("Failed to create temporary config file");
+    base_app_config.dump_config_file(temp_file.path());
+
+    let cli_args = vec![
+        "test_node".to_string(),
+        CONFIG_FILE_ARG.to_string(),
+        temp_file.path().to_string_lossy().to_string(),
+    ];
+
+    (temp_file, cli_args)
 }
 
 fn update_config_file(temp_file: &NamedTempFile) -> String {
@@ -141,6 +161,109 @@ async fn config_manager_runner_update_config_with_changed_values() {
         second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
+}
+
+/// The refresh must not resolve component urls; boot must still reject an unresolvable one.
+#[tokio::test]
+async fn update_config_ignores_unresolvable_component_url() {
+    let mut config = SequencerNodeConfig::default();
+    config.components.batcher =
+        ReactiveComponentExecutionConfig::remote(UNRESOLVABLE_URL.to_string(), ARBITRARY_PORT);
+    // The batcher no longer runs locally, so its config must be unset.
+    config.batcher_config = None;
+
+    let (_temp_file, cli_args) = dump_config_and_args(config);
+
+    let boot_error = load_and_validate_config(cli_args.clone(), false)
+        .expect_err("Boot-time loading should reject an unresolvable component url")
+        .to_string();
+    // Pin the rejection reason, so this stays a test about url resolution, and pin that the error
+    // names the offending component and keeps the resolver's own message.
+    assert!(boot_error.contains("Failed to resolve url"), "Unexpected boot error: {boot_error}");
+    assert!(boot_error.contains("components.batcher"), "Boot error lacks component: {boot_error}");
+    assert!(boot_error.contains(UNRESOLVABLE_URL), "Boot error lacks url: {boot_error}");
+    assert!(
+        boot_error.contains("failed to lookup address information"),
+        "Boot error lacks the resolver error: {boot_error}"
+    );
+
+    let mut mock_client = MockConfigManagerClient::new();
+    mock_client.expect_set_node_dynamic_config().return_const(Ok(()));
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(mock_client),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    runner.update_config().await.expect("Refresh should not resolve component urls");
+}
+
+/// Skipping url resolution must not skip anything else. This cross-check lives on `BatcherConfig`,
+/// the parent of the dynamic config, so validating only `NodeDynamicConfig` would miss it.
+#[tokio::test]
+async fn update_config_rejects_dynamic_value_invalid_against_static_one() {
+    let mut config = SequencerNodeConfig::default();
+    let batcher_config = config.batcher_config.as_mut().expect("Default config has a batcher");
+    batcher_config.dynamic_config.n_concurrent_txs =
+        batcher_config.static_config.input_stream_content_buffer_size + 1;
+
+    let (_temp_file, cli_args) = dump_config_and_args(config);
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(MockConfigManagerClient::new()),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    let error = runner
+        .update_config()
+        .await
+        .expect_err("Refresh should reject n_concurrent_txs above input_stream_content_buffer_size")
+        .to_string();
+    assert!(error.contains("input_stream_content_buffer_size"), "Unexpected error: {error}");
+}
+
+/// The refresh must run `cross_member_validations` too, not just the `Validate` derive. This check
+/// spans two configs, so no single struct's validator backstops it.
+#[tokio::test]
+async fn update_config_rejects_idle_delay_above_batcher_deadline() {
+    let mut config = SequencerNodeConfig::default();
+    let consensus_manager_config =
+        config.consensus_manager_config.as_mut().expect("Default config has a consensus manager");
+    let proposal_timeout = consensus_manager_config
+        .consensus_manager_config
+        .dynamic_config
+        .timeouts
+        .get_proposal_timeout(0);
+    // Leave no room between the proposal timeout and the build margin, so idle detection could
+    // never fire before the hard deadline.
+    consensus_manager_config.context_config.dynamic_config.build_proposal_margin_millis =
+        Duration::ZERO;
+    config
+        .batcher_config
+        .as_mut()
+        .expect("Default config has a batcher")
+        .dynamic_config
+        .proposer_idle_detection_delay_millis = proposal_timeout;
+
+    let (_temp_file, cli_args) = dump_config_and_args(config);
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(MockConfigManagerClient::new()),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    let error = runner
+        .update_config()
+        .await
+        .expect_err("Refresh should reject an idle delay that exceeds the batcher deadline")
+        .to_string();
+    assert!(error.contains("proposer_idle_detection_delay_millis"), "Unexpected error: {error}");
 }
 
 #[tokio::test]
