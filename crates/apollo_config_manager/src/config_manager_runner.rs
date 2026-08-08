@@ -138,18 +138,23 @@ impl ConfigManagerRunner {
         } else {
             // Log the diff between the latest and the new node dynamic config.
             self.log_config_diff(&self.latest_node_dynamic_config, &node_dynamic_config);
-            // Update the latest node dynamic config.
-            self.latest_node_dynamic_config = node_dynamic_config.clone();
             match self
                 .config_manager_client
                 .set_node_dynamic_config(node_dynamic_config.clone())
                 .await
             {
                 Ok(()) => {
+                    // Recorded only once the component has accepted it, so that a failed dispatch
+                    // is retried on the next update instead of being seen as no change.
+                    self.latest_node_dynamic_config = node_dynamic_config.clone();
                     info!("Successfully updated dynamic config");
                     Ok(node_dynamic_config)
                 }
-                Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
+                Err(e) => {
+                    CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
+                    error!("ConfigManagerRunner: failed to update dynamic config: {e}");
+                    Err(format!("Failed to update dynamic config: {:?}", e).into())
+                }
             }
         }
     }

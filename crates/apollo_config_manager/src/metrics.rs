@@ -15,7 +15,7 @@ define_metrics!(
         MetricCounter {
             CONFIG_MANAGER_UPDATE_ERRORS,
             "config_manager_update_errors",
-            "Number of config manager update errors (load/validate)",
+            "Number of config manager update errors (load/validate/dispatch)",
             init = 0
         },
     },
