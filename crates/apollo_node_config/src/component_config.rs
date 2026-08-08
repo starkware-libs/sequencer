@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -113,6 +113,39 @@ impl ComponentConfig {
             signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
         }
+    }
+
+    /// Resolves the url of every reactive component that is reached remotely.
+    ///
+    /// Separate from the `Validate` derive because it performs DNS resolution — see
+    /// [`ReactiveComponentExecutionConfig::validate_url`]. Callers run this at boot only.
+    pub fn validate_urls(&self) -> Result<(), ValidationError> {
+        let reactive_components: [(&str, &ReactiveComponentExecutionConfig); 13] = [
+            ("batcher", &self.batcher),
+            ("class_manager", &self.class_manager),
+            ("committer", &self.committer),
+            ("config_manager", &self.config_manager),
+            ("gateway", &self.gateway),
+            ("l1_events_provider", &self.l1_events_provider),
+            ("l1_gas_price_provider", &self.l1_gas_price_provider),
+            ("mempool", &self.mempool),
+            ("mempool_p2p", &self.mempool_p2p),
+            ("proof_manager", &self.proof_manager),
+            ("sierra_compiler", &self.sierra_compiler),
+            ("signature_manager", &self.signature_manager),
+            ("state_sync", &self.state_sync),
+        ];
+
+        for (name, component) in reactive_components {
+            if component.validate_url().is_err() {
+                let mut error = ValidationError::new("Failed to resolve url");
+                error.message = Some(
+                    format!("Failed to resolve url {} of components.{name}.", component.url).into(),
+                );
+                return Err(error);
+            }
+        }
+        Ok(())
     }
 
     #[cfg(any(feature = "testing", test))]

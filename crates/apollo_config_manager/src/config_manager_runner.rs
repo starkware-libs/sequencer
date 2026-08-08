@@ -3,7 +3,7 @@ use std::future::pending;
 use std::path::{Path, PathBuf};
 
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::{config_validate, validate_path_exists};
+use apollo_config::validators::validate_path_exists;
 use apollo_config::{CONFIG_FILE_ARG, CONFIG_FILE_SHORT_ARG_NAME};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -124,20 +124,18 @@ impl ConfigManagerRunner {
     pub(crate) async fn update_config(
         &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
-        // Only the dynamic config can change while the node runs, so only it is revalidated here.
-        // Validating the full config would also resolve every component url over DNS on each
-        // tick, failing the update on a transient resolver blip.
         let config = load_config(self.cli_args.clone()).map_err(|e| {
             CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
             error!("ConfigManagerRunner: failed to update config: {e}");
             e
         })?;
-        let node_dynamic_config = NodeDynamicConfig::from(&config);
-        config_validate(&node_dynamic_config).map_err(|e| {
+        // Everything except component url resolution, which is network I/O on a 20s timer.
+        config.validate_node_config_without_urls().map_err(|e| {
             CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
-            error!("ConfigManagerRunner: failed to validate dynamic config: {e}");
+            error!("ConfigManagerRunner: failed to validate config: {e}");
             e
         })?;
+        let node_dynamic_config = NodeDynamicConfig::from(&config);
 
         // Compare the previous and the newly read node dynamic config.
         if self.latest_node_dynamic_config == node_dynamic_config {

@@ -193,6 +193,32 @@ async fn update_config_ignores_unresolvable_component_url() {
     runner.update_config().await.expect("Refresh should not resolve component urls");
 }
 
+/// Skipping url resolution must not skip anything else. This cross-check lives on `BatcherConfig`,
+/// the parent of the dynamic config, so validating only `NodeDynamicConfig` would miss it.
+#[tokio::test]
+async fn update_config_rejects_dynamic_value_invalid_against_static_one() {
+    let mut config = SequencerNodeConfig::default();
+    let batcher_config = config.batcher_config.as_mut().expect("Default config has a batcher");
+    batcher_config.dynamic_config.n_concurrent_txs =
+        batcher_config.static_config.input_stream_content_buffer_size + 1;
+
+    let (_temp_file, cli_args) = dump_config_and_args(config);
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(MockConfigManagerClient::new()),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    let error = runner
+        .update_config()
+        .await
+        .expect_err("Refresh should reject n_concurrent_txs above input_stream_content_buffer_size")
+        .to_string();
+    assert!(error.contains("input_stream_content_buffer_size"), "Unexpected error: {error}");
+}
+
 #[tokio::test]
 async fn watcher_triggers_update_on_file_change() {
     // Prepare temp config file and CLI args.
