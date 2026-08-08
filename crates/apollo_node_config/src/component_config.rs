@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -112,6 +112,61 @@ impl ComponentConfig {
             sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
             signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
+        }
+    }
+
+    /// Resolves the url of every reactive component.
+    pub fn validate_urls(&self) -> Result<(), ValidationError> {
+        // Destructure exhaustively (no `..`) so a new component must be classified here.
+        let Self {
+            batcher,
+            class_manager,
+            committer,
+            config_manager,
+            gateway,
+            l1_events_provider,
+            l1_gas_price_provider,
+            mempool,
+            mempool_p2p,
+            proof_manager,
+            sierra_compiler,
+            signature_manager,
+            state_sync,
+            consensus_manager: _,
+            http_server: _,
+            l1_events_scraper: _,
+            l1_gas_price_scraper: _,
+            monitoring_endpoint: _,
+        } = self;
+
+        let reactive_components = [
+            ("batcher", batcher),
+            ("class_manager", class_manager),
+            ("committer", committer),
+            ("config_manager", config_manager),
+            ("gateway", gateway),
+            ("l1_events_provider", l1_events_provider),
+            ("l1_gas_price_provider", l1_gas_price_provider),
+            ("mempool", mempool),
+            ("mempool_p2p", mempool_p2p),
+            ("proof_manager", proof_manager),
+            ("sierra_compiler", sierra_compiler),
+            ("signature_manager", signature_manager),
+            ("state_sync", state_sync),
+        ];
+
+        let failed_component_urls: Vec<String> = reactive_components
+            .into_iter()
+            .filter_map(|(name, component)| {
+                component.validate_url().err().map(|error| format!("components.{name}: {error}"))
+            })
+            .collect();
+
+        if failed_component_urls.is_empty() {
+            Ok(())
+        } else {
+            Err(ValidationError::new("Failed to resolve url")
+                .with_message(failed_component_urls.join("; ").into()))
         }
     }
 

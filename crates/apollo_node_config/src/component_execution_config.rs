@@ -168,6 +168,19 @@ impl ReactiveComponentExecutionConfig {
         self.port != DEFAULT_INVALID_PORT
     }
 
+    /// Whether the component is reached over the network, i.e. has a url to resolve.
+    fn connects_remotely(&self) -> bool {
+        matches!(
+            (&self.execution_mode, self.is_valid_socket()),
+            (ReactiveComponentExecutionMode::Remote, true)
+                | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true)
+        )
+    }
+
+    pub fn validate_url(&self) -> Result<(), ValidationError> {
+        if self.connects_remotely() { resolve_url(&self.url) } else { Ok(()) }
+    }
+
     pub fn with_idle_connections(mut self, idle_connections: usize) -> Self {
         self.remote_client_config
             .as_mut()
@@ -244,8 +257,8 @@ impl ActiveComponentExecutionConfig {
     }
 }
 
-// Validates the configured URL. If the URL is invalid, it returns an error.
-fn validate_url(url: &str) -> Result<(), ValidationError> {
+// Resolves the configured URL. If the URL cannot be resolved, it returns an error.
+fn resolve_url(url: &str) -> Result<(), ValidationError> {
     let arbitrary_port: u16 = 0;
     let socket_addrs = (url, arbitrary_port).to_socket_addrs().map_err(|e| {
         create_url_validation_error(format!("Failed to resolve url: {url}, error: {e:?}"))
@@ -259,7 +272,9 @@ fn validate_url(url: &str) -> Result<(), ValidationError> {
 }
 
 fn create_url_validation_error(error_msg: String) -> ValidationError {
-    create_validation_error(error_msg, "Failed to resolve url", "Ensure the url is valid.")
+    error!(error_msg);
+    ValidationError::new("Failed to resolve url")
+        .with_message(format!("{error_msg}. Ensure the url is valid.").into())
 }
 
 fn check_presence(
@@ -321,9 +336,7 @@ fn validate_reactive_component_execution_config(
     match (&component_config.execution_mode, component_config.is_valid_socket()) {
         (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
         (ReactiveComponentExecutionMode::Remote, true)
-        | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => {
-            validate_url(&component_config.url)
-        }
+        | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => Ok(()),
         (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, _) => Ok(()),
         (mode, socket) => {
             error!(

@@ -485,6 +485,13 @@ impl SequencerNodeConfig {
     }
 
     pub fn validate_node_config(&self) -> Result<(), ConfigError> {
+        self.validate_node_config_without_urls()?;
+
+        // Resolves component urls over DNS, so it is a boot-time check only.
+        Ok(self.components.validate_urls()?)
+    }
+
+    pub fn validate_node_config_without_urls(&self) -> Result<(), ConfigError> {
         // Validate each config member using its `Validate` trait derivation.
         config_validate(self)?;
 
