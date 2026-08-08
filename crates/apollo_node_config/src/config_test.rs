@@ -34,6 +34,8 @@ const ENABLE_REMOTE_CONNECTION_MODE: ReactiveComponentExecutionMode =
 
 const VALID_URL: &str = "www.google.com";
 const VALID_PORT: u16 = 8080;
+// RFC 2606 reserves `.invalid`, so this never resolves and the test needs no network.
+const UNRESOLVABLE_URL: &str = "sequencer-service.invalid";
 
 /// Test the validation of the struct ReactiveComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
@@ -101,6 +103,38 @@ fn default_config_file_is_up_to_date() {
 fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
+}
+
+/// The `Validate` derive runs on every config-manager refresh, so it must do no network I/O:
+/// resolving urls there lets a transient DNS failure reject an unchanged, valid config. Url
+/// resolution belongs to [`ComponentConfig::validate_urls`], which callers run at boot only.
+///
+/// If this test fails, a validator started doing network I/O again. Move it to `validate_urls`
+/// rather than relaxing the assert. Note that a url that becomes *dynamic* cannot simply move
+/// there — it must be resolved when it changes, not on every refresh.
+#[test]
+fn component_config_validation_does_not_resolve_urls() {
+    let unresolvable =
+        || ReactiveComponentExecutionConfig::remote(UNRESOLVABLE_URL.to_string(), VALID_PORT);
+    let components = ComponentConfig {
+        batcher: unresolvable(),
+        class_manager: unresolvable(),
+        committer: unresolvable(),
+        config_manager: unresolvable(),
+        gateway: unresolvable(),
+        l1_events_provider: unresolvable(),
+        l1_gas_price_provider: unresolvable(),
+        mempool: unresolvable(),
+        mempool_p2p: unresolvable(),
+        proof_manager: unresolvable(),
+        sierra_compiler: unresolvable(),
+        signature_manager: unresolvable(),
+        state_sync: unresolvable(),
+        ..Default::default()
+    };
+
+    assert!(components.validate().is_ok(), "Config validation must not resolve urls");
+    assert!(components.validate_urls().is_err(), "Boot-time validation must resolve urls");
 }
 
 fn echonet_gateway_config() -> GatewayConfig {
