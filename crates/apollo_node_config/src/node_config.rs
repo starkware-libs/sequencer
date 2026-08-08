@@ -485,6 +485,23 @@ impl SequencerNodeConfig {
     }
 
     pub fn validate_node_config(&self) -> Result<(), ConfigError> {
+        self.validate_node_config_without_urls()?;
+
+        // Resolves component urls over DNS, so it is a boot-time check only.
+        Ok(self.components.validate_urls()?)
+    }
+
+    /// Everything [`Self::validate_node_config`] checks, except resolving component urls.
+    ///
+    /// For the config manager's periodic refresh: url resolution is network I/O, and running it on
+    /// a timer lets a transient resolver failure reject an unchanged, valid config. Component urls
+    /// are static, so boot-time resolution is sufficient.
+    ///
+    /// The rule this encodes is that network-dependent validation runs on a *change*, never on a
+    /// poll. If a url ever becomes dynamic, do not resolve it here — resolve it in the config
+    /// manager where a change is detected, so the lookup happens once per edit rather than once
+    /// per tick.
+    pub fn validate_node_config_without_urls(&self) -> Result<(), ConfigError> {
         // Validate each config member using its `Validate` trait derivation.
         config_validate(self)?;
 

@@ -206,16 +206,19 @@ impl DeploymentBaseAppConfig {
     }
 }
 
+/// Loads the node config without validating it. Callers must validate whatever they consume;
+/// [`load_and_validate_config`] validates in full.
+pub fn load_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
+    SequencerNodeConfig::load_and_process(args).inspect_err(|error| {
+        error!("Failed loading configuration: {error}");
+    })
+}
+
 pub fn load_and_validate_config(
     args: Vec<String>,
     log_enabled: bool,
 ) -> Result<SequencerNodeConfig, ConfigError> {
-    let config_load_result = SequencerNodeConfig::load_and_process(args);
-    if let Err(error) = config_load_result {
-        error!("Failed loading configuration: {error}");
-        return Err(error);
-    }
-    let loaded_config = config_load_result.unwrap();
+    let loaded_config = load_config(args)?;
 
     if log_enabled {
         info!("Finished loading configuration.");

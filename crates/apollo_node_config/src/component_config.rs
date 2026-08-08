@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -113,6 +113,63 @@ impl ComponentConfig {
             signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
         }
+    }
+
+    /// Resolves the url of every reactive component that is reached remotely.
+    ///
+    /// Separate from the `Validate` derive because it performs DNS resolution — see
+    /// [`ReactiveComponentExecutionConfig::validate_url`]. Callers run this at boot only.
+    pub fn validate_urls(&self) -> Result<(), ValidationError> {
+        // Destructured exhaustively, without `..`, so that adding a component to the struct fails
+        // to compile until it is classified here. Active components have no url to resolve.
+        let Self {
+            batcher,
+            class_manager,
+            committer,
+            config_manager,
+            gateway,
+            l1_events_provider,
+            l1_gas_price_provider,
+            mempool,
+            mempool_p2p,
+            proof_manager,
+            sierra_compiler,
+            signature_manager,
+            state_sync,
+            consensus_manager: _,
+            http_server: _,
+            l1_events_scraper: _,
+            l1_gas_price_scraper: _,
+            monitoring_endpoint: _,
+        } = self;
+
+        let reactive_components = [
+            ("batcher", batcher),
+            ("class_manager", class_manager),
+            ("committer", committer),
+            ("config_manager", config_manager),
+            ("gateway", gateway),
+            ("l1_events_provider", l1_events_provider),
+            ("l1_gas_price_provider", l1_gas_price_provider),
+            ("mempool", mempool),
+            ("mempool_p2p", mempool_p2p),
+            ("proof_manager", proof_manager),
+            ("sierra_compiler", sierra_compiler),
+            ("signature_manager", signature_manager),
+            ("state_sync", state_sync),
+        ];
+
+        for (name, component) in reactive_components {
+            if let Err(error) = component.validate_url() {
+                // Name the component; the inner message already carries the url and the
+                // resolver's error.
+                let detail = error.message.unwrap_or_default();
+                let mut error = ValidationError::new("Failed to resolve url");
+                error.message = Some(format!("components.{name}: {detail}").into());
+                return Err(error);
+            }
+        }
+        Ok(())
     }
 
     #[cfg(any(feature = "testing", test))]
