@@ -5,9 +5,11 @@ use std::time::Duration;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{
+    ConfigManagerClientError,
     MockConfigManagerClient,
     SharedConfigManagerClient,
 };
+use apollo_config_manager_types::errors::ConfigManagerError;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::component_execution_config::ReactiveComponentExecutionConfig;
 use apollo_node_config::config_utils::{load_and_validate_config, DeploymentBaseAppConfig};
@@ -264,6 +266,51 @@ async fn update_config_rejects_idle_delay_above_batcher_deadline() {
         .expect_err("Refresh should reject an idle delay that exceeds the batcher deadline")
         .to_string();
     assert!(error.contains("proposer_idle_detection_delay_millis"), "Unexpected error: {error}");
+}
+
+/// A dispatch the component rejects must not be recorded as applied: the next update has to try
+/// again, rather than compare against a config the node never received and see no change.
+#[tokio::test]
+async fn failed_dispatch_is_retried_on_the_next_update() {
+    let (_temp_file, cli_args, _) = create_temp_config_file_and_args();
+
+    let mut mock_client = MockConfigManagerClient::new();
+    // Both updates must reach the client. Were the failure recorded as applied, the second would
+    // take the "no change" path and never dispatch.
+    mock_client.expect_set_node_dynamic_config().times(2).returning(|_| {
+        Err(ConfigManagerClientError::ConfigManagerError(ConfigManagerError::InvalidConfig(
+            "rejected by the component".to_string(),
+        )))
+    });
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(mock_client),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    runner.update_config().await.expect_err("Dispatch fails");
+    runner.update_config().await.expect_err("Dispatch fails again");
+}
+
+/// The counterpart: once the component accepts the config, an unchanged file is not re-dispatched.
+#[tokio::test]
+async fn accepted_dispatch_is_not_repeated_while_the_config_is_unchanged() {
+    let (_temp_file, cli_args, _) = create_temp_config_file_and_args();
+
+    let mut mock_client = MockConfigManagerClient::new();
+    mock_client.expect_set_node_dynamic_config().times(1).return_const(Ok(()));
+
+    let mut runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(mock_client),
+        NodeDynamicConfig::default(),
+        cli_args,
+    );
+
+    runner.update_config().await.expect("First update should dispatch");
+    runner.update_config().await.expect("Second update should be a no-op");
 }
 
 #[tokio::test]
