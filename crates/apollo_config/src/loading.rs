@@ -4,9 +4,11 @@
 //! * Custom config files, separated by ',' (comma), from last to first.
 
 use std::collections::{BTreeMap, HashSet};
+use std::fmt::Arguments;
 use std::fs::File;
 use std::ops::IndexMut;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use clap::parser::Values;
 use clap::Command;
@@ -14,7 +16,7 @@ use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, trace};
 
 use crate::validators::validate_path_exists;
 use crate::{
@@ -47,6 +49,22 @@ pub fn load<T: for<'a> Deserialize<'a>>(
     Ok(serde_json::from_value(nested_map)?)
 }
 
+/// Whether a config has already been loaded in this process. See [`log_config_load`].
+static CONFIG_LOADED_BEFORE: AtomicBool = AtomicBool::new(false);
+
+/// Reports how a config was assembled, but only in full for the first load of the process.
+///
+/// The config manager reloads the config on a timer, so an unconditional `info!` here repeats
+/// forever in every pod for a config that almost never changes. The startup load is the one worth
+/// reading, so subsequent loads are demoted to `trace`.
+fn log_config_load(message: Arguments<'_>) {
+    if CONFIG_LOADED_BEFORE.load(Ordering::Relaxed) {
+        trace!("{message}");
+    } else {
+        info!("{message}");
+    }
+}
+
 /// Deserializes a json config file, updates the values by the given arguments for the command, and
 /// set values for the pointers.
 pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
@@ -65,7 +83,7 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     // Retaining values from the default config map for backward compatibility.
     let (mut values_map, types_map) = split_values_and_types(config_map);
     if ignore_default_values {
-        info!("Ignoring default values by overriding with an empty map.");
+        log_config_load(format_args!("Ignoring default values by overriding with an empty map."));
         values_map = BTreeMap::new();
     }
     // If the config_file arg is given, updates the values map according to this files.
@@ -133,6 +151,9 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
             );
         }
     }
+    // From here on this process has a startup config load behind it, so the lines above become
+    // repeats of what was already reported.
+    CONFIG_LOADED_BEFORE.store(true, Ordering::Relaxed);
     // Return the loaded config result.
     load_result
 }
@@ -187,7 +208,7 @@ pub(crate) fn update_config_map_by_custom_configs(
     custom_config_paths: Values<PathBuf>,
 ) -> Result<(), ConfigError> {
     for config_path in custom_config_paths {
-        info!("Loading custom config file: {:?}", config_path);
+        log_config_load(format_args!("Loading custom config file: {config_path:?}"));
         validate_path_exists(&config_path)?;
         let file = std::fs::File::open(config_path)?;
         let custom_config: Map<String, Value> = serde_json::from_reader(file)?;

@@ -16,7 +16,7 @@ use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMod
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration as TokioDuration, Interval};
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
@@ -111,9 +111,10 @@ impl ConfigManagerRunner {
                         }
                     }
                 }
-                // Periodic tick
+                // Periodic tick. A bare heartbeat in every pod for every tick, so kept at trace;
+                // an actual config change is still reported by log_config_diff below.
                 _ = update_interval.tick() => {
-                    info!("ConfigManagerRunner: periodic check triggered, updating config");
+                    trace!("ConfigManagerRunner: periodic check triggered, updating config");
                     let _ = self.update_config().await;
                 }
             }
