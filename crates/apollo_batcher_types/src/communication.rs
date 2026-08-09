@@ -61,6 +61,11 @@ pub trait BatcherClient: Send + Sync {
         &self,
         block_number: BlockNumber,
     ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>>;
+    /// Returns whether the compressed state commitment infos for a block are stored.
+    async fn has_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<bool>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -119,6 +124,7 @@ pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetBlockHash(BlockNumber),
     GetStateCommitmentInfos(BlockNumber),
+    HasStateCommitmentInfos(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -146,6 +152,7 @@ pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetBlockHash(BatcherResult<BlockHash>),
     GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
+    HasStateCommitmentInfos(BatcherResult<bool>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -210,6 +217,22 @@ where
             request,
             BatcherResponse,
             GetStateCommitmentInfos,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn has_state_commitment_infos(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<bool> {
+        let request = BatcherRequest::HasStateCommitmentInfos(block_number);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            HasStateCommitmentInfos,
             BatcherClientError,
             BatcherError,
             Direct

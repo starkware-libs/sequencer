@@ -506,7 +506,7 @@ pub(crate) async fn verify_retrospective_state_commitment_infos(
     // The batcher is queried at the retrospective height itself since apollo storage doesn't
     // guarantee the commitment infos of every height are stored (e.g. blocks added via sync);
     // the cende recorder's storage is contiguous, so its height offset is enough.
-    if batcher_client.get_state_commitment_infos(retrospective_block_number).await?.is_some() {
+    if batcher_client.has_state_commitment_infos(retrospective_block_number).await? {
         return Ok(());
     }
 
