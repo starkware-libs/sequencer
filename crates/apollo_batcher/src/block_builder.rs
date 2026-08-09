@@ -59,7 +59,7 @@ use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::spawn_blocking;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
@@ -355,7 +355,7 @@ impl BlockBuilder {
             }
             if final_n_executed_txs.is_none() {
                 if let Some(res) = self.tx_provider.get_final_n_executed_txs().await {
-                    info!("Received final number of transactions in block proposal: {res}.");
+                    trace!("Received final number of transactions in block proposal: {res}.");
                     final_n_executed_txs = Some(res);
                 }
             }
@@ -425,8 +425,11 @@ impl BlockBuilder {
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
         );
-        // Sanity check to avoid panic and skip logging if numbers aren't aligned
-        if final_n_executed_txs_nonopt <= self.n_executed_txs
+        // Sanity check to avoid panic and skip logging if numbers aren't aligned. Empty blocks are
+        // skipped too: on Mainnet most blocks carry no transactions, and this line would report
+        // three empty lists for each of them.
+        if !self.block_txs.is_empty()
+            && final_n_executed_txs_nonopt <= self.n_executed_txs
             && self.n_executed_txs <= self.block_txs.len()
         {
             debug!(
@@ -521,7 +524,7 @@ impl BlockBuilder {
 
         let n_txs = next_txs.len();
         let block_txs_start = self.block_txs.len();
-        debug!(
+        trace!(
             "Got {} transactions from the transaction provider (aggregated: {}).",
             n_txs,
             block_txs_start + n_txs
@@ -535,7 +538,7 @@ impl BlockBuilder {
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
         // Start the execution of the transactions on the worker pool.
-        info!("Starting execution of {} transactions.", n_txs);
+        trace!("Starting execution of {} transactions.", n_txs);
         let executor = self.executor.clone();
         spawn_blocking(move || {
             lock_executor(&executor).add_txs_to_block(executor_input_chunk.as_slice())
@@ -568,7 +571,7 @@ impl BlockBuilder {
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
 
-        info!(
+        trace!(
             "Finished execution of {} transactions (aggregated: {}).",
             results.len(),
             self.n_executed_txs
@@ -781,7 +784,7 @@ impl BlockBuilderFactory {
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
     {
-        info!(
+        trace!(
             "preprocess and create transaction executor for block {}",
             block_metadata.block_info.block_number
         );
@@ -966,11 +969,10 @@ fn record_and_log_block_commitment_measurements(
     debug!(
         "Block {height} commitments latencies: tx/event/receipt/state_diff in µs: \
          {tx_commitment_latency}/{event_commitment_latency}/{receipt_commitment_latency}/\
-         {state_diff_commitment_latency},
-        tx commitment per tx: {tx_commitment_per_tx_latency_string},
-        event commitment per event: {event_commitment_per_event_latency_string},
-        state diff commitment per state diff length: \
-         {state_diff_commitment_per_state_diff_length_latency_string}",
+         {state_diff_commitment_latency}, tx commitment per tx: \
+         {tx_commitment_per_tx_latency_string}, event commitment per event: \
+         {event_commitment_per_event_latency_string}, state diff commitment per state diff \
+         length: {state_diff_commitment_per_state_diff_length_latency_string}",
     );
 }
 

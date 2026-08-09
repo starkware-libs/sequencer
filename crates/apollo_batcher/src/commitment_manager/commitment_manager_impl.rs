@@ -25,7 +25,7 @@ use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 use crate::batcher::{BatcherStorageReader, BatcherStorageWriter};
 use crate::commitment_manager::errors::CommitmentManagerError;
@@ -536,7 +536,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 })?;
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
-                debug!(
+                trace!(
                     "Calculating block hash for block {height} with partial block hash \
                      components: {partial_block_hash_components:?}"
                 );
