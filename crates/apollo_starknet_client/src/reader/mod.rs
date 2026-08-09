@@ -7,6 +7,7 @@ pub mod objects;
 mod starknet_feeder_gateway_client_test;
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
@@ -211,15 +212,18 @@ impl StarknetFeederGatewayClient {
     }
 
     async fn request_with_retry_url(&self, url: Url) -> ReaderClientResult<String> {
-        debug!("Call to feeder started. url={url:?}");
+        let call_start = Instant::now();
         let result = self
             .client
             .request_with_retry(self.client.internal_client.get(url.clone()))
             .await
             .map_err(Into::<ReaderClientError>::into);
+        let elapsed = call_start.elapsed();
         match &result {
-            Ok(_) => debug!("Call to feeder succeeded. url={url:?}"),
-            Err(err) => debug!("Call to feeder failed. url={url:?}. Error = {err}"),
+            Ok(_) => debug!("Call to feeder succeeded. url={url:?}. elapsed={elapsed:?}"),
+            Err(err) => {
+                debug!("Call to feeder failed. url={url:?}. elapsed={elapsed:?}. Error = {err}")
+            }
         }
         result
     }
