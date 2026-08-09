@@ -355,7 +355,7 @@ impl BlockBuilder {
             }
             if final_n_executed_txs.is_none() {
                 if let Some(res) = self.tx_provider.get_final_n_executed_txs().await {
-                    trace!("Received final number of transactions in block proposal: {res}.");
+                    info!("Received final number of transactions in block proposal: {res}.");
                     final_n_executed_txs = Some(res);
                 }
             }
@@ -524,7 +524,7 @@ impl BlockBuilder {
 
         let n_txs = next_txs.len();
         let block_txs_start = self.block_txs.len();
-        trace!(
+        debug!(
             "Got {} transactions from the transaction provider (aggregated: {}).",
             n_txs,
             block_txs_start + n_txs
@@ -571,7 +571,7 @@ impl BlockBuilder {
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
 
-        trace!(
+        info!(
             "Finished execution of {} transactions (aggregated: {}).",
             results.len(),
             self.n_executed_txs
