@@ -9,6 +9,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
+use apollo_infra_utils::info_every_n;
 use apollo_node_config::config_utils::load_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
@@ -21,6 +22,7 @@ use tracing::{error, info};
 use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
 const FS_EVENT_CHANNEL_CAPACITY: usize = 16;
+const HEARTBEAT_LOG_EVERY_N_TICKS: usize = 10;
 
 #[cfg(test)]
 #[path = "config_manager_runner_tests.rs"]
@@ -111,9 +113,13 @@ impl ConfigManagerRunner {
                         }
                     }
                 }
-                // Periodic tick
+                // Periodic tick. Sampled rather than silenced, so a wedged poll loop is still
+                // visible as the heartbeat stopping.
                 _ = update_interval.tick() => {
-                    info!("ConfigManagerRunner: periodic check triggered, updating config");
+                    info_every_n!(
+                        HEARTBEAT_LOG_EVERY_N_TICKS,
+                        "ConfigManagerRunner: periodic check triggered, updating config"
+                    );
                     let _ = self.update_config().await;
                 }
             }
