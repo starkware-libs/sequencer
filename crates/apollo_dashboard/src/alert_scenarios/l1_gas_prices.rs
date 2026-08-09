@@ -69,6 +69,7 @@ pub(crate) fn get_eth_to_strk_rate_frozen_alert() -> Alert {
         "Eth to Strk rate frozen",
         &ETH_TO_STRK_RATE,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        ObserverApplicability::Applicable,
     )
 }
 
@@ -79,6 +80,7 @@ pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
         "Strk to Usd rate frozen",
         &SNIP35_STRK_USD_RATE,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        ObserverApplicability::NotApplicable,
     )
 }
 
@@ -192,13 +194,17 @@ fn oracle_error_count_alert(
 /// `or vector(0)`: an absent gauge must stay no-data (so an oracle that never resolves doesn't look
 /// "frozen"); only a present-but-flat gauge trips this.
 ///
-/// Applies to observers too: a frozen upstream feed is env-wide and observer nodes run the same
-/// oracle client, so the alert should fire regardless of node role.
+/// Observer applicability depends on which consensus path queries the oracle. Eth to Strk is
+/// queried when *validating* a proposal, so every node — observers included — keeps its gauge
+/// moving and the alert applies. Strk to Usd is queried only when *building* a proposal (the
+/// SNIP-35 fee proposal); observers never propose, so their gauge is registered at 0 but never
+/// updated — present-but-flat by construction — and the alert must exclude them.
 fn oracle_rate_frozen_alert(
     name: &str,
     title: &str,
     rate_metric: &dyn MetricQueryName,
     severity: impl Into<SeverityValueOrPlaceholder>,
+    observer_applicability: ObserverApplicability,
 ) -> Alert {
     Alert::new(
         name,
@@ -208,6 +214,6 @@ fn oracle_rate_frozen_alert(
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         severity,
-        ObserverApplicability::Applicable,
+        observer_applicability,
     )
 }
