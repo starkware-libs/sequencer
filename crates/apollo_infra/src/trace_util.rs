@@ -89,6 +89,9 @@ where
         // Instead, file name and line number.
         .with_file(true)
         .with_line_number(true)
+        // `spans` already holds the whole span list, with the current span as its last element,
+        // so also emitting `span` duplicates that data on every single log entry.
+        .with_current_span(false)
         .flatten_event(true)
 }
 
