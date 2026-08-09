@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785933640490,
+  "lastUpdate": 1786284438993,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7207,6 +7207,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1381.1399983699998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3e5d68ea0d88b85866c26e6791431a7393edb76",
+          "message": "apollo_consensus_orchestrator: warn at stop height when state commitment infos are missing (#14916)",
+          "timestamp": "2026-08-09T13:53:37Z",
+          "tree_id": "70ec5485ad22798ed205f012a4a29ba0b0ab4ef5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c3e5d68ea0d88b85866c26e6791431a7393edb76"
+        },
+        "date": 1786284438412,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 859.43256313,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1301.55821034,
             "unit": "ms"
           }
         ]
