@@ -122,9 +122,9 @@ pub mod storage_reader_server_test_utils;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
-use std::fs;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::{fs, thread};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -1212,18 +1212,22 @@ impl FileHandlers<RW> {
         self.clone().state_commitment_infos.append(state_commitment_infos)
     }
 
-    // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
+    // TODO(dan): Consider flushing only the relevant files.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
         trace!("Flushing the mmap files.");
-        self.thin_state_diff.flush();
-        self.contract_class.flush();
-        self.casm.flush();
-        self.deprecated_contract_class.flush();
-        self.transaction_output.flush();
-        self.transaction.flush();
-        self.accessed_keys.flush();
-        self.state_commitment_infos.flush();
+        // Each file has its own mmap and mutex, so the flushes (msync calls) are independent
+        // and safe to run concurrently; this turns the wall-clock cost from a sum into a max.
+        thread::scope(|scope| {
+            scope.spawn(|| self.thin_state_diff.flush());
+            scope.spawn(|| self.contract_class.flush());
+            scope.spawn(|| self.casm.flush());
+            scope.spawn(|| self.deprecated_contract_class.flush());
+            scope.spawn(|| self.transaction_output.flush());
+            scope.spawn(|| self.transaction.flush());
+            scope.spawn(|| self.accessed_keys.flush());
+            scope.spawn(|| self.state_commitment_infos.flush());
+        });
     }
 }
 
