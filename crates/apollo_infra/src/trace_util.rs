@@ -10,15 +10,26 @@ use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, reload, EnvFilter};
 
-// Renames the "error" key to "message" in a JSON object, if present.
-// If "message" already exists, leaves the object unchanged.
+// Byte pattern of the root-level "error" key as emitted by compact JSON serialization.
+const ERROR_KEY_PATTERN: &[u8] = b"\"error\"";
+
+// Renames the "error" key to "message" in a JSON object, if present, and if "message" doesn't
+// already exist. Returns `None` when no rewrite is needed (including on invalid JSON), so the
+// caller can write the original buffer unchanged.
+//
+// Most log lines have no "error" key at all (only #[instrument(...,err)] error paths do), so a
+// cheap byte-level scan for the key first skips the JSON parse/reserialize round-trip for the
+// overwhelming majority of calls; this function runs on every single log line emitted.
 pub(crate) fn rename_error_to_message(buf: &[u8]) -> Option<Vec<u8>> {
-    let mut obj: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(buf).ok()?;
-    if !obj.contains_key("message") {
-        if let Some(v) = obj.remove("error") {
-            obj.insert("message".into(), v);
-        }
+    if !buf.windows(ERROR_KEY_PATTERN.len()).any(|window| window == ERROR_KEY_PATTERN) {
+        return None;
     }
+    let mut obj: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(buf).ok()?;
+    if obj.contains_key("message") {
+        return None;
+    }
+    let error_value = obj.remove("error")?;
+    obj.insert("message".into(), error_value);
     let mut out = serde_json::to_vec(&obj).ok()?;
     out.push(b'\n');
     Some(out)
@@ -31,8 +42,10 @@ pub(crate) struct ErrorToMessageWriter<W>(pub(crate) W);
 impl<W: Write> Write for ErrorToMessageWriter<W> {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         let len = buf.len();
-        let output = rename_error_to_message(buf).unwrap_or_else(|| buf.to_vec());
-        self.0.write_all(&output)?;
+        match rename_error_to_message(buf) {
+            Some(output) => self.0.write_all(&output)?,
+            None => self.0.write_all(buf)?,
+        }
         Ok(len)
     }
 
