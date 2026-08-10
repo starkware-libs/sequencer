@@ -138,7 +138,8 @@ pub trait CendeContext: Send + Sync {
 }
 
 /// The raw per-block data the recorder returns from `get_accessed_keys_input`. The caller computes
-/// the block's [`AccessedKeys`] from this, with data it already holds for a synced block.
+/// the block's [`AccessedKeys`](blockifier::state::accessed_keys::AccessedKeys) from this, with
+/// data it already holds for a synced block.
 // TODO(Yoav): Remove the expect once the accessed-keys computation lands and reads these fields.
 #[cfg_attr(not(test), expect(dead_code))]
 #[derive(Debug, Deserialize)]
