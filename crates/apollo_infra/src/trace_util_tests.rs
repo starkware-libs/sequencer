@@ -152,3 +152,32 @@ fn create_fmt_layer_renames_error_to_message() {
         "Did not expect 'error' key with error value, got: {output}"
     );
 }
+
+/// The JSON layer must not emit the `span` field. `spans` already carries the full span list with
+/// the current span as its last element, so `span` duplicates it on every single log entry.
+#[test]
+fn create_fmt_layer_omits_the_redundant_current_span_field() {
+    let buffer = SharedBuffer(Arc::new(Mutex::new(Vec::new())));
+    let buffer_clone = buffer.clone();
+
+    let subscriber =
+        tracing_subscriber::registry().with(create_fmt_layer(move || buffer_clone.clone()));
+
+    tracing::subscriber::with_default(subscriber, || {
+        let span = tracing::info_span!("run_height", height = 7);
+        let _enter = span.enter();
+        tracing::info!("inside the span");
+    });
+
+    let output = String::from_utf8(buffer.0.lock().unwrap().clone()).unwrap();
+    let entry: serde_json::Value = serde_json::from_str(output.trim()).unwrap();
+
+    assert!(entry.get("span").is_none(), "the duplicated `span` field should be absent: {output}");
+
+    // `spans` must still be there, and must still expose the current span's fields — that is what
+    // makes `span` redundant rather than merely expensive.
+    let spans = entry["spans"].as_array().expect("`spans` should still be emitted: {output}");
+    let current_span = spans.last().expect("`spans` should contain the current span");
+    assert_eq!(current_span["name"], "run_height");
+    assert_eq!(current_span["height"], 7);
+}
