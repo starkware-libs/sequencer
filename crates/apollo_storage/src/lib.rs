@@ -1226,23 +1226,21 @@ impl FileHandlers<RW> {
             || self.transaction.needs_flush()
             || self.accessed_keys.needs_flush()
             || self.state_commitment_infos.needs_flush();
-        if !any_file_needs_flush {
-            return;
+        if any_file_needs_flush {
+            trace!("Flushing the mmap files.");
+            // Each dirty file's flush is an independent blocking `msync` syscall; running them
+            // concurrently overlaps their I/O instead of paying for it sequentially.
+            std::thread::scope(|scope| {
+                scope.spawn(|| self.thin_state_diff.flush());
+                scope.spawn(|| self.contract_class.flush());
+                scope.spawn(|| self.casm.flush());
+                scope.spawn(|| self.deprecated_contract_class.flush());
+                scope.spawn(|| self.transaction_output.flush());
+                scope.spawn(|| self.transaction.flush());
+                scope.spawn(|| self.accessed_keys.flush());
+                scope.spawn(|| self.state_commitment_infos.flush());
+            });
         }
-
-        trace!("Flushing the mmap files.");
-        // Each dirty file's flush is an independent blocking `msync` syscall; running them
-        // concurrently overlaps their I/O instead of paying for it sequentially.
-        std::thread::scope(|scope| {
-            scope.spawn(|| self.thin_state_diff.flush());
-            scope.spawn(|| self.contract_class.flush());
-            scope.spawn(|| self.casm.flush());
-            scope.spawn(|| self.deprecated_contract_class.flush());
-            scope.spawn(|| self.transaction_output.flush());
-            scope.spawn(|| self.transaction.flush());
-            scope.spawn(|| self.accessed_keys.flush());
-            scope.spawn(|| self.state_commitment_infos.flush());
-        });
     }
 }
 
