@@ -181,9 +181,13 @@ where
         let result = self
             .commit_block_inner(CommitBlockRequest { state_diff, state_diff_commitment, height })
             .await;
+        // Outcome of the commit; commit_block_inner logs its start.
         match &result {
-            Ok(_) => {
-                debug!("Committed block number {height} with state diff {state_diff_commitment:?}");
+            Ok(CommitBlockResponse { global_root }) => {
+                info!(
+                    "Committed block number {height} with state diff {state_diff_commitment:?}, \
+                     global root {global_root:?}"
+                );
             }
             Err(err) => {
                 error!("Failed to commit block number {height}: {err:?}");
@@ -198,10 +202,9 @@ where
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
-        info!(
-            "Received request to commit block number {height} with state diff \
-             {state_diff_commitment:?}"
-        );
+        // Marks the start of the commit; the state diff commitment is reported by commit_block
+        // once the outcome is known.
+        info!("Received request to commit block number {height}.");
 
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
             CommitBlockHeightPlan::Historical { global_root } => {
@@ -209,18 +212,14 @@ where
             }
             CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
                 // Happy flow. Commits the state diff and returns the computed global root.
-                debug!(
-                    "Committing block number {height} with state diff {state_diff_commitment:?}"
-                );
                 let mut block_measurements = SingleBlockMeasurements::default();
                 block_measurements.start_measurement(Action::EndToEnd);
                 let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
                     self.commit_state_diff(state_diff, &mut block_measurements).await?;
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
-                info!(
-                    "For block number {height}, writing filled forest to storage with metadata: \
-                     {metadata:?}, delete {} nodes",
+                debug!(
+                    "Writing filled forest for block number {height} to storage, deleting {} nodes",
                     deleted_nodes.len()
                 );
                 block_measurements.start_measurement(Action::Write);
