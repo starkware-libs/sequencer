@@ -12,6 +12,7 @@ use crate::trace_util::{
     get_log_directives,
     rename_error_to_message,
     set_log_level,
+    ErrorToMessageWriter,
     ReloadHandle,
 };
 
@@ -77,11 +78,37 @@ fn rename_error_to_message_preserves_existing_message_field() {
 }
 
 #[test]
-fn rename_error_to_message_does_not_modify_error_values() {
+fn rename_error_to_message_returns_none_when_error_appears_only_as_a_value() {
     // Values equal to "error" should NOT be modified - only keys named "error". There is no
-    // actual "error" key here, so no rewrite is needed even though the byte pattern is present.
+    // actual "error" key here, so no rewrite is needed even though the prefilter matches.
     let input = br#"{"status":"error","type":"error","level":"ERROR"}"#;
     assert!(rename_error_to_message(input).is_none());
+}
+
+#[test]
+fn error_to_message_writer_passes_through_non_error_lines_unchanged() {
+    let mut buffer = Vec::new();
+    let mut writer = ErrorToMessageWriter(&mut buffer);
+
+    let plain_line: &[u8] = br#"{"level":"INFO","message":"hello"}"#;
+    let plain_line = [plain_line, b"\n"].concat();
+    let error_line: &[u8] = br#"{"level":"ERROR","error":"boom"}"#;
+    let error_line = [error_line, b"\n"].concat();
+
+    writer.write_all(&plain_line).unwrap();
+    writer.write_all(&error_line).unwrap();
+
+    let output = String::from_utf8(buffer).unwrap();
+    let mut lines = output.lines();
+
+    // The plain line has no "error" key, so it must come out byte-for-byte unchanged.
+    assert_eq!(lines.next().unwrap().as_bytes(), &plain_line[..plain_line.len() - 1]);
+
+    // The error line is still rewritten, and the two lines stay newline-separated.
+    let rewritten: serde_json::Value = serde_json::from_str(lines.next().unwrap()).unwrap();
+    assert_eq!(rewritten["message"], "boom");
+    assert!(rewritten.get("error").is_none());
+    assert!(lines.next().is_none());
 }
 
 /// A shared buffer for capturing log output.

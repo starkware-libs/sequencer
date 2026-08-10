@@ -10,18 +10,19 @@ use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, reload, EnvFilter};
 
-// Byte pattern of the root-level "error" key as emitted by compact JSON serialization.
-const ERROR_KEY_PATTERN: &[u8] = b"\"error\"";
+/// Conservative prefilter for the `"error"` key: a match can also come from a nested key or a
+/// plain string value, so a hit only means the JSON parse below is worth attempting.
+const ERROR_KEY_PATTERN: &str = "\"error\"";
 
-// Renames the "error" key to "message" in a JSON object, if present, and if "message" doesn't
-// already exist. Returns `None` when no rewrite is needed (including on invalid JSON), so the
-// caller can write the original buffer unchanged.
-//
-// Most log lines have no "error" key at all (only #[instrument(...,err)] error paths do), so a
-// cheap byte-level scan for the key first skips the JSON parse/reserialize round-trip for the
-// overwhelming majority of calls; this function runs on every single log line emitted.
+/// Renames the "error" key to "message" in a JSON object, if present, and if "message" doesn't
+/// already exist. Returns `None` when no rewrite is needed (including on invalid JSON), so the
+/// caller can write the original buffer unchanged.
+///
+/// Most log lines have no "error" key at all (only #[instrument(...,err)] error paths do), so a
+/// cheap prefilter for the key first skips the JSON parse/reserialize round-trip for the
+/// overwhelming majority of calls; this function runs on every single log line emitted.
 pub(crate) fn rename_error_to_message(buf: &[u8]) -> Option<Vec<u8>> {
-    if !buf.windows(ERROR_KEY_PATTERN.len()).any(|window| window == ERROR_KEY_PATTERN) {
+    if !std::str::from_utf8(buf).is_ok_and(|line| line.contains(ERROR_KEY_PATTERN)) {
         return None;
     }
     let mut obj: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(buf).ok()?;
