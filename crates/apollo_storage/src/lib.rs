@@ -159,7 +159,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
 
@@ -1215,7 +1215,7 @@ impl FileHandlers<RW> {
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
-        debug!("Flushing the mmap files.");
+        trace!("Flushing the mmap files.");
         self.thin_state_diff.flush();
         self.contract_class.flush();
         self.casm.flush();
