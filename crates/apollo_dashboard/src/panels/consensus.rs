@@ -68,6 +68,7 @@ use apollo_l1_gas_price::metrics::{
     SNIP35_STRK_USD_RATE,
     SNIP35_STRK_USD_SUCCESS_COUNT,
 };
+use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
@@ -341,6 +342,21 @@ fn get_panel_cende_last_state_commitment_infos_block_number() -> Panel {
         "The block number of the most recent state commitment infos sent",
         CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.get_name_with_filter().to_string(),
         PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_cende_state_commitment_infos_gap() -> Panel {
+    // The two metrics are emitted by different pods, so drop the pod filter or the diff empties.
+    let consensus = CONSENSUS_BLOCK_NUMBER.get_name_with_filter().replace(POD_LABEL_FILTER, "");
+    let cende = CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER
+        .get_name_with_filter()
+        .replace(POD_LABEL_FILTER, "");
+    Panel::new(
+        "Consensus vs Cende State Commitment Infos Gap (blocks)",
+        "Blocks the last state-commitment-infos blob sent trails consensus; the retrospective \
+         gate errors once it reaches STORED_BLOCK_HASH_BUFFER.",
+        format!("max by (namespace) ({consensus}) - max by (namespace) ({cende})"),
+        PanelType::TimeSeries,
     )
 }
 
@@ -727,6 +743,7 @@ pub(crate) fn get_cende_row() -> Row {
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_last_prepared_blob_block_number(),
             get_panel_cende_last_state_commitment_infos_block_number(),
+            get_panel_consensus_cende_state_commitment_infos_gap(),
             get_panel_cende_write_preconfirmed_block(),
             get_panel_cende_write_preconfirmed_block_failure(),
         ],
