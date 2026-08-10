@@ -95,8 +95,8 @@ pub fn compute_fee_actual(
 ///
 /// `target_atto_usd_per_l2_gas` is in atto-USD (atto = 10⁻¹⁸; so a value of
 /// `3_000_000_000` means 3·10⁻⁹ USD = 3 nanodollars per L2 gas unit).
-/// `strk_usd_rate` is the STRK/USD price with 18 decimals (from the oracle); a rate of `0`
-/// returns `None` (treat as oracle failure: callers freeze at `fee_actual`).
+/// `strk_usd_rate` is the STRK/USD price as USD per STRK with 18 decimals (from the oracle);
+/// a rate of `0` returns `None` (treat as oracle failure: callers freeze at `fee_actual`).
 /// Returns the target in FRI; the multiplicative margin clamp in `compute_fee_proposal`
 /// keeps the published proposal bounded relative to `fee_actual`.
 pub fn compute_fee_target(
