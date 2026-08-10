@@ -101,10 +101,15 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         timestamp: BlockTimestamp,
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
 
-    /// ETH/FRI rate as 18-decimal fixed-point integer (e.g. 5000 STRK per ETH → `5000 * 10^18`).
+    /// ETH/FRI rate as 18-decimal fixed-point integer, quoted as **FRI per ETH**
+    /// (e.g. 5000 STRK per ETH → `5000 * 10^18`).
     async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 
-    /// STRK/USD rate as 18-decimal fixed-point integer (e.g. 24.5 STRK per USD → `24.5 * 10^18`).
+    /// STRK/USD rate as 18-decimal fixed-point integer, quoted as **USD per STRK**
+    /// (e.g. STRK at $0.50 → `0.5 * 10^18`).
+    ///
+    /// The direction matters: `apollo_consensus_orchestrator`'s `compute_fee_target` divides by
+    /// this rate, so supplying STRK per USD misprices the SNIP-35 fee target.
     async fn get_strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 }
 
