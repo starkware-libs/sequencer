@@ -181,8 +181,7 @@ where
         let result = self
             .commit_block_inner(CommitBlockRequest { state_diff, state_diff_commitment, height })
             .await;
-        // The single per-block line for the commit flow. The steps in between used to log the
-        // same height and state diff commitment three more times over.
+        // Outcome of the commit; commit_block_inner logs its start.
         match &result {
             Ok(CommitBlockResponse { global_root }) => {
                 info!(
@@ -203,6 +202,10 @@ where
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
+        // Marks the start of the commit; the state diff commitment is reported by commit_block
+        // once the outcome is known.
+        info!("Received request to commit block number {height}.");
+
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
             CommitBlockHeightPlan::Historical { global_root } => {
                 Ok(CommitBlockResponse { global_root })
@@ -215,9 +218,6 @@ where
                     self.commit_state_diff(state_diff, &mut block_measurements).await?;
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
-                // `metadata` is just the height, global root and state diff commitment, all of
-                // which the commit_block summary line already reports, so only the node count
-                // is worth logging here.
                 debug!(
                     "Writing filled forest for block number {height} to storage, deleting {} nodes",
                     deleted_nodes.len()
