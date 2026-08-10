@@ -1,5 +1,10 @@
-use apollo_committer::metrics::COMMITTER_BLOCK_COMMIT_LATENCY;
-use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
+use apollo_committer::metrics::{COMMITTER_BLOCK_COMMIT_LATENCY, COMMITTER_OFFSET};
+use apollo_consensus::metrics::{
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_ROUND_ABOVE_ZERO,
+    IS_OBSERVER,
+};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 use apollo_infra_utils::template::Template;
@@ -102,6 +107,36 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
+    )
+}
+
+/// 9 fires at the STORED_BLOCK_HASH_BUFFER gate (10): integer gauges + strict `>`.
+const COMMITTER_LAG_ALERT_THRESHOLD_BLOCKS: f64 = 9.0;
+
+pub(crate) fn get_committer_block_number_lag() -> Alert {
+    Alert::new(
+        "committer_block_number_lag",
+        "Committer block number lag",
+        EvaluationRate::Default,
+        // Per-namespace lag (committer vs its own consensus); excludes observer and syncing nodes.
+        format!(
+            "(max by (namespace) ({consensus}) - max by (namespace) ({committer})) and on \
+             (namespace) ({observer} == 0) and on (namespace) (increase({sync}[5m]) == 0)",
+            consensus = CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            committer = COMMITTER_OFFSET.get_name_with_filter(),
+            observer = IS_OBSERVER.get_name_with_filter(),
+            sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter(),
+        ),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            COMMITTER_LAG_ALERT_THRESHOLD_BLOCKS,
+            AlertLogicalOp::And,
+        )],
+        // Debounce brief spikes before paging.
+        "5m",
+        AlertSeverity::Regular,
+        // Observers excluded in the expr; keep Applicable to avoid a second is_observer gate.
+        ObserverApplicability::Applicable,
     )
 }
 

@@ -1325,6 +1325,15 @@
           "extra_params": {}
         },
         {
+          "title": "Committer Lag (blocks)",
+          "description": "Blocks the committer trails consensus (consensus_block_number - committer_offset), per namespace",
+          "type": "timeseries",
+          "exprs": [
+            "max by (namespace) (consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - max by (namespace) (committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Total Block Duration",
           "description": "Average total block duration over a 1m window",
           "type": "timeseries",

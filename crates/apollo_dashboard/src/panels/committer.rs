@@ -15,6 +15,8 @@ use apollo_committer::metrics::{
     TOTAL_BLOCK_DURATION_PER_MODIFICATION,
     WRITE_DURATION_PER_BLOCK,
 };
+use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
+use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::Row;
@@ -31,6 +33,19 @@ fn get_offset_panel() -> Panel {
         "The next block number to commit",
         COMMITTER_OFFSET.get_name_with_filter().to_string(),
         PanelType::Stat,
+    )
+}
+
+fn get_committer_lag_panel() -> Panel {
+    // Drop pod filter: the two metrics are on different pods, so a pod-scoped diff empties.
+    let consensus = CONSENSUS_BLOCK_NUMBER.get_name_with_filter().replace(POD_LABEL_FILTER, "");
+    let committer = COMMITTER_OFFSET.get_name_with_filter().replace(POD_LABEL_FILTER, "");
+    Panel::new(
+        "Committer Lag (blocks)",
+        "Blocks the committer trails consensus (consensus_block_number - committer_offset), per \
+         namespace",
+        format!("max by (namespace) ({consensus}) - max by (namespace) ({committer})"),
+        PanelType::TimeSeries,
     )
 }
 
@@ -220,6 +235,7 @@ pub(crate) fn get_committer_row() -> Row {
         "Committer",
         vec![
             get_offset_panel(),
+            get_committer_lag_panel(),
             get_total_block_duration_panel(),
             get_block_commit_latency_panel(),
             get_total_block_duration_per_modification_panel(),
