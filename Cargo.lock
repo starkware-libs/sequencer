@@ -1864,6 +1864,8 @@ dependencies = [
 name = "apollo_l1_gas_price"
 version = "0.19.0-rc.2"
 dependencies = [
+ "apollo_batcher_types",
+ "apollo_cairo_utils",
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
@@ -1874,13 +1876,17 @@ dependencies = [
  "async-trait",
  "futures",
  "lru 0.12.5",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockall",
  "mockito",
  "papyrus_base_layer",
  "reqwest 0.12.24",
  "rstest",
  "serde_json",
+ "starknet-types-core",
  "starknet_api",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
@@ -1893,7 +1899,9 @@ name = "apollo_l1_gas_price_config"
 version = "0.19.0-rc.2"
 dependencies = [
  "apollo_config",
+ "rstest",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "url",
  "validator",
