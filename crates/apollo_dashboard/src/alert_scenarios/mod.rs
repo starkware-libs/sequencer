@@ -1,5 +1,6 @@
 pub mod block_production_delay;
 pub mod block_production_halt;
+pub mod chainlink_oracle;
 pub mod config_manager;
 pub mod infra_alerts;
 pub mod l1_endpoints;
