@@ -14,6 +14,24 @@ pub trait TryFromIterator<Item>: Sized {
     fn try_from_iter<T: Iterator<Item = Item>>(iter: &mut T) -> Result<Self, Self::Error>;
 }
 
+/// Deserializes a whole retdata into `T`, rejecting felts left over after `T` is decoded.
+///
+/// TODO(Asaf): route `CairoArray`, `CairoOption` and `apollo_staking`'s `Epoch` through this, and
+/// drop their `TryFrom<Retdata>` impls.
+pub fn deserialize_retdata<T>(retdata: Vec<Felt>) -> Result<T, RetdataDeserializationError>
+where
+    T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
+{
+    let mut felt_iterator = retdata.into_iter();
+    let deserialized = T::try_from_iter(&mut felt_iterator)?;
+    if felt_iterator.next().is_some() {
+        return Err(RetdataDeserializationError::InvalidObjectLength {
+            message: "unconsumed elements in retdata".to_string(),
+        });
+    }
+    Ok(deserialized)
+}
+
 // Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
 // `T` must implement `TryFromIterator<Felt>`.
 #[derive(Debug, PartialEq, Eq)]
