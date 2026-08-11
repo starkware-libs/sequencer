@@ -65,13 +65,26 @@ const TRUNCATION_MARKER: &str = "...[truncated]";
 
 type RateQuery = AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>>;
 
-/// Which rate a `ChainlinkOracleClient` instance produces.
+/// Which rate a `ChainlinkOracleClient` instance produces. Also names the feed across the provider,
+/// so that every per-feed choice is derived from one value rather than paired up by hand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChainlinkRateKind {
     /// USD per STRK, read directly from the STRK/USD feed.
     StrkToUsd,
     /// FRI per ETH, derived from the ETH/USD and STRK/USD feeds. Starknet has no ETH/STRK feed.
     EthToFri,
+}
+
+impl ChainlinkRateKind {
+    /// The feed's metrics bundle. The HTTP client for the same feed is built with this bundle too,
+    /// so each feed keeps one set of Prometheus series across a migration between the two sources.
+    /// This is the single mapping from a feed to its metrics.
+    pub fn metrics(self) -> ExchangeRateOracleMetrics {
+        match self {
+            Self::StrkToUsd => STRK_TO_USD_ORACLE_METRICS,
+            Self::EthToFri => ETH_TO_STRK_ORACLE_METRICS,
+        }
+    }
 }
 
 /// Reads Chainlink's on-chain Starknet price feeds through the sequencer's own batcher.
@@ -130,10 +143,7 @@ impl ChainlinkOracleClient {
             config.max_future_updated_at_seconds,
             config.lag_interval_seconds,
         );
-        let metrics = match rate_kind {
-            ChainlinkRateKind::StrkToUsd => STRK_TO_USD_ORACLE_METRICS,
-            ChainlinkRateKind::EthToFri => ETH_TO_STRK_ORACLE_METRICS,
-        };
+        let metrics = rate_kind.metrics();
         metrics.register();
         register_chainlink_guard_metrics();
         let cache_size =

@@ -26,6 +26,18 @@ use validator::{Validate, ValidationError};
 #[path = "config_test.rs"]
 mod config_test;
 
+/// Which implementation serves a single exchange rate feed. The two feeds are selected
+/// independently, so they can be migrated one at a time.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ExchangeRateOracleSource {
+    /// The off-chain oracle HTTP API, configured by the feed's `ExchangeRateOracleConfig`.
+    #[default]
+    Http,
+    /// Chainlink's on-chain Starknet price feeds, configured by `ChainlinkOracleConfig` and read
+    /// through the batcher.
+    Chainlink,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ExchangeRateOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
@@ -95,7 +107,9 @@ impl Default for ExchangeRateOracleConfig {
     }
 }
 
-/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
+/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher. Unlike
+/// the per-feed `ExchangeRateOracleConfig`s, one instance of this config serves both feeds: the
+/// ETH/STRK rate is derived from the same two on-chain feeds the STRK/USD rate is read from.
 ///
 /// Bounds are expressed in micro units (1e-6) so they fit in a `u64`: prices in micro-USD, the
 /// derived ETH rate in micro-STRK per ETH.
@@ -254,37 +268,43 @@ impl SerializeConfig for ChainlinkOracleConfig {
             ser_param(
                 "min_eth_usd_price_micro_usd",
                 &self.min_eth_usd_price_micro_usd,
-                "Lowest accepted ETH/USD feed answer, in micro-USD per ETH.",
+                "Lowest accepted ETH/USD feed answer, in micro-USD (1e-6 USD) per ETH, so a value \
+                 of 20000000 means $20.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_eth_usd_price_micro_usd",
                 &self.max_eth_usd_price_micro_usd,
-                "Highest accepted ETH/USD feed answer, in micro-USD per ETH.",
+                "Highest accepted ETH/USD feed answer, in micro-USD (1e-6 USD) per ETH, so a \
+                 value of 50000000000 means $50,000.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "min_strk_usd_price_micro_usd",
                 &self.min_strk_usd_price_micro_usd,
-                "Lowest accepted STRK/USD feed answer, in micro-USD per STRK.",
+                "Lowest accepted STRK/USD feed answer, in micro-USD (1e-6 USD) per STRK, so a \
+                 value of 100 means $0.0001.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_strk_usd_price_micro_usd",
                 &self.max_strk_usd_price_micro_usd,
-                "Highest accepted STRK/USD feed answer, in micro-USD per STRK.",
+                "Highest accepted STRK/USD feed answer, in micro-USD (1e-6 USD) per STRK, so a \
+                 value of 10000000 means $10.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "min_eth_to_fri_rate_micro_strk",
                 &self.min_eth_to_fri_rate_micro_strk,
-                "Lowest accepted derived ETH/STRK rate, in micro-STRK per ETH.",
+                "Lowest accepted derived ETH/STRK rate, in micro-STRK (1e-6 STRK) per ETH, so a \
+                 value of 10000000000 means 10,000 STRK per ETH.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_eth_to_fri_rate_micro_strk",
                 &self.max_eth_to_fri_rate_micro_strk,
-                "Highest accepted derived ETH/STRK rate, in micro-STRK per ETH.",
+                "Highest accepted derived ETH/STRK rate, in micro-STRK (1e-6 STRK) per ETH, so a \
+                 value of 1000000000000 means 1,000,000 STRK per ETH.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -322,6 +342,13 @@ pub struct L1GasPriceProviderConfig {
     pub eth_to_strk_oracle_config: ExchangeRateOracleConfig,
     #[validate(nested)]
     pub strk_to_usd_oracle_config: ExchangeRateOracleConfig,
+    pub eth_to_strk_oracle_source: ExchangeRateOracleSource,
+    pub strk_to_usd_oracle_source: ExchangeRateOracleSource,
+    // Shared by both feeds, unlike the per-feed HTTP configs above. Validated even while both
+    // sources are `Http`, so that a bad value is rejected at config load rather than at the moment
+    // an operator flips a source to `Chainlink`.
+    #[validate(nested)]
+    pub chainlink_oracle_config: ChainlinkOracleConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -334,6 +361,9 @@ impl Default for L1GasPriceProviderConfig {
             max_time_gap_seconds: 900, // 15 minutes
             eth_to_strk_oracle_config: ExchangeRateOracleConfig::default(),
             strk_to_usd_oracle_config: ExchangeRateOracleConfig::default(),
+            eth_to_strk_oracle_source: ExchangeRateOracleSource::default(),
+            strk_to_usd_oracle_source: ExchangeRateOracleSource::default(),
+            chainlink_oracle_config: ChainlinkOracleConfig::default(),
         }
     }
 }
@@ -367,6 +397,26 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                  in seconds",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "eth_to_strk_oracle_source",
+                &self.eth_to_strk_oracle_source,
+                "Which oracle serves the ETH/STRK rate: `Http` reads the API configured in \
+                 `eth_to_strk_oracle_config`, `Chainlink` reads the on-chain feeds configured in \
+                 `chainlink_oracle_config`, which both feeds share, and requires a batcher \
+                 client. Selecting `Chainlink` on a service that has no batcher client is a \
+                 startup failure, not a fallback to `Http`.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_to_usd_oracle_source",
+                &self.strk_to_usd_oracle_source,
+                "Which oracle serves the STRK/USD rate: `Http` reads the API configured in \
+                 `strk_to_usd_oracle_config`, `Chainlink` reads the on-chain feeds configured in \
+                 `chainlink_oracle_config`, which both feeds share, and requires a batcher \
+                 client. Selecting `Chainlink` on a service that has no batcher client is a \
+                 startup failure, not a fallback to `Http`.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         config.extend(prepend_sub_config_name(
             self.eth_to_strk_oracle_config.dump(),
@@ -375,6 +425,10 @@ impl SerializeConfig for L1GasPriceProviderConfig {
         config.extend(prepend_sub_config_name(
             self.strk_to_usd_oracle_config.dump(),
             "strk_to_usd_oracle_config",
+        ));
+        config.extend(prepend_sub_config_name(
+            self.chainlink_oracle_config.dump(),
+            "chainlink_oracle_config",
         ));
         config
     }
