@@ -1,3 +1,5 @@
+use std::sync::Once;
+
 use apollo_infra::metrics::{
     InfraMetrics,
     LocalClientMetrics,
@@ -21,6 +23,10 @@ define_metrics!(
         MetricCounter { ETH_TO_STRK_SUCCESS_COUNT, "eth_to_strk_success_count", "Number of times the query to the Eth to Strk oracle succeeded", init=0 },
         MetricCounter { SNIP35_STRK_USD_ERROR_COUNT, "snip35_strk_usd_error_count", "Number of times the query to the STRK to USD oracle failed due to an error or timeout", init=0 },
         MetricCounter { SNIP35_STRK_USD_SUCCESS_COUNT, "snip35_strk_usd_success_count", "Number of times the query to the STRK to USD oracle succeeded", init=0 },
+        MetricCounter { CHAINLINK_ORACLE_STALE_FEED_COUNT, "chainlink_oracle_stale_feed_count", "Number of times a Chainlink price feed reading was rejected because its update timestamp fell outside the accepted freshness window, either too old or too far in the future", init=0 },
+        MetricCounter { CHAINLINK_ORACLE_RATE_OUT_OF_BOUNDS_COUNT, "chainlink_oracle_rate_out_of_bounds_count", "Number of times a Chainlink rate was rejected because it fell outside the configured absolute sanity bounds", init=0 },
+        MetricCounter { CHAINLINK_ORACLE_INVALID_FEED_ANSWER_COUNT, "chainlink_oracle_invalid_feed_answer_count", "Number of times a Chainlink feed returned a zero answer or a decimals value outside the accepted range", init=0 },
+        MetricCounter { CHAINLINK_ORACLE_CONTRACT_CALL_ERROR_COUNT, "chainlink_oracle_contract_call_error_count", "Number of times a Chainlink feed call to the batcher failed or returned undecodable retdata", init=0 },
         MetricGauge { L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS, "l1_gas_price_scraper_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful L1 gas price scrape" },
         MetricGauge { ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS, "eth_to_strk_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful ETH→STRK oracle query" },
         MetricGauge { SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS, "snip35_strk_usd_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful STRK→USD oracle query" },
@@ -41,14 +47,23 @@ pub struct ExchangeRateOracleMetrics {
     pub success_count: &'static MetricCounter,
     pub error_count: &'static MetricCounter,
     pub last_success_timestamp: &'static MetricGauge,
+    /// Guards this set's registration. Private so that every set is one of the constants below,
+    /// each of which owns a distinct guard.
+    registration_guard: &'static Once,
 }
 
 impl ExchangeRateOracleMetrics {
+    /// Registration is done once per process per metric set, because `register` sets each metric
+    /// to its initial value rather than merely describing it: two clients serving the same pair,
+    /// as during a migration between oracle implementations, would otherwise wipe each other's
+    /// counts depending on construction order.
     pub fn register(&self) {
-        self.rate.register();
-        self.success_count.register();
-        self.error_count.register();
-        self.last_success_timestamp.register();
+        self.registration_guard.call_once(|| {
+            self.rate.register();
+            self.success_count.register();
+            self.error_count.register();
+            self.last_success_timestamp.register();
+        });
     }
 }
 
@@ -62,15 +77,19 @@ impl std::fmt::Debug for ExchangeRateOracleMetrics {
             .field("success_count", &self.success_count.get_name())
             .field("error_count", &self.error_count.get_name())
             .field("last_success_timestamp", &self.last_success_timestamp.get_name())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
+
+static ETH_TO_STRK_REGISTRATION: Once = Once::new();
+static STRK_TO_USD_REGISTRATION: Once = Once::new();
 
 pub const ETH_TO_STRK_ORACLE_METRICS: ExchangeRateOracleMetrics = ExchangeRateOracleMetrics {
     rate: &ETH_TO_STRK_RATE,
     success_count: &ETH_TO_STRK_SUCCESS_COUNT,
     error_count: &ETH_TO_STRK_ERROR_COUNT,
     last_success_timestamp: &ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
+    registration_guard: &ETH_TO_STRK_REGISTRATION,
 };
 
 pub const STRK_TO_USD_ORACLE_METRICS: ExchangeRateOracleMetrics = ExchangeRateOracleMetrics {
@@ -78,12 +97,29 @@ pub const STRK_TO_USD_ORACLE_METRICS: ExchangeRateOracleMetrics = ExchangeRateOr
     success_count: &SNIP35_STRK_USD_SUCCESS_COUNT,
     error_count: &SNIP35_STRK_USD_ERROR_COUNT,
     last_success_timestamp: &SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS,
+    registration_guard: &STRK_TO_USD_REGISTRATION,
 };
 
 pub(crate) fn register_provider_metrics() {
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.register();
     L1_GAS_PRICE_LATEST_MEAN_VALUE.register();
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.register();
+}
+
+/// Guard-trip counters shared by all `ChainlinkOracleClient` instances. They record *why* a query
+/// was rejected; the per-pair `ExchangeRateOracleMetrics::error_count` records *which* pair.
+///
+/// Registration is done once per process because `MetricCounter::register` sets the counter to its
+/// initial value rather than merely describing it, so a second client would otherwise wipe the
+/// counts accumulated by the first.
+pub(crate) fn register_chainlink_guard_metrics() {
+    static REGISTER_GUARD_METRICS: Once = Once::new();
+    REGISTER_GUARD_METRICS.call_once(|| {
+        CHAINLINK_ORACLE_STALE_FEED_COUNT.register();
+        CHAINLINK_ORACLE_RATE_OUT_OF_BOUNDS_COUNT.register();
+        CHAINLINK_ORACLE_INVALID_FEED_ANSWER_COUNT.register();
+        CHAINLINK_ORACLE_CONTRACT_CALL_ERROR_COUNT.register();
+    });
 }
 
 pub(crate) fn register_scraper_metrics() {
