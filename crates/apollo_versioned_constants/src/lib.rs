@@ -28,6 +28,10 @@ pub struct VersionedConstants {
     pub fee_proposal_window_size: u64,
     /// Maximum `fee_proposal` change per block in parts per thousand (e.g., `2` = 0.2%).
     pub fee_proposal_margin_ppt: u128,
+    /// Ceiling on the L2 gas price, as a multiple of the minimum gas price in force for the height
+    /// (e.g., `10` = the price may never exceed ten times the minimum). Bounds what a broken or
+    /// malicious STRK/USD oracle, or sustained congestion, can charge a user for a transaction.
+    pub max_gas_price_multiplier: u128,
 }
 
 define_versioned_constants!(

@@ -28,12 +28,11 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
-use starknet_api::block::{GasPrice, ReplayBlockMetadata};
+use starknet_api::block::{GasPrice, ReplayBlockMetadata, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::versioned_constants_logic::effective_starknet_version;
 use starknet_api::StarknetApiError;
 use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
@@ -88,6 +87,9 @@ pub(crate) struct ProposalBuildArguments {
     pub fee_proposal: GasPrice,
     /// Current fee_actual from the sliding window.
     pub fee_actual: Option<GasPrice>,
+    /// Version stamped into `ProposalInit` and used to gate version-dependent consensus rules.
+    /// Read once per proposal so the init and the fin cannot be built against different versions.
+    pub starknet_version: StarknetVersion,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -210,7 +212,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
-        starknet_version: effective_starknet_version(),
+        starknet_version: args.starknet_version,
         // TODO(Asmaa): Put the real value once we have it.
         // Sentinel until then; see `expected_version_constant_commitment` for why this is the
         // single source of truth shared with the validator.
@@ -366,6 +368,7 @@ async fn get_proposal_content(
                 let next_l2_gas_price = calculate_next_l2_gas_price_for_fin(
                     args.l2_gas_price,
                     args.build_param.height,
+                    args.starknet_version,
                     info.l2_gas_used,
                     args.override_l2_gas_price_fri,
                     &args.min_l2_gas_price_per_height,
