@@ -94,6 +94,7 @@ use crate::dynamic_gas_price::{
 use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
+    l2_gas_price_cap,
     FeeMarketInfo,
     NextL2GasPrice,
 };
@@ -105,6 +106,7 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     SNIP35_FEE_ACTUAL_FRI,
     SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
     SNIP35_FEE_TARGET_ATTO_USD,
     SNIP35_FEE_TARGET_FRI,
 };
@@ -470,16 +472,20 @@ impl SequencerConsensusContext {
     }
 
     /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
-    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
-    /// validator derives the same fallback so both sides agree.
+    /// `fee_actual`, capped at the L2 gas price ceiling for `height`. When `fee_actual` is `None`
+    /// (window incomplete), freeze at `l2_gas_price`; the validator derives the same fallback so
+    /// both sides agree.
     async fn compute_proposer_fee_proposal(
         &self,
+        height: BlockNumber,
         fee_actual: Option<GasPrice>,
         timestamp: u64,
         target_atto_usd_per_l2_gas: u128,
     ) -> GasPrice {
         SNIP35_FEE_TARGET_ATTO_USD.set_lossy(target_atto_usd_per_l2_gas);
         let Some(fee_actual) = fee_actual else {
+            // Deliberately uncapped: the validator skips the band check without `fee_actual`,
+            // and the price users pay is capped in `calculate_next_l2_gas_price_for_fin`.
             warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
             SNIP35_FEE_PROPOSAL_FRI.set_lossy(self.l2_gas_price.0);
             return self.l2_gas_price;
@@ -487,11 +493,29 @@ impl SequencerConsensusContext {
         SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
 
         let fee_target = self.resolve_fee_target(timestamp, target_atto_usd_per_l2_gas).await;
+        let max_gas_price = l2_gas_price_cap(get_min_gas_price_for_height(
+            height,
+            &self.config.dynamic_config.min_l2_gas_price_per_height,
+        ));
+        // `resolve_fee_target` returns the operator pin when `override_l2_gas_price_fri` is set;
+        // a pin above the ceiling is deliberate, not oracle drift.
+        let fee_target_from_oracle = self.config.dynamic_config.override_l2_gas_price_fri.is_none();
+        let oracle_target_above_maximum =
+            fee_target.filter(|target| fee_target_from_oracle && *target > max_gas_price);
+        if let Some(oracle_target) = oracle_target_above_maximum {
+            warn!(
+                "Oracle-derived fee_target {} exceeds the L2 gas price maximum {}, capping the \
+                 fee_proposal band at the maximum",
+                oracle_target.0, max_gas_price.0
+            );
+            SNIP35_FEE_TARGET_ABOVE_MAXIMUM.increment(1);
+        }
 
         let proposal = compute_fee_proposal(
             fee_target,
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
+            max_gas_price,
         );
         SNIP35_FEE_PROPOSAL_FRI.set_lossy(proposal.0);
         proposal
@@ -757,6 +781,7 @@ impl ConsensusContext for SequencerConsensusContext {
         );
         let fee_proposal = self
             .compute_proposer_fee_proposal(
+                build_param.height,
                 fee_actual,
                 self.deps.clock.unix_now(),
                 self.config.dynamic_config.snip35_target_atto_usd_per_l2_gas,
@@ -868,6 +893,10 @@ impl ConsensusContext for SequencerConsensusContext {
                         init.height,
                         VersionedConstants::latest_constants().fee_proposal_window_size,
                     ),
+                    max_l2_gas_price: l2_gas_price_cap(get_min_gas_price_for_height(
+                        init.height,
+                        &self.config.dynamic_config.min_l2_gas_price_per_height,
+                    )),
                 };
                 self.validate_current_round_proposal(
                     init,
@@ -1145,6 +1174,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 init.height,
                 VersionedConstants::latest_constants().fee_proposal_window_size,
             ),
+            max_l2_gas_price: l2_gas_price_cap(get_min_gas_price_for_height(
+                init.height,
+                &self.config.dynamic_config.min_l2_gas_price_per_height,
+            )),
         };
         self.validate_current_round_proposal(
             init,

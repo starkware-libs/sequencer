@@ -7,7 +7,8 @@
 //! - `compute_fee_target`: the fee we'd *like* for this block, derived from the STRK/USD oracle
 //!   quote and a configurable USD-cost target.
 //! - `compute_fee_proposal`: the target, clamped within a fixed multiplicative margin of
-//!   `fee_actual` (so a proposer cannot move the fee too far per round).
+//!   `fee_actual` (so a proposer cannot move the fee too far per round) and capped at the L2 gas
+//!   price ceiling (so a malicious oracle cannot raise the fee without limit).
 //!
 //! See also: `fee_market` for EIP-1559-style base-fee adjustment, which receives
 //! `fee_actual` as a floor.
@@ -114,40 +115,50 @@ pub fn compute_fee_target(
 
 /// Compute the fee_proposal an honest proposer should publish.
 /// - If oracle failed (`fee_target` is `None`): freeze at `fee_actual`.
-/// - Otherwise: clamp `fee_target` into the geometric bounds returned by `fee_proposal_bounds`.
+/// - Otherwise: aim at `fee_target`.
+///
+/// Either way the result is clamped into the bounds from `fee_proposal_bounds`, since a frozen
+/// `fee_actual` can itself sit above `max_gas_price`, the ceiling from
+/// [`l2_gas_price_cap`](crate::fee_market::l2_gas_price_cap).
 pub fn compute_fee_proposal(
     fee_target: Option<GasPrice>,
     fee_actual: GasPrice,
     margin_ppt: u128,
+    max_gas_price: GasPrice,
 ) -> GasPrice {
-    let Some(fee_target) = fee_target else {
-        return fee_actual;
-    };
-    let (lower, upper) = fee_proposal_bounds(fee_actual, margin_ppt);
-    GasPrice(fee_target.0.clamp(lower, upper))
+    let (lower, upper) = fee_proposal_bounds(fee_actual, margin_ppt, max_gas_price);
+    GasPrice(fee_target.unwrap_or(fee_actual).0.clamp(lower, upper))
 }
 
 /// Geometric bounds for fee_proposal: returns `(lower, upper)` where
 /// - `upper = fee_actual * (1 + margin)` (multiplicative widening), and
 /// - `lower = fee_actual / (1 + margin)` (the reciprocal — multiplicative narrowing),
 ///
-/// with `margin = margin_ppt / PPT_DENOMINATOR`.
+/// with `margin = margin_ppt / PPT_DENOMINATOR`, both then capped at `max_gas_price`, from
+/// [`l2_gas_price_cap`](crate::fee_market::l2_gas_price_cap).
 ///
 /// The asymmetry is intentional: bounds are geometrically symmetric (the same
 /// multiplicative factor in either direction), so a sequence of consecutive proposals
 /// can grow by `(1 + margin)` per round or shrink by the same factor per round. Both
 /// proposer and validator use this helper to ensure they agree on what's in-range.
 ///
+/// The ceiling caps both bounds, not just `upper`: capping only `upper` could leave `lower` above
+/// it, rejecting an honest proposer pinned at the ceiling.
+///
 /// Uses `U256` internally to keep the arithmetic mathematically correct regardless of
 /// `fee_actual` and `margin_ppt`. On the practically-unreachable overflow, the upper
 /// bound saturates to `u128::MAX` and the lower bound saturates to `0`.
-pub(crate) fn fee_proposal_bounds(fee_actual: GasPrice, margin_ppt: u128) -> (u128, u128) {
+pub(crate) fn fee_proposal_bounds(
+    fee_actual: GasPrice,
+    margin_ppt: u128,
+    max_gas_price: GasPrice,
+) -> (u128, u128) {
     let denom = U256::from(PPT_DENOMINATOR);
     let scaled = denom + U256::from(margin_ppt);
     let fee_actual_u256 = U256::from(fee_actual.0);
     let upper = u128::try_from(fee_actual_u256 * scaled / denom).unwrap_or(u128::MAX);
     let lower = u128::try_from(fee_actual_u256 * denom / scaled).unwrap_or(0);
-    (lower, upper)
+    (lower.min(max_gas_price.0), upper.min(max_gas_price.0))
 }
 
 /// Bind `fee_proposal_fri` to the proposal commitment hash.
