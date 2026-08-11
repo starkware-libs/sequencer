@@ -1,4 +1,3 @@
-use apollo_consensus_orchestrator::metrics::CONSENSUS_L2_GAS_PRICE_AT_MINIMUM;
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     ETH_TO_STRK_RATE,
@@ -112,27 +111,6 @@ pub(crate) fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
-        ObserverApplicability::NotApplicable,
-    )
-}
-
-/// Alert when the accepted L2 gas price sits at the configured minimum for a sustained window,
-/// i.e. the EIP-1559 fee market has clamped the price at its floor (demand bottomed out).
-///
-/// Fires on the `consensus_l2_gas_price_at_minimum` gauge (1 = clamped at the configured min),
-/// which the orchestrator derives per height from `min_l2_gas_price_per_height` (falling back to
-/// the versioned-constants `min_gas_price`). Emitting the "at minimum" signal from the node — where
-/// the configured min is known — avoids a hard-coded Grafana threshold that would rot on a
-/// versioned-constants change or miss any env that overrides the min (e.g. Mainnet's 15e9).
-pub(crate) fn get_l2_gas_price_at_minimum_alert() -> Alert {
-    Alert::new(
-        "consensus_l2_gas_price_at_minimum",
-        "L2 gas price at configured minimum",
-        EvaluationRate::Default,
-        format!("max({})", CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.get_name_with_filter()),
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
-        "2m",
-        AlertSeverity::DayOnly,
         ObserverApplicability::NotApplicable,
     )
 }

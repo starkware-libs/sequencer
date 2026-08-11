@@ -319,6 +319,17 @@
             "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "L2 Gas Price Clamped By Bound",
+          "description": "The number of blocks whose computed L2 gas price was pulled to a bound (10m window). The minimum series ticks throughout an ordinary ramp towards the SNIP-35 floor; the maximum series is the one that signals trouble",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (l2_gas_price_clamp_bound) (increase(consensus_l2_gas_price_clamped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
+          ],
+          "extra_params": {
+            "log_query": "\"above maximum gas price\" OR \"below minimum gas price\""
+          }
         }
       ],
       "collapsed": true
@@ -423,6 +434,17 @@
             "snip35_fee_target_fri{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Fee Target Above Maximum",
+          "description": "The number of blocks whose oracle-derived fee_target exceeded the L2 gas price maximum (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(snip35_fee_target_above_maximum{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"exceeds the L2 gas price maximum\""
+          }
         },
         {
           "title": "Fee Target (USD per 1B L2 gas)",

@@ -52,12 +52,15 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
     CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_L2_GAS_PRICE_CLAMPED,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
+    LABEL_L2_GAS_PRICE_CLAMP_BOUND,
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
     SNIP35_FEE_ACTUAL_FRI,
     SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
     SNIP35_FEE_TARGET_ATTO_USD,
     SNIP35_FEE_TARGET_FRI,
 };
@@ -322,6 +325,25 @@ fn get_panel_consensus_l2_gas_price() -> Panel {
         format!("{} / 1e9", CONSENSUS_L2_GAS_PRICE.get_name_with_filter()),
         PanelType::TimeSeries,
     )
+}
+
+fn get_panel_consensus_l2_gas_price_clamped() -> Panel {
+    Panel::new(
+        "L2 Gas Price Clamped By Bound",
+        format!(
+            "The number of blocks whose computed L2 gas price was pulled to a bound \
+             ({DEFAULT_DURATION} window). The minimum series ticks throughout an ordinary ramp \
+             towards the SNIP-35 floor; the maximum series is the one that signals trouble"
+        ),
+        sum_by_label(
+            &CONSENSUS_L2_GAS_PRICE_CLAMPED,
+            LABEL_L2_GAS_PRICE_CLAMP_BOUND,
+            DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"above maximum gas price\" OR \"below minimum gas price\"")
 }
 
 fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
@@ -691,6 +713,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_proof_manager_store_latency(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
+            get_panel_consensus_l2_gas_price_clamped(),
         ],
     )
 }
@@ -747,6 +770,19 @@ fn get_panel_snip35_fee_target() -> Panel {
         format!("{} / 1e9", SNIP35_FEE_TARGET_FRI.get_name_with_filter()),
         PanelType::TimeSeries,
     )
+}
+
+fn get_panel_snip35_fee_target_above_maximum() -> Panel {
+    Panel::new(
+        "Fee Target Above Maximum",
+        format!(
+            "The number of blocks whose oracle-derived fee_target exceeded the L2 gas price \
+             maximum ({DEFAULT_DURATION} window)"
+        ),
+        increase(&SNIP35_FEE_TARGET_ABOVE_MAXIMUM, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"exceeds the L2 gas price maximum\"")
 }
 
 fn get_panel_snip35_fee_target_atto_usd() -> Panel {
@@ -810,6 +846,7 @@ pub(crate) fn get_snip35_row() -> Row {
             get_panel_snip35_fee_actual(),
             get_panel_snip35_fee_proposal(),
             get_panel_snip35_fee_target(),
+            get_panel_snip35_fee_target_above_maximum(),
             get_panel_snip35_fee_target_atto_usd(),
             get_panel_snip35_strk_usd_rate(),
             get_panel_snip35_strk_usd_success_count(),
