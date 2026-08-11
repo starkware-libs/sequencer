@@ -18,7 +18,7 @@ from starkware.cairo.common.hash_state_poseidon import (
 from starkware.cairo.common.hash_state_poseidon import (
     hash_update_with_nested_hash as poseidon_hash_update_with_nested_hash,
 )
-from starkware.cairo.common.math import assert_nn, assert_nn_le
+from starkware.cairo.common.math import assert_nn_le
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.new_syscalls import ResourceBounds
 from starkware.starknet.core.os.builtins import BuiltinPointers, SelectableBuiltins
@@ -101,8 +101,10 @@ func deprecated_get_transaction_hash{hash_ptr: HashBuiltin*}(
 
 // Packs the given resource bounds in a single felt.
 func pack_resource_bounds{range_check_ptr}(resource_bounds: ResourceBounds) -> felt {
+    // Bound each field to its SNIP-8 bit-width so the packing stays injective; without the
+    // max_price_per_unit bound a price >= 2**128 carries into the max_amount slot.
     assert_nn_le(resource_bounds.max_amount, 2 ** 64 - 1);
-    assert_nn(resource_bounds.max_price_per_unit);
+    assert_nn_le(resource_bounds.max_price_per_unit, 2 ** 128 - 1);
     return (resource_bounds.resource * 2 ** 64 + resource_bounds.max_amount) * 2 ** 128 +
         resource_bounds.max_price_per_unit;
 }
