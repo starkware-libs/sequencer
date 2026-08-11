@@ -14,12 +14,13 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::secrets::Sensitive;
-use apollo_config::validators::validate_ascii;
+use apollo_config::validators::{create_validation_error, validate_ascii};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
+use starknet_types_core::felt::Felt;
 use url::Url;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 #[cfg(test)]
 #[path = "config_test.rs"]
@@ -91,6 +92,215 @@ impl Default for ExchangeRateOracleConfig {
             max_cache_size: 100,
             query_timeout_sec: 10,
         }
+    }
+}
+
+/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
+///
+/// Bounds are expressed in micro units (1e-6) so they fit in a `u64`: prices in micro-USD, the
+/// derived ETH rate in micro-STRK per ETH.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_chainlink_oracle_config"))]
+pub struct ChainlinkOracleConfig {
+    pub eth_usd_feed_address: ContractAddress,
+    pub strk_usd_feed_address: ContractAddress,
+    #[validate(range(min = 1))]
+    pub max_staleness_seconds: u64,
+    pub max_future_updated_at_seconds: u64,
+    pub min_eth_usd_price_micro_usd: u64,
+    pub max_eth_usd_price_micro_usd: u64,
+    pub min_strk_usd_price_micro_usd: u64,
+    pub max_strk_usd_price_micro_usd: u64,
+    pub min_eth_to_fri_rate_micro_strk: u64,
+    pub max_eth_to_fri_rate_micro_strk: u64,
+    #[validate(range(min = 1))]
+    pub lag_interval_seconds: u64,
+    #[validate(range(min = 1))]
+    pub max_cache_size: usize,
+}
+
+impl Default for ChainlinkOracleConfig {
+    fn default() -> Self {
+        // Chainlink proxy addresses on Starknet mainnet. The proxies are used rather than the
+        // aggregators behind them, because aggregators are rotated without notice.
+        const ETH_USD_PROXY_ADDRESS: &str =
+            "0x06b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26";
+        const STRK_USD_PROXY_ADDRESS: &str =
+            "0x076a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec";
+        // The feeds guarantee an update at least once per 24h heartbeat; the extra hour absorbs
+        // the delay between the heartbeat deadline and the update landing on-chain.
+        const HEARTBEAT_PLUS_MARGIN_SECONDS: u64 = 24 * 3600 + 3600;
+        const MICRO_UNITS_PER_UNIT: u64 = 1_000_000;
+        // The queried timestamp trails the block timestamp by one to two lag intervals, so a round
+        // written in the block currently being built already looks up to 120s ahead. The rest is
+        // headroom for skew between the feed's block timestamps and this node's.
+        const MAX_FUTURE_UPDATED_AT_SECONDS: u64 = 300;
+
+        Self {
+            eth_usd_feed_address: parse_feed_address(ETH_USD_PROXY_ADDRESS),
+            strk_usd_feed_address: parse_feed_address(STRK_USD_PROXY_ADDRESS),
+            max_staleness_seconds: HEARTBEAT_PLUS_MARGIN_SECONDS,
+            max_future_updated_at_seconds: MAX_FUTURE_UPDATED_AT_SECONDS,
+            // $20 .. $50,000 per ETH: ~10x above the all-time high and far below any plausible
+            // market, but tight enough to reject a feed wired to a different asset.
+            min_eth_usd_price_micro_usd: 20 * MICRO_UNITS_PER_UNIT,
+            max_eth_usd_price_micro_usd: 50_000 * MICRO_UNITS_PER_UNIT,
+            // $0.0001 .. $10 per STRK. Wide on purpose: its job is wrong-feed detection, and the
+            // fee-level damage on this leg is bounded separately by the cap on the L2 gas price.
+            min_strk_usd_price_micro_usd: MICRO_UNITS_PER_UNIT / 10_000,
+            max_strk_usd_price_micro_usd: 10 * MICRO_UNITS_PER_UNIT,
+            // 10,000 .. 1,000,000 STRK per ETH. The pair trades near 1.3e5, so the band spans about
+            // a decade either side of spot. The floor is the load-bearing side: this rate reaches
+            // L1 gas pricing through `wei_to_fri` with no ratchet and no clamp, so a poisoned feed
+            // that passes both USD legs can undercharge L1 gas by at most the spot-to-floor ratio.
+            min_eth_to_fri_rate_micro_strk: 10_000 * MICRO_UNITS_PER_UNIT,
+            max_eth_to_fri_rate_micro_strk: 1_000_000 * MICRO_UNITS_PER_UNIT,
+            lag_interval_seconds: 60,
+            max_cache_size: 100,
+        }
+    }
+}
+
+/// Cross-field checks the per-field `range` attributes cannot express: a zero minimum silently
+/// disables a guard, and an inverted pair rejects every reading forever.
+fn validate_chainlink_oracle_config(config: &ChainlinkOracleConfig) -> Result<(), ValidationError> {
+    let bound_pairs = [
+        (
+            "eth_usd_price_micro_usd",
+            config.min_eth_usd_price_micro_usd,
+            config.max_eth_usd_price_micro_usd,
+        ),
+        (
+            "strk_usd_price_micro_usd",
+            config.min_strk_usd_price_micro_usd,
+            config.max_strk_usd_price_micro_usd,
+        ),
+        (
+            "eth_to_fri_rate_micro_strk",
+            config.min_eth_to_fri_rate_micro_strk,
+            config.max_eth_to_fri_rate_micro_strk,
+        ),
+    ];
+    for (bound_name, minimum, maximum) in bound_pairs {
+        if minimum == 0 {
+            return Err(create_validation_error(
+                format!("min_{bound_name} is zero"),
+                "zero sanity bound",
+                "A zero minimum disables the lower sanity bound; set it to the lowest plausible \
+                 value.",
+            ));
+        }
+        if minimum >= maximum {
+            return Err(create_validation_error(
+                format!("min_{bound_name} ({minimum}) is not below max_{bound_name} ({maximum})"),
+                "inverted sanity bounds",
+                "Ensure each minimum sanity bound is strictly below its maximum.",
+            ));
+        }
+    }
+    // The queried timestamp trails the block timestamp by one to two lag intervals, so a tolerance
+    // at or below that would reject rounds written in the block currently being built.
+    let minimum_future_tolerance = config.lag_interval_seconds.saturating_mul(2);
+    if config.max_future_updated_at_seconds <= minimum_future_tolerance {
+        return Err(create_validation_error(
+            format!(
+                "max_future_updated_at_seconds ({}) does not exceed twice lag_interval_seconds \
+                 ({})",
+                config.max_future_updated_at_seconds, config.lag_interval_seconds
+            ),
+            "future tolerance too small",
+            "Ensure max_future_updated_at_seconds is greater than 2 * lag_interval_seconds.",
+        ));
+    }
+    Ok(())
+}
+
+fn parse_feed_address(hex_address: &str) -> ContractAddress {
+    ContractAddress::try_from(Felt::from_hex(hex_address).expect("Invalid feed address felt"))
+        .expect("Invalid feed contract address")
+}
+
+impl SerializeConfig for ChainlinkOracleConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "eth_usd_feed_address",
+                &self.eth_usd_feed_address,
+                "Address of the Chainlink ETH/USD proxy feed on Starknet.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_usd_feed_address",
+                &self.strk_usd_feed_address,
+                "Address of the Chainlink STRK/USD proxy feed on Starknet.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_staleness_seconds",
+                &self.max_staleness_seconds,
+                "Maximum age (seconds) of a feed's `updated_at` relative to the queried \
+                 timestamp. An older reading is rejected, and for the derived ETH/STRK rate a \
+                 single stale leg rejects the whole rate.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_future_updated_at_seconds",
+                &self.max_future_updated_at_seconds,
+                "Maximum amount (seconds) by which a feed's `updated_at` may lead the queried \
+                 timestamp. Must exceed twice `lag_interval_seconds`, since the queried timestamp \
+                 trails the block timestamp by that much.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_eth_usd_price_micro_usd",
+                &self.min_eth_usd_price_micro_usd,
+                "Lowest accepted ETH/USD feed answer, in micro-USD per ETH.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_eth_usd_price_micro_usd",
+                &self.max_eth_usd_price_micro_usd,
+                "Highest accepted ETH/USD feed answer, in micro-USD per ETH.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_strk_usd_price_micro_usd",
+                &self.min_strk_usd_price_micro_usd,
+                "Lowest accepted STRK/USD feed answer, in micro-USD per STRK.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_strk_usd_price_micro_usd",
+                &self.max_strk_usd_price_micro_usd,
+                "Highest accepted STRK/USD feed answer, in micro-USD per STRK.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_eth_to_fri_rate_micro_strk",
+                &self.min_eth_to_fri_rate_micro_strk,
+                "Lowest accepted derived ETH/STRK rate, in micro-STRK per ETH.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_eth_to_fri_rate_micro_strk",
+                &self.max_eth_to_fri_rate_micro_strk,
+                "Highest accepted derived ETH/STRK rate, in micro-STRK per ETH.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "lag_interval_seconds",
+                &self.lag_interval_seconds,
+                "The size of the interval (seconds) that the exchange rate is quantized to, so \
+                 that a block timestamp maps to a stable cache bucket.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_cache_size",
+                &self.max_cache_size,
+                "The maximum number of cached conversion rates.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
