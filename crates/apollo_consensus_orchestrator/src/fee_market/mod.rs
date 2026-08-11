@@ -62,8 +62,6 @@ pub fn get_min_gas_price_for_height(
 /// The ceiling on the L2 gas price: `MAX_GAS_PRICE_MULTIPLIER` times `min_gas_price`. Applies to
 /// every block regardless of its `starknet_version`. Proposer and validator reach the ceiling
 /// through this function, so they cannot disagree on it.
-// [Temporary comment] Single caller on this lineage. The fee-proposal band clamp, which is its
-// second caller, is deferred to `main`.
 pub fn l2_gas_price_cap(min_gas_price: GasPrice) -> GasPrice {
     GasPrice(min_gas_price.0.saturating_mul(MAX_GAS_PRICE_MULTIPLIER))
 }
