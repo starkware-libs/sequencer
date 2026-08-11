@@ -613,6 +613,32 @@
       "severity": "p5"
     },
     {
+      "name": "consensus_l2_gas_price_above_maximum",
+      "title": "L2 gas price computation above the configured maximum",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "sum(increase(consensus_l2_gas_price_clamped{cluster=~\"$cluster\", namespace=~\"$namespace\", l2_gas_price_clamp_bound=\"maximum\"}[5m])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10m",
+      "severity": "p2"
+    },
+    {
       "name": "consensus_l2_gas_price_at_minimum",
       "title": "L2 gas price at configured minimum",
       "ruleGroup": "evaluation_rate_default",
@@ -637,6 +663,32 @@
       ],
       "for": "2m",
       "severity": "p3"
+    },
+    {
+      "name": "consensus_l2_gas_price_far_above_minimum",
+      "title": "L2 gas price far above the configured minimum",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "max(consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              "$$$consensus_l2_gas_price_far_above_minimum-comparison_value$$$"
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30m",
+      "severity": "p4"
     },
     {
       "name": "consensus_p2p_disconnections",
@@ -2067,6 +2119,32 @@
       ],
       "for": "30s",
       "severity": "p3"
+    },
+    {
+      "name": "snip35_fee_target_above_maximum",
+      "title": "SNIP-35 fee target above the L2 gas price maximum",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "sum(increase(snip35_fee_target_above_maximum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10m",
+      "severity": "p4"
     },
     {
       "name": "staking_epoch_id_mismatch",

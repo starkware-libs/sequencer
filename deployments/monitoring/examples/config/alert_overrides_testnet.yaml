@@ -24,6 +24,8 @@ consensus_block_number_progress_is_slow-severity: "p4"
 consensus_block_number_stuck_long_time-sampling_window_secs-expression: 1800
 consensus_block_number_stuck-sampling_window_secs-expression: 120
 consensus_block_number_stuck-severity: "p3"
+# Five times this environment's L2 gas price minimum (the versioned-constants fallback, 8 gFri).
+consensus_l2_gas_price_far_above_minimum-comparison_value: 40000000000
 consensus_p2p_not_enough_peers_for_quorum-severity: "p4"
 consensus_p2p_peer_down-severity: "p4"
 consensus_round_above_zero_multiple_times-comparison_value: 20.0
