@@ -1902,6 +1902,7 @@ dependencies = [
  "apollo_l1_gas_price_types",
  "rstest",
  "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "url",
