@@ -7,7 +7,7 @@ use std::time::Duration;
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
-use apollo_l1_gas_price_types::ExchangeRateOracleClientTrait;
+use apollo_l1_gas_price_types::{ExchangeRate, ExchangeRateOracleClientTrait};
 use apollo_metrics::metrics::set_unix_now_seconds;
 use async_trait::async_trait;
 use futures::FutureExt;
@@ -46,7 +46,7 @@ pub struct UrlAndHeaderMap {
     pub headers: Sensitive<HeaderMap>,
 }
 
-type PriceQuery = AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>>;
+type PriceQuery = AbortOnDropHandle<Result<ExchangeRate, ExchangeRateOracleClientError>>;
 
 /// Client for interacting with an exchange-rate oracle API.
 /// Concrete pair (ETH→STRK, STRK→USD, ...) is determined by `config.url_header_list`
@@ -59,7 +59,7 @@ pub struct ExchangeRateOracleClient {
     index: Arc<AtomicUsize>,
     url_header_list: Arc<Vec<UrlAndHeaderMap>>,
     client: reqwest::Client,
-    cached_prices: Arc<Mutex<LruCache<u64, u128>>>,
+    cached_prices: Arc<Mutex<LruCache<u64, ExchangeRate>>>,
     queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
     metrics: ExchangeRateOracleMetrics,
 }
@@ -99,7 +99,7 @@ impl ExchangeRateOracleClient {
     fn spawn_query(
         &self,
         quantized_timestamp: u64,
-    ) -> AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>> {
+    ) -> AbortOnDropHandle<Result<ExchangeRate, ExchangeRateOracleClientError>> {
         assert!(
             self.config.lag_interval_seconds > 0,
             "lag_interval_seconds should be greater than 0"
@@ -166,7 +166,7 @@ impl ExchangeRateOracleClient {
 fn resolve_query(
     body: String,
     metrics: &ExchangeRateOracleMetrics,
-) -> Result<u128, ExchangeRateOracleClientError> {
+) -> Result<ExchangeRate, ExchangeRateOracleClientError> {
     let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
         return Err(ExchangeRateOracleClientError::ParseError(format!(
             "Failed to parse JSON: {body}"
@@ -218,7 +218,10 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// - `price`: a hexadecimal string representing the price.
     /// - `decimals`: a `u64` value, must be equal to `EXCHANGE_RATE_DECIMALS`.
     #[instrument(skip(self))]
-    async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
+    async fn fetch_rate(
+        &self,
+        timestamp: u64,
+    ) -> Result<ExchangeRate, ExchangeRateOracleClientError> {
         const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
         let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
             .checked_div(self.config.lag_interval_seconds)
