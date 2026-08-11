@@ -21,7 +21,39 @@ use starknet_api::block::{BlockTimestamp, GasPrice};
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tracing::instrument;
 
-pub const DEFAULT_ETH_TO_FRI_RATE: u128 = 10_u128.pow(21);
+pub const DEFAULT_ETH_TO_FRI_RATE: ExchangeRate = 10_u128.pow(21);
+
+/// A currency conversion rate, as an 18-decimal fixed-point integer. The pair it converts is not
+/// part of the type: callers name it at the field or method that carries the rate.
+pub type ExchangeRate = u128;
+
+/// Which currency pair an oracle reading, rate or guard trip belongs to. Without it a stale ETH/USD
+/// leg and a stale STRK/USD leg are indistinguishable, since the ETH/STRK rate reads both.
+pub const LABEL_NAME_CURRENCY_PAIR: &str = "currency_pair";
+
+/// The pair a reading or rate quotes, used in guard errors and as the guard counters' label value.
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, PartialEq, Eq, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum CurrencyPair {
+    EthUsd,
+    StrkUsd,
+    /// Derived from the two USD pairs: no Chainlink feed on Starknet quotes ETH in STRK.
+    EthStrk,
+}
+
+impl CurrencyPair {
+    pub fn pair_name(self) -> &'static str {
+        match self {
+            CurrencyPair::EthUsd => "ETH/USD",
+            CurrencyPair::StrkUsd => "STRK/USD",
+            CurrencyPair::EthStrk => "ETH/STRK",
+        }
+    }
+
+    pub fn labels(self) -> [(&'static str, &'static str); 1] {
+        [(LABEL_NAME_CURRENCY_PAIR, self.into())]
+    }
+}
 
 pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
 pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
@@ -82,8 +114,8 @@ pub enum L1GasPriceResponse {
     Initialize(L1GasPriceProviderResult<()>),
     GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
     AddGasPrice(L1GasPriceProviderResult<()>),
-    GetEthToFriRate(L1GasPriceProviderResult<u128>),
-    GetStrkToUsdRate(L1GasPriceProviderResult<u128>),
+    GetEthToFriRate(L1GasPriceProviderResult<ExchangeRate>),
+    GetStrkToUsdRate(L1GasPriceProviderResult<ExchangeRate>),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 
@@ -101,22 +133,48 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         timestamp: BlockTimestamp,
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
 
-    /// ETH/FRI rate as 18-decimal fixed-point integer, quoted as FRI per ETH
-    /// (e.g. 5000 STRK per ETH → `5000 * 10^18`).
-    async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
+    /// ETH/FRI rate, quoted as FRI per ETH (e.g. 5000 STRK per ETH → `5000 * 10^18`).
+    async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<ExchangeRate>;
 
-    /// STRK/USD rate as 18-decimal fixed-point integer, quoted as USD per STRK
-    /// (e.g. STRK at $0.50 → `0.5 * 10^18`).
-    async fn get_strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
+    /// STRK/USD rate, quoted as USD per STRK (e.g. STRK at $0.50 → `0.5 * 10^18`).
+    async fn get_strk_to_usd_rate(
+        &self,
+        timestamp: u64,
+    ) -> L1GasPriceProviderClientResult<ExchangeRate>;
 }
 
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait ExchangeRateOracleClientTrait: Send + Sync + Debug {
-    /// Fetches a rate as a u128 for the given timestamp. The semantics of the rate (e.g.
-    /// ETH/FRI, STRK/USD) are determined by the URLs the implementation is configured with;
-    /// callers label the per-instance meaning at the field that holds the trait object.
-    async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError>;
+    /// Fetches the rate for the given timestamp. Which pair the rate converts (e.g. ETH/FRI,
+    /// STRK/USD) is fixed per implementation instance by its configuration; callers label the
+    /// per-instance meaning at the field that holds the trait object.
+    async fn fetch_rate(
+        &self,
+        timestamp: u64,
+    ) -> Result<ExchangeRate, ExchangeRateOracleClientError>;
+}
+
+/// The rate an oracle client instance produces, carried as a type parameter so a client cannot be
+/// built for a pair no implementation reads.
+pub trait RateKind: Send + Sync + Debug + 'static {
+    const PAIR: CurrencyPair;
+}
+
+/// FRI per ETH, derived from the ETH/USD and STRK/USD pairs.
+#[derive(Clone, Copy, Debug)]
+pub struct EthToFri;
+
+impl RateKind for EthToFri {
+    const PAIR: CurrencyPair = CurrencyPair::EthStrk;
+}
+
+/// USD per STRK.
+#[derive(Clone, Copy, Debug)]
+pub struct StrkToUsd;
+
+impl RateKind for StrkToUsd {
+    const PAIR: CurrencyPair = CurrencyPair::StrkUsd;
 }
 
 #[async_trait]
@@ -167,7 +225,7 @@ where
         )
     }
     #[instrument(skip(self))]
-    async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+    async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<ExchangeRate> {
         let request = L1GasPriceRequest::GetEthToFriRate(timestamp);
         handle_all_response_variants!(
             self,
@@ -180,7 +238,10 @@ where
         )
     }
     #[instrument(skip(self))]
-    async fn get_strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+    async fn get_strk_to_usd_rate(
+        &self,
+        timestamp: u64,
+    ) -> L1GasPriceProviderClientResult<ExchangeRate> {
         let request = L1GasPriceRequest::GetStrkToUsdRate(timestamp);
         handle_all_response_variants!(
             self,
