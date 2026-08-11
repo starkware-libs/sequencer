@@ -81,6 +81,10 @@ pub(crate) struct ProposalInitValidation {
     /// fee_actual from the sliding window. `None` until the window has accumulated
     /// `fee_proposal_window_size` entries (startup / near-genesis).
     pub fee_actual: Option<GasPrice>,
+    /// L2 gas price ceiling for this height, or `None` before `L2_GAS_PRICE_CAP_VERSION`. Derived
+    /// from this validator's own `min_l2_gas_price_per_height`, never from the proposal, so a
+    /// proposer cannot widen the bound it is checked against.
+    pub max_l2_gas_price: Option<GasPrice>,
 }
 
 /// Parameters for deadline and cancellation handling during proposal finalization.
@@ -384,6 +388,7 @@ async fn is_proposal_init_valid(
         let (lower_bound, upper_bound) = fee_proposal_bounds(
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
+            proposal_init_validation.max_l2_gas_price,
         );
         if fee_proposal.0 < lower_bound || fee_proposal.0 > upper_bound {
             return Err(ValidateProposalError::InvalidProposalInit(

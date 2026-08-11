@@ -32,7 +32,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
-use crate::dynamic_gas_price::{proposal_commitment_from, PPT_DENOMINATOR};
+use crate::dynamic_gas_price::{compute_fee_proposal, proposal_commitment_from, PPT_DENOMINATOR};
 use crate::sequencer_consensus_context::BuiltProposals;
 
 fn fee_proposal_margin_ppt() -> u128 {
@@ -44,6 +44,7 @@ use crate::test_utils::{
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
+    TEST_MAX_L2_GAS_PRICE,
     TIMEOUT,
     TX_BATCH,
 };
@@ -109,6 +110,7 @@ fn create_proposal_validate_arguments()
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
         starknet_version: StarknetVersion::LATEST,
         fee_actual: None,
+        max_l2_gas_price: None,
     };
     let proposal_id = ProposalId(1);
     let timeout = TIMEOUT;
@@ -362,6 +364,87 @@ async fn fee_proposal_within_margin_of_fee_actual(
             Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
                 if msg.contains("Fee proposal out of bounds")
         );
+    }
+}
+
+#[rstest]
+// `fee_actual` sits far above the ceiling, as it would after a genuine STRK collapse, so the band
+// has collapsed to the single point `TEST_MAX_L2_GAS_PRICE`.
+#[case::at_the_cap(TEST_MAX_L2_GAS_PRICE.0, true)]
+#[case::just_below_the_cap(TEST_MAX_L2_GAS_PRICE.0 - 1, false)]
+#[case::just_above_the_cap(TEST_MAX_L2_GAS_PRICE.0 + 1, false)]
+#[tokio::test]
+async fn fee_proposal_band_collapses_to_the_cap(
+    #[case] fee_proposal_fri: u128,
+    #[case] should_accept: bool,
+) {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        mut proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    proposal_init_validation.fee_actual = Some(GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 10));
+    proposal_init_validation.max_l2_gas_price = Some(TEST_MAX_L2_GAS_PRICE);
+    init.fee_proposal_fri = Some(GasPrice(fee_proposal_fri));
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    assert_eq!(res.is_ok(), should_accept, "got {res:?}");
+}
+
+#[rstest]
+// With the ceiling in force the honest proposer publishes it and the validator accepts.
+#[case::capped(Some(TEST_MAX_L2_GAS_PRICE))]
+// Before the gate there is no ceiling, so the proposer publishes the uncapped band edge and a
+// validator that also predates the gate accepts that instead.
+#[case::uncapped(None)]
+#[tokio::test]
+async fn proposer_and_validator_agree_across_the_cap_gate(
+    #[case] max_l2_gas_price: Option<GasPrice>,
+) {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        mut proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    // A malicious oracle reporting STRK as nearly worthless drives the target to the maximum.
+    let fee_actual = TEST_MAX_L2_GAS_PRICE;
+    let fee_proposal = compute_fee_proposal(
+        Some(GasPrice(u128::MAX)),
+        fee_actual,
+        fee_proposal_margin_ppt(),
+        max_l2_gas_price,
+    );
+    proposal_init_validation.fee_actual = Some(fee_actual);
+    proposal_init_validation.max_l2_gas_price = max_l2_gas_price;
+    init.fee_proposal_fri = Some(fee_proposal);
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    assert!(res.is_ok(), "honest proposal rejected: {res:?}");
+    match max_l2_gas_price {
+        Some(max_l2_gas_price) => assert_eq!(fee_proposal, max_l2_gas_price),
+        None => assert!(fee_proposal > TEST_MAX_L2_GAS_PRICE),
     }
 }
 
