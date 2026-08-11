@@ -770,6 +770,8 @@ impl Batcher {
         })?
         .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
 
+        validate_retdata_length(retdata.len())?;
+
         Ok(CallContractOutput { retdata })
     }
 
@@ -1535,6 +1537,27 @@ impl Batcher {
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
         Ok(())
     }
+}
+
+/// Maximal number of felts a view entry point call may return, about 3.2 MB at 32 bytes per felt.
+/// Far above the largest legitimate reader (the staking contract's staker list, a few felts per
+/// staker), and small enough to stay cheap to serialize over the batcher's remote server boundary.
+///
+/// Bounds the top-level return value only; the view call's resource bounds are what limit memory
+/// during execution.
+pub(crate) const MAX_VIEW_CALL_RETDATA_LENGTH: usize = 100_000;
+
+/// Rejects a view call whose return value is too large to hand back to the caller.
+pub(crate) fn validate_retdata_length(retdata_length: usize) -> BatcherResult<()> {
+    if retdata_length > MAX_VIEW_CALL_RETDATA_LENGTH {
+        return Err(BatcherError::ContractCallFailed {
+            reason: format!(
+                "Returned {retdata_length} felts, exceeding the limit of \
+                 {MAX_VIEW_CALL_RETDATA_LENGTH}."
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Logs the result of the transactions execution in the proposal.

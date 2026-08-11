@@ -18,7 +18,6 @@ use starknet_api::transaction::fields::{
     Calldata,
     ResourceBounds,
     ValidResourceBounds,
-    HIGH_GAS_AMOUNT,
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
@@ -47,6 +46,19 @@ pub mod test;
 
 pub const FAULTY_CLASS_HASH: &str =
     "0x1A7820094FEAF82D53F53F214B81292D717E7BB9A92BB2488092CD306F3993F";
+
+/// Sierra gas budget of a view entry point call. Bounds execution tracked by
+/// [`TrackedResource::SierraGas`], the only bound on a natively executed contract, whose Cairo
+/// steps are not counted at all. Equals `validate_max_sierra_gas`, and at every supported version's
+/// `step_gas_cost` of 100 buys [`VIEW_CALL_MAX_N_STEPS`] steps, so both bounds are the same budget.
+/// Pinned by `view_call_resource_bounds_match_versioned_constants`.
+pub const VIEW_CALL_MAX_SIERRA_GAS: GasAmount = GasAmount(100_000_000);
+
+/// Cairo step budget of a view entry point call. Bounds execution tracked by
+/// [`TrackedResource::CairoSteps`], which consumes no Sierra gas: Cairo 0 classes, Cairo 1 classes
+/// whose Sierra version predates `min_sierra_version_for_sierra_gas`, and every nested call made
+/// once such a frame is on the stack. Equals `validate_max_n_steps`.
+pub const VIEW_CALL_MAX_N_STEPS: usize = 1_000_000;
 
 pub type EntryPointExecutionResult<T> = Result<T, AnnotatedEntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
@@ -475,18 +487,28 @@ impl EntryPointExecutionContext {
         self.vm_run_resources.get_n_steps().expect("The number of steps must be initialized.")
     }
 
+    /// Sets the available steps in run resources.
+    /// Returns the remaining number of steps.
+    fn set_remaining_steps(&mut self, n_steps: usize) -> usize {
+        self.vm_run_resources = RunResources::new(n_steps);
+        self.n_remaining_steps()
+    }
+
     /// Subtracts the given number of steps from the currently available run resources.
     /// Used for limiting the number of steps available during the execution stage, to leave enough
     /// steps available for the fee transfer stage.
     /// Returns the remaining number of steps.
     pub fn subtract_steps(&mut self, steps_to_subtract: usize) -> usize {
-        // If remaining steps is less than the number of steps to subtract, attempting to subtrace
-        // would cause underflow error.
-        // Logically, we update remaining steps to `max(0, remaining_steps - steps_to_subtract)`.
-        let remaining_steps = self.n_remaining_steps();
-        let new_remaining_steps = remaining_steps.saturating_sub(steps_to_subtract);
-        self.vm_run_resources = RunResources::new(new_remaining_steps);
-        self.n_remaining_steps()
+        // Saturating, since subtracting more steps than remain would underflow.
+        let new_remaining_steps = self.n_remaining_steps().saturating_sub(steps_to_subtract);
+        self.set_remaining_steps(new_remaining_steps)
+    }
+
+    /// Lowers the step limit to `max_n_steps`, leaving it as is if it is already lower.
+    /// Returns the remaining number of steps.
+    pub fn cap_remaining_steps(&mut self, max_n_steps: usize) -> usize {
+        let new_remaining_steps = min(self.n_remaining_steps(), max_n_steps);
+        self.set_remaining_steps(new_remaining_steps)
     }
 
     /// From the total amount of steps available for execution, deduct the steps consumed during
@@ -596,6 +618,8 @@ pub fn execute_constructor_entry_point(
 
 // Calls the specified external entry point on the contract at the given address.
 // Intended for view-only entry points; any attempted state changes will be discarded.
+// Bounded by VIEW_CALL_MAX_SIERRA_GAS and VIEW_CALL_MAX_N_STEPS, since the caller is blocked while
+// the call runs, so the budget is sized for a read rather than for a whole transaction.
 pub fn call_view_entry_point(
     state_reader: impl StateReader,
     block_context: Arc<BlockContext>,
@@ -603,7 +627,7 @@ pub fn call_view_entry_point(
     entry_point_name: &str,
     calldata: Calldata,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let mut initial_gas = GasAmount(HIGH_GAS_AMOUNT);
+    let mut remaining_gas = VIEW_CALL_MAX_SIERRA_GAS;
 
     let execute_call = CallEntryPoint {
         entry_point_type: EntryPointType::External,
@@ -614,23 +638,25 @@ pub fn call_view_entry_point(
         storage_address,
         caller_address: ContractAddress::default(),
         call_type: CallType::Call,
-        initial_gas: initial_gas.0,
+        initial_gas: remaining_gas.0,
     };
 
     // Create a dummy transaction info, since we are not in a context of a real transaction.
     let tx_context =
         Arc::new(TransactionContext { block_context, tx_info: TransactionInfo::default() });
 
-    let limit_steps = false;
+    let limit_steps_by_resources = false;
     let mut context = EntryPointExecutionContext::new(
         tx_context,
         ExecutionMode::Execute,
-        limit_steps,
-        SierraGasRevertTracker::new(initial_gas),
+        limit_steps_by_resources,
+        SierraGasRevertTracker::new(remaining_gas),
     );
+    // The context starts with the block's invoke_tx_max_n_steps, sized for a whole transaction.
+    context.cap_remaining_steps(VIEW_CALL_MAX_N_STEPS);
 
     let mut state = CachedState::new(state_reader); // Changes to it are discarded.
-    execute_call.non_reverting_execute(&mut state, &mut context, &mut initial_gas.0)
+    execute_call.non_reverting_execute(&mut state, &mut context, &mut remaining_gas.0)
 }
 
 pub fn handle_empty_constructor(
