@@ -1,12 +1,13 @@
 use apollo_consensus_orchestrator::metrics::CONSENSUS_L2_GAS_PRICE_AT_MINIMUM;
 use apollo_l1_gas_price::metrics::{
     EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+    EXCHANGE_RATE_ORACLE_LAST_SUCCESS_TIMESTAMP_SECONDS,
     EXCHANGE_RATE_ORACLE_RATE,
-    EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
-use apollo_l1_gas_price_types::{CurrencyPair, LABEL_NAME_CURRENCY_PAIR};
+use apollo_l1_gas_price_types::errors::ExchangeRateOracleErrorType;
+use apollo_l1_gas_price_types::{CurrencyPair, LABEL_NAME_CURRENCY_PAIR, LABEL_NAME_ERROR_TYPE};
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_placeholders::SeverityValueOrPlaceholder;
@@ -20,13 +21,38 @@ use crate::alerts::{
     ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
-use crate::query_builder::{sum_increase, sum_increase_with_label, with_label};
+use crate::query_builder::{
+    sum_increase,
+    sum_increase_with_label,
+    sum_increase_with_labels,
+    with_label,
+};
 
-pub(crate) fn get_eth_to_strk_success_count_alert() -> Alert {
+#[cfg(test)]
+#[path = "l1_gas_prices_test.rs"]
+mod l1_gas_prices_test;
+
+/// How long a pair may go without a successful oracle query before paging: three refreshes at the
+/// slowest supported cadence, 900s for both the HTTP oracle (`lag_interval_seconds`) and the
+/// Chainlink client (`sampling_interval_seconds`).
+const ORACLE_STALENESS_THRESHOLD_SECONDS: f64 = 2700.0;
+
+pub(crate) fn get_eth_to_strk_oracle_stale_alert() -> Alert {
+    // Kept as `eth_to_strk_success_count`: the name is the key the per-env severity overrides set.
     const ALERT_NAME: &str = "eth_to_strk_success_count";
-    oracle_success_count_alert(
+    oracle_stale_alert(
         ALERT_NAME,
-        "Eth to Strk success count",
+        "Eth to Strk oracle produced no rate",
+        CurrencyPair::EthStrk,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+    )
+}
+
+pub(crate) fn get_eth_to_strk_rate_out_of_bounds_alert() -> Alert {
+    const ALERT_NAME: &str = "eth_to_strk_rate_out_of_bounds";
+    oracle_rate_out_of_bounds_alert(
+        ALERT_NAME,
+        "Eth to Strk rate outside the configured bounds",
         CurrencyPair::EthStrk,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
     )
@@ -41,11 +67,22 @@ pub(crate) fn get_eth_to_strk_error_count_alert() -> Alert {
     )
 }
 
-pub(crate) fn get_strk_to_usd_success_count_alert() -> Alert {
+pub(crate) fn get_strk_to_usd_oracle_stale_alert() -> Alert {
+    // Kept as `strk_to_usd_success_count`: the name is the key the per-env severity overrides set.
     const ALERT_NAME: &str = "strk_to_usd_success_count";
-    oracle_success_count_alert(
+    oracle_stale_alert(
         ALERT_NAME,
-        "Strk to Usd success count",
+        "Strk to Usd oracle produced no rate",
+        CurrencyPair::StrkUsd,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+    )
+}
+
+pub(crate) fn get_strk_to_usd_rate_out_of_bounds_alert() -> Alert {
+    const ALERT_NAME: &str = "strk_to_usd_rate_out_of_bounds";
+    oracle_rate_out_of_bounds_alert(
+        ALERT_NAME,
+        "Strk to Usd rate outside the configured bounds",
         CurrencyPair::StrkUsd,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
     )
@@ -82,7 +119,8 @@ pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
 
 /// Alert if had no successful l1 gas price scrape in the last hour.
 ///
-/// Uses `sum_increase` for the same spot-eviction reason as `get_eth_to_strk_success_count_alert`.
+/// `sum_increase` rather than bare `increase`: a rescheduled pod's counter restarts at 0, and
+/// summing across the pod series keeps the evicted pod's samples counted for the full window.
 pub(crate) fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
     const ALERT_NAME: &str = "l1_gas_price_scraper_success_count";
     Alert::new(
@@ -135,13 +173,52 @@ pub(crate) fn get_l2_gas_price_at_minimum_alert() -> Alert {
     )
 }
 
-/// Alert if an exchange-rate oracle had no successful query in the last hour.
+/// Alert if a pair has had no successful oracle query for
+/// [`ORACLE_STALENESS_THRESHOLD_SECONDS`].
 ///
-/// Uses `sum_increase` instead of bare `increase` to avoid false positives on spot eviction: when
-/// a pod is evicted and rescheduled, the new pod's counter resets to 0, so a bare `increase([1h])`
-/// would return 0 until the first success. `sum` aggregates across all pod series, and the
-/// evicted pod's data points remain in the TSDB for the full 1h window, keeping the sum ≥ 1.
-fn oracle_success_count_alert(
+/// Reads the last-success gauge rather than counting successes, so the alert does not depend on how
+/// often the client queries: any cadence below the threshold satisfies it, and a cadence that slows
+/// past the threshold pages instead of going silent.
+///
+/// `max` over the series and `and (... > 0)` handle the two ways the gauge reads 0: a pod that has
+/// not yet succeeded (another pod's more recent value wins) and a pair no client serves at all
+/// (registration publishes every label permutation at 0, and `time() - 0` would page forever).
+fn oracle_stale_alert(
+    name: &str,
+    title: &str,
+    pair: CurrencyPair,
+    severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
+    let last_success = with_label(
+        &EXCHANGE_RATE_ORACLE_LAST_SUCCESS_TIMESTAMP_SECONDS,
+        LABEL_NAME_CURRENCY_PAIR,
+        pair.into(),
+    );
+    Alert::new(
+        name,
+        title,
+        EvaluationRate::Default,
+        format!("max((time() - {last_success}) and ({last_success} > 0))"),
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            ORACLE_STALENESS_THRESHOLD_SECONDS,
+            AlertLogicalOp::And,
+        )],
+        PENDING_DURATION_DEFAULT,
+        severity,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+/// Alert if a rate was rejected for falling outside the configured absolute bounds.
+///
+/// The wrong-feed-wiring and poisoned-answer detector, and the one rejection consensus cannot
+/// substitute for: validators check that they agree with each other, never that the agreed value is
+/// sane. A single trip is worth paging for, so this deliberately keeps firing for the rest of the
+/// window after one increment.
+///
+/// Applies to observers, which read the same feeds, so a trip is environment-wide either way.
+fn oracle_rate_out_of_bounds_alert(
     name: &str,
     title: &str,
     pair: CurrencyPair,
@@ -151,16 +228,24 @@ fn oracle_success_count_alert(
         name,
         title,
         EvaluationRate::Default,
-        sum_increase_with_label(
-            &EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
-            LABEL_NAME_CURRENCY_PAIR,
-            pair.into(),
-            "1h",
+        format!(
+            "{} or vector(0)",
+            sum_increase_with_labels(
+                &EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+                &[
+                    (LABEL_NAME_CURRENCY_PAIR, pair.into()),
+                    (
+                        LABEL_NAME_ERROR_TYPE,
+                        ExchangeRateOracleErrorType::RateOutOfBoundsError.into()
+                    ),
+                ],
+                "1h",
+            )
         ),
-        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         severity,
-        ObserverApplicability::NotApplicable,
+        ObserverApplicability::Applicable,
     )
 }
 
