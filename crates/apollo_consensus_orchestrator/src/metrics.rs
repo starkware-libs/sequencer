@@ -43,6 +43,8 @@ define_metrics!(
         MetricGauge { SNIP35_FEE_PROPOSAL_FRI, "snip35_fee_proposal_fri", "The fee_proposal this node published in the latest block, in Fri" },
         MetricGauge { SNIP35_FEE_TARGET_FRI, "snip35_fee_target_fri", "The fee_target computed from the STRK/USD oracle, in Fri" },
         MetricGauge { SNIP35_FEE_TARGET_ATTO_USD, "snip35_fee_target_atto_usd", "Configured target USD cost per L2 gas unit, in atto-USD" },
+        // [Temporary comment] Dashboard panel and alert in #14947.
+        MetricCounter { SNIP35_FEE_TARGET_ABOVE_MAXIMUM, "snip35_fee_target_above_maximum", "Number of blocks whose oracle-derived fee_target exceeded the L2 gas price maximum. Excludes targets from the override_l2_gas_price_fri operator pin", init = 0 },
     }
 );
 
@@ -136,4 +138,5 @@ pub(crate) fn register_metrics() {
     SNIP35_FEE_PROPOSAL_FRI.register();
     SNIP35_FEE_TARGET_FRI.register();
     SNIP35_FEE_TARGET_ATTO_USD.register();
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
 }
