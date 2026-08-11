@@ -26,10 +26,25 @@ use validator::{Validate, ValidationError};
 #[path = "config_test.rs"]
 mod config_test;
 
+/// Which implementation serves a single exchange rate feed. The two feeds are selected
+/// independently, so they can be migrated one at a time.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ExchangeRateOracleSource {
+    /// The off-chain oracle HTTP API, configured by the feed's `ExchangeRateOracleConfig`.
+    #[default]
+    Http,
+    /// Chainlink's on-chain Starknet price feeds, configured by `ChainlinkOracleConfig` and read
+    /// through the batcher.
+    Chainlink,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ExchangeRateOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
     pub url_header_list: Option<Vec<Sensitive<UrlAndHeaders>>>,
+    // Both clients of this feed divide by this interval, so a zero halts pricing rather than
+    // sampling more often.
+    #[validate(range(min = 1))]
     pub lag_interval_seconds: u64,
     pub max_cache_size: usize,
     pub query_timeout_sec: u64,
@@ -125,7 +140,9 @@ impl SerializeConfig for MicroUnitBounds {
     }
 }
 
-/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
+/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher. Unlike
+/// the per-feed `ExchangeRateOracleConfig`s, one instance of this config serves both feeds: the
+/// ETH/STRK rate is derived from the same two on-chain feeds the STRK/USD rate is read from.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 #[validate(schema(function = "validate_chainlink_oracle_config"))]
 pub struct ChainlinkOracleConfig {
@@ -300,6 +317,13 @@ pub struct L1GasPriceProviderConfig {
     pub eth_to_strk_oracle_config: ExchangeRateOracleConfig,
     #[validate(nested)]
     pub strk_to_usd_oracle_config: ExchangeRateOracleConfig,
+    pub eth_to_strk_oracle_source: ExchangeRateOracleSource,
+    pub strk_to_usd_oracle_source: ExchangeRateOracleSource,
+    // Shared by both feeds, unlike the per-feed HTTP configs above. Validated even while both
+    // sources are `Http`, so that a bad value is rejected at config load rather than at the moment
+    // an operator flips a source to `Chainlink`.
+    #[validate(nested)]
+    pub chainlink_oracle_config: ChainlinkOracleConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -312,6 +336,9 @@ impl Default for L1GasPriceProviderConfig {
             max_time_gap_seconds: 900, // 15 minutes
             eth_to_strk_oracle_config: ExchangeRateOracleConfig::default(),
             strk_to_usd_oracle_config: ExchangeRateOracleConfig::default(),
+            eth_to_strk_oracle_source: ExchangeRateOracleSource::default(),
+            strk_to_usd_oracle_source: ExchangeRateOracleSource::default(),
+            chainlink_oracle_config: ChainlinkOracleConfig::default(),
         }
     }
 }
@@ -345,6 +372,26 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                  in seconds",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "eth_to_strk_oracle_source",
+                &self.eth_to_strk_oracle_source,
+                "Which oracle serves the ETH/STRK rate: `Http` reads the API configured in \
+                 `eth_to_strk_oracle_config`, `Chainlink` reads the on-chain feeds configured in \
+                 `chainlink_oracle_config`, which both feeds share, and requires a batcher \
+                 client. Selecting `Chainlink` on a service that has no batcher client is a \
+                 startup failure, not a fallback to `Http`.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_to_usd_oracle_source",
+                &self.strk_to_usd_oracle_source,
+                "Which oracle serves the STRK/USD rate: `Http` reads the API configured in \
+                 `strk_to_usd_oracle_config`, `Chainlink` reads the on-chain feeds configured in \
+                 `chainlink_oracle_config`, which both feeds share, and requires a batcher \
+                 client. Selecting `Chainlink` on a service that has no batcher client is a \
+                 startup failure, not a fallback to `Http`.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         config.extend(prepend_sub_config_name(
             self.eth_to_strk_oracle_config.dump(),
@@ -353,6 +400,10 @@ impl SerializeConfig for L1GasPriceProviderConfig {
         config.extend(prepend_sub_config_name(
             self.strk_to_usd_oracle_config.dump(),
             "strk_to_usd_oracle_config",
+        ));
+        config.extend(prepend_sub_config_name(
+            self.chainlink_oracle_config.dump(),
+            "chainlink_oracle_config",
         ));
         config
     }

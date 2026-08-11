@@ -103,13 +103,25 @@ type RateQuery = AbortOnDropHandle<RateResult>;
 /// inside `max_staleness_seconds`, which bounds how far the price itself may have moved.
 const MAX_FALLBACK_SAMPLING_INTERVALS: u64 = 3;
 
-/// Which rate a `ChainlinkOracleClient` instance produces.
+/// Which rate a `ChainlinkOracleClient` instance produces. Also names the feed across the provider,
+/// so that every per-feed choice is derived from one value rather than paired up by hand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChainlinkRateKind {
     /// USD per STRK, read directly from the STRK/USD feed.
     StrkToUsd,
     /// FRI per ETH, derived from the ETH/USD and STRK/USD feeds. Starknet has no ETH/STRK feed.
     EthToFri,
+}
+
+impl ChainlinkRateKind {
+    /// The feed's metrics bundle, shared with the HTTP client for the same feed so each keeps one
+    /// set of Prometheus series across a migration between the two sources.
+    pub fn metrics(self) -> ExchangeRateOracleMetrics {
+        match self {
+            Self::StrkToUsd => STRK_TO_USD_ORACLE_METRICS,
+            Self::EthToFri => ETH_TO_STRK_ORACLE_METRICS,
+        }
+    }
 }
 
 /// A rate that passed every guard, and the sampling bucket it was read for. The bucket is what
@@ -200,10 +212,7 @@ impl ChainlinkOracleClient {
             config.max_future_updated_at_seconds,
             config.failure_retry_interval_seconds,
         );
-        let metrics = match rate_kind {
-            ChainlinkRateKind::StrkToUsd => STRK_TO_USD_ORACLE_METRICS,
-            ChainlinkRateKind::EthToFri => ETH_TO_STRK_ORACLE_METRICS,
-        };
+        let metrics = rate_kind.metrics();
         metrics.register();
         register_chainlink_guard_metrics();
         Self {
