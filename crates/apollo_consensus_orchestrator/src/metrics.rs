@@ -17,7 +17,6 @@ define_metrics!(
         MetricGauge { CONSENSUS_L2_GAS_PRICE, "consensus_l2_gas_price", "The L2 gas price calculated in an accepted proposal" },
         MetricGauge { CONSENSUS_L2_GAS_PRICE_AT_MINIMUM, "consensus_l2_gas_price_at_minimum", "1 when the accepted L2 gas price is clamped at the configured minimum (min_l2_gas_price_per_height, or the versioned-constants min_gas_price fallback), else 0" },
         // Counter, not gauge: a gauge resets to 0 on restart, hiding clamps that already occurred.
-        // [Temporary comment] Panel and alerts arrive in #14947.
         LabeledMetricCounter { CONSENSUS_L2_GAS_PRICE_CLAMPED, "consensus_l2_gas_price_clamped", "Number of times a clamp bound the computed next L2 gas price. `minimum`: the previous price was below the effective minimum, i.e. still ramping up towards the floor. A price at or above the floor is not counted, even when the floor raised it; see consensus_l2_gas_price_at_minimum. `maximum`: bound by the ceiling, including when only the SNIP-35 floor was clipped, in which case the published price can be below the ceiling", init = 0, labels = L2_GAS_PRICE_CLAMP_BOUND },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
         MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH, "consensus_retrospective_block_hash_mismatch", "Number of times the retrospective block hashes of the state sync and the batcher mismatched", init=0},
@@ -43,7 +42,6 @@ define_metrics!(
         MetricGauge { SNIP35_FEE_PROPOSAL_FRI, "snip35_fee_proposal_fri", "The fee_proposal this node published in the latest block, in Fri" },
         MetricGauge { SNIP35_FEE_TARGET_FRI, "snip35_fee_target_fri", "The fee_target computed from the STRK/USD oracle, in Fri" },
         MetricGauge { SNIP35_FEE_TARGET_ATTO_USD, "snip35_fee_target_atto_usd", "Configured target USD cost per L2 gas unit, in atto-USD" },
-        // [Temporary comment] Dashboard panel and alert in #14947.
         MetricCounter { SNIP35_FEE_TARGET_ABOVE_MAXIMUM, "snip35_fee_target_above_maximum", "Number of blocks whose oracle-derived fee_target exceeded the L2 gas price maximum. Excludes targets from the override_l2_gas_price_fri operator pin", init = 0 },
     }
 );
@@ -53,7 +51,7 @@ pub const LABEL_L2_GAS_PRICE_CLAMP_BOUND: &str = "l2_gas_price_clamp_bound";
 // Which bound a clamp applied: the effective minimum in force, or the `l2_gas_price_cap` ceiling.
 #[derive(IntoStaticStr, EnumIter, VariantNames)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum L2GasPriceClampBound {
+pub enum L2GasPriceClampBound {
     Minimum,
     Maximum,
 }

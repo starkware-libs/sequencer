@@ -75,7 +75,6 @@ use crate::alert_scenarios::l1_gas_prices::{
     get_eth_to_strk_success_count_alert,
     get_l1_gas_price_provider_insufficient_history_alert,
     get_l1_gas_price_scraper_success_count_alert,
-    get_l2_gas_price_at_minimum_alert,
     get_strk_to_usd_error_count_alert,
     get_strk_to_usd_rate_frozen_alert,
     get_strk_to_usd_success_count_alert,
@@ -83,6 +82,12 @@ use crate::alert_scenarios::l1_gas_prices::{
 use crate::alert_scenarios::l1_handlers::{
     get_l1_handler_transaction_waiting_in_l1_alert,
     get_l1_message_scraper_no_successes_alert,
+};
+use crate::alert_scenarios::l2_gas_price::{
+    get_l2_gas_price_above_maximum_alert,
+    get_l2_gas_price_at_minimum_alert,
+    get_l2_gas_price_far_above_minimum_alert,
+    get_snip35_fee_target_above_maximum_alert,
 };
 use crate::alert_scenarios::mempool_size::{
     get_mempool_evictions_count_alert,
@@ -667,6 +672,9 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_l1_gas_price_provider_insufficient_history_alert());
     alerts.push(get_l1_gas_price_scraper_success_count_alert());
     alerts.push(get_l2_gas_price_at_minimum_alert());
+    alerts.push(get_l2_gas_price_above_maximum_alert());
+    alerts.push(get_l2_gas_price_far_above_minimum_alert());
+    alerts.push(get_snip35_fee_target_above_maximum_alert());
     alerts.push(get_l1_message_scraper_no_successes_alert());
     alerts.push(get_l1_handler_transaction_waiting_in_l1_alert());
     alerts.extend(get_primary_l1_endpoint_down_too_long_alerts());
