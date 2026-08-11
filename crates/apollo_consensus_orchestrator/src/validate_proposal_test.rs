@@ -32,7 +32,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
-use crate::dynamic_gas_price::{proposal_commitment_from, PPT_DENOMINATOR};
+use crate::dynamic_gas_price::{compute_fee_proposal, proposal_commitment_from, PPT_DENOMINATOR};
 use crate::sequencer_consensus_context::BuiltProposals;
 
 fn fee_proposal_margin_ppt() -> u128 {
@@ -44,6 +44,7 @@ use crate::test_utils::{
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
+    TEST_MAX_L2_GAS_PRICE,
     TIMEOUT,
     TX_BATCH,
 };
@@ -109,6 +110,8 @@ fn create_proposal_validate_arguments()
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
         starknet_version: StarknetVersion::LATEST,
         fee_actual: None,
+        // Out of reach of every band, so only the cases that set it exercise the ceiling.
+        max_l2_gas_price: GasPrice(u128::MAX),
     };
     let proposal_id = ProposalId(1);
     let timeout = TIMEOUT;
@@ -363,6 +366,75 @@ async fn fee_proposal_within_margin_of_fee_actual(
                 if msg.contains("Fee proposal out of bounds")
         );
     }
+}
+
+#[rstest]
+// `fee_actual` far above the ceiling collapses the band onto `TEST_MAX_L2_GAS_PRICE`.
+#[case::at_the_cap(TEST_MAX_L2_GAS_PRICE.0, true)]
+#[case::just_below_the_cap(TEST_MAX_L2_GAS_PRICE.0 - 1, false)]
+#[case::just_above_the_cap(TEST_MAX_L2_GAS_PRICE.0 + 1, false)]
+#[tokio::test]
+async fn fee_proposal_band_collapses_to_the_cap(
+    #[case] fee_proposal_fri: u128,
+    #[case] should_accept: bool,
+) {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        mut proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    proposal_init_validation.fee_actual = Some(GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 10));
+    proposal_init_validation.max_l2_gas_price = TEST_MAX_L2_GAS_PRICE;
+    init.fee_proposal_fri = Some(GasPrice(fee_proposal_fri));
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    assert_eq!(res.is_ok(), should_accept, "got {res:?}");
+}
+
+#[tokio::test]
+async fn proposer_and_validator_agree_on_the_capped_band() {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        mut proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    // A malicious oracle reporting STRK as nearly worthless drives the target to the maximum.
+    let fee_actual = TEST_MAX_L2_GAS_PRICE;
+    let fee_proposal = compute_fee_proposal(
+        Some(GasPrice(u128::MAX)),
+        fee_actual,
+        fee_proposal_margin_ppt(),
+        TEST_MAX_L2_GAS_PRICE,
+    );
+    proposal_init_validation.fee_actual = Some(fee_actual);
+    proposal_init_validation.max_l2_gas_price = TEST_MAX_L2_GAS_PRICE;
+    init.fee_proposal_fri = Some(fee_proposal);
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    assert!(res.is_ok(), "honest proposal rejected: {res:?}");
+    assert_eq!(fee_proposal, TEST_MAX_L2_GAS_PRICE);
 }
 
 #[tokio::test]
