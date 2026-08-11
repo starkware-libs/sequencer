@@ -5,9 +5,11 @@
 //! Each block proposal needs two independent inputs:
 //! - **L1 gas prices (WEI)** — mean `base_fee_per_gas` and `blob_fee` over the last N Ethereum
 //!   blocks, maintained by [`l1_gas_price_provider`].
-//! - **ETH→STRK rate** — current market rate from one of several oracle endpoints, queried by
-//!   [`exchange_rate_oracle`]. Multiple URLs are tried in round-robin; if the in-flight query for
-//!   the current time bucket hasn't resolved yet, the previous bucket's cached rate is used.
+//! - **ETH→STRK rate** — current market rate from an oracle: either the HTTP endpoints queried by
+//!   [`exchange_rate_oracle`], which are tried in round-robin, or Chainlink's on-chain Starknet
+//!   price feeds read through the batcher by [`chainlink_oracle`]. Both quantize the timestamp into
+//!   time buckets, and if the in-flight query for the current bucket hasn't resolved yet, the
+//!   previous bucket's cached rate is used.
 //!
 //! When combining these in `apollo_consensus_orchestrator`, the fallback chain is:
 //!
@@ -28,6 +30,7 @@
 //! unusable precisely when it is already degraded. The configured minimums and the default
 //! ETH→STRK rate are safe floors the operator has verified are always economically viable.
 
+pub mod chainlink_oracle;
 pub mod communication;
 pub mod exchange_rate_oracle;
 pub mod l1_gas_price_provider;
