@@ -4,7 +4,7 @@ use apollo_batcher_types::batcher_types::CallContractOutput;
 use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
 use apollo_batcher_types::errors::BatcherError;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::execution::entry_point::call_view_entry_point;
+use blockifier::execution::entry_point::{call_view_entry_point, ViewCallResourceBounds};
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -83,6 +83,7 @@ fn create_contract(state: Arc<Mutex<State>>) -> CairoStakingContract {
             input.contract_address,
             &input.entry_point,
             Calldata::from(input.calldata),
+            ViewCallResourceBounds::BOUNDED_VIEW_CALL,
         )
         .map(|call_info| CallContractOutput { retdata: call_info.execution.retdata.0 })
         .map_err(|err| {
