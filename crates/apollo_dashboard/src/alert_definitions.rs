@@ -60,6 +60,10 @@ use crate::alert_scenarios::block_production_halt::{
     get_consensus_p2p_not_enough_peers_for_quorum_vec,
     get_consensus_round_high,
 };
+use crate::alert_scenarios::chainlink_oracle::{
+    get_chainlink_oracle_rate_out_of_bounds_alert,
+    get_chainlink_oracle_stale_feed_alert,
+};
 use crate::alert_scenarios::config_manager::get_config_manager_update_error_increase;
 use crate::alert_scenarios::infra_alerts::{
     get_general_pod_disk_utilization_vec,
@@ -623,6 +627,8 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_retrospective_block_hash_mismatch(),
         get_consensus_round_above_zero(),
         get_consensus_votes_num_sent_messages_alert(),
+        get_chainlink_oracle_rate_out_of_bounds_alert(),
+        get_chainlink_oracle_stale_feed_alert(),
         get_eth_to_strk_error_count_alert(),
         get_strk_to_usd_error_count_alert(),
         get_gateway_add_tx_idle(),

@@ -223,6 +223,58 @@
       "severity": "p4"
     },
     {
+      "name": "chainlink_oracle_rate_out_of_bounds",
+      "title": "Chainlink oracle rate outside the configured bounds",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "sum(increase(chainlink_oracle_rate_out_of_bounds_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10m",
+      "severity": "p3"
+    },
+    {
+      "name": "chainlink_oracle_stale_feed",
+      "title": "Chainlink oracle feed outside the freshness window",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "sum(increase(chainlink_oracle_stale_feed_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10m",
+      "severity": "p4"
+    },
+    {
       "name": "class_manager_remote_server_number_of_connections",
       "title": "class_manager - Remote server number of connections exceeds 80",
       "ruleGroup": "evaluation_rate_default",
