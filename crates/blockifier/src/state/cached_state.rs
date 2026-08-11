@@ -321,9 +321,18 @@ impl<S: StateReader> CachedState<S> {
         for class_hash in declared_class_hashes {
             self.get_compiled_class_hash(class_hash)?;
         }
-        let mut os_initial_reads = self.get_initial_reads()?;
-        os_initial_reads.declared_contracts.clear();
-        Ok(os_initial_reads)
+
+        // Clone only the fields the OS consumes; `declared_contracts` is dropped rather than
+        // cloned and cleared, since a block can declare many classes.
+        let cache = self.cache.borrow();
+        let initial_reads = &cache.initial_reads;
+        Ok(StateMaps {
+            nonces: initial_reads.nonces.clone(),
+            class_hashes: initial_reads.class_hashes.clone(),
+            storage: initial_reads.storage.clone(),
+            compiled_class_hashes: initial_reads.compiled_class_hashes.clone(),
+            declared_contracts: HashMap::new(),
+        })
     }
 }
 
