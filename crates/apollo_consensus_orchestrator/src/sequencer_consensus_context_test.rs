@@ -69,6 +69,7 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     CONSENSUS_L2_GAS_PRICE_CLAMPED,
     LABEL_L2_GAS_PRICE_CLAMP_BOUND,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
 };
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
@@ -85,6 +86,7 @@ use crate::test_utils::{
     INTERNAL_TX_BATCH,
     PARTIAL_BLOCK_HASH,
     TEST_MAX_L2_GAS_PRICE,
+    TEST_MIN_L2_GAS_PRICE,
     TIMEOUT,
     TX_BATCH,
 };
@@ -1830,9 +1832,83 @@ async fn test_compute_proposer_fee_proposal(
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
-    let proposal =
-        context.compute_proposer_fee_proposal(fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS).await;
+    let proposal = context
+        .compute_proposer_fee_proposal(BlockNumber(0), fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS)
+        .await;
     assert_eq!(proposal, expected_fee_proposal);
+}
+
+#[tokio::test]
+async fn test_oracle_target_above_the_ceiling_caps_the_band_and_counts() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    // A rate of 1 atto-USD per STRK drives the oracle-derived target far above the ceiling.
+    // Registered before `setup_default_expectations` so the catch-all default does not shadow it.
+    deps.l1_gas_price_provider.expect_get_strk_to_usd_rate().returning(|_| Ok(1));
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            Some(TEST_MAX_L2_GAS_PRICE),
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    // The margin band's upper edge before capping is 80_160_000_000.
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.assert_eq(&recorder.handle().render(), 1);
+}
+
+#[tokio::test]
+async fn test_operator_override_above_the_ceiling_is_not_oracle_drift() {
+    // The pin is excluded from `snip35_fee_target_above_maximum`.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+    context.config.dynamic_config.override_l2_gas_price_fri = Some(TEST_MAX_L2_GAS_PRICE.0 * 2);
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            Some(TEST_MAX_L2_GAS_PRICE),
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    // The ceiling still caps the published proposal; only the attribution changes.
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.assert_eq(&recorder.handle().render(), 0);
+}
+
+#[tokio::test]
+async fn test_partial_window_freezes_at_an_uncapped_l2_gas_price() {
+    // The validator skips the band check without `fee_actual`.
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    let above_the_ceiling = GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 2);
+    context.l2_gas_price = above_the_ceiling;
+
+    let proposal = context
+        .compute_proposer_fee_proposal(BlockNumber(0), None, 0, TARGET_ATTO_USD_PER_L2_GAS)
+        .await;
+
+    assert_eq!(proposal, above_the_ceiling);
 }
 
 #[tokio::test]
@@ -1858,6 +1934,10 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
     }
     deps.setup_default_expectations();
     let mut context = deps.build_context();
+    // Mainnet's configured minimum puts the cap at 150 gwei; the 8 gwei fallback would cap below
+    // this scenario's targets.
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: 15_000_000_000 }];
 
     // Bootstrap the window with 75 gwei (the $0.04 target).
     let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
@@ -1872,7 +1952,7 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
             let proposal = context
-                .compute_proposer_fee_proposal(Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
+                .compute_proposer_fee_proposal(h, Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
                 .await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;
