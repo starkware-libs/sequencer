@@ -82,6 +82,7 @@ use validator::Validate;
 
 use crate::batcher::{
     finished_proposal_info_from_artifacts,
+    validate_retdata_length,
     Batcher,
     BatcherStorageReader,
     BatcherStorageWriter,
@@ -90,6 +91,7 @@ use crate::batcher::{
     StorageCommitmentBlockHash,
     StorageViewStateReaderFactory,
     ViewStateReaderFactory,
+    MAX_VIEW_CALL_RETDATA_LENGTH,
 };
 use crate::block_builder::{
     AbortSignalSender,
@@ -141,6 +143,21 @@ const STAKING_CONTRACT: FeatureContract =
     FeatureContract::MockStakingContract(RunnableCairo1::Casm);
 const ACCOUNT_CONTRACT: FeatureContract =
     FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+/// Both versions of the test contract expose a `recurse(depth)` entry point whose cost grows with
+/// the requested depth. The Cairo 1 contract is tracked by Sierra gas and the Cairo 0 one by Cairo
+/// steps, so between them they exercise both of the view call resource bounds.
+const SIERRA_GAS_TRACKED_RECURSIVE_CONTRACT: FeatureContract =
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+const CAIRO_STEPS_TRACKED_RECURSIVE_CONTRACT: FeatureContract =
+    FeatureContract::TestContract(CairoVersion::Cairo0);
+/// Recursion depth whose cost is a small fraction of either view call resource bound.
+const RECURSION_DEPTH_WITHIN_RESOURCE_BOUNDS: u64 = 1_000;
+/// Recursion depths that exhaust a view call resource bound: above `VIEW_CALL_MAX_SIERRA_GAS` for
+/// the Cairo 1 contract, and between `VIEW_CALL_MAX_N_STEPS` and the block's
+/// `invoke_tx_max_n_steps` (10^7) for the Cairo 0 one, so the step case fails on the view bound and
+/// not the block limit. One level of `recurse` costs about 973 Sierra gas and about 4 Cairo steps.
+const SIERRA_GAS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS: u64 = 300_000;
+const CAIRO_STEPS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS: u64 = 400_000;
 
 struct TestViewStateReaderFactory {
     state: Arc<Mutex<CachedState<DictStateReader>>>,
@@ -2090,4 +2107,92 @@ async fn call_contract_success() {
         .unwrap();
 
     assert_eq!(result.retdata, vec![Felt::ONE, Felt::TWO, Felt::THREE]);
+}
+
+async fn create_batcher_with_recursive_contract(contract: FeatureContract) -> Batcher {
+    let state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(contract, 1)]);
+    create_batcher(MockDependencies {
+        view_state_reader_factory: Box::new(TestViewStateReaderFactory {
+            state: Arc::new(Mutex::new(state)),
+            expected_block_number: INITIAL_HEIGHT,
+        }),
+        ..Default::default()
+    })
+    .await
+}
+
+fn recurse_call_contract_input(contract: FeatureContract, depth: u64) -> CallContractInput {
+    CallContractInput {
+        contract_address: contract.get_instance_address(0),
+        entry_point: "recurse".to_string(),
+        calldata: vec![Felt::from(depth)],
+    }
+}
+
+#[rstest]
+#[case::sierra_gas_tracked(SIERRA_GAS_TRACKED_RECURSIVE_CONTRACT)]
+#[case::cairo_steps_tracked(CAIRO_STEPS_TRACKED_RECURSIVE_CONTRACT)]
+#[tokio::test]
+async fn call_contract_within_resource_bounds_succeeds(#[case] contract: FeatureContract) {
+    let batcher = create_batcher_with_recursive_contract(contract).await;
+
+    let result = batcher
+        .call_contract(recurse_call_contract_input(
+            contract,
+            RECURSION_DEPTH_WITHIN_RESOURCE_BOUNDS,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(result.retdata, vec![]);
+}
+
+#[rstest]
+#[case::sierra_gas_bound(
+    SIERRA_GAS_TRACKED_RECURSIVE_CONTRACT,
+    SIERRA_GAS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS,
+    "Out of gas"
+)]
+#[case::cairo_steps_bound(
+    CAIRO_STEPS_TRACKED_RECURSIVE_CONTRACT,
+    CAIRO_STEPS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS,
+    "RunResources has no remaining steps."
+)]
+#[tokio::test]
+async fn call_contract_exceeding_resource_bounds_fails(
+    #[case] contract: FeatureContract,
+    #[case] depth: u64,
+    #[case] expected_reason: &str,
+) {
+    let batcher = create_batcher_with_recursive_contract(contract).await;
+
+    let result = batcher.call_contract(recurse_call_contract_input(contract, depth)).await;
+
+    assert_matches!(
+        result,
+        Err(BatcherError::ContractCallFailed { reason }) if reason.contains(expected_reason),
+        "Expected the call to fail with {expected_reason:?}."
+    );
+}
+
+#[rstest]
+#[case::empty_retdata(0)]
+#[case::retdata_below_the_limit(MAX_VIEW_CALL_RETDATA_LENGTH - 1)]
+#[case::retdata_at_the_limit(MAX_VIEW_CALL_RETDATA_LENGTH)]
+fn validate_retdata_length_accepts_lengths_up_to_the_limit(#[case] retdata_length: usize) {
+    assert_eq!(validate_retdata_length(retdata_length), Ok(()));
+}
+
+/// The reason string is all the caller sees, so it must name both the returned length and the
+/// limit.
+#[rstest]
+#[case::retdata_just_above_the_limit(MAX_VIEW_CALL_RETDATA_LENGTH + 1)]
+#[case::retdata_far_above_the_limit(MAX_VIEW_CALL_RETDATA_LENGTH * 10)]
+fn validate_retdata_length_rejects_length_above_the_limit(#[case] retdata_length: usize) {
+    assert_matches!(
+        validate_retdata_length(retdata_length),
+        Err(BatcherError::ContractCallFailed { reason })
+            if reason.contains(&retdata_length.to_string())
+                && reason.contains(&MAX_VIEW_CALL_RETDATA_LENGTH.to_string())
+    );
 }
