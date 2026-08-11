@@ -1,12 +1,26 @@
 {
+  "l1_gas_price_provider_config.chainlink_oracle_config.eth_usd_feed_address": "0x6b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26",
+  "l1_gas_price_provider_config.chainlink_oracle_config.lag_interval_seconds": 60,
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_cache_size": 100,
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_eth_to_fri_rate_micro_strk": 1000000000000,
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_eth_usd_price_micro_usd": 50000000000,
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_future_updated_at_seconds": 300,
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_staleness_seconds": 90000,
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_strk_usd_price_micro_usd": 10000000,
+  "l1_gas_price_provider_config.chainlink_oracle_config.min_eth_to_fri_rate_micro_strk": 10000000000,
+  "l1_gas_price_provider_config.chainlink_oracle_config.min_eth_usd_price_micro_usd": 20000000,
+  "l1_gas_price_provider_config.chainlink_oracle_config.min_strk_usd_price_micro_usd": 100,
+  "l1_gas_price_provider_config.chainlink_oracle_config.strk_usd_feed_address": "0x76a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec",
   "l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds": 900,
   "l1_gas_price_provider_config.eth_to_strk_oracle_config.max_cache_size": 100,
   "l1_gas_price_provider_config.eth_to_strk_oracle_config.query_timeout_sec": 10,
+  "l1_gas_price_provider_config.eth_to_strk_oracle_source": "Http",
   "l1_gas_price_provider_config.lag_margin_seconds": 600,
   "l1_gas_price_provider_config.max_time_gap_seconds": 900,
   "l1_gas_price_provider_config.number_of_blocks_for_mean": 300,
   "l1_gas_price_provider_config.storage_limit": 3000,
   "l1_gas_price_provider_config.strk_to_usd_oracle_config.lag_interval_seconds": 900,
   "l1_gas_price_provider_config.strk_to_usd_oracle_config.max_cache_size": 100,
-  "l1_gas_price_provider_config.strk_to_usd_oracle_config.query_timeout_sec": 10
+  "l1_gas_price_provider_config.strk_to_usd_oracle_config.query_timeout_sec": 10,
+  "l1_gas_price_provider_config.strk_to_usd_oracle_source": "Http"
 }

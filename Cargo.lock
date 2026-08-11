@@ -1900,6 +1900,7 @@ dependencies = [
  "apollo_config",
  "rstest",
  "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "url",

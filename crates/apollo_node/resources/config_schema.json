@@ -3304,6 +3304,66 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "l1_gas_price_provider_config.chainlink_oracle_config.eth_usd_feed_address": {
+    "description": "Address of the Chainlink ETH/USD proxy feed on Starknet.",
+    "privacy": "Public",
+    "value": "0x6b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26"
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.lag_interval_seconds": {
+    "description": "The size of the interval (seconds) that the exchange rate is quantized to, so that a block timestamp maps to a stable cache bucket.",
+    "privacy": "Public",
+    "value": 60
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_cache_size": {
+    "description": "The maximum number of cached conversion rates.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_eth_to_fri_rate_micro_strk": {
+    "description": "Highest accepted derived ETH/STRK rate, in micro-STRK (1e-6 STRK) per ETH, so a value of 1000000000000 means 1,000,000 STRK per ETH.",
+    "privacy": "Public",
+    "value": 1000000000000
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_eth_usd_price_micro_usd": {
+    "description": "Highest accepted ETH/USD feed answer, in micro-USD (1e-6 USD) per ETH, so a value of 50000000000 means $50,000.",
+    "privacy": "Public",
+    "value": 50000000000
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_future_updated_at_seconds": {
+    "description": "Maximum amount (seconds) by which a feed's `updated_at` may lead the queried timestamp. Must exceed twice `lag_interval_seconds`, since the queried timestamp trails the block timestamp by that much.",
+    "privacy": "Public",
+    "value": 300
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_staleness_seconds": {
+    "description": "Maximum age (seconds) of a feed's `updated_at` relative to the queried timestamp. An older reading is rejected, and for the derived ETH/STRK rate a single stale leg rejects the whole rate.",
+    "privacy": "Public",
+    "value": 90000
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.max_strk_usd_price_micro_usd": {
+    "description": "Highest accepted STRK/USD feed answer, in micro-USD (1e-6 USD) per STRK, so a value of 10000000 means $10.",
+    "privacy": "Public",
+    "value": 10000000
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.min_eth_to_fri_rate_micro_strk": {
+    "description": "Lowest accepted derived ETH/STRK rate, in micro-STRK (1e-6 STRK) per ETH, so a value of 10000000000 means 10,000 STRK per ETH.",
+    "privacy": "Public",
+    "value": 10000000000
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.min_eth_usd_price_micro_usd": {
+    "description": "Lowest accepted ETH/USD feed answer, in micro-USD (1e-6 USD) per ETH, so a value of 20000000 means $20.",
+    "privacy": "Public",
+    "value": 20000000
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.min_strk_usd_price_micro_usd": {
+    "description": "Lowest accepted STRK/USD feed answer, in micro-USD (1e-6 USD) per STRK, so a value of 100 means $0.0001.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "l1_gas_price_provider_config.chainlink_oracle_config.strk_usd_feed_address": {
+    "description": "Address of the Chainlink STRK/USD proxy feed on Starknet.",
+    "privacy": "Public",
+    "value": "0x76a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec"
+  },
   "l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds": {
     "description": "The size of the interval (seconds) that the exchange rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `url_header_list`, if required.",
     "privacy": "Public",
@@ -3323,6 +3383,11 @@
     "description": "A list of Url+HTTP headers for the exchange rate oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
     "privacy": "Private",
     "value": "https://api.example.com/api"
+  },
+  "l1_gas_price_provider_config.eth_to_strk_oracle_source": {
+    "description": "Which oracle serves the ETH/STRK rate: `Http` reads the API configured in `eth_to_strk_oracle_config`, `Chainlink` reads the on-chain feeds configured in `chainlink_oracle_config`, which both feeds share, and requires a batcher client. Selecting `Chainlink` on a service that has no batcher client is a startup failure, not a fallback to `Http`.",
+    "privacy": "Public",
+    "value": "Http"
   },
   "l1_gas_price_provider_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
@@ -3363,6 +3428,11 @@
     "description": "A list of Url+HTTP headers for the exchange rate oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
     "privacy": "Private",
     "value": "https://api.example.com/api"
+  },
+  "l1_gas_price_provider_config.strk_to_usd_oracle_source": {
+    "description": "Which oracle serves the STRK/USD rate: `Http` reads the API configured in `strk_to_usd_oracle_config`, `Chainlink` reads the on-chain feeds configured in `chainlink_oracle_config`, which both feeds share, and requires a batcher client. Selecting `Chainlink` on a service that has no batcher client is a startup failure, not a fallback to `Http`.",
+    "privacy": "Public",
+    "value": "Http"
   },
   "l1_gas_price_scraper_config.#is_none": {
     "description": "Flag for an optional field.",
