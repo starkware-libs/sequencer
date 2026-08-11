@@ -14,12 +14,13 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::secrets::Sensitive;
-use apollo_config::validators::validate_ascii;
+use apollo_config::validators::{create_validation_error, validate_ascii};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
+use starknet_types_core::felt::Felt;
 use url::Url;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 #[cfg(test)]
 #[path = "config_test.rs"]
@@ -91,6 +92,194 @@ impl Default for ExchangeRateOracleConfig {
             max_cache_size: 100,
             query_timeout_sec: 10,
         }
+    }
+}
+
+/// Decimals of the micro-unit sanity bounds in `ChainlinkOracleConfig`.
+pub const MICRO_UNIT_DECIMALS: u32 = 6;
+
+/// Inclusive absolute bounds on one rate, in micro units (1e-6) of the pair's quote currency, so
+/// that they fit in a `u64`.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct MicroUnitBounds {
+    pub minimum_micro_units: u64,
+    pub maximum_micro_units: u64,
+}
+
+impl SerializeConfig for MicroUnitBounds {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "minimum_micro_units",
+                &self.minimum_micro_units,
+                "Lowest accepted value, in micro units (1e-6) of the pair's quote currency.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "maximum_micro_units",
+                &self.maximum_micro_units,
+                "Highest accepted value, in micro units (1e-6) of the pair's quote currency.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_chainlink_oracle_config"))]
+pub struct ChainlinkOracleConfig {
+    pub eth_usd_feed_address: ContractAddress,
+    pub strk_usd_feed_address: ContractAddress,
+    #[validate(range(min = 1))]
+    pub max_staleness_seconds: u64,
+    pub max_future_updated_at_seconds: u64,
+    /// Micro-USD per ETH.
+    pub eth_usd_price_bounds: MicroUnitBounds,
+    /// Micro-USD per STRK.
+    pub strk_usd_price_bounds: MicroUnitBounds,
+    /// Micro-STRK per ETH.
+    pub eth_to_fri_rate_bounds: MicroUnitBounds,
+    #[validate(range(min = 1))]
+    pub failure_retry_interval_seconds: u64,
+}
+
+impl Default for ChainlinkOracleConfig {
+    fn default() -> Self {
+        // Chainlink proxy addresses on Starknet mainnet. The proxies are used rather than the
+        // aggregators behind them, because aggregators are rotated without notice.
+        const ETH_USD_PROXY_ADDRESS: &str =
+            "0x06b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26";
+        const STRK_USD_PROXY_ADDRESS: &str =
+            "0x076a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec";
+        // The feeds guarantee an update at least once per 24h heartbeat; the extra hour absorbs
+        // the delay between the heartbeat deadline and the update landing on-chain.
+        const HEARTBEAT_PLUS_MARGIN_SECONDS: u64 = (24 + 1) * 3600;
+        const MICRO_UNITS_PER_UNIT: u64 = 10u64.pow(MICRO_UNIT_DECIMALS);
+        // A round's `updated_at` is the timestamp of the Starknet block that wrote it, and the
+        // client checks it against the block timestamp being priced. Both come from a sequencer's
+        // clock, so this only has to cover the skew between them.
+        const MAX_FUTURE_UPDATED_AT_SECONDS: u64 = 300;
+
+        Self {
+            eth_usd_feed_address: parse_feed_address(ETH_USD_PROXY_ADDRESS),
+            strk_usd_feed_address: parse_feed_address(STRK_USD_PROXY_ADDRESS),
+            max_staleness_seconds: HEARTBEAT_PLUS_MARGIN_SECONDS,
+            max_future_updated_at_seconds: MAX_FUTURE_UPDATED_AT_SECONDS,
+            // $20 .. $50,000 per ETH: ~10x above the all-time high and far below any plausible
+            // market, but tight enough to reject a feed wired to a different asset.
+            eth_usd_price_bounds: MicroUnitBounds {
+                minimum_micro_units: 20 * MICRO_UNITS_PER_UNIT,
+                maximum_micro_units: 50_000 * MICRO_UNITS_PER_UNIT,
+            },
+            // $0.0001 .. $10 per STRK. Wide on purpose: its job is wrong-feed detection, and the
+            // fee-level damage on this leg is bounded separately by the cap on the L2 gas price.
+            strk_usd_price_bounds: MicroUnitBounds {
+                minimum_micro_units: MICRO_UNITS_PER_UNIT / 10_000,
+                maximum_micro_units: 10 * MICRO_UNITS_PER_UNIT,
+            },
+            // 10,000 .. 1,000,000 STRK per ETH. The pair trades near 1.3e5, so the bounds sit
+            // roughly 10x either side of spot. The floor is the load-bearing side: this rate
+            // reaches L1 gas pricing through `wei_to_fri` with no ratchet and no clamp,
+            // so a poisoned feed that passes both USD legs can undercharge L1 gas by at
+            // most the spot-to-floor ratio.
+            eth_to_fri_rate_bounds: MicroUnitBounds {
+                minimum_micro_units: 10_000 * MICRO_UNITS_PER_UNIT,
+                maximum_micro_units: 1_000_000 * MICRO_UNITS_PER_UNIT,
+            },
+            // Successful reads are sampled once per sampling interval, which is 15 minutes in
+            // production, so a failure that waited for the next sample would freeze the price for
+            // that long.
+            failure_retry_interval_seconds: 60,
+        }
+    }
+}
+
+/// Cross-field checks the per-field `range` attributes cannot express: a zero minimum silently
+/// disables a guard, and an inverted pair rejects every reading forever.
+fn validate_chainlink_oracle_config(config: &ChainlinkOracleConfig) -> Result<(), ValidationError> {
+    let named_bounds = [
+        ("eth_usd_price_bounds", &config.eth_usd_price_bounds),
+        ("strk_usd_price_bounds", &config.strk_usd_price_bounds),
+        ("eth_to_fri_rate_bounds", &config.eth_to_fri_rate_bounds),
+    ];
+    for (bounds_name, bounds) in named_bounds {
+        if bounds.minimum_micro_units == 0 {
+            return Err(create_validation_error(
+                format!("{bounds_name}.minimum_micro_units is zero"),
+                "zero sanity bound",
+                "A zero minimum disables the lower sanity bound; set it to the lowest plausible \
+                 value.",
+            ));
+        }
+        if bounds.minimum_micro_units >= bounds.maximum_micro_units {
+            return Err(create_validation_error(
+                format!(
+                    "{bounds_name}.minimum_micro_units ({}) is not below \
+                     {bounds_name}.maximum_micro_units ({})",
+                    bounds.minimum_micro_units, bounds.maximum_micro_units
+                ),
+                "inverted sanity bounds",
+                "Ensure each minimum sanity bound is strictly below its maximum.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn parse_feed_address(hex_address: &str) -> ContractAddress {
+    ContractAddress::try_from(Felt::from_hex(hex_address).expect("Invalid feed address felt"))
+        .expect("Invalid feed contract address")
+}
+
+impl SerializeConfig for ChainlinkOracleConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::from_iter([
+            ser_param(
+                "eth_usd_feed_address",
+                &self.eth_usd_feed_address,
+                "Address of the Chainlink ETH/USD proxy feed on Starknet.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_usd_feed_address",
+                &self.strk_usd_feed_address,
+                "Address of the Chainlink STRK/USD proxy feed on Starknet.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_staleness_seconds",
+                &self.max_staleness_seconds,
+                "Maximum age (seconds) of a feed's `updated_at` relative to the block timestamp \
+                 being priced. An older reading is rejected, and for the derived ETH/STRK rate a \
+                 single stale leg rejects the whole rate.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_future_updated_at_seconds",
+                &self.max_future_updated_at_seconds,
+                "Maximum amount (seconds) by which a feed's `updated_at` may lead the block \
+                 timestamp being priced. Covers the clock skew between the sequencer that wrote \
+                 the round and this node.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "failure_retry_interval_seconds",
+                &self.failure_retry_interval_seconds,
+                "How long (seconds) after a failed read the feed is read again. Successful reads \
+                 are governed by the sampling interval instead, which is the per-feed \
+                 `lag_interval_seconds`.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        for (bounds_name, bounds) in [
+            ("eth_usd_price_bounds", &self.eth_usd_price_bounds),
+            ("strk_usd_price_bounds", &self.strk_usd_price_bounds),
+            ("eth_to_fri_rate_bounds", &self.eth_to_fri_rate_bounds),
+        ] {
+            config.extend(prepend_sub_config_name(bounds.dump(), bounds_name));
+        }
+        config
     }
 }
 
