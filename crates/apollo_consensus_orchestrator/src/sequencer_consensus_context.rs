@@ -94,6 +94,7 @@ use crate::dynamic_gas_price::{
 use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
+    l2_gas_price_cap,
     FeeMarketInfo,
 };
 use crate::metrics::{
@@ -104,6 +105,7 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     SNIP35_FEE_ACTUAL_FRI,
     SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
     SNIP35_FEE_TARGET_ATTO_USD,
     SNIP35_FEE_TARGET_FRI,
 };
@@ -423,7 +425,15 @@ impl SequencerConsensusContext {
 
     /// Returns the next L2 gas price without mutating context. Used when building the fin and when
     /// updating at decision time.
-    fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+    ///
+    /// `starknet_version` is the version of the block whose fin/decision this is, so both sides
+    /// gate the ceiling identically.
+    fn calculate_next_l2_gas_price(
+        &self,
+        height: BlockNumber,
+        starknet_version: StarknetVersion,
+        l2_gas_used: GasAmount,
+    ) -> GasPrice {
         let fee_actual = compute_fee_actual(
             &self.fee_proposals_window,
             height,
@@ -432,6 +442,7 @@ impl SequencerConsensusContext {
         calculate_next_l2_gas_price_for_fin(
             self.l2_gas_price,
             height,
+            starknet_version,
             l2_gas_used,
             self.config.dynamic_config.override_l2_gas_price_fri,
             &self.config.dynamic_config.min_l2_gas_price_per_height,
@@ -465,16 +476,26 @@ impl SequencerConsensusContext {
     }
 
     /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
-    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
-    /// validator derives the same fallback so both sides agree.
+    /// `fee_actual`, capped at the L2 gas price ceiling. When `fee_actual` is `None` (window
+    /// incomplete), freeze at `l2_gas_price`; the validator derives the same fallback so both sides
+    /// agree.
+    ///
+    /// `starknet_version` is the version this proposal will carry in its `ProposalInit`; taking it
+    /// as a parameter (rather than reading `StarknetVersion::LATEST` here) keeps the two sides
+    /// symmetric and lets the gate be tested at a version the process isn't running.
     async fn compute_proposer_fee_proposal(
         &self,
+        height: BlockNumber,
+        starknet_version: StarknetVersion,
         fee_actual: Option<GasPrice>,
         timestamp: u64,
         target_atto_usd_per_l2_gas: u128,
     ) -> GasPrice {
         SNIP35_FEE_TARGET_ATTO_USD.set_lossy(target_atto_usd_per_l2_gas);
         let Some(fee_actual) = fee_actual else {
+            // Deliberately uncapped: with no `fee_actual` the validator skips the band check
+            // entirely, and the price users actually pay is capped later in
+            // `calculate_next_l2_gas_price_for_fin`.
             warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
             SNIP35_FEE_PROPOSAL_FRI.set_lossy(self.l2_gas_price.0);
             return self.l2_gas_price;
@@ -482,18 +503,45 @@ impl SequencerConsensusContext {
         SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
 
         let fee_target = self.resolve_fee_target(timestamp, target_atto_usd_per_l2_gas).await;
+        let max_gas_price = l2_gas_price_cap(
+            starknet_version,
+            height,
+            &self.config.dynamic_config.min_l2_gas_price_per_height,
+        );
+        // Only an oracle-derived target counts as oracle drift. `resolve_fee_target` returns the
+        // operator pin when `override_l2_gas_price_fri` is set, and a pin above the ceiling is a
+        // deliberate choice rather than a feed to page someone about.
+        let fee_target_from_oracle = self.config.dynamic_config.override_l2_gas_price_fri.is_none();
+        if let (true, Some(fee_target), Some(max_gas_price)) =
+            (fee_target_from_oracle, fee_target, max_gas_price)
+        {
+            if fee_target > max_gas_price {
+                warn!(
+                    "Oracle-derived fee_target {} exceeds the L2 gas price maximum {}, capping \
+                     the fee_proposal band at the maximum",
+                    fee_target.0, max_gas_price.0
+                );
+                SNIP35_FEE_TARGET_ABOVE_MAXIMUM.increment(1);
+            }
+        }
 
         let proposal = compute_fee_proposal(
             fee_target,
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
+            max_gas_price,
         );
         SNIP35_FEE_PROPOSAL_FRI.set_lossy(proposal.0);
         proposal
     }
 
-    fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
-        self.l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
+    fn update_l2_gas_price(
+        &mut self,
+        height: BlockNumber,
+        starknet_version: StarknetVersion,
+        l2_gas_used: GasAmount,
+    ) {
+        self.l2_gas_price = self.calculate_next_l2_gas_price(height, starknet_version, l2_gas_used);
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
         let config_min = get_min_gas_price_for_height(
@@ -518,7 +566,7 @@ impl SequencerConsensusContext {
     ) {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
-        self.update_l2_gas_price(height, l2_gas_used);
+        self.update_l2_gas_price(height, init.starknet_version, l2_gas_used);
         self.record_fee_proposal(height, init.fee_proposal_fri);
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
@@ -746,8 +794,13 @@ impl ConsensusContext for SequencerConsensusContext {
             build_param.height,
             VersionedConstants::latest_constants().fee_proposal_window_size,
         );
+        // Read once and threaded through everywhere, so the init, the band, and the fin's ceiling
+        // can't disagree on the version.
+        let starknet_version = StarknetVersion::LATEST;
         let fee_proposal = self
             .compute_proposer_fee_proposal(
+                build_param.height,
+                starknet_version,
                 fee_actual,
                 self.deps.clock.unix_now(),
                 self.config.dynamic_config.snip35_target_atto_usd_per_l2_gas,
@@ -788,6 +841,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .compare_retrospective_block_hash,
             fee_proposal,
             fee_actual,
+            starknet_version,
         };
 
         let handle = tokio::spawn(
@@ -859,6 +913,13 @@ impl ConsensusContext for SequencerConsensusContext {
                         init.height,
                         VersionedConstants::latest_constants().fee_proposal_window_size,
                     ),
+                    // Gate on the proposal's own version: `is_proposal_init_valid` already rejects
+                    // a version mismatch, so this can't drift from what the proposer gated on.
+                    max_l2_gas_price: l2_gas_price_cap(
+                        init.starknet_version,
+                        init.height,
+                        &self.config.dynamic_config.min_l2_gas_price_per_height,
+                    ),
                 };
                 self.validate_current_round_proposal(
                     init,
@@ -887,8 +948,11 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Lock on active proposals was poisoned due to a previous panic")
             .update_for_reproposal(&height, &proposal_commitment, &build_param);
 
-        let next_l2_gas_price =
-            self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
+        let next_l2_gas_price = self.calculate_next_l2_gas_price(
+            init.height,
+            init.starknet_version,
+            finished_info.l2_gas_used,
+        );
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
@@ -1134,6 +1198,13 @@ impl ConsensusContext for SequencerConsensusContext {
                 &self.fee_proposals_window,
                 init.height,
                 VersionedConstants::latest_constants().fee_proposal_window_size,
+            ),
+            // Gate on the proposal's own version: `is_proposal_init_valid` already rejects a
+            // version mismatch, so this can't drift from what the proposer gated on.
+            max_l2_gas_price: l2_gas_price_cap(
+                init.starknet_version,
+                init.height,
+                &self.config.dynamic_config.min_l2_gas_price_per_height,
             ),
         };
         self.validate_current_round_proposal(

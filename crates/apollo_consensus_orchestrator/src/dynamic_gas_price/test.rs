@@ -12,9 +12,10 @@ use crate::dynamic_gas_price::{
     compute_fee_actual,
     compute_fee_proposal,
     compute_fee_target,
+    fee_proposal_bounds,
     FeeProposalInfo,
-    PPT_DENOMINATOR,
 };
+use crate::test_utils::TEST_MAX_L2_GAS_PRICE;
 
 const TEST_FEE_PROPOSAL_WINDOW_SIZE: u64 = 10;
 
@@ -139,7 +140,7 @@ fn test_compute_fee_proposal(
     #[case] margin_ppt: u128,
     #[case] expected: GasPrice,
 ) {
-    assert_eq!(compute_fee_proposal(fee_target, fee_actual, margin_ppt), expected);
+    assert_eq!(compute_fee_proposal(fee_target, fee_actual, margin_ppt, None), expected);
 }
 
 #[test]
@@ -163,8 +164,14 @@ fn test_compute_fee_target_extreme_values_do_not_panic() {
 #[test]
 fn test_compute_fee_proposal_saturating_on_extreme_actual() {
     // actual near u128::MAX: saturating_mul must prevent overflow.
-    let _ = compute_fee_proposal(Some(GasPrice(1)), GasPrice(u128::MAX), 2);
-    let _ = compute_fee_proposal(Some(GasPrice(u128::MAX)), GasPrice(u128::MAX), 2);
+    let _ = compute_fee_proposal(Some(GasPrice(1)), GasPrice(u128::MAX), 2, None);
+    let _ = compute_fee_proposal(Some(GasPrice(u128::MAX)), GasPrice(u128::MAX), 2, None);
+    // A ceiling of 1 against the widest possible band: both edges collapse onto it, which is the
+    // one case where the cap decides the result rather than being inert.
+    assert_eq!(
+        compute_fee_proposal(Some(GasPrice(u128::MAX)), GasPrice(u128::MAX), 2, Some(GasPrice(1))),
+        GasPrice(1)
+    );
 }
 
 #[test]
@@ -193,9 +200,13 @@ fn test_compute_fee_actual_lone_adversary_cannot_skew_median() {
 
 /// The validator's accept predicate. Must stay in sync with
 /// `validate_proposal::is_proposal_init_valid` fee_proposal bounds check.
-fn validator_accepts(fee_actual: GasPrice, fee_proposal: GasPrice, margin_ppt: u128) -> bool {
-    let lower = fee_actual.0.saturating_mul(PPT_DENOMINATOR) / (PPT_DENOMINATOR + margin_ppt);
-    let upper = fee_actual.0.saturating_mul(PPT_DENOMINATOR + margin_ppt) / PPT_DENOMINATOR;
+fn validator_accepts(
+    fee_actual: GasPrice,
+    fee_proposal: GasPrice,
+    margin_ppt: u128,
+    max_gas_price: Option<GasPrice>,
+) -> bool {
+    let (lower, upper) = fee_proposal_bounds(fee_actual, margin_ppt, max_gas_price);
     fee_proposal.0 >= lower && fee_proposal.0 <= upper
 }
 
@@ -203,9 +214,9 @@ fn validator_accepts(fee_actual: GasPrice, fee_proposal: GasPrice, margin_ppt: u
 fn test_malicious_high_fee_proposal_rejected() {
     // Upper bound for fee_actual=1_000_000 with margin=2ppt is 1_002_000.
     let fee_actual = GasPrice(1_000_000);
-    assert!(validator_accepts(fee_actual, GasPrice(1_002_000), 2));
+    assert!(validator_accepts(fee_actual, GasPrice(1_002_000), 2, None));
     for proposal in [1_002_001u128, 1_003_000, 2_000_000, u128::MAX] {
-        assert!(!validator_accepts(fee_actual, GasPrice(proposal), 2), "accepted {proposal}");
+        assert!(!validator_accepts(fee_actual, GasPrice(proposal), 2, None), "accepted {proposal}");
     }
 }
 
@@ -213,15 +224,132 @@ fn test_malicious_high_fee_proposal_rejected() {
 fn test_malicious_low_fee_proposal_rejected() {
     // Lower bound for fee_actual=1_000_000 with margin=2ppt is 998_003.
     let fee_actual = GasPrice(1_000_000);
-    assert!(validator_accepts(fee_actual, GasPrice(998_003), 2));
+    assert!(validator_accepts(fee_actual, GasPrice(998_003), 2, None));
     for proposal in [998_002u128, 500_000, 1, 0] {
-        assert!(!validator_accepts(fee_actual, GasPrice(proposal), 2), "accepted {proposal}");
+        assert!(!validator_accepts(fee_actual, GasPrice(proposal), 2, None), "accepted {proposal}");
     }
+}
+
+#[rstest]
+// Well below the cap: the cap is inert and the band is the plain margin band.
+#[case::band_untouched_below_cap(GasPrice(1_000_000), (998_003, 1_002_000))]
+// `upper` crosses the cap first, so only the upper edge is pulled in.
+#[case::upper_edge_capped(GasPrice(79_999_000_000), (79_839_321_357, TEST_MAX_L2_GAS_PRICE.0))]
+// Exactly at the cap: `upper` is capped, `lower` is still strictly below it.
+#[case::at_cap(TEST_MAX_L2_GAS_PRICE, (79_840_319_361, TEST_MAX_L2_GAS_PRICE.0))]
+// Above the cap: both edges are pulled to the cap and the band collapses to a point.
+#[case::band_collapses_above_cap(
+    GasPrice(800_000_000_000),
+    (TEST_MAX_L2_GAS_PRICE.0, TEST_MAX_L2_GAS_PRICE.0)
+)]
+fn test_fee_proposal_bounds_capped(
+    #[case] fee_actual: GasPrice,
+    #[case] expected_bounds: (u128, u128),
+) {
+    assert_eq!(fee_proposal_bounds(fee_actual, 2, Some(TEST_MAX_L2_GAS_PRICE)), expected_bounds);
+}
+
+#[test]
+fn test_honest_proposal_accepted_when_fee_actual_above_cap() {
+    // Liveness: `fee_actual` above the cap (STRK collapsed by more than the multiplier) must still
+    // let an honest proposal pinned to the cap pass.
+    let margin_ppt = VersionedConstants::latest_constants().fee_proposal_margin_ppt;
+    let fee_actual = GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 10);
+    let fee_target = Some(GasPrice(u128::MAX));
+
+    let proposal =
+        compute_fee_proposal(fee_target, fee_actual, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE));
+
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    assert!(validator_accepts(fee_actual, proposal, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE)));
+}
+
+#[test]
+fn test_oracle_failure_above_the_cap_publishes_the_cap() {
+    // On oracle failure the proposer freezes at `fee_actual`, which can sit above the ceiling; that
+    // frozen value must still be clamped, since every validator's band has collapsed to the single
+    // point `max_gas_price`.
+    let margin_ppt = VersionedConstants::latest_constants().fee_proposal_margin_ppt;
+    let fee_actual = GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 25);
+
+    let proposal = compute_fee_proposal(None, fee_actual, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE));
+
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    assert!(
+        validator_accepts(fee_actual, proposal, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE)),
+        "frozen fee_actual was published above the ceiling and would halt the chain"
+    );
+}
+
+#[test]
+fn test_fee_actual_converges_to_cap_within_one_window() {
+    // The collapsed band is not a deadlock: once the window holds only capped proposals, their
+    // median is at most the cap too.
+    let margin_ppt = VersionedConstants::latest_constants().fee_proposal_margin_ppt;
+    let mut window = window_from(
+        (0..TEST_FEE_PROPOSAL_WINDOW_SIZE)
+            .map(|height| (height, Some(GasPrice(TEST_MAX_L2_GAS_PRICE.0.saturating_mul(10))))),
+    );
+
+    for height in TEST_FEE_PROPOSAL_WINDOW_SIZE..2 * TEST_FEE_PROPOSAL_WINDOW_SIZE {
+        let fee_actual =
+            compute_fee_actual(&window, BlockNumber(height), TEST_FEE_PROPOSAL_WINDOW_SIZE)
+                .expect("window is fully populated");
+        let proposal = compute_fee_proposal(
+            Some(GasPrice(u128::MAX)),
+            fee_actual,
+            margin_ppt,
+            Some(TEST_MAX_L2_GAS_PRICE),
+        );
+        assert_eq!(
+            proposal, TEST_MAX_L2_GAS_PRICE,
+            "proposal drifted off the cap at height {height}"
+        );
+        assert!(
+            validator_accepts(fee_actual, proposal, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE)),
+            "honest proposal rejected at height {height}"
+        );
+        window.insert(BlockNumber(height), Some(proposal));
+    }
+
+    let converged_fee_actual = compute_fee_actual(
+        &window,
+        BlockNumber(2 * TEST_FEE_PROPOSAL_WINDOW_SIZE),
+        TEST_FEE_PROPOSAL_WINDOW_SIZE,
+    );
+    assert_eq!(converged_fee_actual, Some(TEST_MAX_L2_GAS_PRICE));
+
+    // Once converged the band reopens below the cap, so the fee can fall again if STRK recovers.
+    let (lower, upper) =
+        fee_proposal_bounds(TEST_MAX_L2_GAS_PRICE, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE));
+    assert!(lower < upper);
+    assert_eq!(upper, TEST_MAX_L2_GAS_PRICE.0);
+}
+
+#[test]
+fn test_malicious_strk_usd_rate_cannot_push_fee_proposal_above_cap() {
+    // A rate of 1 atto-USD per STRK makes `compute_fee_target` return an astronomically large
+    // target; the cap, not the target, must decide the published proposal.
+    let margin_ppt = VersionedConstants::latest_constants().fee_proposal_margin_ppt;
+    let fee_target = compute_fee_target(DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS, 1);
+    assert!(fee_target.unwrap() > TEST_MAX_L2_GAS_PRICE);
+
+    // Walk the band up from an honest starting point; the proposal must never exceed the cap.
+    let mut fee_actual = GasPrice(8_000_000_000);
+    for _ in 0..10_000 {
+        let proposal =
+            compute_fee_proposal(fee_target, fee_actual, margin_ppt, Some(TEST_MAX_L2_GAS_PRICE));
+        assert!(proposal <= TEST_MAX_L2_GAS_PRICE, "proposal {} exceeded the cap", proposal.0);
+        fee_actual = proposal;
+    }
+    assert_eq!(fee_actual, TEST_MAX_L2_GAS_PRICE);
 }
 
 #[test]
 fn test_honest_proposer_always_passes_validation_fuzzed() {
     // Consensus safety: whatever compute_fee_proposal produces, the validator accepts.
+    // Both the uncapped and the capped band are fuzzed, including `fee_actual` values far above
+    // the cap, where the band collapses to the single point `max_gas_price`.
     let margin_ppt = VersionedConstants::latest_constants().fee_proposal_margin_ppt;
     let mut rng = ChaCha8Rng::seed_from_u64(0xDEADBEEF);
     for _ in 0..10_000 {
@@ -230,10 +358,16 @@ fn test_honest_proposer_always_passes_validation_fuzzed() {
         let fee_actual = GasPrice(fee_actual_value);
         let target = compute_fee_target(DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS, strk_usd_rate);
         let oracle_result = if rng.gen_bool(0.1) { None } else { target };
-        let proposal = compute_fee_proposal(oracle_result, fee_actual, margin_ppt);
+        let max_gas_price = if rng.gen_bool(0.5) {
+            None
+        } else {
+            Some(GasPrice(rng.gen_range(1u128..2_000_000_000_000_000_000)))
+        };
+        let proposal = compute_fee_proposal(oracle_result, fee_actual, margin_ppt, max_gas_price);
         assert!(
-            validator_accepts(fee_actual, proposal, margin_ppt),
-            "fee_actual={fee_actual_value} rate={strk_usd_rate} proposal={}",
+            validator_accepts(fee_actual, proposal, margin_ppt, max_gas_price),
+            "fee_actual={fee_actual_value} rate={strk_usd_rate} max_gas_price={max_gas_price:?} \
+             proposal={}",
             proposal.0
         );
     }

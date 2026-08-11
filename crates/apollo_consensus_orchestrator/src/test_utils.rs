@@ -59,6 +59,7 @@ use mockall::Sequence;
 use starknet_api::block::{
     BlockNumber,
     GasPrice,
+    StarknetVersion,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
@@ -96,6 +97,16 @@ pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 // A STRK/USD rate that yields an in-bounds fee target in proposal-building tests
 // where the specific value doesn't matter.
 pub(crate) const DEFAULT_STRK_TO_USD_RATE: u128 = 300_000_000_000_000_000;
+
+/// Deployment-configured L2 gas price minimum used by the price-ceiling tests, and the ceiling that
+/// follows from it. Shared so the ceiling tests in `fee_market`, `dynamic_gas_price` and
+/// `validate_proposal` all speak about the same band.
+///
+/// The ceiling is spelled out rather than derived from `max_gas_price_multiplier`, so that a change
+/// to that constant fails `test_ceiling_constants_match_the_shipped_multiplier` instead of silently
+/// moving every expectation that depends on it.
+pub(crate) const TEST_MIN_L2_GAS_PRICE: GasPrice = GasPrice(8_000_000_000);
+pub(crate) const TEST_MAX_L2_GAS_PRICE: GasPrice = GasPrice(80_000_000_000);
 
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
@@ -491,6 +502,7 @@ pub(crate) struct TestProposalBuildArguments {
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
+    pub starknet_version: StarknetVersion,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -519,6 +531,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             compare_retrospective_block_hash: args.compare_retrospective_block_hash,
             fee_proposal: GasPrice::default(),
             fee_actual: None,
+            starknet_version: args.starknet_version,
         }
     }
 }
@@ -570,6 +583,7 @@ pub(crate) fn create_proposal_build_arguments()
             override_l2_gas_price_fri: None,
             min_l2_gas_price_per_height: vec![],
             compare_retrospective_block_hash: true,
+            starknet_version: StarknetVersion::LATEST,
         },
         proposal_receiver,
     )

@@ -52,6 +52,7 @@ use starknet_api::block::{
     BlockHash,
     BlockNumber,
     GasPrice,
+    StarknetVersion,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
     WEI_PER_ETH,
@@ -64,7 +65,12 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::dynamic_gas_price::proposal_commitment_from;
-use crate::metrics::{CONSENSUS_L2_GAS_PRICE, CONSENSUS_L2_GAS_PRICE_AT_MINIMUM};
+use crate::fee_market::L2_GAS_PRICE_CAP_VERSION;
+use crate::metrics::{
+    CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
+};
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
@@ -79,6 +85,8 @@ use crate::test_utils::{
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     PARTIAL_BLOCK_HASH,
+    TEST_MAX_L2_GAS_PRICE,
+    TEST_MIN_L2_GAS_PRICE,
     TIMEOUT,
     TX_BATCH,
 };
@@ -1545,7 +1553,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
     context.l2_gas_price = GasPrice(CURRENT_GAS_PRICE);
 
     // Simulate gas price update with new config in effect
-    context.update_l2_gas_price(BlockNumber(TEST_HEIGHT), GasAmount(1000));
+    context.update_l2_gas_price(BlockNumber(TEST_HEIGHT), StarknetVersion::LATEST, GasAmount(1000));
 
     // Gas price should have increased gradually towards new minimum
     // Formula: new_price = min(price + price/333, min_gas_price)
@@ -1636,7 +1644,7 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
     assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
 
     // Subsequent block should gradually increase toward CONFIG_MIN_PRICE_AT_250
-    context.update_l2_gas_price(LATER_HEIGHT, GasAmount(1000));
+    context.update_l2_gas_price(LATER_HEIGHT, StarknetVersion::LATEST, GasAmount(1000));
 
     const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
     let expected_price =
@@ -1785,9 +1793,113 @@ async fn test_compute_proposer_fee_proposal(
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
-    let proposal =
-        context.compute_proposer_fee_proposal(fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS).await;
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            StarknetVersion::LATEST,
+            fee_actual,
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
     assert_eq!(proposal, expected_fee_proposal);
+}
+
+#[rstest]
+// Before the gate the proposer has no ceiling, so it publishes the band's upper edge.
+#[case::before_the_gate(StarknetVersion::V0_14_2, GasPrice(80_160_000_000), 0)]
+// From the gate on, the ceiling pulls the upper edge onto itself.
+#[case::at_the_gate(L2_GAS_PRICE_CAP_VERSION, TEST_MAX_L2_GAS_PRICE, 1)]
+#[tokio::test]
+async fn test_compute_proposer_fee_proposal_respects_the_version_gate(
+    #[case] starknet_version: StarknetVersion,
+    #[case] expected_fee_proposal: GasPrice,
+    #[case] expected_above_maximum_count: u64,
+) {
+    // Gate on the version stamped into `ProposalInit` (not a process-wide "current version"), so
+    // the band the proposer checks matches what the validator gates on.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    // A rate of 1 atto-USD per STRK drives the oracle-derived target far above the ceiling.
+    // Registered before `setup_default_expectations` so the catch-all default does not shadow it.
+    deps.l1_gas_price_provider.expect_get_strk_to_usd_rate().returning(|_| Ok(1));
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            starknet_version,
+            Some(TEST_MAX_L2_GAS_PRICE),
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    assert_eq!(proposal, expected_fee_proposal);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM
+        .assert_eq(&recorder.handle().render(), expected_above_maximum_count);
+}
+
+#[tokio::test]
+async fn test_operator_override_above_the_ceiling_is_not_oracle_drift() {
+    // `resolve_fee_target` returns `override_l2_gas_price_fri` without consulting the oracle, so a
+    // pin above the ceiling must leave the oracle metric alone: an alert fires on it.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+    context.config.dynamic_config.override_l2_gas_price_fri = Some(TEST_MAX_L2_GAS_PRICE.0 * 2);
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            L2_GAS_PRICE_CAP_VERSION,
+            Some(TEST_MAX_L2_GAS_PRICE),
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    // The ceiling still caps the published proposal; only the attribution changes.
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.assert_eq(&recorder.handle().render(), 0);
+}
+
+#[tokio::test]
+async fn test_partial_window_freezes_at_an_uncapped_l2_gas_price() {
+    // With no `fee_actual` the validator skips the band check, so the proposer's frozen
+    // `fee_proposal` is published uncapped; the price users pay is still capped in
+    // `calculate_next_l2_gas_price_for_fin`.
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+    let above_the_ceiling = GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 2);
+    context.l2_gas_price = above_the_ceiling;
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            StarknetVersion::LATEST,
+            None,
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    assert_eq!(proposal, above_the_ceiling);
 }
 
 #[tokio::test]
@@ -1813,6 +1925,10 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
     }
     deps.setup_default_expectations();
     let mut context = deps.build_context();
+    // Mainnet's configured minimum puts the cap at 150 gwei; the 8 gwei fallback would cap below
+    // this scenario's targets and mask the convergence under test.
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: 15_000_000_000 }];
 
     // Bootstrap the window with 75 gwei (the $0.04 target).
     let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
@@ -1827,7 +1943,13 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
             let proposal = context
-                .compute_proposer_fee_proposal(Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
+                .compute_proposer_fee_proposal(
+                    h,
+                    StarknetVersion::LATEST,
+                    Some(fee_actual),
+                    0,
+                    TARGET_ATTO_USD_PER_L2_GAS,
+                )
                 .await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;
