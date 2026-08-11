@@ -93,7 +93,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
-use blockifier::execution::entry_point::call_view_entry_point;
+use blockifier::execution::entry_point::{call_view_entry_point, ViewCallResourceBounds};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::StateReader;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -769,6 +769,10 @@ impl Batcher {
             BouncerConfig::max(),
         );
 
+        // The batcher serves one request at a time, so block production waits behind this call.
+        // The resource bounds keep a hostile or buggy contract from holding that slot. Nothing in
+        // the request feeds them: `BOUNDED_VIEW_CALL` is the only value of its type, so a caller
+        // has no way to raise them.
         let retdata = tokio::task::spawn_blocking(move || {
             call_view_entry_point(
                 state_reader,
@@ -776,6 +780,7 @@ impl Batcher {
                 input.contract_address,
                 &input.entry_point,
                 Calldata::from(input.calldata),
+                ViewCallResourceBounds::BOUNDED_VIEW_CALL,
             )
             .map(|call_info| call_info.execution.retdata.0)
         })
@@ -785,6 +790,8 @@ impl Batcher {
             BatcherError::InternalError
         })?
         .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
+
+        validate_retdata_length(retdata.len())?;
 
         Ok(CallContractOutput { retdata })
     }
@@ -1578,6 +1585,38 @@ impl Batcher {
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
         Ok(())
     }
+}
+
+/// Maximal number of felts a view entry point call may return. Far above the largest legitimate
+/// reader (the staking contract's staker list, a few felts per staker), and small enough that the
+/// response stays cheap to serialize and ship over the batcher's remote server boundary.
+///
+/// This bounds the top-level return value only. A call tree holds a `Retdata` per `CallInfo` and
+/// keeps the whole tree alive until the call returns, so the transient memory of a call that
+/// forwards a large value up a deep chain is a multiple of this. The view call resource bounds are
+/// what bound that transient memory; this constant bounds what leaves the batcher.
+///
+/// Which calls this can actually reject: a Sierra-gas tracked call pays about 3,000 Sierra gas per
+/// returned felt (measured 2026-08-11, both for building an array in a loop and for echoing
+/// calldata), so `VIEW_CALL_MAX_SIERRA_GAS` already caps it around 3*10^4 felts, an order of
+/// magnitude below this limit. A Cairo-steps tracked call pays a couple of steps per felt, so
+/// `VIEW_CALL_MAX_N_STEPS` leaves it far above this limit. This limit is therefore the binding
+/// constraint for a step-tracked callee, and a backstop for a gas-tracked one.
+pub(crate) const MAX_VIEW_CALL_RETDATA_LENGTH: usize = 100_000;
+
+/// Rejects a view call whose return value is too large to hand back to the caller. This runs after
+/// execution, because blockifier builds the whole return value before returning it; what caps that
+/// allocation during execution is the view call's resource bounds.
+pub(crate) fn validate_retdata_length(retdata_length: usize) -> BatcherResult<()> {
+    if retdata_length > MAX_VIEW_CALL_RETDATA_LENGTH {
+        return Err(BatcherError::ContractCallFailed {
+            reason: format!(
+                "Returned {retdata_length} felts, exceeding the limit of \
+                 {MAX_VIEW_CALL_RETDATA_LENGTH}."
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Logs the result of the transactions execution in the proposal.

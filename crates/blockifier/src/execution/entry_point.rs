@@ -18,7 +18,6 @@ use starknet_api::transaction::fields::{
     Calldata,
     ResourceBounds,
     ValidResourceBounds,
-    HIGH_GAS_AMOUNT,
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
@@ -489,6 +488,12 @@ impl EntryPointExecutionContext {
         self.n_remaining_steps()
     }
 
+    /// Lowers the step limit to `max_n_steps`, leaving it as is if it is already lower.
+    /// Returns the remaining number of steps.
+    pub fn cap_remaining_steps(&mut self, max_n_steps: usize) -> usize {
+        self.subtract_steps(self.n_remaining_steps().saturating_sub(max_n_steps))
+    }
+
     /// From the total amount of steps available for execution, deduct the steps consumed during
     /// validation and the overhead steps required, among the rest, for fee transfer.
     /// Returns the remaining steps (after the subtraction).
@@ -594,6 +599,46 @@ pub fn execute_constructor_entry_point(
     })
 }
 
+/// Sierra gas budget of a view entry point call. Equals the current `validate_max_sierra_gas`,
+/// which the protocol already treats as ample for a bounded read-only computation. At the
+/// `step_gas_cost` of every supported Starknet version (100 gas per step) it also buys
+/// [`VIEW_CALL_MAX_N_STEPS`] Cairo steps, so a call gets the same budget whichever resource it is
+/// tracked by. Both claims are pinned by `view_call_resource_bounds_match_versioned_constants`.
+///
+/// This is also the bound on how long a view call can hold the batcher's single request slot.
+/// Exhausting the budget by recursing took about 2.3 seconds of wall clock in a debug build, and
+/// exhausting [`VIEW_CALL_MAX_N_STEPS`] the same way took about 1.4 seconds (both measured
+/// 2026-08-11 in a debug build; a deployed sequencer runs a release build, which is faster).
+pub const VIEW_CALL_MAX_SIERRA_GAS: GasAmount = GasAmount(100_000_000);
+
+/// Cairo step budget of a view entry point call. Equals the `validate_max_n_steps` of every
+/// supported Starknet version, which the protocol already treats as ample for a bounded read-only
+/// computation.
+pub const VIEW_CALL_MAX_N_STEPS: usize = 1_000_000;
+
+/// Bounds the resources a single view entry point call may consume. The fields are private and the
+/// only value is [`ViewCallResourceBounds::BOUNDED_VIEW_CALL`], so a caller cannot widen them.
+#[derive(Clone, Copy, Debug)]
+pub struct ViewCallResourceBounds {
+    /// Bounds execution tracked by [`TrackedResource::SierraGas`]. This is the only bound on a
+    /// natively executed contract, whose Cairo steps are not counted at all.
+    max_sierra_gas: GasAmount,
+    /// Bounds execution tracked by [`TrackedResource::CairoSteps`], which consumes no Sierra gas.
+    /// That covers Cairo 0 classes, Cairo 1 classes whose Sierra version predates
+    /// `min_sierra_version_for_sierra_gas`, and every nested call made once such a frame is on the
+    /// stack.
+    max_n_steps: usize,
+}
+
+impl ViewCallResourceBounds {
+    /// The bounds every view call is served with. Its caller is blocked while the call runs, so the
+    /// budget is sized for a read (a getter, a storage lookup, a short loop over a stored list)
+    /// rather than for a whole transaction. A contract that exhausts it fails the call instead of
+    /// occupying its caller for as long as a transaction may run.
+    pub const BOUNDED_VIEW_CALL: Self =
+        Self { max_sierra_gas: VIEW_CALL_MAX_SIERRA_GAS, max_n_steps: VIEW_CALL_MAX_N_STEPS };
+}
+
 // Calls the specified external entry point on the contract at the given address.
 // Intended for view-only entry points; any attempted state changes will be discarded.
 pub fn call_view_entry_point(
@@ -602,8 +647,9 @@ pub fn call_view_entry_point(
     storage_address: ContractAddress,
     entry_point_name: &str,
     calldata: Calldata,
+    resource_bounds: ViewCallResourceBounds,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let mut initial_gas = GasAmount(HIGH_GAS_AMOUNT);
+    let mut remaining_gas = resource_bounds.max_sierra_gas;
 
     let execute_call = CallEntryPoint {
         entry_point_type: EntryPointType::External,
@@ -614,23 +660,26 @@ pub fn call_view_entry_point(
         storage_address,
         caller_address: ContractAddress::default(),
         call_type: CallType::Call,
-        initial_gas: initial_gas.0,
+        initial_gas: remaining_gas.0,
     };
 
     // Create a dummy transaction info, since we are not in a context of a real transaction.
     let tx_context =
         Arc::new(TransactionContext { block_context, tx_info: TransactionInfo::default() });
 
-    let limit_steps = false;
+    let limit_steps_by_resources = false;
     let mut context = EntryPointExecutionContext::new(
         tx_context,
         ExecutionMode::Execute,
-        limit_steps,
-        SierraGasRevertTracker::new(initial_gas),
+        limit_steps_by_resources,
+        SierraGasRevertTracker::new(remaining_gas),
     );
+    // Without this the step budget is the block's `invoke_tx_max_n_steps`, which is sized for a
+    // whole transaction. A step-tracked call consumes no Sierra gas, so this is its only bound.
+    context.cap_remaining_steps(resource_bounds.max_n_steps);
 
     let mut state = CachedState::new(state_reader); // Changes to it are discarded.
-    execute_call.non_reverting_execute(&mut state, &mut context, &mut initial_gas.0)
+    execute_call.non_reverting_execute(&mut state, &mut context, &mut remaining_gas.0)
 }
 
 pub fn handle_empty_constructor(
