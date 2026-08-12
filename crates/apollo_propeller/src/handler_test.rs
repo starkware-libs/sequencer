@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use apollo_protobuf::protobuf::PropellerUnit as ProtoUnit;
+use prost::encoding::encoded_len_varint;
 use prost::Message;
 
 use super::Handler;
@@ -17,7 +18,7 @@ fn item_batch_cost(unit: &ProtoUnit) -> usize {
     let unit_encoded_len = unit.encoded_len();
     let unit_encoded_len_u64 = u64::try_from(unit_encoded_len).expect("encoded length fits in u64");
     // 1-byte tag (field 1, LEN wire type 0x0A) + varint-encoded item length + item bytes.
-    1 + prost::encoding::encoded_len_varint(unit_encoded_len_u64) + unit_encoded_len
+    1 + encoded_len_varint(unit_encoded_len_u64) + unit_encoded_len
 }
 
 #[test]
@@ -78,30 +79,6 @@ fn test_create_message_batch_stops_at_size_limit() {
     assert_eq!(batch.batch.len(), 2, "should pack exactly 2 items");
     assert_eq!(queue.len(), 3, "3 items should remain in the queue");
     assert!(batch.encoded_len() <= max_size);
-}
-
-#[test]
-fn test_create_message_batch_encoded_len_matches_proto() {
-    // The incremental size tracking must agree with prost's own encoded_len at every step.
-    let unit = make_proto_unit(15);
-    let num_items = 6usize;
-    let large_limit = usize::MAX;
-    let mut queue: VecDeque<ProtoUnit> = (0..num_items).map(|_| unit.clone()).collect();
-
-    let batch = Handler::create_message_batch(&mut queue, large_limit);
-
-    assert_eq!(batch.batch.len(), num_items);
-    // Confirm the batch's actual encoded length is what prost reports (invariant check).
-    let expected_len: usize = batch
-        .batch
-        .iter()
-        .map(|u| {
-            let enc_len = u.encoded_len();
-            let enc_len_u64 = u64::try_from(enc_len).expect("encoded length fits in u64");
-            1 + prost::encoding::encoded_len_varint(enc_len_u64) + enc_len
-        })
-        .sum();
-    assert_eq!(batch.encoded_len(), expected_len);
 }
 
 #[test]

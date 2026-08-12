@@ -247,16 +247,8 @@ impl Handler {
         send_queue: &mut VecDeque<ProtoUnit>,
         max_wire_message_size: usize,
     ) -> ProtoBatch {
-        if send_queue.is_empty() {
-            return ProtoBatch { batch: Vec::new() };
-        }
-
-        let first = send_queue.pop_front().unwrap();
-        let mut batch = ProtoBatch { batch: vec![first] };
-        let mut batch_encoded_len = batch.encoded_len();
-        if batch_encoded_len > max_wire_message_size {
-            warn!("Propeller unit size exceeds max wire message size, sending will fail");
-        }
+        let mut batch = ProtoBatch { batch: Vec::new() };
+        let mut batch_encoded_len = 0;
 
         while let Some(msg) = send_queue.front() {
             let msg_encoded_len = msg.encoded_len();
@@ -268,7 +260,12 @@ impl Handler {
                 u64::try_from(msg_encoded_len).expect("message encoded length fits in u64");
             let item_len = 1 + encoded_len_varint(msg_encoded_len_u64) + msg_encoded_len;
             if batch_encoded_len + item_len > max_wire_message_size {
-                break;
+                // An empty batch means this is the first unit: include it regardless, otherwise
+                // an oversized unit would block the queue forever. The send itself will fail.
+                if !batch.batch.is_empty() {
+                    break;
+                }
+                warn!("Propeller unit size exceeds max wire message size, sending will fail");
             }
             batch_encoded_len += item_len;
             batch.batch.push(send_queue.pop_front().unwrap());
