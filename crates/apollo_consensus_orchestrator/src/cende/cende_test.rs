@@ -16,6 +16,7 @@ use url::Url;
 use super::{
     send_recorder_get_with_limit,
     CendeAmbassador,
+    MAX_RECORDER_ERROR_BODY_BYTES,
     RECORDER_GET_ACCESSED_KEYS_INPUT_PATH,
     RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
     RECORDER_WRITE_BLOB_PATH,
@@ -352,28 +353,69 @@ async fn send_recorder_get_rejects_response_over_the_size_limit() {
     let result: CendeAmbassadorResult<String> =
         send_recorder_get_with_limit(request, "/oversized", MAX_RESPONSE_BYTES).await;
 
-    assert_matches!(result, Err(CendeAmbassadorError::RecorderRequestFailed { .. }));
+    // The message is asserted on, and not just the error variant, so that the test cannot pass
+    // because the body was rejected for an unrelated reason (e.g. a JSON parse failure).
+    assert_matches!(
+        result,
+        Err(CendeAmbassadorError::RecorderRequestFailed { message, .. })
+            if message.contains(&format!("exceeded the {MAX_RESPONSE_BYTES}-byte limit"))
+    );
     mock.assert();
 }
 
+/// A JSON string body, used as a well-formed response whose byte length is easy to reason about.
+const WITHIN_LIMIT_BODY: &str = "\"hi\"";
+
+#[rstest]
+// The cap is inclusive: a body whose length is exactly the cap is accepted.
+#[case::body_length_equals_the_limit(WITHIN_LIMIT_BODY.len())]
+#[case::body_shorter_than_the_limit(1024)]
 #[tokio::test]
-async fn send_recorder_get_accepts_response_within_the_size_limit() {
+async fn send_recorder_get_accepts_response_within_the_size_limit(
+    #[case] max_response_bytes: usize,
+) {
     let mut server = mockito::Server::new_async().await;
-    const MAX_RESPONSE_BYTES: usize = 1024;
 
     let mock = server
         .mock("GET", "/ok")
         .with_status(200)
         .with_header("content-type", "application/json")
-        .with_body("\"hi\"")
+        .with_body(WITHIN_LIMIT_BODY)
         .create();
 
     let client = ClientBuilder::new(reqwest::Client::new()).build();
     let request = client.get(format!("{}/ok", server.url()));
 
     let result: CendeAmbassadorResult<String> =
-        send_recorder_get_with_limit(request, "/ok", MAX_RESPONSE_BYTES).await;
+        send_recorder_get_with_limit(request, "/ok", max_response_bytes).await;
 
     assert_eq!(result.unwrap(), "hi");
+    mock.assert();
+}
+
+// An error-status body is attacker-influenceable and unbounded just like a success body, so it too
+// is read under a cap (`MAX_RECORDER_ERROR_BODY_BYTES`) instead of being buffered in full.
+#[tokio::test]
+async fn send_recorder_get_truncates_an_oversized_error_status_body() {
+    let mut server = mockito::Server::new_async().await;
+    let oversized_error_body = "e".repeat(MAX_RECORDER_ERROR_BODY_BYTES + 100);
+
+    let mock =
+        server.mock("GET", "/error").with_status(500).with_body(&oversized_error_body).create();
+
+    let client = ClientBuilder::new(reqwest::Client::new()).build();
+    let request = client.get(format!("{}/error", server.url()));
+
+    let result: CendeAmbassadorResult<String> =
+        send_recorder_get_with_limit(request, "/error", 1024).await;
+
+    assert_matches!(
+        result,
+        Err(CendeAmbassadorError::RecorderRequestFailed { message, .. })
+            if message.contains("returned error status 500")
+                && message.ends_with("...(truncated)")
+                // The full body is never buffered; only a bounded prefix of it is reported.
+                && message.len() < oversized_error_body.len()
+    );
     mock.assert();
 }
