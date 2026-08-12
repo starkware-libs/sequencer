@@ -1,0 +1,32 @@
+name: Install Anvil
+description: Install Foundry's Anvil.
+
+inputs:
+  version:
+    description: "Foundry version to install"
+    required: false
+    default: v1.5.1
+
+# Retried once because the upstream download fails transiently.
+runs:
+  using: "composite"
+  steps:
+    - name: Install Anvil
+      id: install_anvil
+      continue-on-error: true
+      uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
+      with:
+        version: ${{ inputs.version }}
+        cache: false
+
+    - name: Wait before retrying
+      if: steps.install_anvil.outcome == 'failure'
+      shell: bash
+      run: sleep 30
+
+    - name: Retry installing Anvil
+      if: steps.install_anvil.outcome == 'failure'
+      uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
+      with:
+        version: ${{ inputs.version }}
+        cache: false
