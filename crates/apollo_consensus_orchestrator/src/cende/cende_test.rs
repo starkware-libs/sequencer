@@ -20,7 +20,13 @@ use super::{
     RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
     RECORDER_WRITE_BLOB_PATH,
 };
-use crate::cende::{BlobParameters, CendeAmbassadorError, CendeAmbassadorResult, CendeConfig, CendeContext};
+use crate::cende::{
+    BlobParameters,
+    CendeAmbassadorError,
+    CendeAmbassadorResult,
+    CendeConfig,
+    CendeContext,
+};
 use crate::metrics::{
     register_metrics,
     CendeWriteFailureReason,
