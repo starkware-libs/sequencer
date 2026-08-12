@@ -182,8 +182,23 @@ impl Handler {
             Poll::Ready(Some(Ok(batch))) => {
                 *inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
                 Self::handle_received_batch(batch, unsent_units);
-                // Continue the loop in case there are more messages ready
-                ControlFlow::Continue(())
+                if unsent_units.is_empty() {
+                    // The batch decoded to zero valid units (e.g. all failed conversion):
+                    // keep draining, since no back-pressure has been buffered yet.
+                    ControlFlow::Continue(())
+                } else {
+                    // Stop after one batch's worth of units, even though the underlying
+                    // stream may already have further batches buffered and ready. Without
+                    // this, a peer that keeps the socket's read buffer full can have every
+                    // already-buffered batch decoded in a single `poll_inner` call, which
+                    // defeats the `unsent_units.is_empty()` gate in `poll_inner` that is
+                    // supposed to cap buffering at one batch. Wake ourselves so the reactor
+                    // re-polls promptly and drains the rest once the engine channel has
+                    // consumed this batch, instead of relying on a fresh I/O readiness event
+                    // that may never arrive if the peer already sent everything.
+                    cx.waker().wake_by_ref();
+                    ControlFlow::Break(())
+                }
             }
             Poll::Ready(Some(Err(error))) => {
                 trace!("Failed to read from inbound stream: {error}");
@@ -526,6 +541,13 @@ impl Handler {
         if self.unsent_units.is_empty() {
             for inbound_substream in self.inbound_substream.iter_mut() {
                 Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
+                // Stop at the first slot that buffered a batch: with more than one concurrent
+                // inbound substream, continuing here would let each remaining slot add its own
+                // batch on top, one poll_single_inbound_substream call per slot, defeating this
+                // same one-batch bound across slots instead of just within a slot.
+                if !self.unsent_units.is_empty() {
+                    break;
+                }
             }
         }
 

@@ -1,10 +1,18 @@
 use std::collections::VecDeque;
 
 use apollo_protobuf::protobuf::PropellerUnit as ProtoUnit;
+use futures::StreamExt;
+use libp2p::swarm::SwarmEvent;
+use libp2p::Swarm;
+use libp2p_swarm_test::SwarmExt as _;
 use prost::encoding::encoded_len_varint;
 use prost::Message;
+use starknet_api::staking::StakingWeight;
+use tracing_test::traced_test;
 
 use super::Handler;
+use crate::types::{CommitteeId, Event};
+use crate::{Behaviour, Config};
 
 /// Build a `ProtoUnit` whose `signature` field is `payload_bytes` bytes long, giving
 /// predictable and controllable encoded sizes.
@@ -79,4 +87,85 @@ fn test_create_message_batch_stops_at_size_limit() {
     assert_eq!(batch.batch.len(), 2, "should pack exactly 2 items");
     assert_eq!(queue.len(), 3, "3 items should remain in the queue");
     assert!(batch.encoded_len() <= max_size);
+}
+
+/// Regression test for an inbound backlog bound bypass: `Handler::unsent_units` is documented
+/// to hold "at most one batch worth of units", and `poll_inner` only starts a new read pass
+/// while it is empty. But `poll_single_inbound_substream_waiting_input` kept decoding every
+/// already-buffered batch in a single call regardless of that gate, so a peer whose batches are
+/// all already sitting in the transport by the time it's first polled could have every one of
+/// them decoded -- and buffered in `unsent_units` -- in one shot, well past the one-batch bound.
+///
+/// This lives here (a unit test, same crate as `Handler`) rather than in `tests/e2e_test.rs`
+/// because `tracing-test`'s default per-crate log filter only captures logs from the crate under
+/// test; an integration test in `tests/` is a separate crate and would silently see none of
+/// `apollo_propeller`'s own log output (including the `warn_every_n_ms!` backlog warning this
+/// test relies on).
+///
+/// `max_wire_message_size` is kept small so many batches are needed for `NUM_MESSAGES` units.
+/// Every broadcast is queued before `sender`'s swarm is ever polled, so once `sender` starts
+/// running, it drains its whole backlog and pushes every batch onto the wire before `receiver`
+/// is polled even once -- exactly the condition the one-batch bound must survive.
+#[traced_test]
+#[tokio::test(flavor = "current_thread")]
+async fn poll_inner_bounds_inbound_backlog_to_one_batch() {
+    const NUM_MESSAGES: usize = 220;
+
+    let config = Config { max_wire_message_size: 2048, ..Config::default() };
+    let mut sender = Swarm::new_ephemeral_tokio(|keypair| Behaviour::new(keypair, config.clone()));
+    let mut receiver =
+        Swarm::new_ephemeral_tokio(|keypair| Behaviour::new(keypair, config.clone()));
+    sender.listen().with_memory_addr_external().await;
+    receiver.listen().with_memory_addr_external().await;
+    sender.connect(&mut receiver).await;
+
+    let committee_id = CommitteeId([0u8; 32]);
+    let peers = vec![
+        (*sender.local_peer_id(), StakingWeight(1)),
+        (*receiver.local_peer_id(), StakingWeight(1)),
+    ];
+    for swarm in [&mut sender, &mut receiver] {
+        swarm
+            .behaviour_mut()
+            .register_committee_peers(committee_id, peers.clone())
+            .await
+            .unwrap()
+            .expect("Failed to register committee");
+    }
+
+    // Queue every broadcast before the sender's swarm is polled even once, so none of this
+    // reaches the handler's send queue or the wire yet.
+    for i in 0..NUM_MESSAGES {
+        let message = vec![u8::try_from(i % 256).unwrap()];
+        sender
+            .behaviour_mut()
+            .broadcast(committee_id, message)
+            .await
+            .unwrap()
+            .expect("Broadcast should succeed");
+    }
+
+    // Drive the sender in the background. With nothing else runnable yet, it drains its entire
+    // backlog -- queueing all NUM_MESSAGES units' worth of batches on the wire -- before
+    // yielding, so they are all already buffered by the time `receiver` is polled below.
+    tokio::spawn(sender.loop_on_next());
+
+    let mut num_received = 0;
+    let result = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while num_received < NUM_MESSAGES {
+            if let SwarmEvent::Behaviour(Event::MessageReceived { .. }) =
+                receiver.select_next_some().await
+            {
+                num_received += 1;
+            }
+        }
+    })
+    .await;
+    assert!(result.is_ok(), "Timed out: received {num_received}/{NUM_MESSAGES} messages");
+
+    assert!(
+        !logs_contain("Backlog in propeller handler"),
+        "receiver's unsent_units backlog exceeded the warning threshold, meaning far more than \
+         one batch worth of units was buffered from a single already-queued burst"
+    );
 }
