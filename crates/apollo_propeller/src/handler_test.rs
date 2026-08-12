@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::time::Duration;
 
 use apollo_protobuf::protobuf::PropellerUnit as ProtoUnit;
 use futures::StreamExt;
@@ -10,7 +11,7 @@ use prost::Message;
 use starknet_api::staking::StakingWeight;
 use tracing_test::traced_test;
 
-use super::Handler;
+use super::{Handler, QUEUE_WARNING_THRESHOLD};
 use crate::types::{CommitteeId, Event};
 use crate::{Behaviour, Config};
 
@@ -102,16 +103,35 @@ fn test_create_message_batch_stops_at_size_limit() {
 /// `apollo_propeller`'s own log output (including the `warn_every_n_ms!` backlog warning this
 /// test relies on).
 ///
-/// `max_wire_message_size` is kept small so many batches are needed for `NUM_MESSAGES` units.
+/// The signal is `poll_inner`'s backlog warning, which fires once any of its queues exceeds
+/// `QUEUE_WARNING_THRESHOLD`. In this scenario only `unsent_units` can reach that size, so the
+/// warning is unambiguous: the sender's `send_queue` is fed over libp2p's bounded per-connection
+/// command channel and drained on every poll, and `events_to_emit` stays empty while no send fails.
+///
+/// `MAX_WIRE_MESSAGE_SIZE` is load-bearing in both directions: small enough that `NUM_MESSAGES`
+/// units span many wire batches (so an unbounded read pass has plenty to over-consume), yet large
+/// enough that one batch holds far fewer than `QUEUE_WARNING_THRESHOLD` units -- otherwise a single
+/// legitimate batch would trip the warning and fail the test even with the bound in place.
+///
 /// Every broadcast is queued before `sender`'s swarm is ever polled, so once `sender` starts
 /// running, it drains its whole backlog and pushes every batch onto the wire before `receiver`
-/// is polled even once -- exactly the condition the one-batch bound must survive.
+/// is polled even once -- exactly the condition the one-batch bound must survive. Requiring all
+/// `NUM_MESSAGES` to arrive also covers the liveness half of the fix: dropping the self-wake in
+/// `poll_single_inbound_substream_waiting_input` leaves the already-buffered data undrained and
+/// delivery stalls partway, tripping the timeout below.
 #[traced_test]
 #[tokio::test(flavor = "current_thread")]
 async fn poll_inner_bounds_inbound_backlog_to_one_batch() {
-    const NUM_MESSAGES: usize = 220;
+    // Enough units in flight that an unbounded read pass buffers well past
+    // QUEUE_WARNING_THRESHOLD in a single pass. Derived from the threshold rather than hardcoded
+    // so that raising the threshold cannot silently turn this into a test that always passes.
+    const NUM_MESSAGES: usize = 3 * QUEUE_WARNING_THRESHOLD;
+    const MAX_WIRE_MESSAGE_SIZE: usize = 2048;
+    // Generous relative to the ~1s this takes locally: the timeout only has to distinguish
+    // "delivery stalled" from "slow", so err towards a loaded CI machine rather than a flake.
+    const DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
 
-    let config = Config { max_wire_message_size: 2048, ..Config::default() };
+    let config = Config { max_wire_message_size: MAX_WIRE_MESSAGE_SIZE, ..Config::default() };
     let mut sender = Swarm::new_ephemeral_tokio(|keypair| Behaviour::new(keypair, config.clone()));
     let mut receiver =
         Swarm::new_ephemeral_tokio(|keypair| Behaviour::new(keypair, config.clone()));
@@ -135,8 +155,8 @@ async fn poll_inner_bounds_inbound_backlog_to_one_batch() {
 
     // Queue every broadcast before the sender's swarm is polled even once, so none of this
     // reaches the handler's send queue or the wire yet.
-    for i in 0..NUM_MESSAGES {
-        let message = vec![u8::try_from(i % 256).unwrap()];
+    for message_index in 0..NUM_MESSAGES {
+        let message = vec![u8::try_from(message_index % 256).unwrap()];
         sender
             .behaviour_mut()
             .broadcast(committee_id, message)
@@ -151,7 +171,7 @@ async fn poll_inner_bounds_inbound_backlog_to_one_batch() {
     tokio::spawn(sender.loop_on_next());
 
     let mut num_received = 0;
-    let result = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    let result = tokio::time::timeout(DELIVERY_TIMEOUT, async {
         while num_received < NUM_MESSAGES {
             if let SwarmEvent::Behaviour(Event::MessageReceived { .. }) =
                 receiver.select_next_some().await

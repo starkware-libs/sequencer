@@ -172,6 +172,11 @@ impl Handler {
     }
 
     /// Polls a single inbound substream that is waiting for input.
+    ///
+    /// Expects `unsent_units` to be empty on entry: that precondition is what lets a non-empty
+    /// `unsent_units` after decoding mean "this batch produced units". Returns
+    /// `ControlFlow::Break` once a batch has been buffered, or once the substream has no more
+    /// data ready, and `ControlFlow::Continue` while the caller should keep polling it.
     fn poll_single_inbound_substream_waiting_input(
         inbound_substream: &mut Option<InboundSubstreamState>,
         mut substream: Framed<Stream, PropellerCodec>,
@@ -541,10 +546,15 @@ impl Handler {
         if self.unsent_units.is_empty() {
             for inbound_substream in self.inbound_substream.iter_mut() {
                 Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
-                // Stop at the first slot that buffered a batch: with more than one concurrent
-                // inbound substream, continuing here would let each remaining slot add its own
-                // batch on top, one poll_single_inbound_substream call per slot, defeating this
-                // same one-batch bound across slots instead of just within a slot.
+                // Stop at the first slot that buffered a batch, so `unsent_units` holds at most one
+                // batch worth of units exactly as its documentation claims. Continuing would let
+                // each remaining slot add a batch on top, bounding the buffer at
+                // CONCURRENT_STREAMS batches instead -- still O(1), so not a memory-exhaustion
+                // risk, but it would silently invalidate that invariant as the constant grows.
+                // TODO(AndrewL): This scan always restarts at index 0, so once CONCURRENT_STREAMS
+                // exceeds 1, a peer keeping a low-indexed substream constantly readable starves
+                // the higher-indexed ones. Resume from the slot after the last one served
+                // (round-robin) when making the substream count dynamic.
                 if !self.unsent_units.is_empty() {
                     break;
                 }
