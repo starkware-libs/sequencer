@@ -277,18 +277,35 @@ impl NodeType {
         }
     }
 
+    /// Returns, per service of this node type, the pruned (not replacer-annotated) component
+    /// config JSON. This is the same content eventually written to the replacer service config
+    /// files, before `insert_replacer_annotations` replaces deployment-specific values with
+    /// placeholders.
+    pub(crate) fn service_component_configs(
+        &self,
+        ports: Option<Vec<u16>>,
+    ) -> HashMap<NodeService, Value> {
+        let component_configs = self.get_component_configs(ports);
+        component_configs
+            .into_iter()
+            .map(|(node_service, component_config)| {
+                let components_in_service = node_service.get_components_in_service();
+                let wrapper = ComponentConfigsSerializationWrapper::new(
+                    component_config,
+                    components_in_service,
+                );
+                let flattened = config_to_preset(&json!(wrapper.dump()));
+                let pruned = prune_by_is_none(flattened);
+                (node_service, pruned)
+            })
+            .collect()
+    }
+
     fn dump_component_configs_with<SerdeFn>(&self, ports: Option<Vec<u16>>, writer: SerdeFn)
     where
         SerdeFn: Fn(&serde_json::Value, &str),
     {
-        let component_configs = self.get_component_configs(ports);
-        for (node_service, component_config) in component_configs {
-            let components_in_service = node_service.get_components_in_service();
-            let wrapper =
-                ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
-            let flattened = config_to_preset(&json!(wrapper.dump()));
-            let pruned = prune_by_is_none(flattened);
-
+        for (node_service, pruned) in self.service_component_configs(ports) {
             // Dumping in the replacer format.
             let pruned_with_replacer_annotations =
                 insert_replacer_annotations(pruned, replace_pred);

@@ -63,6 +63,7 @@ ci: update rust toolchain
 - **Cairo native feature**: When modifying `cairo_native`-gated code, verify with `cargo check -p blockifier --features cairo_native`
 - **CI flaky tests**: `blockifier_reexecution` can fail from transient GCloud network issues (not code-related). `merge-gatekeeper` fails when other checks fail (downstream).
 - **Feature flag removal**: `define_infra_metrics!` and `define_metrics!` macros expand code with `cfg(feature = "testing")`. Crates using these macros MUST keep `testing = []` in Cargo.toml even if it looks unused — `check-cfg` will error otherwise. Grep for macro invocations, not just direct `cfg` checks.
+- **New config params**: `SequencerNodeConfig::load_and_process` discards schema defaults at runtime, so a param must also be added to `crates/apollo_deployments/resources/app_configs/`, or every node crash-loops at boot. `cargo nextest run -p apollo_deployments` (`services_load_a_valid_node_config`) catches this.
 - **Adding `Copy` derive**: Search the entire codebase for `.clone()` on that type (including tests, other crates). Clippy treats `clone_on_copy` as deny-level in CI.
 
 ## Mandatory Practices
