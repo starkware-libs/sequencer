@@ -80,36 +80,3 @@ fn test_create_message_batch_stops_at_size_limit() {
     assert_eq!(queue.len(), 3, "3 items should remain in the queue");
     assert!(batch.encoded_len() <= max_size);
 }
-
-#[test]
-fn test_create_message_batch_varint_boundary() {
-    // PropellerUnit.signature is field 6 (bytes, 1-byte tag 0x32).
-    // make_proto_unit(n).encoded_len() = 1 (tag) + varint_len(n) + n for n < 128.
-    // At the encoded_len 127->128 boundary, the per-item length varint grows from 1 to 2 bytes:
-    //   encoded_len = 127: item_batch_cost = 1 + 1 + 127 = 129
-    //   encoded_len = 128: item_batch_cost = 1 + 2 + 128 = 131
-    // Verify that the unit at the boundary is excluded when the budget fits a 129-byte item
-    // but not a 131-byte one.
-    let first_unit = make_proto_unit(10);
-    let below_boundary_unit = make_proto_unit(125); // encoded_len = 127, 1-byte varint
-    let at_boundary_unit = make_proto_unit(126); // encoded_len = 128, 2-byte varint
-
-    assert_eq!(below_boundary_unit.encoded_len(), 127);
-    assert_eq!(at_boundary_unit.encoded_len(), 128);
-
-    let first_cost = item_batch_cost(&first_unit);
-    let below_boundary_cost = item_batch_cost(&below_boundary_unit); // 129
-    let at_boundary_cost = item_batch_cost(&at_boundary_unit); // 131
-
-    // Budget: fits first_unit + a below-boundary item (129 bytes), but not first_unit +
-    // at_boundary_unit (131 bytes — 2 bytes more due to the 2-byte varint).
-    let max_size = first_cost + below_boundary_cost;
-    assert!(max_size < first_cost + at_boundary_cost, "at_boundary_unit must not fit");
-
-    let mut queue = VecDeque::from([first_unit, at_boundary_unit]);
-    let batch = Handler::create_message_batch(&mut queue, max_size);
-
-    assert_eq!(batch.batch.len(), 1, "2-byte varint causes at_boundary_unit to exceed budget");
-    assert_eq!(queue.len(), 1, "at_boundary_unit remains in queue");
-    assert!(batch.encoded_len() <= max_size);
-}

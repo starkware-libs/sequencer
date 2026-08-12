@@ -243,6 +243,11 @@ impl Handler {
     /// `max_wire_message_size` bounds the protobuf body (i.e. `ProtoBatch::encoded_len()`),
     /// matching the codec's length check. The framed wire bytes are up to ~5 bytes larger due
     /// to the length delimiter prepended by `PropellerCodec::encode`.
+    // TODO(Shahak): consider counting the frame's length delimiter against the budget. Appending a
+    // unit can widen that delimiter's varint -- a body crossing 127 -> 128 bytes takes it from 1 to
+    // 2 bytes -- so the framed message can exceed max_wire_message_size by up to 5 bytes. Harmless
+    // today, since ProtoCodec applies the limit to the body on both encode and decode, but it does
+    // mean the limit doesn't bound what actually goes on the wire.
     fn create_message_batch(
         send_queue: &mut VecDeque<ProtoUnit>,
         max_wire_message_size: usize,
