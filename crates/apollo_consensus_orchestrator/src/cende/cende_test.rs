@@ -2,9 +2,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use assert_matches::assert_matches;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::StatusCode;
+use reqwest_middleware::ClientBuilder;
 use rstest::rstest;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber};
@@ -12,12 +14,13 @@ use starknet_api::test_utils::read_json_file;
 use url::Url;
 
 use super::{
+    send_recorder_get_with_limit,
     CendeAmbassador,
     RECORDER_GET_ACCESSED_KEYS_INPUT_PATH,
     RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
     RECORDER_WRITE_BLOB_PATH,
 };
-use crate::cende::{BlobParameters, CendeConfig, CendeContext};
+use crate::cende::{BlobParameters, CendeAmbassadorError, CendeAmbassadorResult, CendeConfig, CendeContext};
 use crate::metrics::{
     register_metrics,
     CendeWriteFailureReason,
@@ -316,5 +319,55 @@ async fn get_accessed_keys_input(
     } else {
         assert!(result.unwrap().is_none());
     }
+    mock.assert();
+}
+
+// Demonstrates the fix for an unbounded-memory-allocation DoS: before the response-size cap was
+// added, `send_recorder_get` deserialized a recorder response of any size (via `response.json`),
+// so a malicious or compromised recorder could send an oversized `get_accessed_keys_input`
+// response (whose `transactions`/`execution_infos` vectors are attacker-influenceable in length)
+// and drive the consensus orchestrator to buffer an unbounded amount of memory.
+#[tokio::test]
+async fn send_recorder_get_rejects_response_over_the_size_limit() {
+    let mut server = mockito::Server::new_async().await;
+    const MAX_RESPONSE_BYTES: usize = 10;
+    let oversized_body = "\"01234567890123456789\""; // A 22-byte JSON string, over the limit.
+
+    let mock = server
+        .mock("GET", "/oversized")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(oversized_body)
+        .create();
+
+    let client = ClientBuilder::new(reqwest::Client::new()).build();
+    let request = client.get(format!("{}/oversized", server.url()));
+
+    let result: CendeAmbassadorResult<String> =
+        send_recorder_get_with_limit(request, "/oversized", MAX_RESPONSE_BYTES).await;
+
+    assert_matches!(result, Err(CendeAmbassadorError::RecorderRequestFailed { .. }));
+    mock.assert();
+}
+
+#[tokio::test]
+async fn send_recorder_get_accepts_response_within_the_size_limit() {
+    let mut server = mockito::Server::new_async().await;
+    const MAX_RESPONSE_BYTES: usize = 1024;
+
+    let mock = server
+        .mock("GET", "/ok")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body("\"hi\"")
+        .create();
+
+    let client = ClientBuilder::new(reqwest::Client::new()).build();
+    let request = client.get(format!("{}/ok", server.url()));
+
+    let result: CendeAmbassadorResult<String> =
+        send_recorder_get_with_limit(request, "/ok", MAX_RESPONSE_BYTES).await;
+
+    assert_eq!(result.unwrap(), "hi");
     mock.assert();
 }

@@ -29,6 +29,7 @@ use central_objects::{
     CentralTransactionWritten,
 };
 use const_format::concatcp;
+use futures::StreamExt;
 #[cfg(test)]
 use mockall::automock;
 use reqwest::Response;
@@ -180,6 +181,13 @@ pub const RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH: &str =
 pub const RECORDER_GET_ACCESSED_KEYS_INPUT_PATH: &str =
     concatcp!(RECORDER_PREFIX, "/get_accessed_keys_input");
 
+/// Hard cap on how many bytes a single recorder response may buffer before being deserialized.
+/// Recorder endpoints such as `get_accessed_keys_input` return attacker-influenceable,
+/// unbounded-length data (transaction calldata, signatures, etc.); without this cap, an oversized
+/// (malicious or malfunctioning) response would let the recorder drive unbounded memory allocation
+/// in the consensus orchestrator, a liveness-critical process.
+const MAX_RECORDER_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
+
 #[derive(Debug, Deserialize)]
 struct BlockNumberResponse {
     block_number: Option<u64>,
@@ -294,10 +302,20 @@ async fn fetch_block_number(
 
 /// Sends `request` to a recorder GET endpoint and deserializes the JSON body into `T`, mapping
 /// transport, non-success status, and parse failures to `RecorderRequestFailed`. `path` is used
-/// only for diagnostics.
+/// only for diagnostics. The response body is capped at `MAX_RECORDER_RESPONSE_BYTES`.
 async fn send_recorder_get<T: DeserializeOwned>(
     request: RequestBuilder,
     path: &str,
+) -> CendeAmbassadorResult<T> {
+    send_recorder_get_with_limit(request, path, MAX_RECORDER_RESPONSE_BYTES).await
+}
+
+/// Like [`send_recorder_get`], but with the response-size cap as an explicit parameter, so tests
+/// can exercise the cap without buffering `MAX_RECORDER_RESPONSE_BYTES` worth of data.
+async fn send_recorder_get_with_limit<T: DeserializeOwned>(
+    request: RequestBuilder,
+    path: &str,
+    max_response_bytes: usize,
 ) -> CendeAmbassadorResult<T> {
     let recorder_error = |message: String| CendeAmbassadorError::RecorderRequestFailed {
         path: path.to_string(),
@@ -313,7 +331,23 @@ async fn send_recorder_get<T: DeserializeOwned>(
         return Err(recorder_error(format!("returned error status {status}: {body}")));
     }
 
-    response.json::<T>().await.map_err(|e| recorder_error(format!("failed to parse response: {e}")))
+    // Stream the body instead of `response.json`/`response.bytes`, which buffer the entire body
+    // regardless of size: the recorder is a network peer, and its response length is not
+    // otherwise bounded (a `Content-Length` header can be absent or understated).
+    let mut body = Vec::new();
+    let mut chunks = response.bytes_stream();
+    while let Some(chunk) = chunks.next().await {
+        let chunk = chunk.map_err(|e| recorder_error(format!("failed to read response: {e}")))?;
+        if body.len() + chunk.len() > max_response_bytes {
+            return Err(recorder_error(format!(
+                "response body exceeded the {max_response_bytes}-byte limit"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    serde_json::from_slice(&body)
+        .map_err(|e| recorder_error(format!("failed to parse response: {e}")))
 }
 
 #[async_trait]
