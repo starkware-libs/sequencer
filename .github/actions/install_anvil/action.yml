@@ -1,0 +1,15 @@
+name: Install Anvil
+description: Install Foundry's Anvil (plus forge/cast), retrying on the upstream install being flaky.
+
+inputs:
+  version:
+    description: "Foundry version to install"
+    required: false
+    default: v1.5.1
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Anvil
+      shell: bash
+      run: ./scripts/install_anvil.sh "${{ inputs.version }}"
