@@ -36,6 +36,7 @@ use apollo_mempool_types::communication::{
 };
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::accessed_keys::AccessedKeys;
 use apollo_storage::db::DbError;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -99,7 +100,7 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
-use crate::commitment_manager::types::CommitterTaskInput;
+use crate::commitment_manager::types::{CommitterTaskInput, CommitterTaskOutput};
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     BUILDING_HEIGHT,
@@ -1188,12 +1189,17 @@ async fn proposal_startup_failure_allows_new_proposals() {
 #[case::new_sync_block(INITIAL_HEIGHT, Some(PartialBlockHashComponents {
     block_number: INITIAL_HEIGHT,
     ..Default::default()
-}))]
-#[case::old_sync_block(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap(), None)]
+}), None)]
+#[case::old_sync_block(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap(), None, None)]
+#[case::new_sync_block_with_accessed_keys(INITIAL_HEIGHT, Some(PartialBlockHashComponents {
+    block_number: INITIAL_HEIGHT,
+    ..Default::default()
+}), Some(AccessedKeys::default()))]
 #[tokio::test]
 async fn add_sync_block(
     #[case] block_number: BlockNumber,
     #[case] partial_block_hash_components: Option<PartialBlockHashComponents>,
+    #[case] accessed_keys: Option<AccessedKeys>,
 ) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
@@ -1225,7 +1231,7 @@ async fn add_sync_block(
         block_number,
         test_state_diff(),
         storage_commitment_block_hash,
-        false,
+        accessed_keys.is_some(),
     );
 
     mock_clients
@@ -1267,7 +1273,18 @@ async fn add_sync_block(
         block_header_commitments,
         ..Default::default()
     };
-    batcher.add_sync_block(sync_block).await.unwrap();
+    batcher.add_sync_block(sync_block, accessed_keys.clone()).await.unwrap();
+
+    // Providing accessed keys should issue a `ReadPathsAndCommitBlock` committer task; otherwise a
+    // plain `Commit` task is issued.
+    wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
+    let committer_task_output = batcher.commitment_manager.results_receiver.try_recv().unwrap();
+    match committer_task_output {
+        CommitterTaskOutput::Commit(_) => assert!(accessed_keys.is_none()),
+        CommitterTaskOutput::ReadPathsAndCommitBlock(_) => assert!(accessed_keys.is_some()),
+        CommitterTaskOutput::Revert(_) => panic!("Unexpected revert committer task."),
+    }
+
     let metrics = recorder.handle().render();
     assert_eq!(
         BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics),
@@ -1297,7 +1314,7 @@ async fn add_sync_block_mismatch_block_number() {
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    let result = batcher.add_sync_block(sync_block).await;
+    let result = batcher.add_sync_block(sync_block, None).await;
     assert_eq!(
         result,
         Err(BatcherError::StorageHeightMarkerMismatch {
@@ -1327,7 +1344,7 @@ async fn add_sync_block_missing_block_header_commitments() {
         l1_transaction_hashes: Default::default(),
         block_header_commitments: None,
     };
-    let result = batcher.add_sync_block(sync_block).await;
+    let result = batcher.add_sync_block(sync_block, None).await;
     assert_eq!(result, Err(BatcherError::MissingHeaderCommitments { block_number: INITIAL_HEIGHT }))
 }
 
@@ -1357,7 +1374,7 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
         l1_transaction_hashes: Default::default(),
         block_header_commitments: None,
     };
-    let _ = batcher.add_sync_block(sync_block).await;
+    let _ = batcher.add_sync_block(sync_block, None).await;
 }
 
 #[rstest]
@@ -1414,7 +1431,7 @@ async fn add_sync_block_for_first_new_block() {
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    batcher.add_sync_block(sync_block).await.unwrap();
+    batcher.add_sync_block(sync_block, None).await.unwrap();
 }
 
 #[rstest]
@@ -1444,7 +1461,7 @@ async fn add_sync_block_parent_hash_mismatch() {
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    let _ = batcher.add_sync_block(sync_block).await;
+    let _ = batcher.add_sync_block(sync_block, None).await;
 }
 
 #[rstest]
@@ -1471,7 +1488,7 @@ async fn add_sync_block_with_partial_block_hash_but_older_than_configured_first_
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
-    let _ = batcher.add_sync_block(sync_block).await;
+    let _ = batcher.add_sync_block(sync_block, None).await;
 }
 
 #[tokio::test]

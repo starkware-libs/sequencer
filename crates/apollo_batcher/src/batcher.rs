@@ -831,8 +831,12 @@ impl Batcher {
         })
     }
 
-    #[instrument(skip(self, sync_block), err)]
-    pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+    #[instrument(skip(self, sync_block, accessed_keys), err)]
+    pub async fn add_sync_block(
+        &mut self,
+        sync_block: SyncBlock,
+        accessed_keys: Option<AccessedKeys>,
+    ) -> BatcherResult<()> {
         trace!("Received sync block: {:?}", sync_block);
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
@@ -913,8 +917,6 @@ impl Batcher {
             }) => Some(header_commitments.state_diff_commitment),
         };
 
-        // Synced blocks are not executed locally, so no accessed keys are available; the block is
-        // committed via `CommitBlock`.
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -922,7 +924,7 @@ impl Batcher {
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
             storage_commitment_block_hash,
-            None,
+            accessed_keys.as_ref(),
         )
         .await?;
 
@@ -930,7 +932,7 @@ impl Batcher {
             height,
             state_diff,
             optional_state_diff_commitment,
-            None,
+            accessed_keys,
         )
         .await?;
 
@@ -985,7 +987,7 @@ impl Batcher {
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
-            Some(accessed_keys.clone()),
+            Some(&accessed_keys),
         )
         .await?;
 
@@ -1069,7 +1071,7 @@ impl Batcher {
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<&AccessedKeys>,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -1882,12 +1884,15 @@ impl BatcherStorageReader for StorageReader {
 
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageWriter: Send + Sync {
-    fn commit_proposal(
+    // Automock requires a named lifetime for references nested in generics, while clippy flags
+    // it as needless.
+    #[allow(clippy::needless_lifetimes)]
+    fn commit_proposal<'a>(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<&'a AccessedKeys>,
     ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1909,12 +1914,14 @@ pub trait BatcherStorageWriter: Send + Sync {
 }
 
 impl BatcherStorageWriter for StorageWriter {
-    fn commit_proposal(
+    // See the lifetime explanation on the trait method.
+    #[allow(clippy::needless_lifetimes)]
+    fn commit_proposal<'a>(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
-        accessed_keys: Option<AccessedKeys>,
+        accessed_keys: Option<&'a AccessedKeys>,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
         let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
@@ -1930,7 +1937,7 @@ impl BatcherStorageWriter for StorageWriter {
             }
         }
         if let Some(accessed_keys) = accessed_keys {
-            txn = txn.append_accessed_keys(height, &accessed_keys)?;
+            txn = txn.append_accessed_keys(height, accessed_keys)?;
         }
         txn.commit()
     }
