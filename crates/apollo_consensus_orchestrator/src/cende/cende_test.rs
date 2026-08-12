@@ -2,13 +2,21 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::StatusCode;
 use rstest::rstest;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::test_utils::read_json_file;
 use url::Url;
 
-use super::{CendeAmbassador, RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH, RECORDER_WRITE_BLOB_PATH};
+use super::{
+    CendeAmbassador,
+    RECORDER_GET_ACCESSED_KEYS_INPUT_PATH,
+    RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
+    RECORDER_WRITE_BLOB_PATH,
+};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
 use crate::metrics::{
     register_metrics,
@@ -247,4 +255,66 @@ async fn prepare_blob_for_next_height() {
     );
 
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.assert_eq(&recorder.handle().render(), HEIGHT_TO_WRITE.0);
+}
+
+#[rstest]
+// Recorder returns the block's transactions and execution infos → `Ok(Some(..))`.
+#[case::parses_some(200, true, false)]
+// Recorder responds with `null` (it has no data stored) → `Ok(None)`.
+#[case::none_when_recorder_has_none(200, false, false)]
+// Non-transient failure status → `Err`.
+#[case::errors_on_failure_status(400, true, true)]
+#[tokio::test]
+async fn get_accessed_keys_input(
+    #[case] mock_status_code: usize,
+    #[case] recorder_has_block: bool,
+    #[case] expect_error: bool,
+) {
+    const BLOCK_NUMBER: BlockNumber = BlockNumber(7);
+
+    let mut server = mockito::Server::new_async().await;
+    let url = server.url();
+
+    // The block's data in central-object form (matching the recorder's `AccessedKeysInput`): one
+    // transaction (the canonical central invoke-tx fixture, whose proof facts are empty) and one
+    // execution info. The transaction is a full `CentralTransactionWritten` — the same type the
+    // blob's `transactions` field uses.
+    let execution_info = CentralTransactionExecutionInfo::from(TransactionExecutionInfo::default());
+    let tx_json: serde_json::Value = read_json_file("central_invoke_tx.json");
+    let block_data_body = serde_json::json!({
+        "transactions": [tx_json],
+        "execution_infos": [serde_json::to_value(&execution_info).unwrap()],
+    })
+    .to_string();
+    // `null` matches the recorder's response when it does not have the block.
+    let response_body = if recorder_has_block { block_data_body } else { "null".to_string() };
+
+    let mock = server
+        .mock("GET", RECORDER_GET_ACCESSED_KEYS_INPUT_PATH)
+        .match_query(mockito::Matcher::UrlEncoded(
+            "block_number".into(),
+            BLOCK_NUMBER.0.to_string(),
+        ))
+        .with_status(mock_status_code)
+        .with_header("content-type", "application/json")
+        .with_body(response_body)
+        .create();
+
+    let cende_ambassador = CendeAmbassador::new(
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap(), ..Default::default() },
+        Arc::new(MockClassManagerClient::new()),
+    );
+
+    let result = cende_ambassador.get_accessed_keys_input(BLOCK_NUMBER).await;
+
+    if expect_error {
+        assert!(result.is_err());
+    } else if recorder_has_block {
+        let block_data = result.unwrap().expect("expected block data");
+        assert_eq!(block_data.transactions.len(), 1);
+        assert_eq!(block_data.execution_infos.len(), 1);
+    } else {
+        assert!(result.unwrap().is_none());
+    }
+    mock.assert();
 }

@@ -184,8 +184,7 @@ impl From<(CommitmentStateDiff, CentralBlockInfo)> for CentralStateDiff {
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 struct CentralResourceBounds {
     #[serde(rename = "L1_GAS")]
     l1_gas: ResourceBounds,
@@ -205,8 +204,7 @@ impl From<AllResourceBounds> for CentralResourceBounds {
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 struct CentralInvokeTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
@@ -244,16 +242,14 @@ impl From<(InternalRpcInvokeTransactionV3, TransactionHash)> for CentralInvokeTr
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
 enum CentralInvokeTransaction {
     #[serde(rename = "0x3")]
     V3(CentralInvokeTransactionV3),
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 struct CentralDeployAccountTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
@@ -295,8 +291,7 @@ impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
 enum CentralDeployAccountTransaction {
     #[serde(rename = "0x3")]
@@ -307,8 +302,7 @@ fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
     (format!("0x{:x}", val.major), format!("0x{:x}", val.minor), format!("0x{:x}", val.patch))
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 struct CentralDeclareTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
@@ -361,16 +355,14 @@ impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, Transaction
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
 enum CentralDeclareTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeclareTransactionV3),
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 struct CentralL1HandlerTransaction {
     contract_address: ContractAddress,
     entry_point_selector: EntryPointSelector,
@@ -393,8 +385,7 @@ impl From<L1HandlerTransaction> for CentralL1HandlerTransaction {
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 enum CentralTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
@@ -442,11 +433,9 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for C
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
 pub(crate) struct CentralTransactionWritten {
     tx: CentralTransaction,
-    // The timestamp is required for monitoring data, we use the block timestamp for this.
     time_created: u64,
 }
 
