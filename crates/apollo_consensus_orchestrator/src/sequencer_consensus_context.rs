@@ -596,12 +596,17 @@ impl SequencerConsensusContext {
             .prev()
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
-        let recent_state_commitment_infos =
-            self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
-                // `finalize_decision` must not fail, so continue with an empty vector.
-                error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
-                Vec::new()
-            });
+        // Independent lookups, keyed only by `height`; run them concurrently rather than one
+        // after the other.
+        let (recent_state_commitment_infos, recent_block_hashes) = tokio::join!(
+            self.collect_recent_state_commitment_infos(height),
+            self.collect_recent_block_hashes(height),
+        );
+        let recent_state_commitment_infos = recent_state_commitment_infos.unwrap_or_else(|e| {
+            // `finalize_decision` must not fail, so continue with an empty vector.
+            error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
+            Vec::new()
+        });
 
         if let Err(e) = self
             .deps
@@ -632,7 +637,7 @@ impl SequencerConsensusContext {
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
-                recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                recent_block_hashes,
                 recent_state_commitment_infos,
                 initial_reads: central_objects.initial_reads,
             })
