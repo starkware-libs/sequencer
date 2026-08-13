@@ -29,6 +29,7 @@ use central_objects::{
     CentralTransactionWritten,
 };
 use const_format::concatcp;
+use futures::StreamExt;
 #[cfg(test)]
 use mockall::automock;
 use reqwest::Response;
@@ -180,6 +181,18 @@ pub const RECORDER_GET_COMMITMENT_INFOS_HEIGHT_OFFSET_PATH: &str =
 pub const RECORDER_GET_ACCESSED_KEYS_INPUT_PATH: &str =
     concatcp!(RECORDER_PREFIX, "/get_accessed_keys_input");
 
+/// Hard cap on how many bytes a single recorder response may buffer before being deserialized.
+/// Recorder endpoints such as `get_accessed_keys_input` return attacker-influenceable,
+/// unbounded-length data (transaction calldata, signatures, etc.); without this cap, an oversized
+/// (malicious or malfunctioning) response would let the recorder drive unbounded memory allocation
+/// in the consensus orchestrator, a liveness-critical process.
+const MAX_RECORDER_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
+
+/// Hard cap on how many bytes of a non-success recorder response are read. Such a body is only
+/// used as a diagnostic inside an error message, so a short prefix is enough; it is as unbounded
+/// and as attacker-influenceable as a success body, and it additionally ends up in the logs.
+const MAX_RECORDER_ERROR_BODY_BYTES: usize = 4 * 1024;
+
 #[derive(Debug, Deserialize)]
 struct BlockNumberResponse {
     block_number: Option<u64>,
@@ -294,10 +307,20 @@ async fn fetch_block_number(
 
 /// Sends `request` to a recorder GET endpoint and deserializes the JSON body into `T`, mapping
 /// transport, non-success status, and parse failures to `RecorderRequestFailed`. `path` is used
-/// only for diagnostics.
+/// only for diagnostics. The response body is capped at `MAX_RECORDER_RESPONSE_BYTES`.
 async fn send_recorder_get<T: DeserializeOwned>(
     request: RequestBuilder,
     path: &str,
+) -> CendeAmbassadorResult<T> {
+    send_recorder_get_with_limit(request, path, MAX_RECORDER_RESPONSE_BYTES).await
+}
+
+/// Like [`send_recorder_get`], but with the response-size cap as an explicit parameter, so tests
+/// can exercise the cap without buffering `MAX_RECORDER_RESPONSE_BYTES` worth of data.
+async fn send_recorder_get_with_limit<T: DeserializeOwned>(
+    request: RequestBuilder,
+    path: &str,
+    max_response_bytes: usize,
 ) -> CendeAmbassadorResult<T> {
     let recorder_error = |message: String| CendeAmbassadorError::RecorderRequestFailed {
         path: path.to_string(),
@@ -309,11 +332,57 @@ async fn send_recorder_get<T: DeserializeOwned>(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_else(|_| "unparseable".to_string());
+        // The error body is read under a (much smaller) cap of its own: it is attacker-
+        // influenceable and unbounded just like a success body, and `response.text()` would
+        // buffer all of it.
+        let body = match read_response_body_prefix(response, MAX_RECORDER_ERROR_BODY_BYTES).await {
+            Ok((body_prefix, is_truncated)) => {
+                let mut body = String::from_utf8_lossy(&body_prefix).into_owned();
+                if is_truncated {
+                    body.push_str("...(truncated)");
+                }
+                body
+            }
+            Err(_) => "unparseable".to_string(),
+        };
         return Err(recorder_error(format!("returned error status {status}: {body}")));
     }
 
-    response.json::<T>().await.map_err(|e| recorder_error(format!("failed to parse response: {e}")))
+    let (body, is_truncated) = read_response_body_prefix(response, max_response_bytes)
+        .await
+        .map_err(|e| recorder_error(format!("failed to read response: {e}")))?;
+    if is_truncated {
+        return Err(recorder_error(format!(
+            "response body exceeded the {max_response_bytes}-byte limit"
+        )));
+    }
+
+    serde_json::from_slice(&body)
+        .map_err(|e| recorder_error(format!("failed to parse response: {e}")))
+}
+
+/// Reads at most `max_body_bytes` bytes of `response`'s body, returning them alongside a flag that
+/// is `true` iff the body was longer than the cap (i.e. the returned bytes are a truncated prefix
+/// of it). The body is streamed rather than read via `Response::json`/`text`/`bytes`, which buffer
+/// the whole body regardless of size: the recorder is a network peer whose response length is not
+/// otherwise bounded (a `Content-Length` header can be absent or understated).
+async fn read_response_body_prefix(
+    response: Response,
+    max_body_bytes: usize,
+) -> reqwest::Result<(Vec<u8>, bool)> {
+    let mut body = Vec::new();
+    let mut chunks = response.bytes_stream();
+    while let Some(chunk) = chunks.next().await {
+        let chunk = chunk?;
+        let remaining_capacity = max_body_bytes.saturating_sub(body.len());
+        if chunk.len() > remaining_capacity {
+            body.extend_from_slice(&chunk[..remaining_capacity]);
+            return Ok((body, true));
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    Ok((body, false))
 }
 
 #[async_trait]
