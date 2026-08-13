@@ -149,12 +149,15 @@ jobs:
           cp -r target/criterion pr-${{ github.run_id }}/target/
 
       # Benchmark the current branch and compare to the previous run.
+      # The regression limit sits above the highest same-commit delta observed on this job
+      # (+31.59%). Re-derive it from the per-benchmark numbers, which are now printed on passing
+      # runs too.
       - name: Benchmark (Feature Branch)
         working-directory: pr-${{ github.run_id }}
         run: |
           cargo run -p bench_tools -- run-and-compare \
             --package blockifier \
             --out /tmp/new_results \
-            --regression-limit 8.0 \
+            --regression-limit 35.0 \
             --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
             --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}

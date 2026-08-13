@@ -4,11 +4,19 @@ use std::path::PathBuf;
 
 use crate::types::estimates::Estimates;
 
+#[cfg(test)]
+#[path = "comparison_test.rs"]
+mod comparison_test;
+
 /// Result of a benchmark comparison.
 #[derive(Debug)]
 pub struct BenchmarkComparison {
     pub name: String,
+    /// Point estimate of the change, in percent.
     pub change_percentage: f64,
+    /// Bounds of the change confidence interval, in percent.
+    pub change_lower_bound_percentage: f64,
+    pub change_upper_bound_percentage: f64,
     pub exceeds_regression_limit: bool,
     pub absolute_time_ns: f64,
     pub exceeds_absolute_limit: bool,
@@ -79,21 +87,47 @@ pub fn check_regressions(
     regression_limit: f64,
     absolute_time_ns_limits: &HashMap<String, f64>,
 ) -> BenchmarkComparisonsResult {
+    let loaded_estimates: Vec<(String, Estimates, Estimates)> = bench_names
+        .iter()
+        .map(|bench_name| {
+            (
+                bench_name.to_string(),
+                load_change_estimates(bench_name),
+                load_absolute_estimates(bench_name),
+            )
+        })
+        .collect();
+
+    compare_estimates(&loaded_estimates, regression_limit, absolute_time_ns_limits)
+}
+
+/// Decides, for each benchmark, whether its change and absolute time are within the limits.
+///
+/// A benchmark counts as a regression only when the LOWER bound of the change confidence interval
+/// exceeds `regression_limit`, meaning the measurement is confident the regression is real and
+/// larger than the limit. Gating on the point estimate alone lets run-to-run noise fail the job:
+/// the same commit measured twice has produced +8.23% and +31.59% on the same benchmark.
+pub fn compare_estimates(
+    loaded_estimates: &[(String, Estimates, Estimates)],
+    regression_limit: f64,
+    absolute_time_ns_limits: &HashMap<String, f64>,
+) -> BenchmarkComparisonsResult {
     let mut results = Vec::new();
     let mut exceeded_count = 0;
 
-    for bench_name in bench_names {
-        let change_estimates = load_change_estimates(bench_name);
-        let change_percentage = get_regression_percentage(&change_estimates);
-        let exceeds_regression_limit = change_percentage > regression_limit;
+    for (bench_name, change_estimates, absolute_estimates) in loaded_estimates {
+        let change_percentage = get_regression_percentage(change_estimates);
+        let change_lower_bound_percentage =
+            change_estimates.mean.confidence_interval.lower_bound * 100.0;
+        let change_upper_bound_percentage =
+            change_estimates.mean.confidence_interval.upper_bound * 100.0;
+        let exceeds_regression_limit = change_lower_bound_percentage > regression_limit;
 
-        // Load absolute timing estimates.
-        let absolute_estimates = load_absolute_estimates(bench_name);
         let absolute_time_ns = absolute_estimates.mean.point_estimate;
 
         // Check if this benchmark has a specific absolute time limit.
         let exceeds_absolute_limit =
-            if let Some(&threshold) = absolute_time_ns_limits.get(*bench_name) {
+            if let Some(&threshold) = absolute_time_ns_limits.get(bench_name) {
                 absolute_time_ns > threshold
             } else {
                 false
@@ -106,6 +140,8 @@ pub fn check_regressions(
         results.push(BenchmarkComparison {
             name: bench_name.to_string(),
             change_percentage,
+            change_lower_bound_percentage,
+            change_upper_bound_percentage,
             exceeds_regression_limit,
             absolute_time_ns,
             exceeds_absolute_limit,
