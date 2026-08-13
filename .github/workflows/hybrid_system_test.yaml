@@ -14,6 +14,17 @@ env:
   layout: hybrid
   overlay: hybrid.testing.node-0
   cluster_name: hybrid-system-test
+  # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
+  # asset that the current k3d install.sh fetches (with --fail), so its install 404s. v5.5.0
+  # is the earliest release that ships checksums.txt (smallest bump from the old default).
+  k3d_version: v5.5.0
+  k3d_args: >-
+    --verbose
+    --agents 1
+    --no-lb
+    --wait
+    --timeout 120s
+    --registry-config registries.yaml
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/**,deployments/sequencer/**,deployments/images/**"
   path_triggers_exclude: "scripts/prod/**"
@@ -144,24 +155,37 @@ jobs:
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
+      # Retried once by the steps below: `continue-on-error` lets the first attempt fail so the
+      # retry step can run.
       - name: Create k3d cluster (Local k8s)
+        id: create_k3d_cluster
+        continue-on-error: true
         uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
         with:
-          # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
-          # asset that the current k3d install.sh fetches (with --fail), so its install 404s. v5.5.0
-          # is the earliest release that ships checksums.txt (smallest bump from the old default).
           # Must be the k3d-version input (the composite action maps it to K3D_VERSION); a plain env
           # var is overridden by the action's own empty input default.
-          k3d-version: v5.5.0
+          k3d-version: ${{ env.k3d_version }}
           # Assumption: only one PR can run per machine at a time.
           cluster-name: ${{ env.cluster_name }}
-          args: >-
-            --verbose
-            --agents 1
-            --no-lb
-            --wait
-            --timeout 120s
-            --registry-config registries.yaml
+          args: ${{ env.k3d_args }}
+
+      - name: Discard a partial k3d cluster before retrying
+        if: steps.create_k3d_cluster.outcome == 'failure'
+        env:
+          CLUSTER_NAME: ${{ env.cluster_name }}
+        run: |
+          if command -v k3d > /dev/null; then
+            k3d cluster delete "${CLUSTER_NAME}"
+          fi
+          sleep 60
+
+      - name: Retry creating k3d cluster (Local k8s)
+        if: steps.create_k3d_cluster.outcome == 'failure'
+        uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
+        with:
+          k3d-version: ${{ env.k3d_version }}
+          cluster-name: ${{ env.cluster_name }}
+          args: ${{ env.k3d_args }}
 
       - name: Install crds
         working-directory: deployments/sequencer
