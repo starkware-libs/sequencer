@@ -4,4 +4,8 @@ rustc-wrapper = "sccache"
 [env]
 LLVM_SYS_191_PREFIX = "/usr/lib/llvm-19/"
 MLIR_SYS_190_PREFIX = "/usr/lib/llvm-19/"
+# `apollo_test_utils::get_rng` seeds from the OS when SEED is unset, so an unseeded local run is
+# silently different from CI, which pins SEED=0 everywhere. Comparing two such runs is meaningless
+# and reads as a regression. Not forced, so `SEED=<n> cargo test` still overrides it.
+SEED = "0"
 TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
