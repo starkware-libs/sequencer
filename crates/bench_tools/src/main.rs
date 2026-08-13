@@ -46,10 +46,12 @@ enum Commands {
         /// downloaded from GCS for benchmarks that require them.
         #[arg(long)]
         input_dir: Option<String>,
-        /// Maximum acceptable regression percentage (e.g., 5.0 for 5%).
+        /// Maximum acceptable regression percentage (e.g., 5.0 for 5%), compared against the lower
+        /// bound of the change confidence interval.
         #[arg(long)]
         regression_limit: f64,
-        /// Set absolute time limit for a specific benchmark (can be used multiple times).
+        /// Set absolute time limit for a specific benchmark, compared against the lower bound of
+        /// the mean time confidence interval (can be used multiple times).
         /// Format: --set-absolute-time-ns-limit <bench_name> <limit_ns>
         #[arg(long, value_names = ["BENCH_NAME", "LIMIT_NS"], num_args = 2, action = clap::ArgAction::Append)]
         set_absolute_time_ns_limit: Vec<String>,

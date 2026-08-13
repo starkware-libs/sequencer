@@ -39,6 +39,7 @@ on:
 
 env:
   RUSTFLAGS: "-D warnings"
+  # In run-and-compare, each limit applies to the lower bound of its confidence interval.
   FULL_COMMITTER_FLOW_TIME_LIMIT_NS: "1000000000"
   TREE_COMPUTATION_FLOW_TIME_LIMIT_NS: "1800000000"
   BENCHMARK_REGRESSION_LIMIT_PERCENT: "20"
