@@ -2087,7 +2087,7 @@ async fn try_sync_forwards_accessed_keys_from_centralized() {
     // accessed keys from them (plus the synced block's state diff and the latest versioned
     // constants) and forwards them to `add_sync_block`. Empty data exercises the
     // fetch -> compute -> forward path.
-    let block_data = BlockAccessedKeysData { transactions: vec![], execution_infos: vec![] };
+    let block_data = BlockAccessedKeysData { proof_facts: vec![], execution_infos: vec![] };
     deps.cende_ambassador
         .expect_get_accessed_keys_input()
         .times(1)

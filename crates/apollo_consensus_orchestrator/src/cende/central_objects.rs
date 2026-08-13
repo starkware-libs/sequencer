@@ -433,26 +433,11 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for C
     }
 }
 
-#[derive(serde::Deserialize, Debug, PartialEq, Serialize)]
+#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
+#[derive(Debug, PartialEq, Serialize)]
 pub(crate) struct CentralTransactionWritten {
     tx: CentralTransaction,
     time_created: u64,
-}
-
-impl CentralTransactionWritten {
-    /// The transaction's proof facts, if any (only invoke transactions carry them). When the
-    /// transaction includes a client-side proof, its proof facts name the block whose state the
-    /// proof is verified against, and the Starknet OS reads that block's hash from the block hash
-    /// table. The accessed-keys computation reads the proof facts to include the corresponding
-    /// block hash table entry.
-    pub(crate) fn proof_facts(&self) -> Option<&ProofFacts> {
-        match &self.tx {
-            CentralTransaction::Invoke(CentralInvokeTransaction::V3(invoke)) => {
-                Some(&invoke.proof_facts)
-            }
-            _ => None,
-        }
-    }
 }
 
 // This function gets SierraContractClass only for declare_tx, otherwise use None.

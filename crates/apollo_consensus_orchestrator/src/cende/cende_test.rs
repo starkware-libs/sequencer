@@ -16,13 +16,11 @@ use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::StorageKey;
-use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, ProofFacts};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
-use super::central_objects::CentralTransactionWritten;
 use super::{
     CendeAmbassador,
     RECORDER_GET_ACCESSED_KEYS_INPUT_PATH,
@@ -287,14 +285,12 @@ async fn get_accessed_keys_input(
     let mut server = mockito::Server::new_async().await;
     let url = server.url();
 
-    // The block's data in central-object form (matching the recorder's `AccessedKeysInput`): one
-    // transaction (the canonical central invoke-tx fixture, whose proof facts are empty) and one
-    // execution info. The transaction is a full `CentralTransactionWritten` — the same type the
-    // blob's `transactions` field uses.
+    // The block's data matching the recorder's `AccessedKeysInput`: one transaction's proof facts
+    // (empty, as for a transaction that carries no client-side proof) and one execution info in
+    // central-object form.
     let execution_info = CentralTransactionExecutionInfo::from(TransactionExecutionInfo::default());
-    let tx_json: serde_json::Value = read_json_file("central_invoke_tx.json");
     let block_data_body = serde_json::json!({
-        "transactions": [tx_json],
+        "proof_facts": [[]],
         "execution_infos": [serde_json::to_value(&execution_info).unwrap()],
     })
     .to_string();
@@ -323,13 +319,9 @@ async fn get_accessed_keys_input(
         assert!(result.is_err());
     } else if recorder_has_block {
         let block_data = result.unwrap().expect("expected block data");
-        assert_eq!(block_data.transactions.len(), 1);
+        assert_eq!(block_data.proof_facts.len(), 1);
         assert_eq!(block_data.execution_infos.len(), 1);
-        assert!(
-            block_data.transactions[0]
-                .proof_facts()
-                .is_some_and(|proof_facts| proof_facts.is_empty())
-        );
+        assert!(block_data.proof_facts[0].is_empty());
     } else {
         assert!(result.unwrap().is_none());
     }
@@ -343,9 +335,6 @@ fn compute_accessed_keys() {
     let proof_facts = ProofFacts::snos_proof_facts_for_testing();
     let proof_facts_block_number = snos_block_number_from_proof_facts(&proof_facts)
         .expect("the test proof facts must carry a block number");
-    let mut tx_json: serde_json::Value = read_json_file("central_invoke_tx.json");
-    tx_json["tx"]["proof_facts"] = serde_json::to_value(&proof_facts).unwrap();
-    let transaction: CentralTransactionWritten = serde_json::from_value(tx_json).unwrap();
 
     // An execution info whose call info read a storage key.
     let read_address = ContractAddress::from(0x300_u16);
@@ -369,7 +358,7 @@ fn compute_accessed_keys() {
     state_diff.storage_updates.entry(written_address).or_default().insert(written_key, Felt::ONE);
 
     let block_accessed_keys_data = BlockAccessedKeysData {
-        transactions: vec![transaction],
+        proof_facts: vec![proof_facts],
         execution_infos: vec![execution_info],
     };
     let accessed_keys = block_accessed_keys_data.compute_accessed_keys(&state_diff);
