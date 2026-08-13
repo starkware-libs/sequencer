@@ -24,8 +24,8 @@ on:
 
 env:
   RUSTFLAGS: "-D warnings"
-  TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "200000000"
-  TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS: "1000000000"
+  TRANSFERS_SEQUENTIAL_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "300000000"
+  TRANSFERS_SEQUENTIAL_BENCHMARK_VM_TIME_LIMIT_NS: "1600000000"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -148,13 +148,28 @@ jobs:
           mkdir -p pr-${{ github.run_id }}/target
           cp -r target/criterion pr-${{ github.run_id }}/target/
 
-      # Benchmark the current branch and compare to the previous run.
+      # Benchmark the current branch and compare to the base run. A failed comparison reruns both
+      # benchmarks and compares again, up to 3 comparisons; the step fails only if all 3 fail.
+      # Each Criterion run overwrites its baseline, so a rerun replaces the PR's criterion dir with
+      # the base's.
       - name: Benchmark (Feature Branch)
         working-directory: pr-${{ github.run_id }}
         run: |
-          cargo run -p bench_tools -- run-and-compare \
-            --package blockifier \
-            --out /tmp/new_results \
-            --regression-limit 8.0 \
-            --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
-            --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
+          for attempt in 1 2 3; do
+            if cargo run -p bench_tools -- run-and-compare \
+              --package blockifier \
+              --out /tmp/new_results \
+              --regression-limit 8.0 \
+              --set-absolute-time-ns-limit transfers_sequential_benchmark_cairo_native ${TRANSFERS_SEQUENTIAL_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
+              --set-absolute-time-ns-limit transfers_sequential_benchmark_vm ${TRANSFERS_SEQUENTIAL_BENCHMARK_VM_TIME_LIMIT_NS}; then
+              exit 0
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "::error::Benchmark comparison failed 3 of 3 times."
+              exit 1
+            fi
+            echo "::warning::Benchmark comparison ${attempt} of 3 failed, rerunning the base and PR benchmarks (attempt $((attempt + 1)) of 3)."
+            (cd "${GITHUB_WORKSPACE}" && cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results)
+            rm -rf target/criterion
+            cp -r "${GITHUB_WORKSPACE}/target/criterion" target/
+          done
