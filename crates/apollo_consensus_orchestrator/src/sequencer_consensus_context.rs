@@ -674,20 +674,19 @@ impl SequencerConsensusContext {
     /// Collects the recent block hashes from the batcher.
     /// Returns computed block hashes in range [height - N_BLOCK_HASHES_BACK_IN_BLOB, height].
     async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
-        let window_size = usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
-            .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
-            + 1;
         let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        let block_heights: Vec<u64> = (lowest_height..=height.0).collect();
         // The window is small and bounded, so issue the batcher calls concurrently instead of
-        // paying window_size sequential round trips on this consensus-critical path.
+        // paying one round trip per height on this consensus-critical path.
         let block_hash_results = futures::future::join_all(
-            (lowest_height..=height.0)
-                .map(|block_height| self.deps.batcher.get_block_hash(BlockNumber(block_height))),
+            block_heights
+                .iter()
+                .map(|&block_height| self.deps.batcher.get_block_hash(BlockNumber(block_height))),
         )
         .await;
 
-        let mut recent_block_hashes = Vec::with_capacity(window_size);
-        for (block_height, result) in (lowest_height..=height.0).zip(block_hash_results) {
+        let mut recent_block_hashes = Vec::with_capacity(block_heights.len());
+        for (&block_height, result) in block_heights.iter().zip(block_hash_results) {
             let block_number = BlockNumber(block_height);
             match result {
                 Ok(block_hash) => {
@@ -723,18 +722,20 @@ impl SequencerConsensusContext {
                 // size.
                 None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
             };
-        // Cap the backfill window before issuing any calls, then fetch it concurrently: the
-        // window is small and bounded, so this pays one round trip instead of up to
-        // max_heights_to_fetch sequential ones on this consensus-critical path. The bound must
-        // cover both the empty-cende-recorder window (N_BLOCK_HASHES_BACK_IN_BLOB + 1, which may
-        // contain a leading gap before any data) and the offset-driven window (capped below at
-        // MAX_COMMITMENT_INFOS_BACKFILL collected entries, with no leading gap to skip past).
-        let max_heights_to_fetch = usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
-            .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
-            .max(MAX_COMMITMENT_INFOS_BACKFILL)
-            + 1;
+        let max_heights_to_fetch = if cende_recorder_is_empty {
+            // A leading gap doesn't count toward the cap below, so the whole fallback window may
+            // need scanning.
+            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
+                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
+                + 1
+        } else {
+            // Any gap breaks immediately, so the cap is reached after at most this many results.
+            MAX_COMMITMENT_INFOS_BACKFILL
+        };
         let backfill_heights: Vec<u64> =
             (lowest_height..=height.0).take(max_heights_to_fetch).collect();
+        // The window is small and bounded, so issue the batcher calls concurrently instead of
+        // paying one round trip per height on this consensus-critical path.
         let commitment_infos_results =
             futures::future::join_all(backfill_heights.iter().map(|&block_height| {
                 self.deps.batcher.get_state_commitment_infos(BlockNumber(block_height))
