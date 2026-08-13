@@ -1127,9 +1127,8 @@ pub struct EndToEndTestScenario {
 
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
-    /// Base instance index for port allocation. The shared-resource slot uses this index, and
-    /// each node uses `instance_base + 1 + node_index`. Default is 0; set a different value
-    /// when multiple tests sharing the same `TestIdentifier` run in parallel.
+    /// Labels the leased port ranges in the lease log line: `instance_base` for the shared range
+    /// and `instance_base + 1 + node_index` for each node.
     pub instance_base: u16,
     pub node_descriptors: Vec<NodeDescriptor>,
     pub test_scenario: EndToEndTestScenario,

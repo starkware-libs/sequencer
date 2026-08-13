@@ -118,9 +118,8 @@ pub struct HttpClientServerSetupBuilder {
 }
 
 impl HttpClientServerSetupBuilder {
-    // The builder must be invoked with different port_index values to support concurrent execution,
-    // otherwise leading to Address already in use (os error 98) errors.
-    // The input port_index is used to construct the http_server_config.
+    // Leases a port range for the http_server_config. `port_index` only identifies the holder in
+    // the lease log line.
     pub fn new(port_index: u16) -> Self {
         let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
         println!("Using port index {}", port_index);
