@@ -1179,7 +1179,8 @@ impl Batcher {
             });
         }
 
-        debug!("Set proposal {} as the one being generated.", proposal_id);
+        // The caller logs the same proposal id at info immediately after this returns.
+        trace!("Set proposal {} as the one being generated.", proposal_id);
         *active_proposal = Some(proposal_id);
         Ok(())
     }
