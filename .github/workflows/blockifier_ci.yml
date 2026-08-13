@@ -24,8 +24,9 @@ on:
 
 env:
   RUSTFLAGS: "-D warnings"
-  TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "200000000"
-  TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS: "1000000000"
+  # Compared against the lower bound of the mean time confidence interval.
+  TRANSFERS_SEQUENTIAL_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "300000000"
+  TRANSFERS_SEQUENTIAL_BENCHMARK_VM_TIME_LIMIT_NS: "1600000000"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -149,12 +150,13 @@ jobs:
           cp -r target/criterion pr-${{ github.run_id }}/target/
 
       # Benchmark the current branch and compare to the previous run.
+      # The regression limit applies to the lower bound of the change confidence interval.
       - name: Benchmark (Feature Branch)
         working-directory: pr-${{ github.run_id }}
         run: |
           cargo run -p bench_tools -- run-and-compare \
             --package blockifier \
             --out /tmp/new_results \
-            --regression-limit 8.0 \
-            --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
-            --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
+            --regression-limit 30.0 \
+            --set-absolute-time-ns-limit transfers_sequential_benchmark_cairo_native ${TRANSFERS_SEQUENTIAL_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
+            --set-absolute-time-ns-limit transfers_sequential_benchmark_vm ${TRANSFERS_SEQUENTIAL_BENCHMARK_VM_TIME_LIMIT_NS}

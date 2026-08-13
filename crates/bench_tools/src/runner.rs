@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::comparison::{find_unknown_limit_names, BenchmarkComparison};
 use crate::gcs;
 use crate::types::benchmark_config::BenchmarkConfig;
 use crate::types::estimates::{Estimates, GithubBenchmarkEntry};
@@ -160,6 +161,54 @@ fn write_github_action_benchmark_json(benchmarks: &[&BenchmarkConfig], output_fi
     println!("Saved github-action-benchmark output: {output_file}");
 }
 
+/// Prints one line per benchmark, on both the passing and failing paths. The numbers are what makes
+/// the run-to-run noise level observable, which is what `regression_limit` has to be calibrated
+/// against.
+fn print_comparisons(
+    results: &[BenchmarkComparison],
+    regression_limit: f64,
+    absolute_time_ns_limits: &HashMap<String, f64>,
+) {
+    for result in results {
+        let name = &result.name;
+        let change = result.change_percentage;
+        let lower_bound = result.change_lower_bound_percentage;
+        let upper_bound = result.change_upper_bound_percentage;
+        let time = result.absolute_time_ns;
+        let time_lower_bound = result.absolute_time_lower_bound_ns;
+        let marker = if result.exceeds_regression_limit
+            || result.exceeds_absolute_limit
+            || result.has_non_finite_estimate
+        {
+            "❌"
+        } else {
+            " ✓"
+        };
+        println!(
+            " {marker} {name}: {change:+.2}% [{lower_bound:+.2}%, {upper_bound:+.2}%] | \
+             {time:.2}ns"
+        );
+
+        if result.exceeds_regression_limit {
+            println!(
+                "      regression: confidence interval lower bound {lower_bound:+.2}% EXCEEDS \
+                 {regression_limit:.1}% limit"
+            );
+        }
+        if result.exceeds_absolute_limit {
+            if let Some(&limit) = absolute_time_ns_limits.get(name) {
+                println!(
+                    "      absolute: mean time lower bound {time_lower_bound:.2}ns EXCEEDS \
+                     {limit:.0}ns limit"
+                );
+            }
+        }
+        if result.has_non_finite_estimate {
+            println!("      non-finite estimate");
+        }
+    }
+}
+
 /// Runs benchmarks and compares them against previous results, failing if regression exceeds limit.
 pub fn run_and_compare_benchmarks(
     benchmarks: &[&BenchmarkConfig],
@@ -168,56 +217,44 @@ pub fn run_and_compare_benchmarks(
     regression_limit: f64,
     absolute_time_ns_limits: HashMap<String, f64>,
 ) {
-    // Run benchmarks first (no github-action-benchmark output for comparison runs).
-    run_benchmarks(benchmarks, input_dir, output_dir, None);
-
     // Collect all criterion benchmark names from configs.
     let mut bench_names = Vec::new();
     for bench in benchmarks {
         bench_names.extend(bench.criterion_benchmark_names.unwrap_or(&[bench.name]));
     }
 
-    print!("\n📊 Checking for performance regressions (limit: {regression_limit}%");
+    let unknown_limit_names = find_unknown_limit_names(&bench_names, &absolute_time_ns_limits);
+    if !unknown_limit_names.is_empty() {
+        panic!(
+            "Absolute time limits name unknown benchmarks: {unknown_limit_names:?}. Known \
+             benchmarks: {bench_names:?}."
+        );
+    }
+
+    // Run benchmarks first (no github-action-benchmark output for comparison runs).
+    run_benchmarks(benchmarks, input_dir, output_dir, None);
+
+    print!(
+        "\n📊 Checking for performance regressions (limit: {regression_limit}% on the change \
+         confidence interval lower bound"
+    );
     if !absolute_time_ns_limits.is_empty() {
         let count = absolute_time_ns_limits.len();
-        print!(", {count} benchmark(s) with absolute time limits");
+        print!(", {count} benchmark(s) with absolute time limits on the mean time lower bound");
     }
+    println!(")");
     let regression_result = crate::comparison::check_regressions(
         &bench_names,
         regression_limit,
         &absolute_time_ns_limits,
     );
 
+    let (Ok(results) | Err((_, results))) = &regression_result;
+    println!("\nBenchmark Results:");
+    print_comparisons(results, regression_limit, &absolute_time_ns_limits);
+
     match regression_result {
-        Ok(_) => {
-            println!("\n✅ All benchmarks passed regression check!");
-        }
-        Err((error_msg, results)) => {
-            // Some benchmarks exceeded the limit - print detailed results.
-            println!("\nBenchmark Results:");
-            for result in results {
-                if result.exceeds_regression_limit {
-                    let name = &result.name;
-                    let change = result.change_percentage;
-                    println!(" ❌ {name}: {change:+.2}% (EXCEEDS {regression_limit:.1}% limit)");
-                }
-
-                if result.exceeds_absolute_limit {
-                    if let Some(&limit) = absolute_time_ns_limits.get(&result.name) {
-                        let name = &result.name;
-                        let time = result.absolute_time_ns;
-                        println!(" ❌ {name}: {time:.2}ns (EXCEEDS {limit:.0}ns limit)");
-                    }
-                }
-
-                if !result.exceeds_regression_limit && !result.exceeds_absolute_limit {
-                    let name = &result.name;
-                    let change = result.change_percentage;
-                    let time = result.absolute_time_ns;
-                    println!("  ✓ {name}: {change:+.2}% | {time:.2}ns");
-                }
-            }
-            panic!("\n{error_msg}");
-        }
+        Ok(_) => println!("\n✅ All benchmarks passed regression check!"),
+        Err((error_msg, _)) => panic!("\n{error_msg}"),
     }
 }

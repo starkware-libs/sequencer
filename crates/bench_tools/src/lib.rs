@@ -1,6 +1,8 @@
 #[cfg(test)]
 pub(crate) mod benches;
 pub mod comparison;
+#[cfg(test)]
+mod comparison_test;
 pub mod gcs;
 #[cfg(test)]
 pub mod gcs_test;
