@@ -1,7 +1,6 @@
 exclude = [
   "ci/**/*.toml",
   "crates/blockifier/cairo_native/**/*.toml",
-  "crates/native_blockifier/.cargo/config.toml",
   "sequencer_venv/**/*.toml",
   "target/**/*.toml",
 ]
@@ -15,5 +14,14 @@ reorder_keys = true
 [[rule]]
 formatting = { reorder_keys = false }
 keys = ["package", "workspace.package"]
+
+# Don't reorder arrays under "target": a `rustflags` array is a flat list of alternating flag and
+# value, so sorting it pairs the flags wrongly, e.g. ["-C", "-C", "link-arg=-undefined",
+# "link-arg=dynamic_lookup"] in crates/native_blockifier/.cargo/config.toml. Excluding that file
+# instead would not hold, because `exclude` globs are matched relative to taplo's working
+# directory, so they stop matching when taplo runs from a subdirectory.
+[[rule]]
+formatting = { reorder_arrays = false }
+keys = ["target.*"]
 
 # Other configs from here: https://taplo.tamasfe.dev/configuration/formatter-options.html.
