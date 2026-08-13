@@ -4,6 +4,7 @@ use starknet_committer_and_os_cli::block_hash_cli::run_block_hash_cli::{
     run_block_hash_cli,
     BlockHashCliCommand,
 };
+use starknet_committer_and_os_cli::cende_cli::run_cende_cli::{run_cende_cli, CendeCliCommand};
 use starknet_committer_and_os_cli::committer_cli::run_committer_cli::{
     run_committer_cli,
     CommitterCliCommand,
@@ -29,6 +30,8 @@ enum CommitterOrOsCommand {
     Committer(CommitterCliCommand),
     /// Run BlockHash CLI.
     BlockHash(BlockHashCliCommand),
+    /// Run Cende CLI.
+    Cende(CendeCliCommand),
     /// Run KZG CLI.
     Kzg(KzgCliCommand),
     /// Run OS CLI.
@@ -57,6 +60,9 @@ async fn main() {
         }
         CommitterOrOsCommand::BlockHash(command) => {
             run_block_hash_cli(command).await;
+        }
+        CommitterOrOsCommand::Cende(command) => {
+            run_cende_cli(command).await;
         }
         CommitterOrOsCommand::Kzg(command) => {
             run_kzg_cli(command);

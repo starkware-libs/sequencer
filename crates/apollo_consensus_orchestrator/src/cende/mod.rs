@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod cende_test;
 mod central_objects;
+#[cfg(any(feature = "testing", test))]
+pub mod python_test;
 
 use std::sync::Arc;
 

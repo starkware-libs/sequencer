@@ -22,6 +22,8 @@ tempfile.workspace = true
 [dependencies]
 apollo_committer.workspace = true
 apollo_committer_config.workspace = true
+# The testing feature is needed for the python tests.
+apollo_consensus_orchestrator = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 apollo_storage.workspace = true
 # The 'test_programs' feature should be moved under `testing` feature, when it exists.
