@@ -18,6 +18,7 @@ mod test_utils;
 pub mod writer;
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
 use reqwest::header::HeaderMap;
@@ -30,6 +31,11 @@ pub use self::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetEr
 
 /// A [`Result`] in which the error is a [`ClientError`].
 type ClientResult<T> = Result<T, ClientError>;
+
+// Bound every request so a hung connection surfaces as a retryable timeout error instead of
+// stalling the caller indefinitely.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A starknet client.
 struct StarknetClient {
@@ -112,7 +118,11 @@ impl StarknetClient {
         );
         Ok(StarknetClient {
             http_headers: header_map,
-            internal_client: Client::builder().user_agent(app_user_agent).build()?,
+            internal_client: Client::builder()
+                .user_agent(app_user_agent)
+                .timeout(REQUEST_TIMEOUT)
+                .connect_timeout(CONNECT_TIMEOUT)
+                .build()?,
             retry_config,
         })
     }
