@@ -52,6 +52,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_L2_GAS_PRICE_CLAMPED,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
@@ -351,6 +352,21 @@ fn get_panel_consensus_l2_gas_price_clamped() -> Panel {
         PanelType::TimeSeries,
     )
     .with_log_query("\"maximum gas price\" OR \"below minimum gas price\"")
+}
+
+fn get_panel_consensus_eth_to_fri_rate_clamped() -> Panel {
+    Panel::new(
+        "Eth To Fri Rate Clamped",
+        format!(
+            "The number of blocks whose oracle eth to fri rate was pulled to the per-block change \
+             bound around the rate implied by the previous block ({DEFAULT_DURATION} window). Not \
+             counted when the clamp does not run: the override_eth_to_fri_rate operator pin, or a \
+             previous block that implies no rate"
+        ),
+        increase(&CONSENSUS_ETH_TO_FRI_RATE_CLAMPED, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"away from the rate implied by the previous block\"")
 }
 
 fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
@@ -748,6 +764,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
             get_panel_consensus_l2_gas_price_clamped(),
+            get_panel_consensus_eth_to_fri_rate_clamped(),
         ],
     )
 }

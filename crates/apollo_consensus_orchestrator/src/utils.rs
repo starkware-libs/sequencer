@@ -16,6 +16,7 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use ethnum::U256;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use num_rational::Ratio;
@@ -33,10 +34,12 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::cende::{CendeAmbassadorError, CendeContext};
+use crate::dynamic_gas_price::PPT_DENOMINATOR;
 use crate::metrics::{
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
 };
@@ -101,6 +104,7 @@ pub(crate) struct GasPriceParams {
     pub override_l1_gas_price_fri: Option<GasPrice>,
     pub override_l1_data_gas_price_fri: Option<GasPrice>,
     pub override_eth_to_fri_rate: Option<u128>,
+    pub max_eth_to_fri_rate_change_ppt: u128,
 }
 
 #[derive(Clone, Debug)]
@@ -183,6 +187,18 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
             "raw eth_to_fri_rate (from oracle): {eth_to_fri_rate}, raw l1 gas price wei (from \
              provider): {price_info:?}"
         );
+        // `get_l1_prices_in_fri_and_wei` replaces the rate with the operator pin when
+        // `override_eth_to_fri_rate` is set, so clamping it would warn and count a clamp that
+        // shapes no published price. A pin is deliberate, not feed drift.
+        let eth_to_fri_rate = if gas_price_params.override_eth_to_fri_rate.is_some() {
+            eth_to_fri_rate
+        } else {
+            clamp_eth_to_fri_rate_change(
+                eth_to_fri_rate,
+                previous_proposal_init,
+                gas_price_params.max_eth_to_fri_rate_change_ppt,
+            )
+        };
         apply_fee_transformations(&mut price_info, gas_price_params);
         let prices_in_wei = L1PricesInWei {
             l1_gas_price: price_info.base_fee_per_gas,
@@ -557,12 +573,82 @@ pub(crate) fn make_gas_price_params(config: &ContextDynamicConfig) -> GasPricePa
         max_l1_gas_price_wei: GasPrice(config.max_l1_gas_price_wei),
         min_l1_data_gas_price_wei: GasPrice(config.min_l1_data_gas_price_wei),
         max_l1_data_gas_price_wei: GasPrice(config.max_l1_data_gas_price_wei),
-        l1_data_gas_price_multiplier: Ratio::new(config.l1_data_gas_price_multiplier_ppt, 1000),
+        l1_data_gas_price_multiplier: Ratio::new(
+            config.l1_data_gas_price_multiplier_ppt,
+            PPT_DENOMINATOR,
+        ),
         l1_gas_tip_wei: GasPrice(config.l1_gas_tip_wei),
         override_l1_gas_price_fri: config.override_l1_gas_price_fri.map(GasPrice),
         override_l1_data_gas_price_fri: config.override_l1_data_gas_price_fri.map(GasPrice),
         override_eth_to_fri_rate: config.override_eth_to_fri_rate,
+        max_eth_to_fri_rate_change_ppt: config.max_eth_to_fri_rate_change_ppt,
     }
+}
+
+/// Clamp a freshly fetched eth to fri rate into a band of `max_eth_to_fri_rate_change_ppt` parts
+/// per thousand around the rate implied by the previous block, and return the clamped value.
+///
+/// The band's center is recomputed from the previous block's recorded wei and fri prices, so every
+/// validator that holds the previous block derives the same center and maps a given oracle reading
+/// to the same rate. Clamping rather than rejecting bounds the effect of a single manipulated
+/// reading on the rate an honest node publishes.
+///
+/// The band bounds what an honest node publishes, not how far the center can move: a proposal's wei
+/// and fri prices are each checked against `l1_gas_price_margin_percent` on its own
+/// (`validate_proposal::within_margin`), never as a ratio, so an accepted proposal can imply a
+/// center `(1 + margin) / (1 - margin)` away from the rate the validator itself holds.
+///
+/// Only genesis has no previous block: a restarted node seeds `previous_proposal_init` from
+/// state_sync in `SequencerConsensusContext::initialize_from_committed_blocks` before it votes.
+///
+/// Not applied when `override_eth_to_fri_rate` pins the rate, since the pin replaces the clamped
+/// value.
+// TODO(Asaf): bound the rate a proposal implies against this band too, so that a single accepted
+// proposal cannot move the center further than the band allows.
+fn clamp_eth_to_fri_rate_change(
+    oracle_eth_to_fri_rate: u128,
+    previous_proposal_init: Option<&PreviousProposalInitInfo>,
+    max_eth_to_fri_rate_change_ppt: u128,
+) -> u128 {
+    // Genesis: no previous block to center the band on, so the oracle rate is used as is.
+    let Some(previous_proposal_init) = previous_proposal_init else {
+        return oracle_eth_to_fri_rate;
+    };
+    let previous_eth_to_fri_rate = match calculate_eth_to_fri_rate(previous_proposal_init) {
+        Ok(previous_eth_to_fri_rate) => previous_eth_to_fri_rate,
+        // Logged at error, above the clamp's own warning: the clamp is disabled for this block.
+        Err(error) => {
+            error!(
+                "Cannot clamp the eth to fri rate change, the previous block info {:?} implies no \
+                 rate: {:?}",
+                previous_proposal_init, error
+            );
+            return oracle_eth_to_fri_rate;
+        }
+    };
+
+    // Multiply before dividing to avoid the precision loss of dividing first. U256 because the
+    // product of two u128 values overflows u128. The division truncates, which makes the band
+    // marginally tighter, never looser.
+    let previous_rate_u256 = U256::from(previous_eth_to_fri_rate);
+    let max_change = (previous_rate_u256 * U256::from(max_eth_to_fri_rate_change_ppt))
+        / U256::from(PPT_DENOMINATOR);
+    // The rate should not realistically approach `u128::MAX`, clamped to it to avoid a
+    // theoretical overflow.
+    let max_rate = u128::try_from(previous_rate_u256 + max_change).unwrap_or(u128::MAX);
+    let min_rate =
+        previous_eth_to_fri_rate.saturating_sub(u128::try_from(max_change).unwrap_or(u128::MAX));
+
+    let clamped_eth_to_fri_rate = oracle_eth_to_fri_rate.clamp(min_rate, max_rate);
+    if clamped_eth_to_fri_rate != oracle_eth_to_fri_rate {
+        warn!(
+            "Eth to fri rate {oracle_eth_to_fri_rate} from the oracle is more than \
+             {max_eth_to_fri_rate_change_ppt} ppt away from the rate implied by the previous \
+             block ({previous_eth_to_fri_rate}), clamping it to {clamped_eth_to_fri_rate}."
+        );
+        CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.increment(1);
+    }
+    clamped_eth_to_fri_rate
 }
 
 fn calculate_eth_to_fri_rate(
