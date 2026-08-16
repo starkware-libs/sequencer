@@ -24,6 +24,10 @@ define_metrics!(
         // Global class cache
         MetricCounter { CLASS_CACHE_MISSES, "batcher_class_cache_misses", "Counter of the batcher's global class cache misses", init=0 },
         MetricCounter { CLASS_CACHE_HITS, "batcher_class_cache_hits", "Counter of the batcher's global class cache hits", init=0 },
+        // The same cache, counted separately for view calls, which are higher volume and mostly
+        // hits, so that they do not dilute the block production miss ratio.
+        MetricCounter { VIEW_CALL_CLASS_CACHE_MISSES, "batcher_view_call_class_cache_misses", "Counter of the batcher's global class cache misses in view calls", init=0 },
+        MetricCounter { VIEW_CALL_CLASS_CACHE_HITS, "batcher_view_call_class_cache_hits", "Counter of the batcher's global class cache hits in view calls", init=0 },
         // Heights
         MetricGauge { BUILDING_HEIGHT, "batcher_building_height", "The height of the block that should be built next. The height of the state diff marker as stored in the batcher's storage." },
         MetricGauge { GLOBAL_ROOT_HEIGHT, "batcher_global_root_height", "The height of the first block without global root stored." },
@@ -136,6 +140,9 @@ pub(crate) fn record_preconfirmed_block_write_failure(reason: PreconfirmedBlockW
 pub const BATCHER_CLASS_CACHE_METRICS: CacheMetrics =
     CacheMetrics::new(CLASS_CACHE_MISSES, CLASS_CACHE_HITS);
 
+pub const BATCHER_VIEW_CALL_CLASS_CACHE_METRICS: CacheMetrics =
+    CacheMetrics::new(VIEW_CALL_CLASS_CACHE_MISSES, VIEW_CALL_CLASS_CACHE_HITS);
+
 pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNumber) {
     BUILDING_HEIGHT.register();
     BUILDING_HEIGHT.set_lossy(storage_height.0);
@@ -185,6 +192,7 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
 
     // Blockifier's metrics
     BATCHER_CLASS_CACHE_METRICS.register();
+    BATCHER_VIEW_CALL_CLASS_CACHE_METRICS.register();
     CALLS_RUNNING_NATIVE.register();
     NATIVE_CLASS_RETURNED.register();
     NATIVE_COMPILATION_ERROR.register();

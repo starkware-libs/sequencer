@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex};
+use std::task::Poll;
+use std::time::Duration;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig, BatcherStaticConfig};
 use apollo_batcher_types::batcher_types::{
@@ -23,6 +26,7 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
+use apollo_class_manager_types::MockClassManagerClient;
 use apollo_committer_types::committer_types::CommitBlockRequest;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
@@ -37,13 +41,21 @@ use apollo_mempool_types::communication::{
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::db::DbError;
+use apollo_storage::header::HeaderStorageWriter;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
+use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
+use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CachedState;
-use blockifier::state::state_api::StateReader;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::errors::StateError;
+use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
 use blockifier::test_utils::BALANCE;
@@ -55,15 +67,19 @@ use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use futures::poll;
 use indexmap::{indexmap, IndexMap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
+    BlockHeader,
     BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
+    GasPrice,
+    GasPricePerToken,
     StarknetVersion,
 };
 use starknet_api::block_hash::block_hash_calculator::{
@@ -72,10 +88,11 @@ use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHashComponents,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
-use starknet_api::state::ThinStateDiff;
+use starknet_api::contract_class::ContractClass;
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{invoke_tx_args, tx_hash};
+use starknet_api::{class_hash, invoke_tx_args, tx_hash};
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use validator::Validate;
@@ -158,6 +175,10 @@ const RECURSION_DEPTH_WITHIN_RESOURCE_BOUNDS: u64 = 1_000;
 /// not the block limit. One level of `recurse` costs about 973 Sierra gas and about 4 Cairo steps.
 const SIERRA_GAS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS: u64 = 300_000;
 const CAIRO_STEPS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS: u64 = 400_000;
+/// Height the view call tests write their state diff at. A view call reads at
+/// `state_diff_height()`, one past the last written diff, and takes its block info from the block
+/// before that.
+const LAST_COMMITTED_HEIGHT: BlockNumber = BlockNumber(0);
 
 struct TestViewStateReaderFactory {
     state: Arc<Mutex<CachedState<DictStateReader>>>,
@@ -165,7 +186,12 @@ struct TestViewStateReaderFactory {
 }
 
 impl ViewStateReaderFactory for TestViewStateReaderFactory {
-    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send> {
+    fn create(
+        &self,
+        block_number: BlockNumber,
+        _native_classes_whitelist: NativeClassesWhitelist,
+        _runtime: tokio::runtime::Handle,
+    ) -> Box<dyn StateReader + Send> {
         assert_eq!(block_number, self.expected_block_number);
         Box::new(self.state.lock().unwrap().clone())
     }
@@ -254,6 +280,7 @@ struct MockDependenciesWithRealStorage {
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
     clients: MockClients,
+    class_manager_client: MockClassManagerClient,
     batcher_config: BatcherConfig,
     _temp_dir: TempDir, // Keep the temp dir alive.
 }
@@ -266,12 +293,17 @@ impl Default for MockDependenciesWithRealStorage {
             storage_reader,
             storage_writer,
             clients: MockClients::default(),
+            class_manager_client: MockClassManagerClient::new(),
             batcher_config: BatcherConfig {
                 static_config: BatcherStaticConfig {
                     outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
                     ..Default::default()
                 },
-                ..Default::default()
+                // Compiling a class in a debug build takes longer than the production timeout.
+                dynamic_config: BatcherDynamicConfig {
+                    view_call_timeout_millis: Duration::from_secs(300),
+                    ..Default::default()
+                },
             },
             _temp_dir: temp_dir,
         }
@@ -294,6 +326,8 @@ async fn create_batcher_with_real_storage(
 ) -> Batcher {
     let view_state_reader_factory = Box::new(StorageViewStateReaderFactory {
         storage_reader: mock_dependencies.storage_reader.clone(),
+        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
+        class_manager_client: Arc::new(mock_dependencies.class_manager_client),
     });
     create_batcher_impl(
         Arc::new(mock_dependencies.storage_reader),
@@ -2183,4 +2217,348 @@ fn validate_retdata_length_rejects_length_above_the_limit(#[case] retdata_length
             if reason.contains(&retdata_length.to_string())
                 && reason.contains(&MAX_VIEW_CALL_RETDATA_LENGTH.to_string())
     );
+}
+
+/// Writes `state_diff` to real batcher storage at `LAST_COMMITTED_HEIGHT` and reads `class_hash`
+/// back through the view state reader the factory builds over it, at the height `call_contract`
+/// would use.
+async fn read_class_through_view_state_reader(
+    state_diff: ThinStateDiff,
+    class_manager_client: MockClassManagerClient,
+    class_hash: ClassHash,
+) -> StateResult<RunnableCompiledClass> {
+    let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(LAST_COMMITTED_HEIGHT, state_diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let factory = StorageViewStateReaderFactory {
+        storage_reader,
+        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
+        class_manager_client: Arc::new(class_manager_client),
+    };
+    let state_reader = factory.create(
+        LAST_COMMITTED_HEIGHT.unchecked_next(),
+        NativeClassesWhitelist::All,
+        tokio::runtime::Handle::current(),
+    );
+
+    tokio::task::spawn_blocking(move || state_reader.get_compiled_class(class_hash))
+        .await
+        .expect("Reading a declared class panicked.")
+}
+
+/// Cairo 1 declaration marker only, with no definition behind it: `append_state_diff` records
+/// `class_hash_to_compiled_class_hash` in the declared classes table that `is_declared` reads.
+fn cairo_1_declaration(class_hash: ClassHash) -> ThinStateDiff {
+    ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! { class_hash => CompiledClassHash::default() },
+        ..Default::default()
+    }
+}
+
+/// Cairo 0 declaration marker only, with no definition behind it: `append_state_diff` records
+/// `deprecated_declared_classes` in the deprecated classes table, which `is_declared` does not
+/// read.
+fn cairo_0_declaration(class_hash: ClassHash) -> ThinStateDiff {
+    ThinStateDiff { deprecated_declared_classes: vec![class_hash], ..Default::default() }
+}
+
+/// The declaration marker `contract`'s class hash reaches the view state reader through.
+fn declaration(contract: FeatureContract) -> ThinStateDiff {
+    match contract.cairo_version() {
+        CairoVersion::Cairo0 => cairo_0_declaration(contract.get_class_hash()),
+        CairoVersion::Cairo1(_) => cairo_1_declaration(contract.get_class_hash()),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn view_state_reader_reads_cairo_1_class_through_the_class_manager() {
+    let class_hash = class_hash!("0x1234");
+    let mut class_manager_client = MockClassManagerClient::new();
+    class_manager_client
+        .expect_get_executable()
+        .times(1)
+        .with(eq(class_hash))
+        .return_once(|_| Ok(Some(ContractClass::test_casm_contract_class())));
+    class_manager_client
+        .expect_get_sierra()
+        .times(1)
+        .with(eq(class_hash))
+        .return_once(|_| Ok(Some(SierraContractClass::default())));
+
+    let compiled_class = read_class_through_view_state_reader(
+        cairo_1_declaration(class_hash),
+        class_manager_client,
+        class_hash,
+    )
+    .await;
+
+    assert_matches!(compiled_class, Ok(RunnableCompiledClass::V1(_)));
+}
+
+/// Pins the route a declared Cairo 0 class takes. `is_declared` reads the Cairo 1 declared classes
+/// table only, and `append_state_diff` writes `deprecated_declared_classes` to a different table,
+/// so the class takes the deprecated route, which asks the class manager for the definition and
+/// never reads storage. Were `is_declared` widened to the deprecated table, the class would take
+/// the Cairo 1 route instead and panic in `ClassReader::read_casm`.
+#[tokio::test(flavor = "multi_thread")]
+async fn view_state_reader_reads_cairo_0_class_through_the_class_manager() {
+    let class_hash = class_hash!("0x1234");
+    let mut class_manager_client = MockClassManagerClient::new();
+    class_manager_client
+        .expect_get_executable()
+        .times(1)
+        .with(eq(class_hash))
+        .return_once(|_| Ok(Some(ContractClass::test_deprecated_casm_contract_class())));
+
+    let compiled_class = read_class_through_view_state_reader(
+        cairo_0_declaration(class_hash),
+        class_manager_client,
+        class_hash,
+    )
+    .await;
+
+    assert_matches!(compiled_class, Ok(RunnableCompiledClass::V0(_)));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn view_state_reader_errors_when_the_class_manager_lacks_a_declared_class() {
+    let class_hash = class_hash!("0x1234");
+    let mut class_manager_client = MockClassManagerClient::new();
+    class_manager_client
+        .expect_get_executable()
+        .times(1)
+        .with(eq(class_hash))
+        .return_once(|_| Ok(None));
+
+    let result = read_class_through_view_state_reader(
+        cairo_1_declaration(class_hash),
+        class_manager_client,
+        class_hash,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(StateError::UndeclaredClassHash(undeclared_class_hash))
+            if undeclared_class_hash == class_hash
+    );
+}
+
+/// A state reader whose every read parks until the sending half of `release_receiver` is dropped,
+/// standing in for a class manager that never answers.
+struct GatedStateReader {
+    release_receiver: Arc<Mutex<Receiver<()>>>,
+}
+
+impl GatedStateReader {
+    fn wait_for_release(&self) -> StateError {
+        let _ = self.release_receiver.lock().unwrap().recv();
+        StateError::StateReadError("Released.".to_string())
+    }
+}
+
+impl StateReader for GatedStateReader {
+    fn get_storage_at(&self, _address: ContractAddress, _key: StorageKey) -> StateResult<Felt> {
+        Err(self.wait_for_release())
+    }
+
+    fn get_nonce_at(&self, _address: ContractAddress) -> StateResult<Nonce> {
+        Err(self.wait_for_release())
+    }
+
+    fn get_class_hash_at(&self, _address: ContractAddress) -> StateResult<ClassHash> {
+        Err(self.wait_for_release())
+    }
+
+    fn get_compiled_class(&self, _class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        Err(self.wait_for_release())
+    }
+
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Err(self.wait_for_release())
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        _class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        Err(self.wait_for_release())
+    }
+}
+
+struct GatedViewStateReaderFactory {
+    release_receiver: Arc<Mutex<Receiver<()>>>,
+}
+
+impl ViewStateReaderFactory for GatedViewStateReaderFactory {
+    fn create(
+        &self,
+        _block_number: BlockNumber,
+        _native_classes_whitelist: NativeClassesWhitelist,
+        _runtime: tokio::runtime::Handle,
+    ) -> Box<dyn StateReader + Send> {
+        Box::new(GatedStateReader { release_receiver: self.release_receiver.clone() })
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn call_contract_times_out_when_the_state_reader_never_answers() {
+    let (release_sender, release_receiver) = channel();
+
+    let batcher = create_batcher(MockDependencies {
+        view_state_reader_factory: Box::new(GatedViewStateReaderFactory {
+            release_receiver: Arc::new(Mutex::new(release_receiver)),
+        }),
+        ..Default::default()
+    })
+    .await;
+    let view_call_timeout = batcher.config.dynamic_config.view_call_timeout_millis;
+
+    let mut call_contract_future = Box::pin(batcher.call_contract(CallContractInput {
+        contract_address: Default::default(),
+        entry_point: "get_stakers".to_string(),
+        calldata: vec![],
+    }));
+    // The first poll registers the timeout's timer; advancing the paused clock then expires it.
+    assert!(poll!(&mut call_contract_future).is_pending());
+    tokio::time::advance(view_call_timeout).await;
+    let Poll::Ready(result) = poll!(&mut call_contract_future) else {
+        panic!("The call did not return once its timeout elapsed.");
+    };
+
+    assert_matches!(
+        result,
+        Err(BatcherError::ContractCallFailed { reason })
+            if reason.contains(&view_call_timeout.as_secs().to_string())
+    );
+
+    // Let the blocked read finish, so the runtime can shut down.
+    drop(release_sender);
+}
+
+/// Deploys `contract` in real batcher storage at `LAST_COMMITTED_HEIGHT`, and returns the
+/// dependencies of a batcher whose view calls run over the real `StorageViewStateReaderFactory`.
+/// The caller states the class manager expectations, so that each test owns the number of reads it
+/// asserts on.
+fn deploy_contract_in_real_storage(contract: FeatureContract) -> MockDependenciesWithRealStorage {
+    let class_hash = contract.get_class_hash();
+    let mut mock_dependencies = MockDependenciesWithRealStorage::default();
+
+    let gas_price = GasPricePerToken { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
+    mock_dependencies
+        .storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(
+            LAST_COMMITTED_HEIGHT,
+            &BlockHeader {
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: LAST_COMMITTED_HEIGHT,
+                    l1_gas_price: gas_price,
+                    l1_data_gas_price: gas_price,
+                    l2_gas_price: gas_price,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .append_state_diff(
+            LAST_COMMITTED_HEIGHT,
+            ThinStateDiff {
+                deployed_contracts: indexmap! { contract.get_instance_address(0) => class_hash },
+                ..declaration(contract)
+            },
+        )
+        .unwrap()
+        // The commitment manager panics on a committed height with no hash commitment behind it.
+        .set_partial_block_hash_components(
+            &LAST_COMMITTED_HEIGHT,
+            &PartialBlockHashComponents::default(),
+        )
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    mock_dependencies
+}
+
+/// Drives `call_contract` over the real `StorageViewStateReaderFactory`, the composition the node
+/// runs: the runtime handle reaches the factory, the reader lands inside `spawn_blocking`, and the
+/// class read blocks on the class manager from that thread. Running the call on the async runtime
+/// instead panics in `ClassReader::block_on`.
+#[rstest]
+#[case::cairo_1(SIERRA_GAS_TRACKED_RECURSIVE_CONTRACT)]
+#[case::cairo_0(CAIRO_STEPS_TRACKED_RECURSIVE_CONTRACT)]
+#[tokio::test(flavor = "multi_thread")]
+async fn call_contract_over_real_storage_executes_a_class_from_the_class_manager(
+    #[case] contract: FeatureContract,
+) {
+    let class_hash = contract.get_class_hash();
+    let mut mock_dependencies = deploy_contract_in_real_storage(contract);
+    mock_dependencies
+        .class_manager_client
+        .expect_get_executable()
+        .times(1)
+        .with(eq(class_hash))
+        .returning(move |_| Ok(Some(contract.get_class())));
+    // The Cairo 1 route reads the Sierra too, for its version. The Cairo 0 route reads the
+    // executable alone.
+    if matches!(contract.cairo_version(), CairoVersion::Cairo1(_)) {
+        mock_dependencies
+            .class_manager_client
+            .expect_get_sierra()
+            .times(1)
+            .with(eq(class_hash))
+            .returning(move |_| Ok(Some(contract.get_sierra())));
+    }
+    let batcher = create_batcher_with_real_storage(mock_dependencies).await;
+
+    let result = batcher
+        .call_contract(recurse_call_contract_input(
+            contract,
+            RECURSION_DEPTH_WITHIN_RESOURCE_BOUNDS,
+        ))
+        .await;
+
+    assert_eq!(result.unwrap().retdata, vec![]);
+}
+
+/// Two view calls fetch the class once: the second is served from the batcher's class cache, which
+/// the view path and block production build over one `ContractClassManager`.
+#[tokio::test(flavor = "multi_thread")]
+async fn repeated_view_calls_fetch_the_class_once() {
+    let contract = SIERRA_GAS_TRACKED_RECURSIVE_CONTRACT;
+    let class_hash = contract.get_class_hash();
+    let mut mock_dependencies = deploy_contract_in_real_storage(contract);
+    mock_dependencies
+        .class_manager_client
+        .expect_get_executable()
+        .times(1)
+        .with(eq(class_hash))
+        .returning(move |_| Ok(Some(contract.get_class())));
+    mock_dependencies
+        .class_manager_client
+        .expect_get_sierra()
+        .times(1)
+        .with(eq(class_hash))
+        .returning(move |_| Ok(Some(contract.get_sierra())));
+    let batcher = create_batcher_with_real_storage(mock_dependencies).await;
+
+    for _ in 0..2 {
+        batcher
+            .call_contract(recurse_call_contract_input(
+                contract,
+                RECURSION_DEPTH_WITHIN_RESOURCE_BOUNDS,
+            ))
+            .await
+            .unwrap();
+    }
 }
