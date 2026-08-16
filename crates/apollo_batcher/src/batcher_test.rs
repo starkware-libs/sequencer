@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::task::Poll;
+use std::time::Duration;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig, BatcherStaticConfig};
 use apollo_batcher_types::batcher_types::{
@@ -94,6 +95,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, invoke_tx_args, tx_hash};
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use validator::Validate;
 
 use crate::batcher::{
@@ -107,7 +109,9 @@ use crate::batcher::{
     StorageCommitmentBlockHash,
     StorageViewStateReaderFactory,
     ViewStateReaderFactory,
+    MAX_CONCURRENT_VIEW_CALLS,
     MAX_VIEW_CALL_RETDATA_LENGTH,
+    TOO_MANY_VIEW_CALLS_REASON,
     VIEW_CALL_TIMEOUT,
 };
 use crate::block_builder::{
@@ -128,6 +132,7 @@ use crate::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
+    REJECTED_VIEW_CALLS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SYNCED_TRANSACTIONS,
@@ -194,6 +199,79 @@ impl ViewStateReaderFactory for TestViewStateReaderFactory {
     ) -> Box<dyn StateReader + Send> {
         assert_eq!(block_number, self.expected_block_number);
         Box::new(self.state.lock().unwrap().clone())
+    }
+}
+
+/// Creates readers that park the blocking thread executing the view call until released,
+/// reproducing a view call that outlives the caller waiting for it. Serves a single view call.
+struct ParkedViewStateReaderFactory {
+    entered_sender: UnboundedSender<()>,
+    release_receiver: Mutex<Option<mpsc::Receiver<()>>>,
+}
+
+impl ViewStateReaderFactory for ParkedViewStateReaderFactory {
+    fn create(
+        &self,
+        _block_number: BlockNumber,
+        _native_classes_whitelist: NativeClassesWhitelist,
+        _runtime: tokio::runtime::Handle,
+    ) -> Box<dyn StateReader + Send> {
+        let release_receiver =
+            self.release_receiver.lock().unwrap().take().expect("Expected a single view call.");
+        Box::new(ParkedViewStateReader {
+            entered_sender: self.entered_sender.clone(),
+            release_receiver: Mutex::new(Some(release_receiver)),
+            state: DictStateReader::default(),
+        })
+    }
+}
+
+/// An empty state whose first access parks the calling thread until released.
+struct ParkedViewStateReader {
+    entered_sender: UnboundedSender<()>,
+    /// Taken by the first state access, so that only that access parks.
+    release_receiver: Mutex<Option<mpsc::Receiver<()>>>,
+    state: DictStateReader,
+}
+
+impl ParkedViewStateReader {
+    fn park_on_first_access(&self) {
+        let release_receiver = self.release_receiver.lock().unwrap().take();
+        if let Some(release_receiver) = release_receiver {
+            self.entered_sender.send(()).unwrap();
+            release_receiver.recv().unwrap();
+        }
+    }
+}
+
+impl StateReader for ParkedViewStateReader {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        self.park_on_first_access();
+        self.state.get_storage_at(contract_address, key)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.park_on_first_access();
+        self.state.get_nonce_at(contract_address)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        self.park_on_first_access();
+        self.state.get_class_hash_at(contract_address)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.park_on_first_access();
+        self.state.get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.park_on_first_access();
+        self.state.get_compiled_class_hash(class_hash)
     }
 }
 
@@ -2060,27 +2138,101 @@ async fn validation_only_flag_true_with_mempool_panics() {
     new_batcher_with_mempool_override(validation_only_mock_dependencies(), mempool).await;
 }
 
+fn undeployed_contract_call_input() -> CallContractInput {
+    CallContractInput {
+        contract_address: Default::default(),
+        entry_point: "get_stakers".to_string(),
+        calldata: vec![],
+    }
+}
+
+/// Creates a batcher whose view calls run against an empty state with no contracts deployed.
+async fn create_batcher_with_empty_view_state() -> Batcher {
+    create_batcher(MockDependencies {
+        view_state_reader_factory: Box::new(TestViewStateReaderFactory {
+            state: Arc::new(Mutex::new(CachedState::from(DictStateReader::default()))),
+            expected_block_number: INITIAL_HEIGHT,
+        }),
+        ..Default::default()
+    })
+    .await
+}
+
 #[tokio::test]
 async fn call_contract_contract_not_deployed() {
-    // The factory returns an empty state with no contracts deployed.
-    let state = Arc::new(Mutex::new(CachedState::from(DictStateReader::default())));
-    let factory = TestViewStateReaderFactory { state, expected_block_number: INITIAL_HEIGHT };
+    let batcher = create_batcher_with_empty_view_state().await;
 
+    let result = batcher.call_contract(undeployed_contract_call_input()).await;
+
+    assert_matches!(result, Err(BatcherError::ContractCallFailed { .. }));
+}
+
+#[tokio::test]
+async fn call_contract_rejected_when_all_view_call_slots_are_taken() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let batcher = create_batcher_with_empty_view_state().await;
+
+    let taken_view_call_slots: Vec<_> = (0..MAX_CONCURRENT_VIEW_CALLS)
+        .map(|_| batcher.view_call_semaphore.clone().try_acquire_owned().unwrap())
+        .collect();
+
+    assert_matches!(
+        batcher.call_contract(undeployed_contract_call_input()).await,
+        Err(BatcherError::ContractCallFailed { reason }) if reason == TOO_MANY_VIEW_CALLS_REASON,
+        "The call should be rejected instead of waiting for a slot."
+    );
+    assert_eq!(
+        REJECTED_VIEW_CALLS.parse_numeric_metric::<u64>(&recorder.handle().render()),
+        Some(1)
+    );
+
+    // Freeing the slots lets the next call execute; it then fails on the empty state.
+    drop(taken_view_call_slots);
+    assert_matches!(
+        batcher.call_contract(undeployed_contract_call_input()).await,
+        Err(BatcherError::ContractCallFailed { reason }) if reason != TOO_MANY_VIEW_CALLS_REASON
+    );
+}
+
+/// A view call slot models the occupancy of a tokio blocking thread, which no caller-side timeout
+/// can cancel. It must therefore outlive a caller that gave up waiting.
+#[tokio::test]
+async fn view_call_slot_is_freed_only_when_the_blocking_task_ends() {
+    let (entered_sender, mut entered_receiver) = unbounded_channel();
+    let (release_sender, release_receiver) = mpsc::channel();
     let batcher = create_batcher(MockDependencies {
-        view_state_reader_factory: Box::new(factory),
+        view_state_reader_factory: Box::new(ParkedViewStateReaderFactory {
+            entered_sender,
+            release_receiver: Mutex::new(Some(release_receiver)),
+        }),
         ..Default::default()
     })
     .await;
+    let view_call_semaphore = batcher.view_call_semaphore.clone();
 
-    let result = batcher
-        .call_contract(CallContractInput {
-            contract_address: Default::default(),
-            entry_point: "get_stakers".to_string(),
-            calldata: vec![],
-        })
-        .await;
+    let mut call_future = Box::pin(batcher.call_contract(undeployed_contract_call_input()));
+    assert!(futures::poll!(&mut call_future).is_pending());
+    entered_receiver.recv().await.expect("The view call should reach the state reader.");
+    assert_eq!(view_call_semaphore.available_permits(), MAX_CONCURRENT_VIEW_CALLS - 1);
 
-    assert_matches!(result, Err(BatcherError::ContractCallFailed { .. }));
+    // The caller gives up while the blocking thread is still parked.
+    drop(call_future);
+    assert_eq!(
+        view_call_semaphore.available_permits(),
+        MAX_CONCURRENT_VIEW_CALLS - 1,
+        "The slot must stay taken while the blocking thread is parked."
+    );
+
+    release_sender.send(()).unwrap();
+    // Acquiring every slot succeeds only once the parked thread returns the one it holds.
+    let all_view_call_slots = tokio::time::timeout(
+        Duration::from_secs(5),
+        view_call_semaphore.acquire_many(u32::try_from(MAX_CONCURRENT_VIEW_CALLS).unwrap()),
+    )
+    .await
+    .expect("The slot should be freed once the blocking task ends.");
+    assert!(all_view_call_slots.is_ok());
 }
 
 #[tokio::test]

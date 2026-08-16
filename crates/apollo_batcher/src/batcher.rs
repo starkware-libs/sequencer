@@ -118,7 +118,7 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 use validator::Validate;
@@ -153,6 +153,7 @@ use crate::metrics::{
     NUM_TRANSACTION_IN_BLOCK,
     PROVING_GAS_IN_LAST_BLOCK,
     REJECTED_TRANSACTIONS,
+    REJECTED_VIEW_CALLS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SIERRA_GAS_IN_LAST_BLOCK,
@@ -186,6 +187,9 @@ pub struct Batcher {
     pub storage_reader: Arc<dyn BatcherStorageReader>,
     /// Factory for creating state readers used to execute view calls (e.g. call_contract).
     view_state_reader_factory: Box<dyn ViewStateReaderFactory>,
+    /// Caps how many view calls may occupy tokio blocking threads at once. A permit is held by the
+    /// blocking task itself, so it is returned only when the execution really ends.
+    view_call_semaphore: Arc<Semaphore>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
@@ -262,6 +266,7 @@ impl Batcher {
             config,
             storage_reader,
             view_state_reader_factory,
+            view_call_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_VIEW_CALLS)),
             storage_writer,
             committer_client,
             l1_events_provider_client,
@@ -761,7 +766,21 @@ impl Batcher {
             BouncerConfig::max(),
         );
 
+        let view_call_permit =
+            self.view_call_semaphore.clone().try_acquire_owned().map_err(|_| {
+                REJECTED_VIEW_CALLS.increment(1);
+                warn!(
+                    "Rejecting view call, all {MAX_CONCURRENT_VIEW_CALLS} view call slots are \
+                     taken."
+                );
+                BatcherError::ContractCallFailed { reason: TOO_MANY_VIEW_CALLS_REASON.to_string() }
+            })?;
+
         let call_task = tokio::task::spawn_blocking(move || {
+            // Owned by the blocking task, so the slot is freed only when the execution ends. A
+            // caller that stops waiting (the view call timeout, a dropped connection) must not
+            // free a slot that a still-parked thread occupies.
+            let _view_call_permit = view_call_permit;
             call_view_entry_point(
                 state_reader,
                 Arc::new(block_context),
@@ -1574,6 +1593,22 @@ pub(crate) const MAX_VIEW_CALL_RETDATA_LENGTH: usize = 100_000;
 /// retries a 30 second per-attempt timeout up to 150 times in the distributed deployment, and the
 /// local client the other deployments use has neither timeout nor retries.
 pub(crate) const VIEW_CALL_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Maximal number of view calls that may occupy tokio blocking threads at once.
+///
+/// The node runs on a bare `#[tokio::main]` runtime, so the blocking pool holds tokio's default of
+/// 512 threads, and `spawn_blocking` beyond that queues instead of failing. Block production shares
+/// that pool (block_builder execution and block hash computation), as do the gateway's stateful
+/// validator and the transaction converter, so view calls, a non-critical read path, get a small
+/// slice of it: 32 slots is under 7% of the pool, leaving block production unaffected even when
+/// every view call slot is stuck. A view call that a caller abandoned keeps its thread parked until
+/// execution ends, so this is also the cap on how many such threads can pile up.
+pub(crate) const MAX_CONCURRENT_VIEW_CALLS: usize = 32;
+
+/// Reason returned when all view call slots are taken. Names no internal component, since it
+/// reaches external callers.
+pub(crate) const TOO_MANY_VIEW_CALLS_REASON: &str =
+    "Too many concurrent contract calls. Try again later.";
 
 /// Rejects a view call whose return value is too large to hand back to the caller.
 pub(crate) fn validate_retdata_length(retdata_length: usize) -> BatcherResult<()> {
