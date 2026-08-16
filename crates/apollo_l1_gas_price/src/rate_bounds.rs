@@ -11,11 +11,12 @@ use crate::metrics::CHAINLINK_ORACLE_RATE_OUT_OF_BOUNDS_COUNT;
 #[path = "rate_bounds_test.rs"]
 mod rate_bounds_test;
 
-// TODO(Asaf): bound the rate's change against the previous block's implied rate. The absolute
-// bounds below are wide enough to pass a manipulated but plausible answer, the STRK/USD pair alone
-// accepting anything from $0.0001 to $10, which only a bound relative to the last accepted rate
-// catches. It must be anchored to the block header rather than to node-local history, so that every
-// validator accepts and rejects the same values.
+// The bounds below are absolute: they are wide enough to pass a manipulated but plausible answer,
+// the STRK/USD pair alone accepting anything from $0.0001 to $10, and only catch a wrong feed. The
+// bound relative to the previous block's implied rate lives in
+// `apollo_consensus_orchestrator::utils`, where the previous block is in hand, so that it is
+// anchored to the block header rather than to this client's own read history and every validator
+// accepts and rejects the same values.
 /// Absolute bounds are the only defense against a feed wired to the wrong asset or a
 /// plausible-but-poisoned answer: consensus checks that validators agree with each other, never
 /// that the agreed value is sane, and every node reads the same chain state.

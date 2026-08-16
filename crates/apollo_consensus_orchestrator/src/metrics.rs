@@ -18,6 +18,7 @@ define_metrics!(
         MetricGauge { CONSENSUS_L2_GAS_PRICE_AT_MINIMUM, "consensus_l2_gas_price_at_minimum", "1 when the accepted L2 gas price is clamped at the configured minimum (min_l2_gas_price_per_height, or the versioned-constants min_gas_price fallback), else 0" },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
         MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH, "consensus_retrospective_block_hash_mismatch", "Number of times the retrospective block hashes of the state sync and the batcher mismatched", init=0},
+        MetricCounter { CONSENSUS_ETH_TO_FRI_RATE_CLAMPED, "consensus_eth_to_fri_rate_clamped", "Number of times the eth to fri rate from the oracle was clamped to the per-block change bound around the rate implied by the previous block", init=0},
 
 
         // Cende metrics
@@ -101,6 +102,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.register();
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.register();
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.register();
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.register();
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.register();
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.register();
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.register();
