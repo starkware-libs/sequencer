@@ -2,64 +2,16 @@ use std::collections::BTreeSet;
 #[cfg(any(feature = "testing", test))]
 use std::collections::HashSet;
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
-use starknet_api::state::{StorageKey, ThinStateDiff};
-use starknet_types_core::felt::Felt;
+use starknet_api::core::{ClassHash, ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::state::StorageKey;
 
-use super::cached_state::{CommitmentStateDiff, StateChangesKeys, StorageEntry};
+use super::cached_state::{StateChangesKeys, StateDiffView, StorageEntry};
 use super::stateful_compression::predicted_alias_storage_entries;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::CallInfo;
 use crate::transaction::objects::TransactionExecutionInfo;
-
-/// A read-only view of the state-diff fields `AccessedKeys` needs, implemented for both
-/// `CommitmentStateDiff` (built while executing a block) and `ThinStateDiff` (as received from
-/// state sync), so `AccessedKeys` can be computed from either without an intermediate clone.
-pub trait StateDiffAccessedKeysView {
-    fn storage_updates(&self) -> &IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
-    fn address_to_nonce_keys(&self) -> impl Iterator<Item = &ContractAddress>;
-    fn address_to_class_hash(&self) -> &IndexMap<ContractAddress, ClassHash>;
-    fn class_hash_to_compiled_class_hash(&self) -> &IndexMap<ClassHash, CompiledClassHash>;
-}
-
-impl StateDiffAccessedKeysView for CommitmentStateDiff {
-    fn storage_updates(&self) -> &IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> {
-        &self.storage_updates
-    }
-
-    fn address_to_nonce_keys(&self) -> impl Iterator<Item = &ContractAddress> {
-        self.address_to_nonce.keys()
-    }
-
-    fn address_to_class_hash(&self) -> &IndexMap<ContractAddress, ClassHash> {
-        &self.address_to_class_hash
-    }
-
-    fn class_hash_to_compiled_class_hash(&self) -> &IndexMap<ClassHash, CompiledClassHash> {
-        &self.class_hash_to_compiled_class_hash
-    }
-}
-
-impl StateDiffAccessedKeysView for ThinStateDiff {
-    fn storage_updates(&self) -> &IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> {
-        &self.storage_diffs
-    }
-
-    fn address_to_nonce_keys(&self) -> impl Iterator<Item = &ContractAddress> {
-        self.nonces.keys()
-    }
-
-    fn address_to_class_hash(&self) -> &IndexMap<ContractAddress, ClassHash> {
-        &self.deployed_contracts
-    }
-
-    fn class_hash_to_compiled_class_hash(&self) -> &IndexMap<ClassHash, CompiledClassHash> {
-        &self.class_hash_to_compiled_class_hash
-    }
-}
 
 #[cfg(test)]
 #[path = "accessed_keys_test.rs"]
@@ -121,7 +73,7 @@ impl AccessedKeys {
     pub fn new<'a>(
         execution_infos: impl IntoIterator<Item = &'a TransactionExecutionInfo>,
         proof_facts_block_numbers: impl IntoIterator<Item = &'a BlockNumber>,
-        state_diff: &impl StateDiffAccessedKeysView,
+        state_diff: &impl StateDiffView,
         versioned_constants: &VersionedConstants,
     ) -> Self {
         Self::from_call_infos(
@@ -142,7 +94,7 @@ impl AccessedKeys {
     pub fn from_call_infos<'a>(
         call_infos: impl IntoIterator<Item = &'a CallInfo>,
         proof_facts_block_numbers: impl IntoIterator<Item = &'a BlockNumber>,
-        state_diff: &impl StateDiffAccessedKeysView,
+        state_diff: &impl StateDiffView,
         versioned_constants: &VersionedConstants,
     ) -> Self {
         let mut storage_keys: BTreeSet<StorageEntry> = BTreeSet::new();
@@ -164,7 +116,7 @@ impl AccessedKeys {
         }
 
         // Storage entries written in the state diff.
-        for (address, inner) in state_diff.storage_updates() {
+        for (address, inner) in state_diff.storage_diffs() {
             storage_keys.extend(inner.keys().map(|key| (*address, *key)));
         }
         // Add the block hash table entries for the proof facts.
@@ -181,16 +133,9 @@ impl AccessedKeys {
         }
 
         accessed_contracts.extend(storage_keys.iter().map(|(address, _)| *address));
-        accessed_contracts.extend(
-            state_diff
-                .storage_updates()
-                .keys()
-                .chain(state_diff.address_to_nonce_keys())
-                .chain(state_diff.address_to_class_hash().keys())
-                .copied(),
-        );
+        accessed_contracts.extend(state_diff.contract_addresses().copied());
 
-        accessed_class_hashes.extend(state_diff.address_to_class_hash().values().copied());
+        accessed_class_hashes.extend(state_diff.deployed_contracts().values().copied());
         accessed_class_hashes
             .extend(state_diff.class_hash_to_compiled_class_hash().keys().copied());
 

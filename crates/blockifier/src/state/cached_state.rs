@@ -724,14 +724,63 @@ pub struct CommitmentStateDiff {
     pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
 }
 
-impl CommitmentStateDiff {
-    /// Union of addresses with storage updates, nonce changes, or class hash changes.
-    pub fn get_contract_addresses(&self) -> HashSet<&ContractAddress> {
-        self.storage_updates
+/// A read-only view of the state-diff fields `AccessedKeys` and the alias-compression prediction
+/// need, implemented for both `CommitmentStateDiff` (built while executing a block) and
+/// `ThinStateDiff` (as received from state sync), so both can be computed from either state diff
+/// without an intermediate clone.
+pub trait StateDiffView {
+    fn storage_diffs(&self) -> &IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
+    fn nonces(&self) -> &IndexMap<ContractAddress, Nonce>;
+    fn deployed_contracts(&self) -> &IndexMap<ContractAddress, ClassHash>;
+    fn class_hash_to_compiled_class_hash(&self) -> &IndexMap<ClassHash, CompiledClassHash>;
+
+    /// Union of addresses with storage updates, nonce changes, or class hash changes. May yield
+    /// the same address more than once; callers that need a deduplicated set should collect into
+    /// one.
+    fn contract_addresses(&self) -> impl Iterator<Item = &ContractAddress> {
+        self.storage_diffs()
             .keys()
-            .chain(self.address_to_nonce.keys())
-            .chain(self.address_to_class_hash.keys())
-            .collect()
+            .chain(self.nonces().keys())
+            .chain(self.deployed_contracts().keys())
+    }
+}
+
+impl StateDiffView for CommitmentStateDiff {
+    fn storage_diffs(&self) -> &IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> {
+        &self.storage_updates
+    }
+
+    fn nonces(&self) -> &IndexMap<ContractAddress, Nonce> {
+        &self.address_to_nonce
+    }
+
+    fn deployed_contracts(&self) -> &IndexMap<ContractAddress, ClassHash> {
+        &self.address_to_class_hash
+    }
+
+    fn class_hash_to_compiled_class_hash(&self) -> &IndexMap<ClassHash, CompiledClassHash> {
+        &self.class_hash_to_compiled_class_hash
+    }
+}
+
+/// Drops `deprecated_declared_classes: Vec<ClassHash>`, which has no counterpart here: Cairo-0
+/// classes have no contract-class-trie leaf (mirrors `From<ThinStateDiff> for
+/// CommitmentStateDiff`).
+impl StateDiffView for ThinStateDiff {
+    fn storage_diffs(&self) -> &IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> {
+        &self.storage_diffs
+    }
+
+    fn nonces(&self) -> &IndexMap<ContractAddress, Nonce> {
+        &self.nonces
+    }
+
+    fn deployed_contracts(&self) -> &IndexMap<ContractAddress, ClassHash> {
+        &self.deployed_contracts
+    }
+
+    fn class_hash_to_compiled_class_hash(&self) -> &IndexMap<ClassHash, CompiledClassHash> {
+        &self.class_hash_to_compiled_class_hash
     }
 }
 
