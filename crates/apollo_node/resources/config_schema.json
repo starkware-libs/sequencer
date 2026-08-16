@@ -2684,6 +2684,11 @@
     "privacy": "Public",
     "value": 1000000000
   },
+  "consensus_manager_config.context_config.dynamic_config.max_eth_to_fri_rate_change_ppt": {
+    "description": "Maximum change, in parts per thousand, of the Eth-to-Fri rate relative to the rate implied by the previous block. A fresh oracle rate outside this band is clamped to the band's edge.",
+    "privacy": "Public",
+    "value": 50
+  },
   "consensus_manager_config.context_config.dynamic_config.max_l1_data_gas_price_wei": {
     "description": "The maximum L1 data gas price in wei.",
     "privacy": "Public",
