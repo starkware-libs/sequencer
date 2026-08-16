@@ -1236,6 +1236,17 @@
           }
         },
         {
+          "title": "Class Cache Miss in Batcher View Calls",
+          "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader in Batcher View Calls",
+          "type": "timeseries",
+          "exprs": [
+            "(increase(batcher_view_call_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(batcher_view_call_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(batcher_view_call_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
           "title": "Native compilation error count",
           "description": "Count of the number of times there was a native compilation error",
           "type": "stat",

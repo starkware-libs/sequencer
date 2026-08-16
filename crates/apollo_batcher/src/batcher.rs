@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -44,7 +45,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
-use apollo_state_reader::apollo_state::ApolloReader;
+use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 #[cfg(feature = "os_input")]
 use apollo_storage::accessed_keys::{AccessedKeys, AccessedKeysStorageWriter};
@@ -81,6 +82,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -90,6 +92,7 @@ use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::StateReader;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
@@ -140,6 +143,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_EVENTS_PROVIDER_ERRORS,
+    BATCHER_VIEW_CALL_CLASS_CACHE_METRICS,
     BUILDING_HEIGHT,
     GLOBAL_ROOT_HEIGHT,
     L2_GAS_IN_LAST_BLOCK,
@@ -745,7 +749,11 @@ impl Batcher {
             Some(last_committed_block) => self.get_block_info(last_committed_block)?,
         };
 
-        let state_reader = self.view_state_reader_factory.create(height);
+        let state_reader = self.view_state_reader_factory.create(
+            height,
+            self.config.dynamic_config.native_classes_whitelist.clone(),
+            tokio::runtime::Handle::current(),
+        );
         let block_context = BlockContext::new(
             block_info,
             self.config.static_config.block_builder_config.chain_info.clone(),
@@ -753,7 +761,7 @@ impl Batcher {
             BouncerConfig::max(),
         );
 
-        let retdata = tokio::task::spawn_blocking(move || {
+        let call_task = tokio::task::spawn_blocking(move || {
             call_view_entry_point(
                 state_reader,
                 Arc::new(block_context),
@@ -762,13 +770,26 @@ impl Batcher {
                 Calldata::from(input.calldata),
             )
             .map(|call_info| call_info.execution.retdata.0)
-        })
-        .await
-        .map_err(|err| {
-            error!("Failed to spawn blocking task for call_contract: {err}");
-            BatcherError::InternalError
-        })?
-        .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
+        });
+
+        // Timing out releases the batcher's request slot but does not cancel the blocking task,
+        // which runs to completion on its own thread.
+        let retdata = tokio::time::timeout(VIEW_CALL_TIMEOUT, call_task)
+            .await
+            .map_err(|_| {
+                error!("View call timed out after {VIEW_CALL_TIMEOUT:?}.");
+                BatcherError::ContractCallFailed {
+                    reason: format!(
+                        "Call timed out after {} seconds.",
+                        VIEW_CALL_TIMEOUT.as_secs()
+                    ),
+                }
+            })?
+            .map_err(|err| {
+                error!("Failed to spawn blocking task for call_contract: {err}");
+                BatcherError::InternalError
+            })?
+            .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
 
         validate_retdata_length(retdata.len())?;
 
@@ -1547,6 +1568,13 @@ impl Batcher {
 /// during execution.
 pub(crate) const MAX_VIEW_CALL_RETDATA_LENGTH: usize = 100_000;
 
+/// Maximal wall time a view entry point call may hold the batcher's request slot, which block
+/// production shares. Execution is bounded by the view call's resource bounds; the budget is for
+/// the class reads, which have no overall deadline across retries: the remote class manager client
+/// retries a 30 second per-attempt timeout up to 150 times in the distributed deployment, and the
+/// local client the other deployments use has neither timeout nor retries.
+pub(crate) const VIEW_CALL_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Rejects a view call whose return value is too large to hand back to the caller.
 pub(crate) fn validate_retdata_length(retdata_length: usize) -> BatcherResult<()> {
     if retdata_length > MAX_VIEW_CALL_RETDATA_LENGTH {
@@ -1660,18 +1688,22 @@ pub async fn create_batcher(
         config: config.static_config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
+    // Block production and view calls share one class cache.
+    let contract_class_manager =
+        ContractClassManager::start(config.static_config.contract_class_manager_config.clone());
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.static_config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
-        contract_class_manager: ContractClassManager::start(
-            config.static_config.contract_class_manager_config.clone(),
-        ),
-        class_manager_client,
+        contract_class_manager: contract_class_manager.clone(),
+        class_manager_client: class_manager_client.clone(),
         proof_manager_client,
         worker_pool,
     });
-    let view_state_reader_factory =
-        Box::new(StorageViewStateReaderFactory { storage_reader: storage_reader.clone() });
+    let view_state_reader_factory = Box::new(StorageViewStateReaderFactory {
+        storage_reader: storage_reader.clone(),
+        contract_class_manager,
+        class_manager_client,
+    });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
 
@@ -1933,16 +1965,48 @@ impl BatcherStorageWriter for StorageWriter {
 /// real storage infrastructure.
 #[cfg_attr(test, automock)]
 pub trait ViewStateReaderFactory: Send + Sync {
-    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send>;
+    /// `native_classes_whitelist` gates which classes may execute under Cairo native, and must be
+    /// the one block production runs with, so a view call returns what a block would compute.
+    /// The reader blocks on the class manager through `runtime`, from the blocking task the view
+    /// call runs in.
+    fn create(
+        &self,
+        block_number: BlockNumber,
+        native_classes_whitelist: NativeClassesWhitelist,
+        runtime: tokio::runtime::Handle,
+    ) -> Box<dyn StateReader + Send>;
 }
 
 pub(crate) struct StorageViewStateReaderFactory {
     pub(crate) storage_reader: StorageReader,
+    pub(crate) contract_class_manager: ContractClassManager,
+    pub(crate) class_manager_client: SharedClassManagerClient,
 }
 
 impl ViewStateReaderFactory for StorageViewStateReaderFactory {
-    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send> {
-        Box::new(ApolloReader::new(self.storage_reader.clone(), block_number))
+    fn create(
+        &self,
+        block_number: BlockNumber,
+        native_classes_whitelist: NativeClassesWhitelist,
+        runtime: tokio::runtime::Handle,
+    ) -> Box<dyn StateReader + Send> {
+        // The batcher's storage records class declarations but never writes the definitions, so a
+        // class is only readable through the class manager.
+        let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
+        let apollo_reader = ApolloReader::new_with_class_reader(
+            self.storage_reader.clone(),
+            block_number,
+            class_reader,
+        );
+        // The class cache is shared with block production, so a view call fetches and compiles only
+        // the classes neither has seen yet. Its hits and misses are counted apart from block
+        // production's, which view calls would otherwise dominate.
+        Box::new(StateReaderAndContractManager::new_with_native_classes_whitelist(
+            apollo_reader,
+            self.contract_class_manager.clone(),
+            native_classes_whitelist,
+            Some(BATCHER_VIEW_CALL_CLASS_CACHE_METRICS),
+        ))
     }
 }
 
