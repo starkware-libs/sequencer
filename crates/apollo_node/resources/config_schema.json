@@ -79,6 +79,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "batcher_config.dynamic_config.view_call_timeout_millis": {
+    "description": "Maximal wall time (in milliseconds) a view entry point call may hold the batcher's request slot, which block production shares.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
