@@ -65,6 +65,7 @@ use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentIn
 use tracing_test::traced_test;
 
 use crate::cende::{
+    BlockAccessedKeysData,
     CendeAmbassadorError,
     MockCendeContext,
     StateCommitmentInfosAndNumber,
@@ -2064,4 +2065,106 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             "phase {phase_idx}: fee_actual did not reach fee_target after {n_blocks} blocks",
         );
     }
+}
+
+// When `fetch_accessed_keys_from_centralized` is enabled, `try_sync` fetches the block's accessed
+// keys from the recorder and forwards them to the batcher's `add_sync_block`.
+#[tokio::test]
+async fn try_sync_forwards_accessed_keys_from_centralized() {
+    const SYNC_HEIGHT: BlockNumber = BlockNumber(7);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    // Specific get_block expectation must be registered before setup_default_expectations, which
+    // installs a catch-all handler.
+    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        Ok(sync_block)
+    });
+    deps.setup_default_expectations();
+
+    // The recorder returns the block's transactions and execution infos; `try_sync` computes the
+    // accessed keys from them (plus the synced block's state diff and the latest versioned
+    // constants) and forwards them to `add_sync_block`. Empty data exercises the
+    // fetch -> compute -> forward path.
+    let block_data = BlockAccessedKeysData { transactions: vec![], execution_infos: vec![] };
+    deps.cende_ambassador
+        .expect_get_accessed_keys_input()
+        .times(1)
+        .withf(|block_number| *block_number == SYNC_HEIGHT)
+        .return_once(move |_| Ok(Some(block_data)));
+    deps.batcher
+        .expect_add_sync_block()
+        .times(1)
+        .withf(|_sync_block, accessed_keys| accessed_keys.is_some())
+        .return_once(|_, _| Ok(()));
+
+    let mut context = deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig {
+            chain_id: CHAIN_ID,
+            fetch_accessed_keys_from_centralized: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    assert!(context.try_sync(SYNC_HEIGHT).await);
+}
+
+// When `fetch_accessed_keys_from_centralized` is enabled, the block's accessed keys are required;
+// the data is expected to be ready at sync time, so a missing entry in the recorder is a bug.
+#[tokio::test]
+#[should_panic(expected = "The accessed-keys data for synced block 7 is expected to be ready.")]
+async fn try_sync_panics_when_recorder_has_no_accessed_keys() {
+    const SYNC_HEIGHT: BlockNumber = BlockNumber(7);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    // Specific get_block expectation must be registered before setup_default_expectations, which
+    // installs a catch-all handler.
+    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        Ok(sync_block)
+    });
+    deps.setup_default_expectations();
+
+    deps.cende_ambassador.expect_get_accessed_keys_input().times(1).return_once(|_| Ok(None));
+    deps.batcher.expect_add_sync_block().times(0);
+
+    let mut context = deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig {
+            chain_id: CHAIN_ID,
+            fetch_accessed_keys_from_centralized: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    context.try_sync(SYNC_HEIGHT).await;
+}
+
+// With the opt-in disabled (the default), `try_sync` must not query the recorder and passes `None`
+// accessed keys to the batcher.
+#[tokio::test]
+async fn try_sync_skips_accessed_keys_when_disabled() {
+    const SYNC_HEIGHT: BlockNumber = BlockNumber(7);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        Ok(sync_block)
+    });
+    deps.setup_default_expectations();
+
+    deps.cende_ambassador.expect_get_accessed_keys_input().times(0);
+    deps.batcher
+        .expect_add_sync_block()
+        .times(1)
+        .withf(|_sync_block, accessed_keys| accessed_keys.is_none())
+        .return_once(|_, _| Ok(()));
+
+    let mut context = deps.build_context();
+
+    assert!(context.try_sync(SYNC_HEIGHT).await);
 }
