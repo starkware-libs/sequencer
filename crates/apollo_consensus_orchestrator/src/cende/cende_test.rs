@@ -6,7 +6,6 @@ use apollo_class_manager_types::MockClassManagerClient;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::call_info::{CallInfo, StorageAccessTracker};
 use blockifier::execution::entry_point::CallEntryPoint;
-use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::stateful_compression::ALIAS_COUNTER_STORAGE_KEY;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -15,7 +14,7 @@ use rstest::rstest;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, ProofFacts};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -365,8 +364,8 @@ fn compute_accessed_keys() {
     // A state diff writing to a storage key of another contract.
     let written_address = ContractAddress::from(0x500_u16);
     let written_key = StorageKey::from(0x600_u16);
-    let mut state_diff = CommitmentStateDiff::default();
-    state_diff.storage_updates.entry(written_address).or_default().insert(written_key, Felt::ONE);
+    let mut state_diff = ThinStateDiff::default();
+    state_diff.storage_diffs.entry(written_address).or_default().insert(written_key, Felt::ONE);
 
     let block_accessed_keys_data = BlockAccessedKeysData {
         transactions: vec![transaction],

@@ -155,8 +155,10 @@ impl BlockAccessedKeysData {
     /// Computes the block's `AccessedKeys` from the recorder-supplied transactions and execution
     /// infos, the synced block's `state_diff`, and the latest versioned constants. Mirrors
     /// `AccessedKeys::new`, but sources the call infos from the central execution infos and the
-    /// proof-facts block numbers from the transactions.
-    pub fn compute_accessed_keys(&self, state_diff: &CommitmentStateDiff) -> AccessedKeys {
+    /// proof-facts block numbers from the transactions. Takes the synced block's `state_diff` by
+    /// reference (a `ThinStateDiff`, not a `CommitmentStateDiff`) so the caller isn't forced to
+    /// clone it just to compute the accessed keys.
+    pub fn compute_accessed_keys(&self, state_diff: &ThinStateDiff) -> AccessedKeys {
         let proof_facts_block_numbers: Vec<BlockNumber> = self
             .transactions
             .iter()

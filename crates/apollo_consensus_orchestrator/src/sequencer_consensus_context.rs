@@ -1141,7 +1141,7 @@ impl ConsensusContext for SequencerConsensusContext {
             match self.deps.cende_ambassador.get_accessed_keys_input(block_number).await {
                 Ok(Some(block_data)) => {
                     info!("Fetched accessed-keys data for synced block {block_number}.");
-                    Some(block_data.compute_accessed_keys(&sync_block.state_diff.clone().into()))
+                    Some(block_data.compute_accessed_keys(&sync_block.state_diff))
                 }
                 Ok(None) => {
                     panic!(
