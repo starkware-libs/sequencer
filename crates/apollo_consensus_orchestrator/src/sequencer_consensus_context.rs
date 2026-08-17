@@ -572,7 +572,7 @@ impl SequencerConsensusContext {
                 init,
                 &cende_block_info,
                 l2_gas_used,
-                block_header_commitments,
+                block_header_commitments.clone(),
             )
             .await
         {
@@ -635,6 +635,7 @@ impl SequencerConsensusContext {
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
                 recent_state_commitment_infos,
                 initial_reads: central_objects.initial_reads,
+                block_hash_commitments: block_header_commitments,
             })
             .await
         {

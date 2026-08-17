@@ -43,6 +43,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
@@ -113,6 +114,7 @@ pub struct AerospikeBlob {
     recent_block_hashes: Vec<BlockHashAndNumber>,
     recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
     initial_reads: StateMaps,
+    block_hash_commitments: BlockHeaderCommitments,
 }
 
 #[cfg_attr(test, automock)]
@@ -510,6 +512,7 @@ pub struct BlobParameters {
     pub recent_block_hashes: Vec<BlockHashAndNumber>,
     pub recent_state_commitment_infos: Vec<StateCommitmentInfosAndNumber>,
     pub initial_reads: StateMaps,
+    pub block_hash_commitments: BlockHeaderCommitments,
 }
 
 impl AerospikeBlob {
@@ -567,6 +570,7 @@ impl AerospikeBlob {
             recent_block_hashes: blob_parameters.recent_block_hashes,
             recent_state_commitment_infos: blob_parameters.recent_state_commitment_infos,
             initial_reads: blob_parameters.initial_reads,
+            block_hash_commitments: blob_parameters.block_hash_commitments,
         })
     }
 }

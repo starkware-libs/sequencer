@@ -3870,5 +3870,12 @@
       "block_number": 2,
       "block_hash": "0x2"
     }
-  ]
+  ],
+  "block_hash_commitments": {
+    "transaction_commitment": "0x10",
+    "event_commitment": "0x20",
+    "receipt_commitment": "0x30",
+    "state_diff_commitment": "0x40",
+    "concatenated_counts": "0x50"
+  }
 }
