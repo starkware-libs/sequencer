@@ -1133,7 +1133,7 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
-        // Fetch the block's transactions and execution infos from the centralized recorder and
+        // Fetch the block's proof facts and execution infos from the centralized recorder and
         // compute the accessed keys locally, so the batcher can build the block's state commitment
         // infos. Done before updating any consensus state so that a recorder failure leaves the
         // context unchanged for the retried sync attempt.

@@ -44,7 +44,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVe
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::fields::snos_block_number_from_proof_facts;
+use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, ProofFacts};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::Mutex;
@@ -145,25 +145,23 @@ pub trait CendeContext: Send + Sync {
 /// the block's `AccessedKeys` from this, with data it already holds for a synced block.
 #[derive(Debug, Deserialize)]
 pub struct BlockAccessedKeysData {
-    /// One entry per transaction, in the same central format as the blob's `transactions` field.
-    pub(crate) transactions: Vec<CentralTransactionWritten>,
+    /// One entry per transaction, in the block's order; empty when the transaction carries no
+    /// proof facts. When a transaction includes a client-side proof, its proof facts name the
+    /// block whose state the proof is verified against, and the Starknet OS reads that block's
+    /// hash from the block hash table; the accessed-keys computation includes the corresponding
+    /// block hash table entry.
+    pub(crate) proof_facts: Vec<ProofFacts>,
     /// One execution info per transaction.
     pub(crate) execution_infos: Vec<CentralTransactionExecutionInfo>,
 }
 
 impl BlockAccessedKeysData {
-    /// Computes the block's `AccessedKeys` from the recorder-supplied transactions and execution
+    /// Computes the block's `AccessedKeys` from the recorder-supplied proof facts and execution
     /// infos, the synced block's `state_diff`, and the latest versioned constants. Mirrors
-    /// `AccessedKeys::new`, but sources the call infos from the central execution infos and the
-    /// proof-facts block numbers from the transactions.
+    /// `AccessedKeys::new`, but sources the call infos from the central execution infos.
     pub fn compute_accessed_keys(&self, state_diff: &CommitmentStateDiff) -> AccessedKeys {
-        let proof_facts_block_numbers: Vec<BlockNumber> = self
-            .transactions
-            .iter()
-            .filter_map(|transaction| {
-                transaction.proof_facts().and_then(snos_block_number_from_proof_facts)
-            })
-            .collect();
+        let proof_facts_block_numbers: Vec<BlockNumber> =
+            self.proof_facts.iter().filter_map(snos_block_number_from_proof_facts).collect();
         AccessedKeys::from_call_infos(
             self.execution_infos.iter().flat_map(|execution_info| execution_info.call_info_iter()),
             &proof_facts_block_numbers,
