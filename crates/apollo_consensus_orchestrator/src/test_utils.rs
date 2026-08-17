@@ -97,6 +97,13 @@ pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 // where the specific value doesn't matter.
 pub(crate) const DEFAULT_STRK_TO_USD_RATE: u128 = 300_000_000_000_000_000;
 
+/// Deployment-configured L2 gas price minimum used by the price-ceiling tests, and the ceiling that
+/// follows from it. The ceiling is spelled out rather than derived from `max_gas_price_multiplier`,
+/// so a change to that constant fails `test_ceiling_constants_match_the_shipped_multiplier` instead
+/// of moving every expectation with it.
+pub(crate) const TEST_MIN_L2_GAS_PRICE: GasPrice = GasPrice(8_000_000_000);
+pub(crate) const TEST_MAX_L2_GAS_PRICE: GasPrice = GasPrice(80_000_000_000);
+
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
 
