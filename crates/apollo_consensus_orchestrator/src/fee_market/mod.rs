@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::cmp::{max, min};
 
 use apollo_consensus_orchestrator_config::config::PricePerHeight;
 use apollo_versioned_constants::VersionedConstants;
@@ -8,6 +8,8 @@ use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tracing::info;
+
+use crate::metrics::{record_l2_gas_price_clamped, L2GasPriceClampBound};
 
 #[cfg(test)]
 mod test;
@@ -51,7 +53,17 @@ pub fn get_min_gas_price_for_height(
         .unwrap_or(fallback_min_gas_price)
 }
 
+/// The ceiling on the L2 gas price: `max_gas_price_multiplier` times `min_gas_price`. Applies to
+/// every block regardless of its `starknet_version`. Proposer and validator reach the ceiling
+/// through this function, so they cannot disagree on it.
+// [Temporary comment] Single caller until the fee-proposal-band clamp PR.
+pub fn l2_gas_price_cap(min_gas_price: GasPrice) -> GasPrice {
+    let multiplier = VersionedConstants::latest_constants().max_gas_price_multiplier;
+    GasPrice(min_gas_price.0.saturating_mul(multiplier))
+}
+
 /// Compute the next L2 gas price (for the fin or for updating state). Respects override when set.
+/// Reporting the bounds is the caller's job, through [`NextL2GasPrice::record_clamping`].
 pub fn calculate_next_l2_gas_price_for_fin(
     current_l2_gas_price: GasPrice,
     height: BlockNumber,
@@ -59,21 +71,86 @@ pub fn calculate_next_l2_gas_price_for_fin(
     override_l2_gas_price_fri: Option<u128>,
     min_l2_gas_price_per_height: &[PricePerHeight],
     fee_actual: Option<GasPrice>,
-) -> GasPrice {
+) -> NextL2GasPrice {
     if let Some(override_value) = override_l2_gas_price_fri {
+        // Operator pin: escapes both bounds by design; each side substitutes its own override.
         info!(
             "L2 gas price ({}) is not updated, remains on override value of {override_value} fri",
             current_l2_gas_price.0
         );
-        return GasPrice(override_value);
+        return NextL2GasPrice { published_price: GasPrice(override_value), bounds: None };
     }
     let gas_target = VersionedConstants::latest_constants().gas_target;
     let config_min = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
-    let effective_min = match fee_actual {
-        Some(fa) => GasPrice(max(config_min.0, fa.0)),
-        None => config_min,
-    };
-    calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, effective_min)
+    let cap = l2_gas_price_cap(config_min);
+
+    let snip35_min = fee_actual.map_or(config_min, |fee_actual| max(config_min, fee_actual));
+    let effective_min = min(snip35_min, cap);
+
+    let raw_price =
+        calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, effective_min);
+
+    NextL2GasPrice {
+        published_price: min(raw_price, cap),
+        bounds: Some(L2GasPriceBounds {
+            current_price: current_l2_gas_price,
+            raw_price,
+            snip35_min,
+            effective_min,
+            cap,
+        }),
+    }
+}
+
+/// The next L2 gas price, and the bounds that produced it.
+#[derive(Debug)]
+pub struct NextL2GasPrice {
+    /// The price to publish in the fin and to carry into the next block.
+    pub published_price: GasPrice,
+    // `None` for an operator override, which escapes both bounds.
+    bounds: Option<L2GasPriceBounds>,
+}
+
+// The bounds in force for a block, and the prices compared against them.
+#[derive(Debug)]
+struct L2GasPriceBounds {
+    current_price: GasPrice,
+    raw_price: GasPrice,
+    snip35_min: GasPrice,
+    effective_min: GasPrice,
+    cap: GasPrice,
+}
+
+impl NextL2GasPrice {
+    /// Logs and counts the bounds that shaped `published_price`. Call once per decided block;
+    /// blocks obtained through sync are not counted.
+    pub(crate) fn record_clamping(&self) {
+        let Some(bounds) = &self.bounds else {
+            return;
+        };
+        let published_price = self.published_price.0;
+        // The current price, not `raw_price`: the last block of the ramp toward the minimum reaches
+        // the minimum exactly, and the minimum is what stopped it there.
+        if bounds.current_price < bounds.effective_min {
+            record_l2_gas_price_clamped(L2GasPriceClampBound::Minimum);
+        }
+        // A SNIP-35 floor above the ceiling is a ceiling hit too: `effective_min` clipped the floor
+        // down before the EIP-1559 step, so `raw_price` cannot show it.
+        let raw_price_above_cap = bounds.raw_price > bounds.cap;
+        let snip35_min_above_cap = bounds.snip35_min > bounds.cap;
+        if raw_price_above_cap || snip35_min_above_cap {
+            info!(
+                "Fee Market: maximum gas price {} applied (price {} above it: {}, SNIP-35 floor \
+                 {} above it: {}), published price: {published_price}",
+                bounds.cap.0,
+                bounds.raw_price.0,
+                raw_price_above_cap,
+                bounds.snip35_min.0,
+                snip35_min_above_cap
+            );
+            record_l2_gas_price_clamped(L2GasPriceClampBound::Maximum);
+        }
+    }
 }
 
 /// Calculate the base gas price for the next block according to EIP-1559.
