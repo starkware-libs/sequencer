@@ -1,3 +1,5 @@
+use std::sync::Once;
+
 use apollo_infra::metrics::{
     InfraMetrics,
     LocalClientMetrics,
@@ -8,6 +10,10 @@ use apollo_infra::metrics::{
 use apollo_l1_gas_price_types::L1_GAS_PRICE_REQUEST_LABELS;
 use apollo_metrics::metrics::{MetricCounter, MetricDetails, MetricGauge};
 use apollo_metrics::{define_infra_metrics, define_metrics};
+
+#[cfg(test)]
+#[path = "metrics_test.rs"]
+mod metrics_test;
 
 define_infra_metrics!(l1_gas_price);
 
@@ -41,14 +47,18 @@ pub struct ExchangeRateOracleMetrics {
     pub success_count: &'static MetricCounter,
     pub error_count: &'static MetricCounter,
     pub last_success_timestamp: &'static MetricGauge,
+    /// Guards this set's registration.
+    registration_guard: &'static Once,
 }
 
 impl ExchangeRateOracleMetrics {
     pub fn register(&self) {
-        self.rate.register();
-        self.success_count.register();
-        self.error_count.register();
-        self.last_success_timestamp.register();
+        self.registration_guard.call_once(|| {
+            self.rate.register();
+            self.success_count.register();
+            self.error_count.register();
+            self.last_success_timestamp.register();
+        });
     }
 }
 
@@ -66,11 +76,15 @@ impl std::fmt::Debug for ExchangeRateOracleMetrics {
     }
 }
 
+static ETH_TO_STRK_REGISTRATION: Once = Once::new();
+static STRK_TO_USD_REGISTRATION: Once = Once::new();
+
 pub const ETH_TO_STRK_ORACLE_METRICS: ExchangeRateOracleMetrics = ExchangeRateOracleMetrics {
     rate: &ETH_TO_STRK_RATE,
     success_count: &ETH_TO_STRK_SUCCESS_COUNT,
     error_count: &ETH_TO_STRK_ERROR_COUNT,
     last_success_timestamp: &ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
+    registration_guard: &ETH_TO_STRK_REGISTRATION,
 };
 
 pub const STRK_TO_USD_ORACLE_METRICS: ExchangeRateOracleMetrics = ExchangeRateOracleMetrics {
@@ -78,6 +92,7 @@ pub const STRK_TO_USD_ORACLE_METRICS: ExchangeRateOracleMetrics = ExchangeRateOr
     success_count: &SNIP35_STRK_USD_SUCCESS_COUNT,
     error_count: &SNIP35_STRK_USD_ERROR_COUNT,
     last_success_timestamp: &SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS,
+    registration_guard: &STRK_TO_USD_REGISTRATION,
 };
 
 pub(crate) fn register_provider_metrics() {
