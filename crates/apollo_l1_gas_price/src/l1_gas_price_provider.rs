@@ -7,6 +7,7 @@ use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
+    ExchangeRate,
     ExchangeRateOracleClientTrait,
     GasPriceData,
     L1GasPriceProviderResult,
@@ -202,14 +203,14 @@ impl L1GasPriceProvider {
         Ok(price_info_out)
     }
 
-    pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
+    pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<ExchangeRate> {
         self.eth_to_strk_oracle_client
             .fetch_rate(timestamp)
             .await
             .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
     }
 
-    pub async fn strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
+    pub async fn strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<ExchangeRate> {
         self.strk_to_usd_oracle_client
             .fetch_rate(timestamp)
             .await
