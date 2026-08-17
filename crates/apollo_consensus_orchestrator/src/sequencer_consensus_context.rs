@@ -1145,10 +1145,18 @@ impl ConsensusContext for SequencerConsensusContext {
                     // Move the state diff into a `CommitmentStateDiff` (a cheap field rename, no
                     // cloning) to compute the accessed keys, then move it back so `sync_block`
                     // still carries its state diff when passed to `add_sync_block` below.
-                    let commitment_state_diff: CommitmentStateDiff =
-                        std::mem::take(&mut sync_block.state_diff).into();
+                    // `CommitmentStateDiff` has no `deprecated_declared_classes` field, so it is
+                    // set aside and restored, instead of round-tripping through the conversion
+                    // (which would silently replace it with an empty vector).
+                    let mut state_diff = std::mem::take(&mut sync_block.state_diff);
+                    let deprecated_declared_classes =
+                        std::mem::take(&mut state_diff.deprecated_declared_classes);
+                    let commitment_state_diff: CommitmentStateDiff = state_diff.into();
                     let accessed_keys = block_data.compute_accessed_keys(&commitment_state_diff);
-                    sync_block.state_diff = commitment_state_diff.into();
+                    sync_block.state_diff = ThinStateDiff {
+                        deprecated_declared_classes,
+                        ..commitment_state_diff.into()
+                    };
                     Some(accessed_keys)
                 }
                 Ok(None) => {

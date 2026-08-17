@@ -57,6 +57,7 @@ use starknet_api::block::{
     WEI_PER_ETH,
 };
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
@@ -2073,12 +2074,22 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
 async fn try_sync_forwards_accessed_keys_from_centralized() {
     const SYNC_HEIGHT: BlockNumber = BlockNumber(7);
 
+    // A non-empty state diff, including `deprecated_declared_classes` (which has no counterpart
+    // in `CommitmentStateDiff`), to verify `try_sync` forwards the synced block's state diff to
+    // `add_sync_block` unchanged after converting it to compute the accessed keys.
+    let state_diff = ThinStateDiff {
+        deprecated_declared_classes: vec![ClassHash(StarkHash::from(1_u8))],
+        ..Default::default()
+    };
+    let expected_state_diff = state_diff.clone();
+
     let (mut deps, _network) = create_test_and_network_deps();
     // Specific get_block expectation must be registered before setup_default_expectations, which
     // installs a catch-all handler.
-    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+    deps.state_sync_client.expect_get_block().times(1).return_once(move |height| {
         let mut sync_block = SyncBlock::default();
         sync_block.block_header_without_hash.block_number = height;
+        sync_block.state_diff = state_diff;
         Ok(sync_block)
     });
     deps.setup_default_expectations();
@@ -2096,7 +2107,9 @@ async fn try_sync_forwards_accessed_keys_from_centralized() {
     deps.batcher
         .expect_add_sync_block()
         .times(1)
-        .withf(|_sync_block, accessed_keys| accessed_keys.is_some())
+        .withf(move |sync_block, accessed_keys| {
+            accessed_keys.is_some() && sync_block.state_diff == expected_state_diff
+        })
         .return_once(|_, _| Ok(()));
 
     let mut context = deps.build_context_with_config(ContextConfig {
