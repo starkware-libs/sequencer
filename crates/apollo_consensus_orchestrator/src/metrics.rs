@@ -16,6 +16,9 @@ define_metrics!(
         MetricCounter { CONSENSUS_L1_DATA_GAS_MISMATCH, "consensus_l1_data_gas_mismatch", "The number of times the L1 data gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricGauge { CONSENSUS_L2_GAS_PRICE, "consensus_l2_gas_price", "The L2 gas price calculated in an accepted proposal" },
         MetricGauge { CONSENSUS_L2_GAS_PRICE_AT_MINIMUM, "consensus_l2_gas_price_at_minimum", "1 when the accepted L2 gas price is clamped at the configured minimum (min_l2_gas_price_per_height, or the versioned-constants min_gas_price fallback), else 0" },
+        // Counter, not gauge: a gauge resets to 0 on restart, hiding clamps that already occurred.
+        // [Temporary comment] Panel and alerts arrive in #14947.
+        LabeledMetricCounter { CONSENSUS_L2_GAS_PRICE_CLAMPED, "consensus_l2_gas_price_clamped", "Number of times a clamp bound the computed next L2 gas price. `minimum`: raised to the effective minimum in force. `maximum`: bound by the ceiling, including when only the SNIP-35 floor was clipped, in which case the published price can be below the ceiling. A price already at the minimum is not counted; see consensus_l2_gas_price_at_minimum", init = 0, labels = L2_GAS_PRICE_CLAMP_BOUND },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
         MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH, "consensus_retrospective_block_hash_mismatch", "Number of times the retrospective block hashes of the state sync and the batcher mismatched", init=0},
 
@@ -42,6 +45,25 @@ define_metrics!(
         MetricGauge { SNIP35_FEE_TARGET_ATTO_USD, "snip35_fee_target_atto_usd", "Configured target USD cost per L2 gas unit, in atto-USD" },
     }
 );
+
+pub const LABEL_L2_GAS_PRICE_CLAMP_BOUND: &str = "l2_gas_price_clamp_bound";
+
+// Which bound a clamp applied: the effective minimum in force, or the `l2_gas_price_cap` ceiling.
+#[derive(IntoStaticStr, EnumIter, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum L2GasPriceClampBound {
+    Minimum,
+    Maximum,
+}
+
+generate_permutation_labels! {
+    L2_GAS_PRICE_CLAMP_BOUND,
+    (LABEL_L2_GAS_PRICE_CLAMP_BOUND, L2GasPriceClampBound),
+}
+
+pub(crate) fn record_l2_gas_price_clamped(bound: L2GasPriceClampBound) {
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.increment(1, &[(LABEL_L2_GAS_PRICE_CLAMP_BOUND, bound.into())]);
+}
 
 pub const LABEL_CENDE_FAILURE_REASON: &str = "cende_write_failure_reason";
 
@@ -99,6 +121,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_L1_DATA_GAS_MISMATCH.register();
     CONSENSUS_L2_GAS_PRICE.register();
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.register();
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.register();
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.register();
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.register();
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.register();
