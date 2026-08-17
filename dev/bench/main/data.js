@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786284438993,
+  "lastUpdate": 1786972616588,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7241,6 +7241,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1301.55821034,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de0ebe34609e16a799c28ec822c2aad1887564d8",
+          "message": "apollo_consensus_orchestrator,starknet_committer_and_os_cli: add cende python test CLI (#14969)\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-17T12:51:10Z",
+          "tree_id": "1b316b10e41126d031abc094f9069b33fb5ab0f0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/de0ebe34609e16a799c28ec822c2aad1887564d8"
+        },
+        "date": 1786972615908,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 857.16079962,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1257.1582053299999,
             "unit": "ms"
           }
         ]
