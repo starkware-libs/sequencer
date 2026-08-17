@@ -12958,6 +12958,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_committer",
  "apollo_committer_config",
+ "apollo_consensus_orchestrator",
  "apollo_infra_utils",
  "apollo_starknet_os_program",
  "apollo_storage",
