@@ -1,4 +1,7 @@
 pub mod errors;
+#[cfg(test)]
+mod test;
+
 use std::fmt::Debug;
 use std::iter::Sum;
 use std::sync::Arc;
@@ -22,6 +25,36 @@ use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tracing::instrument;
 
 pub const DEFAULT_ETH_TO_FRI_RATE: u128 = 10_u128.pow(21);
+
+/// Which currency pair an oracle reading, rate or guard trip belongs to. Without it a stale ETH/USD
+/// leg and a stale STRK/USD leg are indistinguishable, since the ETH/STRK rate reads both.
+pub const LABEL_NAME_CURRENCY_PAIR: &str = "currency_pair";
+
+/// The pair a reading or rate quotes, used in guard errors and as the guard counters' label value.
+// [Temporary comment] No consumer yet: `labels()` is read by the guard counters in the oracle
+// metrics PR, and `pair_name()` keys the per-pair rate bounds in the rate-bounds PR.
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, PartialEq, Eq, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum CurrencyPair {
+    EthUsd,
+    StrkUsd,
+    /// Derived from the two USD pairs: no Chainlink feed on Starknet quotes ETH in STRK.
+    EthStrk,
+}
+
+impl CurrencyPair {
+    pub fn pair_name(self) -> &'static str {
+        match self {
+            CurrencyPair::EthUsd => "ETH/USD",
+            CurrencyPair::StrkUsd => "STRK/USD",
+            CurrencyPair::EthStrk => "ETH/STRK",
+        }
+    }
+
+    pub fn labels(self) -> [(&'static str, &'static str); 1] {
+        [(LABEL_NAME_CURRENCY_PAIR, self.into())]
+    }
+}
 
 pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
 pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
@@ -117,6 +150,30 @@ pub trait ExchangeRateOracleClientTrait: Send + Sync + Debug {
     /// ETH/FRI, STRK/USD) are determined by the URLs the implementation is configured with;
     /// callers label the per-instance meaning at the field that holds the trait object.
     async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError>;
+}
+
+/// The rate an oracle client instance produces, carried as a type parameter so a client cannot be
+/// built for a pair no implementation reads.
+// [Temporary comment] No implementor outside this module yet: the rate arithmetic PR is generic
+// over `RateKind`, and the Chainlink client PR instantiates it per marker.
+pub trait RateKind: Send + Sync + Debug + 'static {
+    const PAIR: CurrencyPair;
+}
+
+/// FRI per ETH, derived from the ETH/USD and STRK/USD pairs.
+#[derive(Clone, Copy, Debug)]
+pub struct EthToFri;
+
+impl RateKind for EthToFri {
+    const PAIR: CurrencyPair = CurrencyPair::EthStrk;
+}
+
+/// USD per STRK.
+#[derive(Clone, Copy, Debug)]
+pub struct StrkToUsd;
+
+impl RateKind for StrkToUsd {
+    const PAIR: CurrencyPair = CurrencyPair::StrkUsd;
 }
 
 #[async_trait]
