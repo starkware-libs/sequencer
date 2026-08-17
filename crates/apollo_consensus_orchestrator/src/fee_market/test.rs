@@ -2,22 +2,46 @@ use std::sync::LazyLock;
 
 use apollo_consensus_orchestrator_config::config::PricePerHeight;
 use apollo_versioned_constants::VersionedConstants;
+use metrics_exporter_prometheus::PrometheusBuilder;
+use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::fee_market::{
     calculate_next_base_gas_price,
+    calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
+    l2_gas_price_cap,
+    MAX_GAS_PRICE_MULTIPLIER,
     MIN_GAS_PRICE_INCREASE_DENOMINATOR,
 };
+use crate::metrics::{CONSENSUS_L2_GAS_PRICE_CLAMPED, LABEL_L2_GAS_PRICE_CLAMP_BOUND};
+use crate::test_utils::{TEST_MAX_L2_GAS_PRICE, TEST_MIN_L2_GAS_PRICE};
 
 static VERSIONED_CONSTANTS: LazyLock<&VersionedConstants> =
     LazyLock::new(VersionedConstants::latest_constants);
 
-use rstest::rstest;
-
 const INIT_PRICE: GasPrice = GasPrice(30_000_000_000);
+
+// One entry from genesis, so the ceiling is `TEST_MAX_L2_GAS_PRICE` at every height.
+fn flat_min_gas_price_config() -> Vec<PricePerHeight> {
+    vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }]
+}
+
+// Label values are the dashboard and alert contract, so assert them literally.
+fn assert_clamp_counts(metrics: &str, minimum_count: u64, maximum_count: u64) {
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.assert_eq(
+        metrics,
+        minimum_count,
+        &[(LABEL_L2_GAS_PRICE_CLAMP_BOUND, "minimum")],
+    );
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.assert_eq(
+        metrics,
+        maximum_count,
+        &[(LABEL_L2_GAS_PRICE_CLAMP_BOUND, "maximum")],
+    );
+}
 
 #[rstest]
 #[case::high_congestion(
@@ -213,4 +237,206 @@ fn test_calculate_with_price_close_to_minimum() {
 
     // When price is close to minimum, should cap at min_gas_price to avoid overshooting
     assert_eq!(result, min_gas_price);
+}
+
+#[test]
+fn test_price_constants_match_the_shipped_values() {
+    // Tests that leave `min_l2_gas_price_per_height` empty get this fallback as their minimum, and
+    // `TEST_MAX_L2_GAS_PRICE` as the ceiling it implies.
+    assert_eq!(TEST_MIN_L2_GAS_PRICE, VERSIONED_CONSTANTS.min_gas_price);
+    assert_eq!(TEST_MAX_L2_GAS_PRICE.0, TEST_MIN_L2_GAS_PRICE.0 * MAX_GAS_PRICE_MULTIPLIER);
+}
+
+#[test]
+fn test_l2_gas_price_cap_tracks_the_minimum() {
+    assert_eq!(l2_gas_price_cap(GasPrice(10_000_000_000)), GasPrice(100_000_000_000));
+    assert_eq!(l2_gas_price_cap(GasPrice(20_000_000_000)), GasPrice(200_000_000_000));
+}
+
+#[test]
+fn test_l2_gas_price_cap_saturates_at_an_extreme_configured_minimum() {
+    // The minimum is deployment-configured, so an extreme value must saturate, not overflow.
+    assert_eq!(l2_gas_price_cap(GasPrice(u128::MAX)), GasPrice(u128::MAX));
+}
+
+#[test]
+fn test_price_pinned_at_the_ceiling_follows_the_ceiling_down() {
+    const STEP_HEIGHT: u64 = 500;
+    let min_l2_gas_price_per_height = vec![
+        PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 },
+        PricePerHeight { height: STEP_HEIGHT, price: TEST_MIN_L2_GAS_PRICE.0 / 4 },
+    ];
+    let lowered_ceiling = GasPrice(TEST_MAX_L2_GAS_PRICE.0 / 4);
+
+    // Just before the step the old ceiling still holds a congested price at 80 gwei.
+    let before_the_step = calculate_next_l2_gas_price_for_fin(
+        TEST_MAX_L2_GAS_PRICE,
+        BlockNumber(STEP_HEIGHT - 1),
+        VERSIONED_CONSTANTS.max_block_size,
+        None,
+        &min_l2_gas_price_per_height,
+        None,
+    )
+    .published_price;
+    assert_eq!(before_the_step, TEST_MAX_L2_GAS_PRICE);
+
+    let at_the_step = calculate_next_l2_gas_price_for_fin(
+        TEST_MAX_L2_GAS_PRICE,
+        BlockNumber(STEP_HEIGHT),
+        VERSIONED_CONSTANTS.max_block_size,
+        None,
+        &min_l2_gas_price_per_height,
+        None,
+    )
+    .published_price;
+    assert_eq!(at_the_step, lowered_ceiling);
+}
+
+#[rstest]
+// Ordinary price inside the band: the counters must read 0, not "no data".
+#[case::no_clamp(GasPrice(TEST_MIN_L2_GAS_PRICE.0 * 2), VERSIONED_CONSTANTS.gas_target, None, 0, 0)]
+// Below the configured minimum: the floor binds and only the floor is counted.
+#[case::below_the_minimum(
+    GasPrice(TEST_MIN_L2_GAS_PRICE.0 / 2),
+    VERSIONED_CONSTANTS.gas_target,
+    None,
+    1,
+    0
+)]
+// A full block at the ceiling drives the EIP-1559 result above it: only the ceiling is counted.
+#[case::above_the_ceiling(TEST_MAX_L2_GAS_PRICE, VERSIONED_CONSTANTS.max_block_size, None, 0, 1)]
+// The SNIP-35 floor alone is above the ceiling: only the ceiling is counted.
+#[case::snip35_floor_above_the_ceiling(
+    TEST_MAX_L2_GAS_PRICE,
+    VERSIONED_CONSTANTS.gas_target,
+    Some(GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 25)),
+    0,
+    1
+)]
+// Below the ceiling-clamped SNIP-35 floor: one block counts both bounds.
+#[case::both_bounds_on_one_block(
+    GasPrice(TEST_MIN_L2_GAS_PRICE.0 / 2),
+    VERSIONED_CONSTANTS.gas_target,
+    Some(GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 25)),
+    1,
+    1
+)]
+fn test_l2_gas_price_clamp_counters_record_once_per_committed_block(
+    #[case] current_l2_gas_price: GasPrice,
+    #[case] l2_gas_used: GasAmount,
+    #[case] fee_actual: Option<GasPrice>,
+    #[case] expected_minimum_count: u64,
+    #[case] expected_maximum_count: u64,
+) {
+    // The proposer's fin and every reproposal round compute the same price for the same block.
+    const N_UNCOMMITTED_COMPUTATIONS: usize = 3;
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.register();
+
+    let next_l2_gas_price = || {
+        calculate_next_l2_gas_price_for_fin(
+            current_l2_gas_price,
+            BlockNumber(0),
+            l2_gas_used,
+            None,
+            &flat_min_gas_price_config(),
+            fee_actual,
+        )
+    };
+
+    for _ in 0..N_UNCOMMITTED_COMPUTATIONS {
+        next_l2_gas_price();
+    }
+    assert_clamp_counts(&recorder.handle().render(), 0, 0);
+
+    next_l2_gas_price().record_clamping();
+    assert_clamp_counts(
+        &recorder.handle().render(),
+        expected_minimum_count,
+        expected_maximum_count,
+    );
+}
+
+#[test]
+fn test_sustained_congestion_stops_at_the_ceiling() {
+    // A full block drives the EIP-1559 price up ~9.5%, independently of the oracle.
+    let mut price = TEST_MIN_L2_GAS_PRICE;
+
+    for height in 0..100 {
+        price = calculate_next_l2_gas_price_for_fin(
+            price,
+            BlockNumber(height),
+            VERSIONED_CONSTANTS.max_block_size,
+            None,
+            &flat_min_gas_price_config(),
+            None,
+        )
+        .published_price;
+    }
+
+    // Exact equality, not `price <= cap`, which would also pass for a price that never rose.
+    assert_eq!(price, TEST_MAX_L2_GAS_PRICE);
+}
+
+#[test]
+fn test_fee_actual_above_the_ceiling_publishes_the_ceiling() {
+    // `fee_actual` enters as a floor, and the floor is itself clamped to the ceiling.
+    let price = calculate_next_l2_gas_price_for_fin(
+        TEST_MAX_L2_GAS_PRICE,
+        BlockNumber(0),
+        VERSIONED_CONSTANTS.gas_target,
+        None,
+        &flat_min_gas_price_config(),
+        Some(GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 25)),
+    )
+    .published_price;
+
+    assert_eq!(price, TEST_MAX_L2_GAS_PRICE);
+}
+
+#[rstest]
+#[case::override_above_the_ceiling(GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 100))]
+#[case::override_below_the_floor(GasPrice(TEST_MIN_L2_GAS_PRICE.0 / 100))]
+fn test_override_bypasses_both_bounds(#[case] override_l2_gas_price_fri: GasPrice) {
+    assert_eq!(
+        calculate_next_l2_gas_price_for_fin(
+            TEST_MIN_L2_GAS_PRICE,
+            BlockNumber(0),
+            VERSIONED_CONSTANTS.gas_target,
+            Some(override_l2_gas_price_fri.0),
+            &flat_min_gas_price_config(),
+            None,
+        )
+        .published_price,
+        override_l2_gas_price_fri
+    );
+}
+
+#[test]
+fn test_ceiling_leaves_ordinary_prices_untouched() {
+    let price = GasPrice(TEST_MIN_L2_GAS_PRICE.0 * 2);
+    let gas_used = GasAmount(VERSIONED_CONSTANTS.gas_target.0 * 3 / 2);
+
+    let capped = calculate_next_l2_gas_price_for_fin(
+        price,
+        BlockNumber(0),
+        gas_used,
+        None,
+        &flat_min_gas_price_config(),
+        None,
+    )
+    .published_price;
+
+    assert_eq!(
+        capped,
+        calculate_next_base_gas_price(
+            price,
+            gas_used,
+            VERSIONED_CONSTANTS.gas_target,
+            TEST_MIN_L2_GAS_PRICE
+        )
+    );
+    assert!(capped > price);
 }
