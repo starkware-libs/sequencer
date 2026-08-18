@@ -783,7 +783,13 @@ impl BlockBuilderFactory {
             block_builder_config.bouncer_config,
         );
 
-        let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
+        // Block production has no per-call deadline to bound this against; leave it unbounded, as
+        // before.
+        let class_reader = Some(ClassReader {
+            reader: self.class_manager_client.clone(),
+            runtime,
+            request_timeout: None,
+        });
         let apollo_reader =
             ApolloReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
         let state_reader = StateReaderAndContractManager::new_with_native_classes_whitelist(

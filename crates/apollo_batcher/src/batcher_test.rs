@@ -191,6 +191,7 @@ impl ViewStateReaderFactory for TestViewStateReaderFactory {
         block_number: BlockNumber,
         _native_classes_whitelist: NativeClassesWhitelist,
         _runtime: tokio::runtime::Handle,
+        _class_manager_request_timeout: Duration,
     ) -> Box<dyn StateReader + Send> {
         assert_eq!(block_number, self.expected_block_number);
         Box::new(self.state.lock().unwrap().clone())
@@ -2245,6 +2246,7 @@ async fn read_class_through_view_state_reader(
         LAST_COMMITTED_HEIGHT.unchecked_next(),
         NativeClassesWhitelist::All,
         tokio::runtime::Handle::current(),
+        Duration::from_secs(300),
     );
 
     tokio::task::spawn_blocking(move || state_reader.get_compiled_class(class_hash))
@@ -2403,6 +2405,7 @@ impl ViewStateReaderFactory for GatedViewStateReaderFactory {
         _block_number: BlockNumber,
         _native_classes_whitelist: NativeClassesWhitelist,
         _runtime: tokio::runtime::Handle,
+        _class_manager_request_timeout: Duration,
     ) -> Box<dyn StateReader + Send> {
         Box::new(GatedStateReader { release_receiver: self.release_receiver.clone() })
     }

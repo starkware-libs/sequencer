@@ -1,4 +1,6 @@
+use std::future::Future;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_storage::class_hash::ClassHashStorageReader;
@@ -33,13 +35,32 @@ pub struct ClassReader {
     pub reader: SharedClassManagerClient,
     // Used to invoke async functions from sync reader code.
     pub runtime: tokio::runtime::Handle,
+    /// Bounds each class manager request. This reader runs inside a blocking task on a shared
+    /// blocking-thread pool; a stalled class manager would otherwise pin that thread forever,
+    /// since the pool has no way to cancel a thread that is blocked inside `block_on`. `None`
+    /// leaves requests unbounded.
+    pub request_timeout: Option<Duration>,
 }
 
 impl ClassReader {
+    /// Runs `request` on `self.runtime`, bounding it by `self.request_timeout` when set.
+    fn block_on_request<Fut: Future>(&self, request: Fut) -> StateResult<Fut::Output> {
+        let Some(request_timeout) = self.request_timeout else {
+            return Ok(self.runtime.block_on(request));
+        };
+
+        self.runtime.block_on(async {
+            tokio::time::timeout(request_timeout, request).await.map_err(|_| {
+                StateError::StateReadError(format!(
+                    "Class manager request timed out after {request_timeout:?}."
+                ))
+            })
+        })
+    }
+
     fn read_executable(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
         let casm = self
-            .runtime
-            .block_on(self.reader.get_executable(class_hash))
+            .block_on_request(self.reader.get_executable(class_hash))?
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
@@ -57,8 +78,7 @@ impl ClassReader {
 
     fn read_sierra(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
         let sierra = self
-            .runtime
-            .block_on(self.reader.get_sierra(class_hash))
+            .block_on_request(self.reader.get_sierra(class_hash))?
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
@@ -81,8 +101,7 @@ impl ClassReader {
         class_hash: ClassHash,
     ) -> StateResult<Option<CompiledClassHash>> {
         let compiled_class_hash_v2 = self
-            .runtime
-            .block_on(self.reader.get_executable_class_hash_v2(class_hash))
+            .block_on_request(self.reader.get_executable_class_hash_v2(class_hash))?
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
         Ok(compiled_class_hash_v2)
     }
