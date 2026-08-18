@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787039308400,
+  "lastUpdate": 1787048628331,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -985,6 +985,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1304.22798446,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39151790+gkaempfer@users.noreply.github.com",
+            "name": "gkaempfer",
+            "username": "gkaempfer"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f482d4f757f850797bc0f1ea488106347131f79",
+          "message": "apollo_state_reader,apollo_batcher: bound class manager reads in ClassReader (#14984)\n\n* apollo_state_reader,apollo_batcher: bound class manager reads in ClassReader\n\ncall_contract's outer view-call timeout frees the batcher's request slot but\ndoes not cancel the spawn_blocking task underneath it: ClassReader::block_on\nhas no bound of its own, so a class manager that never answers (a network\npartition, an overloaded remote class manager, or a locally-deployed class\nmanager reached over a channel with no request timeout) pins that blocking-\npool thread forever. Block production shares the same pool via its own\nspawn_blocking calls, so enough stalled view calls exhaust it and stall block\nproduction too.\n\nAdd request_timeout to ClassReader and bound every class manager request\nwith it. View calls pass view_call_timeout_millis, so the promise behind that\nconfig value now holds end to end. Block production keeps its prior\nunbounded behavior (request_timeout: None), since it has no per-call deadline\nto bound against and changing that is out of scope here.\n\nA new test drives get_compiled_class through a class manager stub that never\nanswers: without the bound it hangs indefinitely (confirmed against this\nchange before the fix landed); with it, the read fails within\nrequest_timeout instead of pinning the thread.\n\n* apollo_state_reader,apollo_batcher: bound ClassReader's total wait, not each request\n\nAn independent review of the fix caught that request_timeout bounded each class\nmanager call separately: read_casm_and_sierra makes two sequential calls, so a\nCairo 1 class could still pin the blocking-pool thread for up to 2x the intended\nbound (more with additional classes touched in one view call).\n\nReplace request_timeout: Option<Duration> with deadline: Option<Instant>,\ncomputed once when the reader is constructed. Every request through the reader\nnow bounds against that same deadline via tokio::time::timeout_at, so the\nreader's total time waiting on the class manager cannot exceed the caller's\noriginal budget regardless of how many requests it takes.\n\nAlso declares apollo_state_reader's tokio dependency features explicitly\n(rt, time) rather than relying on workspace feature unification, and adds a\ntest proving the cumulative bound: a class manager that answers get_executable\nafter a delay and then stalls on get_sierra must still fail close to the\noriginal deadline, not after a fresh window starting from get_sierra.\n\n* apollo_state_reader: detach class manager requests instead of dropping them on timeout\n\nCursor Bugbot caught a high-severity regression in the previous commit:\ntokio::time::timeout_at raced the class manager request future directly and\ndropped it when the deadline passed. For a locally-deployed class manager,\nthat future (LocalComponentClient::send) hands its response sender to the\nserver before it resolves; dropping the future drops the matching receiver,\nand the server's tx.send(response).await.expect(\"Response connection should\nbe open.\") then panics — turning a slow view call into a crash of the class\nmanager's request-processing task instead of just a failed read.\n\nSpawn the request onto the runtime and race the join handle against the\ndeadline instead of the request itself. Only our wait is bounded; if the\ndeadline passes first, the spawned task keeps running to completion in the\nbackground rather than being dropped, so the server always gets to send its\nresponse and never observes a closed channel. This still fully closes the\noriginal bug: read_executable/read_sierra/read_compiled_class_hash_v2 now\nbuild owned, 'static futures over a cloned reader so they can be spawned.\n\nAdded a regression test reproducing the exact panic pattern with a bare\nchannel standing in for the local transport: confirmed it panics against the\nrace-and-drop version of block_on_request, and passes with the spawn-based\none.\n\n---------\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-08-18T10:00:27Z",
+          "tree_id": "de1192a72a8187c4bedaba5c73baa9bcfa519504",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2f482d4f757f850797bc0f1ea488106347131f79"
+        },
+        "date": 1787048627637,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 896.51383361,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1424.82580548,
             "unit": "ms"
           }
         ]
