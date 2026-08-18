@@ -1,6 +1,6 @@
 use core::panic;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::{
     Class,
@@ -140,13 +140,13 @@ impl ClassManagerClient for StalledClassManagerClient {
     }
 }
 
-/// Without `request_timeout`, a class manager that never answers hangs `get_compiled_class`
-/// forever: `ClassReader` blocks the thread it runs on (a shared blocking-pool thread when reached
-/// through `call_contract` or block production) inside `block_on`, and nothing can cancel a thread
-/// parked there. `request_timeout` bounds the wait, so the thread is released within that window
-/// instead of being pinned indefinitely.
+/// Without a `deadline`, a class manager that never answers hangs `get_compiled_class` forever:
+/// `ClassReader` blocks the thread it runs on (a shared blocking-pool thread when reached through
+/// `call_contract` or block production) inside `block_on`, and nothing can cancel a thread parked
+/// there. A `deadline` bounds the wait, so the thread is released within that window instead of
+/// being pinned indefinitely.
 #[tokio::test(flavor = "multi_thread")]
-async fn class_reader_request_times_out_when_the_class_manager_never_answers() {
+async fn class_reader_times_out_when_the_class_manager_never_answers() {
     let class_hash = ClassHash(felt!(0x1234_u16));
     // Cairo 1 declaration marker only, with no definition behind it: `is_declared` reads this
     // table, so reading the class must go through the class manager.
@@ -171,7 +171,7 @@ async fn class_reader_request_times_out_when_the_class_manager_never_answers() {
     let class_reader = Some(ClassReader {
         reader: Arc::new(StalledClassManagerClient),
         runtime: tokio::runtime::Handle::current(),
-        request_timeout: Some(request_timeout),
+        deadline: Some(Instant::now() + request_timeout),
     });
     let apollo_reader =
         ApolloReader::new_with_class_reader(storage_reader, BlockNumber(1), class_reader);
@@ -189,5 +189,89 @@ async fn class_reader_request_times_out_when_the_class_manager_never_answers() {
     assert_matches!(
         result,
         Err(StateError::StateReadError(message)) if message.contains("timed out")
+    );
+}
+
+/// Stands in for a class manager whose executable read succeeds after `executable_delay`, but
+/// whose Sierra read never answers.
+struct DelayedExecutableThenStalledClassManagerClient {
+    executable_delay: Duration,
+}
+
+#[async_trait]
+impl ClassManagerClient for DelayedExecutableThenStalledClassManagerClient {
+    async fn add_class(&self, _class: Class) -> ClassManagerClientResult<ClassHashes> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn get_executable(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClass>> {
+        tokio::time::sleep(self.executable_delay).await;
+        Ok(Some(ContractClass::test_casm_contract_class()))
+    }
+
+    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
+        std::future::pending().await
+    }
+
+    async fn get_executable_class_hash_v2(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClassHash>> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn add_deprecated_class(
+        &self,
+        _class_id: ClassId,
+        _class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn add_class_and_executable_unsafe(
+        &self,
+        _class_id: ClassId,
+        _class: Class,
+        _executable_class_hash_v2: ExecutableClassHash,
+        _executable_class: ExecutableClass,
+    ) -> ClassManagerClientResult<()> {
+        unimplemented!("Not exercised by this test.")
+    }
+}
+
+/// A single `deadline` must bound `ClassReader`'s total wait, not grant a fresh window to every
+/// request: reading a Cairo 1 class needs both `read_casm` and `read_sierra` (mirroring
+/// `ApolloReader::read_casm_and_sierra`), and a per-request timeout would let their durations add
+/// up past the caller's intended bound instead.
+#[tokio::test(flavor = "multi_thread")]
+async fn class_reader_deadline_bounds_the_total_wait_across_requests() {
+    let class_hash = ClassHash(felt!(0x1234_u16));
+    let executable_delay = Duration::from_millis(200);
+    let deadline_budget = Duration::from_millis(300);
+    let class_reader = ClassReader {
+        reader: Arc::new(DelayedExecutableThenStalledClassManagerClient { executable_delay }),
+        runtime: tokio::runtime::Handle::current(),
+        deadline: Some(Instant::now() + deadline_budget),
+    };
+
+    let start = Instant::now();
+    let result = tokio::task::spawn_blocking(move || {
+        class_reader.read_casm(class_hash)?;
+        class_reader.read_sierra(class_hash)
+    })
+    .await
+    .expect("Reading a class panicked.");
+    let elapsed = start.elapsed();
+
+    assert_matches!(result, Err(StateError::StateReadError(_)));
+    // A per-request (rather than cumulative) timeout would let `read_sierra` start a fresh
+    // `deadline_budget` window of its own, pushing this past `executable_delay + deadline_budget`.
+    assert!(
+        elapsed < executable_delay + deadline_budget,
+        "read_sierra was not bounded by the deadline read_casm already spent part of: took \
+         {elapsed:?}."
     );
 }

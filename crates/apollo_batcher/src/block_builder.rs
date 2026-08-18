@@ -788,7 +788,7 @@ impl BlockBuilderFactory {
         let class_reader = Some(ClassReader {
             reader: self.class_manager_client.clone(),
             runtime,
-            request_timeout: None,
+            deadline: None,
         });
         let apollo_reader =
             ApolloReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);

@@ -215,6 +215,7 @@ impl ViewStateReaderFactory for ParkedViewStateReaderFactory {
         _block_number: BlockNumber,
         _native_classes_whitelist: NativeClassesWhitelist,
         _runtime: tokio::runtime::Handle,
+        _class_manager_request_timeout: Duration,
     ) -> Box<dyn StateReader + Send> {
         let release_receiver =
             self.release_receiver.lock().unwrap().take().expect("Expected a single view call.");

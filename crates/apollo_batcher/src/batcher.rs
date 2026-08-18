@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -2001,8 +2001,9 @@ pub trait ViewStateReaderFactory: Send + Sync {
     /// `native_classes_whitelist` gates which classes may execute under Cairo native, and must be
     /// the one block production runs with, so a view call returns what a block would compute.
     /// The reader blocks on the class manager through `runtime`, from the blocking task the view
-    /// call runs in; `class_manager_request_timeout` bounds that block, so a stalled class
-    /// manager cannot pin the blocking task's thread past the view call's own timeout.
+    /// call runs in; `class_manager_request_timeout` bounds the reader's total time waiting on
+    /// the class manager (not each individual request), so a stalled class manager cannot pin the
+    /// blocking task's thread past the view call's own timeout.
     fn create(
         &self,
         block_number: BlockNumber,
@@ -2028,10 +2029,13 @@ impl ViewStateReaderFactory for StorageViewStateReaderFactory {
     ) -> Box<dyn StateReader + Send> {
         // The batcher's storage records class declarations but never writes the definitions, so a
         // class is only readable through the class manager.
+        // The deadline is computed once here rather than passing the duration into `ClassReader`,
+        // so a class hash that takes several class manager requests (Casm and Sierra) is still
+        // bounded by a single `class_manager_request_timeout`, not a multiple of it.
         let class_reader = Some(ClassReader {
             reader: self.class_manager_client.clone(),
             runtime,
-            request_timeout: Some(class_manager_request_timeout),
+            deadline: Some(Instant::now() + class_manager_request_timeout),
         });
         let apollo_reader = ApolloReader::new_with_class_reader(
             self.storage_reader.clone(),

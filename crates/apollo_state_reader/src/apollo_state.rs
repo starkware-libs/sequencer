@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::Instant;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_storage::class_hash::ClassHashStorageReader;
@@ -35,25 +35,28 @@ pub struct ClassReader {
     pub reader: SharedClassManagerClient,
     // Used to invoke async functions from sync reader code.
     pub runtime: tokio::runtime::Handle,
-    /// Bounds each class manager request. This reader runs inside a blocking task on a shared
-    /// blocking-thread pool; a stalled class manager would otherwise pin that thread forever,
-    /// since the pool has no way to cancel a thread that is blocked inside `block_on`. `None`
-    /// leaves requests unbounded.
-    pub request_timeout: Option<Duration>,
+    /// Bounds the total time this reader may spend waiting on the class manager, across every
+    /// request it makes. This reader runs inside a blocking task on a shared blocking-thread
+    /// pool; a stalled class manager would otherwise pin that thread forever, since the pool has
+    /// no way to cancel a thread that is blocked inside `block_on`. A single deadline (set once,
+    /// e.g. at construction) rather than a per-request duration keeps a class hash that needs
+    /// several requests (Casm and Sierra) from being able to add up to a multiple of the caller's
+    /// intended bound. `None` leaves requests unbounded.
+    pub deadline: Option<Instant>,
 }
 
 impl ClassReader {
-    /// Runs `request` on `self.runtime`, bounding it by `self.request_timeout` when set.
+    /// Runs `request` on `self.runtime`, bounding it by `self.deadline` when set.
     fn block_on_request<Fut: Future>(&self, request: Fut) -> StateResult<Fut::Output> {
-        let Some(request_timeout) = self.request_timeout else {
+        let Some(deadline) = self.deadline else {
             return Ok(self.runtime.block_on(request));
         };
 
         self.runtime.block_on(async {
-            tokio::time::timeout(request_timeout, request).await.map_err(|_| {
-                StateError::StateReadError(format!(
-                    "Class manager request timed out after {request_timeout:?}."
-                ))
+            tokio::time::timeout_at(deadline.into(), request).await.map_err(|_| {
+                StateError::StateReadError(
+                    "Class manager request timed out; the reader's deadline passed.".to_string(),
+                )
             })
         })
     }
