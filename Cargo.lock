@@ -1884,6 +1884,7 @@ dependencies = [
  "rstest",
  "serde_json",
  "starknet_api",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
