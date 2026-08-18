@@ -190,14 +190,13 @@ pub(crate) const MAX_VIEW_CALL_RETDATA_LENGTH: usize = 100_000;
 
 /// Maximal number of view calls that may occupy tokio blocking threads at once.
 ///
-/// A call whose caller stopped waiting keeps its thread parked until execution ends, so this caps
-/// how many pile up. Uncapped, a wedged class manager parks one more every
-/// `view_call_timeout_millis` for as long as each read keeps retrying, and the blocking pool is
-/// shared with block production.
-///
-/// It also bounds the damage before the cap is reached: the batcher serves one request at a time,
-/// so every stuck call costs block production a full `view_call_timeout_millis`. Once the slots are
-/// gone, view calls fail immediately and the batcher is free again.
+/// The node runs on a bare `#[tokio::main]` runtime, so the blocking pool holds tokio's default of
+/// 512 threads, and `spawn_blocking` beyond that queues instead of failing. Block production shares
+/// that pool (block_builder execution and block hash computation), as do the gateway's stateful
+/// validator and the transaction converter, so view calls, a non-critical read path, get a small
+/// slice of it: 32 slots is under 7% of the pool, leaving block production unaffected even when
+/// every view call slot is stuck. A view call that a caller abandoned keeps its thread parked until
+/// execution ends, so this is also the cap on how many such threads can pile up.
 pub(crate) const MAX_CONCURRENT_VIEW_CALLS: usize = 32;
 
 /// Reason returned when all view call slots are taken. Names no internal component, since it
