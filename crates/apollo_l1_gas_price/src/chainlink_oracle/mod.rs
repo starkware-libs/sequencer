@@ -1,8 +1,273 @@
-//! Reading the Chainlink price feeds on Starknet.
+//! Reading Chainlink's price feeds on Starknet: the oracle client consensus calls, and the feed
+//! reads behind it.
 
-pub mod feed_math;
-pub mod feed_read;
+use std::fmt::{Debug, Formatter, Result as FormatterResult};
+use std::marker::PhantomData;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-// [Temporary comment] A harness for a single test file so far; A9's `test.rs` shares it.
+use apollo_batcher_types::communication::SharedBatcherClient;
+use apollo_l1_gas_price_config::config::{ChainlinkOracleConfig, RateBoundsConfig};
+use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
+use apollo_l1_gas_price_types::{
+    EthToFri,
+    ExchangeRate,
+    ExchangeRateOracleClientTrait,
+    RateKind,
+    StrkToUsd,
+};
+use apollo_metrics::metrics::set_unix_now_seconds;
+use async_trait::async_trait;
+use futures::future::try_join;
+use futures::FutureExt;
+use tokio::time::Instant;
+use tokio_util::task::AbortOnDropHandle;
+use tracing::{debug, info, instrument, warn};
+
+use crate::chainlink_oracle::feed_math::{derive_eth_to_fri_rate, RateResult};
+use crate::chainlink_oracle::feed_read::{read_feed, ChainlinkFeeds};
+use crate::metrics::{
+    register_chainlink_guard_metrics,
+    ExchangeRateOracleMetrics,
+    ETH_TO_STRK_ORACLE_METRICS,
+    STRK_TO_USD_ORACLE_METRICS,
+};
+use crate::rate_bounds::check_rate_bounds;
+
+pub(crate) mod feed_math;
+mod feed_read;
+
+#[cfg(test)]
+mod test;
 #[cfg(test)]
 mod test_utils;
+
+// A read in flight, resolving to a rate already dated by the block timestamp it was issued for.
+type RateQuery = AbortOnDropHandle<Result<ValidRead, ExchangeRateOracleClientError>>;
+
+// A rate that passed every guard, and the block timestamp it was read for.
+#[derive(Clone, Copy)]
+struct ValidRead {
+    rate: ExchangeRate,
+    block_timestamp: u64,
+}
+
+#[derive(Default)]
+struct OracleState {
+    // The newest read that passed every guard, served to callers until a newer one replaces it.
+    last_valid_read: Option<ValidRead>,
+    // The query in flight. A single slot bounds this client to one query at a time.
+    query: Option<RateQuery>,
+    // When the last query was spawned, on the local monotonic clock, which the refresh cadence is
+    // measured from. Local because the cadence is this node's own scheduling, so a block timestamp
+    // arriving from the network cannot steer it.
+    last_attempt_instant: Option<Instant>,
+}
+
+/// The Chainlink read behind a `RateKind`. Separate from `RateKind` because
+/// `ExchangeRateOracleMetrics` lives in this crate, which the types crate cannot name.
+#[async_trait]
+pub trait ChainlinkRate: RateKind {
+    /// The pair's metrics bundle, shared with the HTTP client for the same pair so each keeps one
+    /// set of Prometheus series across a migration between the two sources.
+    fn metrics() -> ExchangeRateOracleMetrics;
+
+    async fn query_rate(
+        batcher_client: &SharedBatcherClient,
+        config: &ChainlinkOracleConfig,
+        bounds_config: &RateBoundsConfig,
+        block_timestamp: u64,
+    ) -> RateResult;
+}
+
+/// Reads Chainlink's on-chain Starknet price feeds through the sequencer's own batcher.
+///
+/// Consensus calls `fetch_rate` on every proposal build and validate, so the call must not block on
+/// the batcher: the feed is read by a background query spawned at most once per
+/// `sampling_interval_seconds`, and every caller is served the last valid read.
+///
+/// Reads are not deterministic across nodes: `call_contract` executes against the batcher's latest
+/// committed block rather than state pinned to the queried timestamp, so two nodes can read
+/// different rounds for the same block timestamp. Chainlink's deviation threshold is far inside the
+/// `l1_gas_price_margin_percent` validators compare within, so this is not expected to reject
+/// proposals.
+// [Temporary comment] Constructed only by tests; B4 builds it for a feed whose configured oracle
+// source is Chainlink.
+#[derive(Clone)]
+pub struct ChainlinkOracleClient<Kind: ChainlinkRate> {
+    config: ChainlinkOracleConfig,
+    bounds_config: RateBoundsConfig,
+    batcher_client: SharedBatcherClient,
+    state: Arc<Mutex<OracleState>>,
+    metrics: ExchangeRateOracleMetrics,
+    _kind: PhantomData<Kind>,
+}
+
+// Manual impl: the trait requires `Debug` but `SharedBatcherClient` does not provide it.
+impl<Kind: ChainlinkRate> Debug for ChainlinkOracleClient<Kind> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> FormatterResult {
+        formatter
+            .debug_struct("ChainlinkOracleClient")
+            .field("pair", &Kind::PAIR)
+            .field("config", &self.config)
+            .field("bounds_config", &self.bounds_config)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<Kind: ChainlinkRate> ChainlinkOracleClient<Kind> {
+    pub fn new(
+        config: ChainlinkOracleConfig,
+        bounds_config: RateBoundsConfig,
+        batcher_client: SharedBatcherClient,
+    ) -> Self {
+        let pair = Kind::PAIR;
+        info!("Creating ChainlinkOracleClient for {pair:?} with: {config:?} {bounds_config:?}");
+        let metrics = Kind::metrics();
+        metrics.register();
+        register_chainlink_guard_metrics();
+        Self {
+            config,
+            bounds_config,
+            batcher_client,
+            state: Arc::new(Mutex::new(OracleState::default())),
+            metrics,
+            _kind: PhantomData,
+        }
+    }
+
+    // `block_timestamp` is what every freshness guard inside the query is measured against, and
+    // what the resulting read is dated by.
+    fn spawn_query(&self, block_timestamp: u64) -> RateQuery {
+        let batcher_client = self.batcher_client.clone();
+        let config = self.config.clone();
+        let bounds_config = self.bounds_config.clone();
+        let metrics = self.metrics;
+        let pair = Kind::PAIR;
+        AbortOnDropHandle::new(tokio::spawn(async move {
+            let result =
+                Kind::query_rate(&batcher_client, &config, &bounds_config, block_timestamp).await;
+            match &result {
+                Ok(rate) => {
+                    metrics.success_count.increment(1);
+                    set_unix_now_seconds(metrics.last_success_timestamp);
+                    metrics.rate.set_lossy(*rate);
+                    debug!(
+                        "Resolved {pair:?} query for block timestamp {block_timestamp} to {rate}"
+                    );
+                }
+                Err(error) => {
+                    metrics.error_count.increment(1);
+                    warn!("Failed {pair:?} query for block timestamp {block_timestamp}: {error:?}");
+                }
+            }
+            result.map(|rate| ValidRead { rate, block_timestamp })
+        }))
+    }
+
+    // Moves a finished query's success into `state` as the last valid read. Called on every
+    // `fetch_rate`, so that a query which resolved after the last caller that could have observed
+    // it is harvested rather than dropped together with the round trip that produced it.
+    fn harvest_finished_query(&self, state: &mut OracleState) {
+        if !state.query.as_ref().is_some_and(|query| query.is_finished()) {
+            return;
+        }
+        let joined = state
+            .query
+            .take()
+            .expect("Query must be present if it reported being finished")
+            .now_or_never()
+            .expect("Finished query must resolve immediately");
+        let result = joined.unwrap_or_else(|error| {
+            self.metrics.error_count.increment(1);
+            warn!("Query failed to join its handle: {error:?}");
+            Err(ExchangeRateOracleClientError::JoinError(error.to_string()))
+        });
+        match result {
+            Ok(valid_read) => {
+                debug!(
+                    "Harvested a rate of {} for block timestamp {}",
+                    valid_read.rate, valid_read.block_timestamp
+                );
+                state.last_valid_read = Some(valid_read);
+            }
+            // Nothing is held for a failure: the next query waits for the sampling interval like
+            // any other refresh.
+            Err(error) => debug!("Harvested query failure: {error:?}"),
+        }
+    }
+}
+
+#[async_trait]
+impl<Kind: ChainlinkRate> ExchangeRateOracleClientTrait for ChainlinkOracleClient<Kind> {
+    #[instrument(skip(self))]
+    async fn fetch_rate(
+        &self,
+        block_timestamp: u64,
+    ) -> Result<ExchangeRate, ExchangeRateOracleClientError> {
+        // Held for the whole function: harvesting the finished query, deciding whether to spawn the
+        // next one and serving this caller are one critical section, so no caller can observe a
+        // query that was taken but whose outcome is not stored yet.
+        let mut state = self.state.lock().unwrap();
+        self.harvest_finished_query(&mut state);
+
+        let sampling_interval = Duration::from_secs(self.config.sampling_interval_seconds);
+        let is_refresh_due = state
+            .last_attempt_instant
+            .is_none_or(|last_attempt| last_attempt.elapsed() >= sampling_interval);
+        if state.query.is_none() && is_refresh_due {
+            state.query = Some(self.spawn_query(block_timestamp));
+            state.last_attempt_instant = Some(Instant::now());
+        }
+
+        // A caller whose own read has not resolved is served the read the client already holds,
+        // including the caller that spawned the read in flight.
+        match state.last_valid_read {
+            Some(valid_read) => Ok(valid_read.rate),
+            None => Err(ExchangeRateOracleClientError::QueryNotReadyError(block_timestamp)),
+        }
+    }
+}
+
+#[async_trait]
+impl ChainlinkRate for StrkToUsd {
+    fn metrics() -> ExchangeRateOracleMetrics {
+        STRK_TO_USD_ORACLE_METRICS
+    }
+
+    async fn query_rate(
+        batcher_client: &SharedBatcherClient,
+        config: &ChainlinkOracleConfig,
+        bounds_config: &RateBoundsConfig,
+        block_timestamp: u64,
+    ) -> RateResult {
+        read_feed(batcher_client, config.strk_usd_feed(bounds_config), block_timestamp).await
+    }
+}
+
+#[async_trait]
+impl ChainlinkRate for EthToFri {
+    fn metrics() -> ExchangeRateOracleMetrics {
+        ETH_TO_STRK_ORACLE_METRICS
+    }
+
+    async fn query_rate(
+        batcher_client: &SharedBatcherClient,
+        config: &ChainlinkOracleConfig,
+        bounds_config: &RateBoundsConfig,
+        block_timestamp: u64,
+    ) -> RateResult {
+        // The two legs are separate `call_contract` calls, which exposes no block pinning, so they
+        // may straddle a block boundary. A one-block skew is orders of magnitude below the
+        // staleness bound both legs must independently pass.
+        let (eth_to_usd_rate, strk_to_usd_rate) = try_join(
+            read_feed(batcher_client, config.eth_usd_feed(bounds_config), block_timestamp),
+            read_feed(batcher_client, config.strk_usd_feed(bounds_config), block_timestamp),
+        )
+        .await?;
+
+        let eth_to_fri_rate = derive_eth_to_fri_rate(eth_to_usd_rate, strk_to_usd_rate)?;
+        check_rate_bounds(eth_to_fri_rate, bounds_config.eth_to_fri_bounds())?;
+        Ok(eth_to_fri_rate)
+    }
+}

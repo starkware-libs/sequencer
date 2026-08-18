@@ -14,41 +14,24 @@ use crate::chainlink_oracle::feed_math::{MAX_CONTRACT_CALL_ERROR_BYTES, TRUNCATI
 use crate::chainlink_oracle::test_utils::{
     batcher_client_from_responses,
     decimals_retdata,
-    feed_responses,
+    fresh_updated_at,
+    stale_updated_at,
+    strk_usd_responses,
+    test_config,
     FeedFixture,
     FeedResponses,
     FEED_DECIMALS,
+    STRK_USD_ANSWER,
+    TIMESTAMP,
 };
 use crate::metrics::CHAINLINK_ORACLE_RATE_OUT_OF_BOUNDS_COUNT;
-
-/// The block timestamp every reading below is dated against, and every freshness bound measured
-/// against.
-const TIMESTAMP: u64 = 1_700_000_000;
-/// $0.03 per STRK at `FEED_DECIMALS`.
-const STRK_USD_ANSWER: u128 = 3_000_000;
-
-fn test_config() -> ChainlinkOracleConfig {
-    ChainlinkOracleConfig::default()
-}
 
 fn strk_usd_feed() -> FeedRead {
     test_config().strk_usd_feed(&RateBoundsConfig::default())
 }
 
-fn fresh_updated_at() -> u64 {
-    TIMESTAMP
-}
-
-fn stale_updated_at() -> u64 {
-    TIMESTAMP - test_config().freshness.max_staleness_seconds - 1
-}
-
 fn future_updated_at() -> u64 {
     TIMESTAMP + test_config().freshness.max_future_updated_at_seconds + 1
-}
-
-fn strk_usd_responses(strk_usd: FeedFixture) -> FeedResponses {
-    feed_responses(test_config().strk_usd_feed_address, strk_usd)
 }
 
 /// The STRK/USD feed with a valid `decimals` reply but no round, so exactly one of the two calls a
