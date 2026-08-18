@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787029898239,
+  "lastUpdate": 1787039308400,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -951,6 +951,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1524.23901424,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0d117c900dd117f93d039f30f06f209c239f3b05",
+          "message": "apollo_l1_gas_price: register each oracle metric set once (#14977)",
+          "timestamp": "2026-08-18T07:15:08Z",
+          "tree_id": "7195a8fb823d55d85331c9cec3467a9d85ac0ce5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0d117c900dd117f93d039f30f06f209c239f3b05"
+        },
+        "date": 1787039307775,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 839.77775317,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1304.22798446,
             "unit": "ms"
           }
         ]
