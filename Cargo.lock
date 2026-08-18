@@ -1875,6 +1875,8 @@ dependencies = [
  "async-trait",
  "futures",
  "lru 0.12.5",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockall",
  "mockito",
  "papyrus_base_layer",
