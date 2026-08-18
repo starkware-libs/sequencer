@@ -33,8 +33,6 @@ pub type ExchangeRate = u128;
 pub const LABEL_NAME_CURRENCY_PAIR: &str = "currency_pair";
 
 /// The pair a reading or rate quotes.
-// [Temporary comment] No consumer yet: `labels()` lands with the oracle metrics PR, `pair_name()`
-// with the rate-bounds PR.
 #[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, PartialEq, Eq, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum CurrencyPair {
@@ -158,8 +156,8 @@ pub trait ExchangeRateOracleClientTrait: Send + Sync + Debug {
 }
 
 /// The rate an oracle client instance produces.
-// [Temporary comment] No implementors outside this module yet: the rate arithmetic and Chainlink
-// client PRs add them.
+// [Temporary comment] No implementors outside this module yet: the Chainlink client PR (A9) adds
+// them.
 pub trait RateKind: Send + Sync + Debug + 'static {
     const PAIR: CurrencyPair;
 }
