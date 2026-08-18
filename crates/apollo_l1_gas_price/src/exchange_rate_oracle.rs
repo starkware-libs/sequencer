@@ -26,7 +26,7 @@ use crate::metrics::ExchangeRateOracleMetrics;
 #[path = "exchange_rate_oracle_test.rs"]
 pub mod exchange_rate_oracle_test;
 
-pub const EXCHANGE_RATE_DECIMALS: u64 = 18;
+pub use apollo_l1_gas_price_types::EXCHANGE_RATE_DECIMALS;
 
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -195,8 +195,11 @@ fn resolve_query(
             "rate must be non-zero".to_string(),
         ));
     }
-    // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
-    let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
+    let decimals = match json
+        .get("decimals")
+        .and_then(|value| value.as_u64())
+        .and_then(|value| u32::try_from(value).ok())
+    {
         Some(decimals) => decimals,
         None => {
             return Err(ExchangeRateOracleClientError::MissingFieldError(
@@ -219,7 +222,7 @@ fn resolve_query(
 impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
-    /// - `decimals`: a `u64` value, must be equal to `EXCHANGE_RATE_DECIMALS`.
+    /// - `decimals`: a number equal to `EXCHANGE_RATE_DECIMALS`.
     #[instrument(skip(self))]
     async fn fetch_rate(
         &self,
