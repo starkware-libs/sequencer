@@ -2689,6 +2689,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_storage",
  "assert_matches",
+ "async-trait",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",

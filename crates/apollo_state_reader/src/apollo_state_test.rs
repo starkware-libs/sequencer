@@ -1,14 +1,27 @@
 use core::panic;
+use std::sync::Arc;
+use std::time::Duration;
 
+use apollo_class_manager_types::{
+    Class,
+    ClassHashes,
+    ClassId,
+    ClassManagerClient,
+    ClassManagerClientResult,
+    ExecutableClass,
+    ExecutableClassHash,
+};
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
+use async_trait::async_trait;
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::trivial_external_entry_point_new;
@@ -18,10 +31,12 @@ use indexmap::IndexMap;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::state::{StateDiff, StorageKey};
+use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
+use starknet_api::state::{StateDiff, StorageKey, ThinStateDiff};
 use starknet_api::{calldata, felt};
 
-use crate::apollo_state::ApolloReader;
+use crate::apollo_state::{ApolloReader, ClassReader};
 
 #[test]
 fn test_entry_point_with_papyrus_state() -> StorageResult<()> {
@@ -75,4 +90,104 @@ fn test_entry_point_with_papyrus_state() -> StorageResult<()> {
     assert_eq!(value_from_state, value);
 
     Ok(())
+}
+
+/// Stands in for a class manager that never answers: a network partition, an overloaded remote
+/// class manager, or (for a locally-deployed class manager reached over an in-process channel,
+/// which carries no request timeout of its own) a stalled component.
+struct StalledClassManagerClient;
+
+#[async_trait]
+impl ClassManagerClient for StalledClassManagerClient {
+    async fn add_class(&self, _class: Class) -> ClassManagerClientResult<ClassHashes> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn get_executable(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClass>> {
+        std::future::pending().await
+    }
+
+    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn get_executable_class_hash_v2(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClassHash>> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn add_deprecated_class(
+        &self,
+        _class_id: ClassId,
+        _class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()> {
+        unimplemented!("Not exercised by this test.")
+    }
+
+    async fn add_class_and_executable_unsafe(
+        &self,
+        _class_id: ClassId,
+        _class: Class,
+        _executable_class_hash_v2: ExecutableClassHash,
+        _executable_class: ExecutableClass,
+    ) -> ClassManagerClientResult<()> {
+        unimplemented!("Not exercised by this test.")
+    }
+}
+
+/// Without `request_timeout`, a class manager that never answers hangs `get_compiled_class`
+/// forever: `ClassReader` blocks the thread it runs on (a shared blocking-pool thread when reached
+/// through `call_contract` or block production) inside `block_on`, and nothing can cancel a thread
+/// parked there. `request_timeout` bounds the wait, so the thread is released within that window
+/// instead of being pinned indefinitely.
+#[tokio::test(flavor = "multi_thread")]
+async fn class_reader_request_times_out_when_the_class_manager_never_answers() {
+    let class_hash = ClassHash(felt!(0x1234_u16));
+    // Cairo 1 declaration marker only, with no definition behind it: `is_declared` reads this
+    // table, so reading the class must go through the class manager.
+    let state_diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: IndexMap::from([(
+            class_hash,
+            CompiledClassHash::default(),
+        )]),
+        ..Default::default()
+    };
+
+    let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber::default(), state_diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let request_timeout = Duration::from_millis(200);
+    let class_reader = Some(ClassReader {
+        reader: Arc::new(StalledClassManagerClient),
+        runtime: tokio::runtime::Handle::current(),
+        request_timeout: Some(request_timeout),
+    });
+    let apollo_reader =
+        ApolloReader::new_with_class_reader(storage_reader, BlockNumber(1), class_reader);
+
+    // Bounds the test itself: without the fix, the call below hangs forever, turning a
+    // regression into a stuck test rather than a failing one.
+    let result = tokio::time::timeout(
+        request_timeout * 10,
+        tokio::task::spawn_blocking(move || apollo_reader.get_compiled_class(class_hash)),
+    )
+    .await
+    .expect("get_compiled_class did not return within 10x its own request timeout.")
+    .expect("Reading a declared class panicked.");
+
+    assert_matches!(
+        result,
+        Err(StateError::StateReadError(message)) if message.contains("timed out")
+    );
 }
