@@ -95,6 +95,29 @@ async fn wait_for_query_to_finish<Kind: ChainlinkRate>(client: &ChainlinkOracleC
     panic!("Query did not finish within {MAX_POLL_ATTEMPTS} attempts");
 }
 
+/// The failure the client holds, which a held valid read masks.
+fn held_error<Kind: ChainlinkRate>(
+    client: &ChainlinkOracleClient<Kind>,
+) -> Option<ExchangeRateOracleClientError> {
+    client.state.lock().unwrap().last_error.clone()
+}
+
+/// Drives `fetch_rate` until the client holds a failure. Unlike `resolve_rate` this does not stop
+/// at the first `Ok`, which for a failing query is the last valid rate.
+async fn wait_for_held_error<Kind: ChainlinkRate>(
+    client: &ChainlinkOracleClient<Kind>,
+    block_timestamp: u64,
+) {
+    for _ in 0..MAX_POLL_ATTEMPTS {
+        if held_error(client).is_some() {
+            return;
+        }
+        let _ = client.fetch_rate(block_timestamp).await;
+        tokio::task::yield_now().await;
+    }
+    panic!("Query for {block_timestamp} did not fail within {MAX_POLL_ATTEMPTS} attempts");
+}
+
 #[tokio::test]
 async fn strk_to_usd_rescales_feed_answer_to_eighteen_decimals() {
     let client = make_client::<StrkToUsd>(strk_usd_responses(FeedFixture::new(
@@ -327,4 +350,111 @@ async fn a_failed_query_records_the_rejection_reason_and_pair(
             );
         }
     }
+}
+
+/// With no valid rate to fall back on, the caller sees the failure, and the failing feed is
+/// queried once per retry interval rather than once per call.
+#[tokio::test(start_paused = true)]
+async fn failed_query_is_held_until_the_retry_interval_elapses() {
+    let failure_retry_interval_seconds = test_config().failure_retry_interval_seconds;
+    let (batcher_client, num_batcher_calls) = counting_batcher_client(FeedResponses::new());
+    let client = client_with_batcher::<StrkToUsd>(batcher_client);
+
+    assert_matches!(
+        resolve_rate(&client, TIMESTAMP).await,
+        Err(ExchangeRateOracleClientError::ContractCallError(_))
+    );
+    let num_calls_after_failure = num_batcher_calls.load(Ordering::SeqCst);
+    assert!(last_valid_read(&client).is_none());
+
+    // Every step together stays one second short of the retry interval.
+    const NUM_LATER_CALLS: u64 = 10;
+    let step_seconds = (failure_retry_interval_seconds - 1) / NUM_LATER_CALLS;
+    assert!(step_seconds > 0);
+    for _ in 0..NUM_LATER_CALLS {
+        tokio::time::advance(Duration::from_secs(step_seconds)).await;
+        assert_matches!(
+            client.fetch_rate(TIMESTAMP).await,
+            Err(ExchangeRateOracleClientError::ContractCallError(_))
+        );
+    }
+    assert_eq!(num_batcher_calls.load(Ordering::SeqCst), num_calls_after_failure);
+}
+
+/// A failed read is retried a retry interval later, so a transient failure costs one retry
+/// interval rather than the rest of the sampling interval.
+#[tokio::test(start_paused = true)]
+async fn a_failed_read_is_retried_after_the_retry_interval() {
+    let failure_retry_interval_seconds = test_config().failure_retry_interval_seconds;
+    let (batcher_client, num_batcher_calls) = counting_batcher_client(FeedResponses::new());
+    let client = client_with_batcher::<StrkToUsd>(batcher_client);
+    assert_matches!(
+        resolve_rate(&client, TIMESTAMP).await,
+        Err(ExchangeRateOracleClientError::ContractCallError(_))
+    );
+    let num_calls_after_first_attempt = num_batcher_calls.load(Ordering::SeqCst);
+
+    // One second short of the retry interval, the failure still stands and nothing is queried.
+    tokio::time::advance(Duration::from_secs(failure_retry_interval_seconds - 1)).await;
+    assert_matches!(
+        client.fetch_rate(TIMESTAMP).await,
+        Err(ExchangeRateOracleClientError::ContractCallError(_))
+    );
+    assert_eq!(num_batcher_calls.load(Ordering::SeqCst), num_calls_after_first_attempt);
+
+    // At the retry interval the feed is queried again. The held failure is what this call is
+    // served, since the retry it spawns has nothing to answer with yet.
+    tokio::time::advance(Duration::from_secs(1)).await;
+    assert_matches!(
+        client.fetch_rate(TIMESTAMP).await,
+        Err(ExchangeRateOracleClientError::ContractCallError(_))
+    );
+    assert!(is_query_in_flight(&client), "the retry interval elapsed but no query was spawned");
+    wait_for_query_to_finish(&client).await;
+    assert!(
+        num_batcher_calls.load(Ordering::SeqCst) > num_calls_after_first_attempt,
+        "the retry issued no batcher call"
+    );
+}
+
+/// A held failure keeps the batcher from being queried again before the retry interval, but it
+/// must not deny the proposal path a rate the client already holds.
+#[tokio::test(start_paused = true)]
+async fn a_held_failure_does_not_mask_the_last_valid_rate() {
+    let client = client_with_batcher::<StrkToUsd>(batcher_client_failing_after(
+        strk_usd_responses(FeedFixture::new(STRK_USD_ANSWER, fresh_updated_at())),
+        CALLS_PER_FEED_PER_QUERY,
+    ));
+    let rate = resolve_rate(&client, TIMESTAMP).await.unwrap();
+
+    tokio::time::advance(Duration::from_secs(sampling_interval_seconds())).await;
+    let later_timestamp = TIMESTAMP + sampling_interval_seconds();
+    wait_for_held_error(&client, later_timestamp).await;
+
+    assert_eq!(client.fetch_rate(later_timestamp).await.unwrap(), rate);
+}
+
+/// The fallback must hold for the one call that observes a failing query finish and stores the
+/// failure, not just the calls before and after it.
+#[tokio::test(start_paused = true)]
+async fn no_call_is_denied_a_rate_the_client_holds() {
+    let client = client_with_batcher::<StrkToUsd>(batcher_client_failing_after(
+        strk_usd_responses(FeedFixture::new(STRK_USD_ANSWER, fresh_updated_at())),
+        CALLS_PER_FEED_PER_QUERY,
+    ));
+    let rate = resolve_rate(&client, TIMESTAMP).await.unwrap();
+
+    tokio::time::advance(Duration::from_secs(sampling_interval_seconds())).await;
+    let later_timestamp = TIMESTAMP + sampling_interval_seconds();
+    for _ in 0..MAX_POLL_ATTEMPTS {
+        if held_error(&client).is_some() {
+            break;
+        }
+        assert_eq!(
+            client.fetch_rate(later_timestamp).await.expect("Last valid rate should be served"),
+            rate
+        );
+        tokio::task::yield_now().await;
+    }
+    assert!(held_error(&client).is_some(), "the failing query was never harvested");
 }

@@ -60,6 +60,9 @@ struct ValidRead {
 struct PairOracleState {
     // The newest read that passed every guard, served to callers until a newer one replaces it.
     last_valid_read: Option<ValidRead>,
+    // The newest query's failure, cleared by the next success. Served only when no valid read is
+    // held.
+    last_error: Option<ExchangeRateOracleClientError>,
     // The query in flight. A single slot bounds this client to one query at a time.
     query: Option<RateQuery>,
     // When the last query was spawned, on the local monotonic clock, which the refresh cadence is
@@ -160,7 +163,8 @@ impl<Kind: ChainlinkRate> ChainlinkOracleClient<Kind> {
         })
     }
 
-    // Moves a finished query's success into `state` as the last valid read. Called on every
+    // Moves a finished query's outcome into `state`: a success becomes the last valid read and
+    // clears the last error, a failure becomes the last error. Called on every
     // `fetch_rate`, so that a query which resolved after the last caller that could have observed
     // it is harvested rather than dropped together with the round trip that produced it.
     fn harvest_finished_query(&self, state: &mut PairOracleState) {
@@ -179,16 +183,19 @@ impl<Kind: ChainlinkRate> ChainlinkOracleClient<Kind> {
             warn!("Query failed to join its handle: {error:?}");
             Err(error)
         });
-        // Nothing is held for a failure: the next query waits for the sampling interval like any
-        // other refresh, and `spawn_query` already warned.
-        if let Ok(valid_read) = result {
-            debug!(
-                "Harvested {:?} rate {} for block timestamp {}",
-                Kind::PAIR,
-                valid_read.rate,
-                valid_read.block_timestamp
-            );
-            state.last_valid_read = Some(valid_read);
+        match result {
+            Ok(valid_read) => {
+                debug!(
+                    "Harvested {:?} rate {} for block timestamp {}",
+                    Kind::PAIR,
+                    valid_read.rate,
+                    valid_read.block_timestamp
+                );
+                state.last_valid_read = Some(valid_read);
+                state.last_error = None;
+            }
+            // `spawn_query` already warned; this only holds it for the retry interval.
+            Err(error) => state.last_error = Some(error),
         }
     }
 }
@@ -206,19 +213,28 @@ impl<Kind: ChainlinkRate> ExchangeRateOracleClientTrait for ChainlinkOracleClien
         let mut state = self.state.lock().unwrap();
         self.harvest_finished_query(&mut state);
 
-        let sampling_interval = Duration::from_secs(self.config.sampling_interval_seconds);
+        let refresh_interval_seconds = if state.last_error.is_some() {
+            self.config.failure_retry_interval_seconds
+        } else {
+            self.config.sampling_interval_seconds
+        };
+        let refresh_interval = Duration::from_secs(refresh_interval_seconds);
         let is_refresh_due = state
             .last_attempt_instant
-            .is_none_or(|last_attempt| last_attempt.elapsed() >= sampling_interval);
+            .is_none_or(|last_attempt| last_attempt.elapsed() >= refresh_interval);
         if state.query.is_none() && is_refresh_due {
             state.query = Some(self.spawn_query(block_timestamp));
             state.last_attempt_instant = Some(Instant::now());
         }
 
         // A caller whose own read has not resolved is served the read the client already holds,
-        // including the caller that spawned the read in flight.
-        match state.last_valid_read {
-            Some(valid_read) => Ok(valid_read.rate),
+        // including the caller that spawned the read in flight. A held failure is served only when
+        // no valid read is held.
+        if let Some(valid_read) = state.last_valid_read {
+            return Ok(valid_read.rate);
+        }
+        match &state.last_error {
+            Some(error) => Err(error.clone()),
             None => Err(ExchangeRateOracleClientError::QueryNotReadyError(block_timestamp)),
         }
     }
