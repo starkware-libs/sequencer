@@ -1,4 +1,4 @@
-use apollo_metrics::metrics::{MetricCounter, MetricDetails, MetricScope};
+use apollo_metrics::metrics::{MetricCounter, MetricDetails};
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 
 use crate::bouncer::BouncerWeights;
@@ -90,13 +90,11 @@ impl CacheMetrics {
         self.hits.increment(1);
     }
 
-    pub fn get_scope(&self) -> MetricScope {
+    pub fn validate_scope(&self) {
         assert_eq!(
             self.misses.get_scope(),
             self.hits.get_scope(),
             "Scope of misses and hits must be the same"
         );
-
-        self.misses.get_scope()
     }
 }
