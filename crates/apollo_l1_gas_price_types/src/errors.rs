@@ -49,6 +49,33 @@ pub enum ExchangeRateOracleClientError {
     AllUrlsFailedError(u64, usize),
     #[error("Invalid rate from oracle: {0}")]
     InvalidRateError(String),
+    // [Temporary comment] The five variants below are first returned by the feed guards (A7/A8).
+    #[error(
+        "Stale {pair_name} price feed: last updated at {updated_at}, priced for block timestamp \
+         {block_timestamp}, maximum accepted staleness is {max_staleness_seconds} seconds"
+    )]
+    StaleFeedError {
+        pair_name: String,
+        updated_at: u64,
+        block_timestamp: u64,
+        max_staleness_seconds: u64,
+    },
+    #[error(
+        "The {pair_name} price feed is dated {updated_at}, more than \
+         {max_future_updated_at_seconds} seconds ahead of the block timestamp {block_timestamp}"
+    )]
+    FutureFeedError {
+        pair_name: String,
+        updated_at: u64,
+        block_timestamp: u64,
+        max_future_updated_at_seconds: u64,
+    },
+    #[error("Rate {rate} for {pair_name} is outside the accepted range [{min_rate}, {max_rate}]")]
+    RateOutOfBoundsError { pair_name: String, rate: u128, min_rate: u128, max_rate: u128 },
+    #[error("Contract call to price feed failed: {0}")]
+    ContractCallError(String),
+    #[error("Arithmetic overflow while computing rate: {0}")]
+    ArithmeticError(String),
 }
 
 impl From<reqwest::Error> for ExchangeRateOracleClientError {
