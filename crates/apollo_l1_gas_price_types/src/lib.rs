@@ -172,8 +172,6 @@ pub trait ExchangeRateOracleClientTrait: Send + Sync + Debug {
 }
 
 /// The rate an oracle client instance produces.
-// [Temporary comment] No implementors outside this module yet: the Chainlink client PR (A9) adds
-// them.
 pub trait RateKind: Send + Sync + Debug + 'static {
     const PAIR: CurrencyPair;
 }
