@@ -1,8 +1,5 @@
 //! One Chainlink feed read: two view calls through the batcher, and the guards their answer passes.
 
-// [Temporary comment] `pub` with no caller yet: the client (A9) calls `read_feed` through the
-// feed accessors and narrows them to `pub(super)`.
-
 use apollo_batcher_types::batcher_types::CallContractInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_l1_gas_price_config::config::{
@@ -31,7 +28,7 @@ pub(super) const DECIMALS_ENTRY_POINT: &str = "decimals";
 /// freshness window that answer must fall in. The derived ETH/STRK pair has no feed and no value of
 /// this type.
 #[derive(Clone, Copy, Debug)]
-pub struct PairFeed {
+pub(super) struct PairFeed {
     feed_address: ContractAddress,
     bounds: RateBounds,
     freshness: FreshnessWindow,
@@ -40,7 +37,7 @@ pub struct PairFeed {
 /// The reads a `ChainlinkOracleConfig` describes, judged against the bounds `bounds_config` holds.
 /// One method per pair Chainlink quotes, so a read cannot be requested for the derived pair, which
 /// has no feed.
-pub trait ChainlinkFeeds {
+pub(super) trait ChainlinkFeeds {
     fn eth_usd_feed(&self, bounds_config: &AllRateBoundsConfig) -> PairFeed;
     fn strk_usd_feed(&self, bounds_config: &AllRateBoundsConfig) -> PairFeed;
 }
@@ -63,8 +60,8 @@ impl ChainlinkFeeds for ChainlinkOracleConfig {
     }
 }
 
-/// The feed's answer, rescaled to `RATE_DECIMALS` and checked against the feed's bounds.
-pub async fn read_feed(
+/// The feed's answer, rescaled to `EXCHANGE_RATE_DECIMALS` and checked against the feed's bounds.
+pub(super) async fn read_feed(
     batcher_client: &SharedBatcherClient,
     feed: PairFeed,
     block_timestamp: u64,

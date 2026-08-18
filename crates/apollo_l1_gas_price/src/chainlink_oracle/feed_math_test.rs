@@ -3,17 +3,13 @@ use rstest::rstest;
 
 use super::*;
 use crate::chainlink_oracle::feed_decode::{MAX_FEED_DECIMALS, MIN_FEED_DECIMALS};
-
-/// The scale the Chainlink feeds report at today.
-const FEED_DECIMALS: u32 = 8;
-/// $3000 per ETH at `FEED_DECIMALS`.
-const ETH_USD_ANSWER: u128 = 300_000_000_000;
-/// $0.03 per STRK at `FEED_DECIMALS`.
-const STRK_USD_ANSWER: u128 = 3_000_000;
-/// The rate the two answers above derive to: 100,000 STRK per ETH.
-const ETH_TO_FRI_RATE: u128 = 100_000 * EXCHANGE_RATE_SCALE;
-/// $0.03 per STRK at `EXCHANGE_RATE_DECIMALS`.
-const STRK_TO_USD_RATE: u128 = 30_000_000_000_000_000;
+use crate::chainlink_oracle::test_utils::{
+    ETH_TO_FRI_RATE,
+    ETH_USD_ANSWER,
+    FEED_DECIMALS,
+    STRK_TO_USD_RATE,
+    STRK_USD_ANSWER,
+};
 
 /// $0.03 per STRK reaches the same rate from every scale a feed may report it at.
 #[rstest]
@@ -41,7 +37,7 @@ fn eth_to_fri_divides_the_two_usd_legs() {
     assert_eq!(derive_eth_to_fri_rate(eth_to_usd_rate, strk_to_usd_rate).unwrap(), ETH_TO_FRI_RATE);
 }
 
-/// Each answer is rescaled to `RATE_DECIMALS` before the division, so the derived rate comes out
+/// Each answer is rescaled to `EXCHANGE_RATE_DECIMALS` before the division, so the derived rate
 /// the same whatever scales the two feeds report at. The widest pairs also cover the rescale of the
 /// largest answer accepted without overflowing.
 #[rstest]
