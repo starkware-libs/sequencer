@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -781,6 +782,7 @@ impl Batcher {
             height,
             self.config.dynamic_config.native_classes_whitelist.clone(),
             tokio::runtime::Handle::current(),
+            self.config.dynamic_config.view_call_timeout_millis,
         );
         let block_context = BlockContext::new(
             block_info,
@@ -815,7 +817,10 @@ impl Batcher {
         });
 
         // Timing out releases the batcher's request slot but does not cancel the blocking task,
-        // which runs to completion on its own thread.
+        // which runs to completion on its own thread. The class manager request the task blocks
+        // on is itself bounded by this same timeout (passed into the state reader above), so a
+        // stalled class manager cannot pin that thread past this window and starve the blocking
+        // thread pool block production also depends on.
         let view_call_timeout = self.config.dynamic_config.view_call_timeout_millis;
         let retdata = tokio::time::timeout(view_call_timeout, call_task)
             .await
@@ -1996,12 +2001,15 @@ pub trait ViewStateReaderFactory: Send + Sync {
     /// `native_classes_whitelist` gates which classes may execute under Cairo native, and must be
     /// the one block production runs with, so a view call returns what a block would compute.
     /// The reader blocks on the class manager through `runtime`, from the blocking task the view
-    /// call runs in.
+    /// call runs in; `class_manager_request_timeout` bounds the reader's total time waiting on
+    /// the class manager (not each individual request), so a stalled class manager cannot pin the
+    /// blocking task's thread past the view call's own timeout.
     fn create(
         &self,
         block_number: BlockNumber,
         native_classes_whitelist: NativeClassesWhitelist,
         runtime: tokio::runtime::Handle,
+        class_manager_request_timeout: Duration,
     ) -> Box<dyn StateReader + Send>;
 }
 
@@ -2017,10 +2025,18 @@ impl ViewStateReaderFactory for StorageViewStateReaderFactory {
         block_number: BlockNumber,
         native_classes_whitelist: NativeClassesWhitelist,
         runtime: tokio::runtime::Handle,
+        class_manager_request_timeout: Duration,
     ) -> Box<dyn StateReader + Send> {
         // The batcher's storage records class declarations but never writes the definitions, so a
         // class is only readable through the class manager.
-        let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
+        // The deadline is computed once here rather than passing the duration into `ClassReader`,
+        // so a class hash that takes several class manager requests (Casm and Sierra) is still
+        // bounded by a single `class_manager_request_timeout`, not a multiple of it.
+        let class_reader = Some(ClassReader {
+            reader: self.class_manager_client.clone(),
+            runtime,
+            deadline: Some(Instant::now() + class_manager_request_timeout),
+        });
         let apollo_reader = ApolloReader::new_with_class_reader(
             self.storage_reader.clone(),
             block_number,
