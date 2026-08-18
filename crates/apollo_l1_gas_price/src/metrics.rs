@@ -1,3 +1,5 @@
+use std::sync::Once;
+
 use apollo_infra::metrics::{
     InfraMetrics,
     LocalClientMetrics,
@@ -5,11 +7,24 @@ use apollo_infra::metrics::{
     RemoteClientMetrics,
     RemoteServerMetrics,
 };
-use apollo_l1_gas_price_types::L1_GAS_PRICE_REQUEST_LABELS;
+use apollo_l1_gas_price_types::{
+    CurrencyPair,
+    L1_GAS_PRICE_REQUEST_LABELS,
+    LABEL_NAME_CURRENCY_PAIR,
+};
 use apollo_metrics::metrics::{MetricCounter, MetricDetails, MetricGauge};
-use apollo_metrics::{define_infra_metrics, define_metrics};
+use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
+
+#[cfg(test)]
+#[path = "metrics_test.rs"]
+mod metrics_test;
 
 define_infra_metrics!(l1_gas_price);
+
+generate_permutation_labels! {
+    CURRENCY_PAIR_LABELS,
+    (LABEL_NAME_CURRENCY_PAIR, CurrencyPair),
+}
 
 define_metrics!(
     L1GasPrice => {
@@ -21,6 +36,11 @@ define_metrics!(
         MetricCounter { ETH_TO_STRK_SUCCESS_COUNT, "eth_to_strk_success_count", "Number of times the query to the Eth to Strk oracle succeeded", init=0 },
         MetricCounter { SNIP35_STRK_USD_ERROR_COUNT, "snip35_strk_usd_error_count", "Number of times the query to the STRK to USD oracle failed due to an error or timeout", init=0 },
         MetricCounter { SNIP35_STRK_USD_SUCCESS_COUNT, "snip35_strk_usd_success_count", "Number of times the query to the STRK to USD oracle succeeded", init=0 },
+        LabeledMetricCounter { CHAINLINK_ORACLE_STALE_FEED_COUNT, "chainlink_oracle_stale_feed_count", "Number of times a Chainlink price feed reading was rejected because its update timestamp was older than the accepted staleness bound", init=0, labels = CURRENCY_PAIR_LABELS },
+        LabeledMetricCounter { CHAINLINK_ORACLE_FUTURE_FEED_COUNT, "chainlink_oracle_future_feed_count", "Number of times a Chainlink price feed reading was rejected because its update timestamp led the queried timestamp by more than the accepted tolerance", init=0, labels = CURRENCY_PAIR_LABELS },
+        LabeledMetricCounter { CHAINLINK_ORACLE_RATE_OUT_OF_BOUNDS_COUNT, "chainlink_oracle_rate_out_of_bounds_count", "Number of times a Chainlink rate was rejected because it fell outside the configured absolute sanity bounds", init=0, labels = CURRENCY_PAIR_LABELS },
+        LabeledMetricCounter { CHAINLINK_ORACLE_INVALID_FEED_ANSWER_COUNT, "chainlink_oracle_invalid_feed_answer_count", "Number of times a Chainlink feed returned a zero answer or a decimals value outside the accepted range", init=0, labels = CURRENCY_PAIR_LABELS },
+        LabeledMetricCounter { CHAINLINK_ORACLE_CONTRACT_CALL_ERROR_COUNT, "chainlink_oracle_contract_call_error_count", "Number of times a Chainlink feed call to the batcher failed or returned undecodable retdata", init=0, labels = CURRENCY_PAIR_LABELS },
         MetricGauge { L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS, "l1_gas_price_scraper_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful L1 gas price scrape" },
         MetricGauge { ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS, "eth_to_strk_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful ETH→STRK oracle query" },
         MetricGauge { SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS, "snip35_strk_usd_last_success_timestamp_seconds", "Unix timestamp (seconds) of the last successful STRK→USD oracle query" },
@@ -84,6 +104,20 @@ pub(crate) fn register_provider_metrics() {
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.register();
     L1_GAS_PRICE_LATEST_MEAN_VALUE.register();
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.register();
+}
+
+/// Registers one counter series per `currency_pair`. Runs once per process.
+// [Temporary comment] `pub` until the Chainlink client (A9) calls it; the feed guards (A7/A8)
+// increment these counters.
+pub fn register_chainlink_guard_metrics() {
+    static CHAINLINK_GUARD_METRICS_REGISTRATION: Once = Once::new();
+    CHAINLINK_GUARD_METRICS_REGISTRATION.call_once(|| {
+        CHAINLINK_ORACLE_STALE_FEED_COUNT.register();
+        CHAINLINK_ORACLE_FUTURE_FEED_COUNT.register();
+        CHAINLINK_ORACLE_RATE_OUT_OF_BOUNDS_COUNT.register();
+        CHAINLINK_ORACLE_INVALID_FEED_ANSWER_COUNT.register();
+        CHAINLINK_ORACLE_CONTRACT_CALL_ERROR_COUNT.register();
+    });
 }
 
 pub(crate) fn register_scraper_metrics() {
