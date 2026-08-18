@@ -7,6 +7,8 @@ config:
     eth_fee_token_address: '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7'
     l1_gas_price_provider_config.chainlink_oracle_config.eth_usd_feed_address: '0x06b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26'
     l1_gas_price_provider_config.chainlink_oracle_config.strk_usd_feed_address: '0x076a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec'
+    l1_gas_price_provider_config.eth_to_strk_oracle_source: Http
+    l1_gas_price_provider_config.strk_to_usd_oracle_source: Http
     monitoring_endpoint_config.port: 8082
     strk_fee_token_address: '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
     versioned_constants_overrides.#is_none: true
