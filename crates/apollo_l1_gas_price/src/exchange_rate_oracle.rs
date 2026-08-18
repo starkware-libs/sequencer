@@ -26,7 +26,7 @@ use crate::metrics::ExchangeRateOracleMetrics;
 #[path = "exchange_rate_oracle_test.rs"]
 pub mod exchange_rate_oracle_test;
 
-pub const EXCHANGE_RATE_DECIMALS: u64 = 18;
+pub use apollo_l1_gas_price_types::EXCHANGE_RATE_DECIMALS;
 
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -205,9 +205,9 @@ fn resolve_query(
             ));
         }
     };
-    if decimals != EXCHANGE_RATE_DECIMALS {
+    if decimals != u64::from(EXCHANGE_RATE_DECIMALS) {
         return Err(ExchangeRateOracleClientError::InvalidDecimalsError(
-            EXCHANGE_RATE_DECIMALS,
+            u64::from(EXCHANGE_RATE_DECIMALS),
             decimals,
         ));
     }

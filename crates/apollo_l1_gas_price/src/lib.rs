@@ -28,8 +28,10 @@
 //! unusable precisely when it is already degraded. The configured minimums and the default
 //! ETH→STRK rate are safe floors the operator has verified are always economically viable.
 
+pub mod chainlink_oracle;
 pub mod communication;
 pub mod exchange_rate_oracle;
 pub mod l1_gas_price_provider;
 pub mod l1_gas_price_scraper;
 pub mod metrics;
+pub mod rate_bounds;
