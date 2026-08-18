@@ -1254,6 +1254,7 @@ dependencies = [
  "apollo_consensus_orchestrator_config",
  "apollo_http_server_config",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_mempool_config",
  "apollo_metrics",
  "apollo_node_config",
