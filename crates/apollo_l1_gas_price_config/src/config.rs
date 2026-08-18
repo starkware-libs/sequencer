@@ -27,6 +27,20 @@ use validator::{Validate, ValidationError};
 #[path = "config_test.rs"]
 mod config_test;
 
+/// Which implementation serves a single exchange rate feed. The two feeds are selected
+/// independently, so they can be migrated one at a time.
+// TODO(Asaf): remove this enum, both `*_oracle_source` fields and both their params together
+// with the HTTP oracle, once both feeds have run on `Chainlink` on mainnet for a week.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ExchangeRateOracleSource {
+    /// The off-chain oracle HTTP API, configured by the feed's `ExchangeRateOracleConfig`.
+    #[default]
+    Http,
+    /// Chainlink's on-chain Starknet price feeds, configured by `ChainlinkOracleConfig` and read
+    /// through the batcher.
+    Chainlink,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ExchangeRateOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
@@ -138,15 +152,17 @@ impl SerializeConfig for RateBoundsConfig {
             ser_param(
                 "minimum_micro_units",
                 &self.minimum_micro_units,
-                "Lowest accepted rate for this pair, in micro units (1e-6) of the quote currency, \
-                 so a value of 20000000 on ETH/USD means $20.",
+                "Lowest accepted price for this pair, in micro units (1e-6) of the pair's quote \
+                 currency, so a value of 20000000 means 20 units of the quote currency, and a \
+                 value of 100 means 0.0001 units.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "maximum_micro_units",
                 &self.maximum_micro_units,
-                "Highest accepted rate for this pair, in micro units (1e-6) of the quote \
-                 currency, so a value of 50000000000 on ETH/USD means $50,000.",
+                "Highest accepted price for this pair, in micro units (1e-6) of the pair's quote \
+                 currency, so a value of 50000000000 means 50,000 units of the quote currency, \
+                 and a value of 10000000 means 10 units.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -301,7 +317,7 @@ impl SerializeConfig for FreshnessWindow {
 /// only what is Chainlink-specific: the bounds a feed's answer is judged against describe the rate
 /// rather than the source, so they live in `AllRateBoundsConfig`, which also bounds the derived
 /// ETH/STRK pair that has no feed of its own.
-// [Temporary comment] B3 selects the source per feed and B4 builds the client.
+// [Temporary comment] B4 builds the client that reads this.
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ChainlinkOracleConfig {
@@ -405,9 +421,12 @@ pub struct L1GasPriceProviderConfig {
     pub eth_to_strk_oracle_config: ExchangeRateOracleConfig,
     #[validate(nested)]
     pub strk_to_usd_oracle_config: ExchangeRateOracleConfig,
-    // Both apply to every feed, unlike the per-feed HTTP configs above.
-    // [Temporary comment] B3 adds the per-feed source switch and B4 builds the client that reads
-    // these.
+    pub eth_to_strk_oracle_source: ExchangeRateOracleSource,
+    pub strk_to_usd_oracle_source: ExchangeRateOracleSource,
+    // `rate_bounds_config` and `chainlink_oracle_config` apply to every feed, unlike the per-feed
+    // HTTP configs, and both are validated while every feed is still on `Http`, so a bad value is
+    // rejected at config load rather than at the moment an operator flips a source to `Chainlink`.
+    // [Temporary comment] B4 builds the client that reads these.
     #[validate(nested)]
     pub rate_bounds_config: AllRateBoundsConfig,
     #[validate(nested)]
@@ -424,6 +443,8 @@ impl Default for L1GasPriceProviderConfig {
             max_time_gap_seconds: 900, // 15 minutes
             eth_to_strk_oracle_config: ExchangeRateOracleConfig::default(),
             strk_to_usd_oracle_config: ExchangeRateOracleConfig::default(),
+            eth_to_strk_oracle_source: ExchangeRateOracleSource::default(),
+            strk_to_usd_oracle_source: ExchangeRateOracleSource::default(),
             rate_bounds_config: AllRateBoundsConfig::default(),
             chainlink_oracle_config: ChainlinkOracleConfig::default(),
         }
@@ -457,6 +478,28 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                 &self.max_time_gap_seconds,
                 "Maximum valid time gap between the requested timestamp and the last price sample \
                  in seconds",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "eth_to_strk_oracle_source",
+                &self.eth_to_strk_oracle_source,
+                "Which oracle serves the ETH/STRK rate: `Http` reads the API configured in \
+                 `eth_to_strk_oracle_config`, `Chainlink` reads the on-chain feeds configured in \
+                 `chainlink_oracle_config`, which both feeds share, and requires a batcher \
+                 client. Selecting `Chainlink` on a service that has no batcher client is a \
+                 startup failure, not a fallback to `Http`. The feeds exist on Starknet mainnet \
+                 only, so `Chainlink` is mainnet-only until they are deployed elsewhere.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_to_usd_oracle_source",
+                &self.strk_to_usd_oracle_source,
+                "Which oracle serves the STRK/USD rate: `Http` reads the API configured in \
+                 `strk_to_usd_oracle_config`, `Chainlink` reads the on-chain feeds configured in \
+                 `chainlink_oracle_config`, which both feeds share, and requires a batcher \
+                 client. Selecting `Chainlink` on a service that has no batcher client is a \
+                 startup failure, not a fallback to `Http`. The feeds exist on Starknet mainnet \
+                 only, so `Chainlink` is mainnet-only until they are deployed elsewhere.",
                 ParamPrivacyInput::Public,
             ),
         ]);

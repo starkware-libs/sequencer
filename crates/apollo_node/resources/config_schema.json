@@ -3359,6 +3359,11 @@
     "privacy": "Private",
     "value": "https://api.example.com/api"
   },
+  "l1_gas_price_provider_config.eth_to_strk_oracle_source": {
+    "description": "Which oracle serves the ETH/STRK rate: `Http` reads the API configured in `eth_to_strk_oracle_config`, `Chainlink` reads the on-chain feeds configured in `chainlink_oracle_config`, which both feeds share, and requires a batcher client. Selecting `Chainlink` on a service that has no batcher client is a startup failure, not a fallback to `Http`. The feeds exist on Starknet mainnet only, so `Chainlink` is mainnet-only until they are deployed elsewhere.",
+    "privacy": "Public",
+    "value": "Http"
+  },
   "l1_gas_price_provider_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
     "privacy": "Public",
@@ -3375,32 +3380,32 @@
     "value": 300
   },
   "l1_gas_price_provider_config.rate_bounds_config.eth_strk.maximum_micro_units": {
-    "description": "Highest accepted rate for this pair, in micro units (1e-6) of the quote currency, so a value of 50000000000 on ETH/USD means $50,000.",
+    "description": "Highest accepted price for this pair, in micro units (1e-6) of the pair's quote currency, so a value of 50000000000 means 50,000 units of the quote currency, and a value of 10000000 means 10 units.",
     "privacy": "Public",
     "value": 1000000000000
   },
   "l1_gas_price_provider_config.rate_bounds_config.eth_strk.minimum_micro_units": {
-    "description": "Lowest accepted rate for this pair, in micro units (1e-6) of the quote currency, so a value of 20000000 on ETH/USD means $20.",
+    "description": "Lowest accepted price for this pair, in micro units (1e-6) of the pair's quote currency, so a value of 20000000 means 20 units of the quote currency, and a value of 100 means 0.0001 units.",
     "privacy": "Public",
     "value": 10000000000
   },
   "l1_gas_price_provider_config.rate_bounds_config.eth_usd.maximum_micro_units": {
-    "description": "Highest accepted rate for this pair, in micro units (1e-6) of the quote currency, so a value of 50000000000 on ETH/USD means $50,000.",
+    "description": "Highest accepted price for this pair, in micro units (1e-6) of the pair's quote currency, so a value of 50000000000 means 50,000 units of the quote currency, and a value of 10000000 means 10 units.",
     "privacy": "Public",
     "value": 50000000000
   },
   "l1_gas_price_provider_config.rate_bounds_config.eth_usd.minimum_micro_units": {
-    "description": "Lowest accepted rate for this pair, in micro units (1e-6) of the quote currency, so a value of 20000000 on ETH/USD means $20.",
+    "description": "Lowest accepted price for this pair, in micro units (1e-6) of the pair's quote currency, so a value of 20000000 means 20 units of the quote currency, and a value of 100 means 0.0001 units.",
     "privacy": "Public",
     "value": 20000000
   },
   "l1_gas_price_provider_config.rate_bounds_config.strk_usd.maximum_micro_units": {
-    "description": "Highest accepted rate for this pair, in micro units (1e-6) of the quote currency, so a value of 50000000000 on ETH/USD means $50,000.",
+    "description": "Highest accepted price for this pair, in micro units (1e-6) of the pair's quote currency, so a value of 50000000000 means 50,000 units of the quote currency, and a value of 10000000 means 10 units.",
     "privacy": "Public",
     "value": 10000000
   },
   "l1_gas_price_provider_config.rate_bounds_config.strk_usd.minimum_micro_units": {
-    "description": "Lowest accepted rate for this pair, in micro units (1e-6) of the quote currency, so a value of 20000000 on ETH/USD means $20.",
+    "description": "Lowest accepted price for this pair, in micro units (1e-6) of the pair's quote currency, so a value of 20000000 means 20 units of the quote currency, and a value of 100 means 0.0001 units.",
     "privacy": "Public",
     "value": 100
   },
@@ -3428,6 +3433,11 @@
     "description": "A list of Url+HTTP headers for the exchange rate oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
     "privacy": "Private",
     "value": "https://api.example.com/api"
+  },
+  "l1_gas_price_provider_config.strk_to_usd_oracle_source": {
+    "description": "Which oracle serves the STRK/USD rate: `Http` reads the API configured in `strk_to_usd_oracle_config`, `Chainlink` reads the on-chain feeds configured in `chainlink_oracle_config`, which both feeds share, and requires a batcher client. Selecting `Chainlink` on a service that has no batcher client is a startup failure, not a fallback to `Http`. The feeds exist on Starknet mainnet only, so `Chainlink` is mainnet-only until they are deployed elsewhere.",
+    "privacy": "Public",
+    "value": "Http"
   },
   "l1_gas_price_scraper_config.#is_none": {
     "description": "Flag for an optional field.",
