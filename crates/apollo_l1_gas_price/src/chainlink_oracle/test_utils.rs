@@ -23,7 +23,7 @@ pub(super) const FEED_DECIMALS: u32 = 8;
 
 /// The block timestamp every fixture below is dated against, and every freshness bound measured
 /// against.
-pub(super) const TIMESTAMP: u64 = 1_700_000_000;
+pub(crate) const TIMESTAMP: u64 = 1_700_000_000;
 
 /// $3000 per ETH at `FEED_DECIMALS`.
 pub(super) const ETH_USD_ANSWER: u128 = 300_000_000_000;
@@ -31,9 +31,9 @@ pub(super) const ETH_USD_ANSWER: u128 = 300_000_000_000;
 pub(super) const STRK_USD_ANSWER: u128 = 3_000_000;
 
 /// $0.03 per STRK at `EXCHANGE_RATE_DECIMALS`, which `STRK_USD_ANSWER` rescales to.
-pub(super) const STRK_TO_USD_RATE: ExchangeRate = 30_000_000_000_000_000;
+pub(crate) const STRK_TO_USD_RATE: ExchangeRate = 30_000_000_000_000_000;
 /// 100,000 STRK per ETH at `EXCHANGE_RATE_DECIMALS`, which the two feed answers derive to.
-pub(super) const ETH_TO_FRI_RATE: ExchangeRate = 100_000 * EXCHANGE_RATE_SCALE;
+pub(crate) const ETH_TO_FRI_RATE: ExchangeRate = 100_000 * EXCHANGE_RATE_SCALE;
 
 /// The mocked reply per feed address and entry point. A call with no entry here fails.
 pub(super) type FeedResponses = HashMap<(ContractAddress, String), Vec<Felt>>;
@@ -108,6 +108,15 @@ pub(super) fn eth_and_strk_responses(eth_usd: FeedFixture, strk_usd: FeedFixture
 
 pub(super) fn batcher_client_from_responses(responses: FeedResponses) -> SharedBatcherClient {
     counting_batcher_client(responses).0
+}
+
+/// Serves both feeds fresh at every call, so a `StrkToUsd` read resolves to `STRK_TO_USD_RATE` and
+/// an `EthToFri` read derives to `ETH_TO_FRI_RATE`.
+pub(crate) fn batcher_client_serving_fresh_feeds() -> SharedBatcherClient {
+    batcher_client_from_responses(eth_and_strk_responses(
+        FeedFixture::new(ETH_USD_ANSWER, fresh_updated_at()),
+        FeedFixture::new(STRK_USD_ANSWER, fresh_updated_at()),
+    ))
 }
 
 /// A batcher client alongside the number of calls made through it.
