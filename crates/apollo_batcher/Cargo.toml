@@ -56,6 +56,9 @@ apollo_committer_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 apollo_l1_events_types = { workspace = true, features = ["testing"] }
+apollo_l1_gas_price.workspace = true
+apollo_l1_gas_price_config.workspace = true
+apollo_l1_gas_price_types.workspace = true
 apollo_mempool_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_proof_manager_types = { workspace = true, features = ["testing"] }

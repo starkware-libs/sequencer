@@ -160,6 +160,10 @@ use crate::test_utils::{
     STREAMING_CHUNK_SIZE,
 };
 
+// A submodule, so that it reaches the real-storage view call scaffolding below.
+#[path = "chainlink_aggregator_view_call_test.rs"]
+mod chainlink_aggregator_view_call_test;
+
 const STAKING_CONTRACT: FeatureContract =
     FeatureContract::MockStakingContract(RunnableCairo1::Casm);
 const ACCOUNT_CONTRACT: FeatureContract =
@@ -2598,11 +2602,23 @@ async fn call_contract_times_out_when_the_state_reader_never_answers() {
     drop(release_sender);
 }
 
-/// Deploys `contract` in real batcher storage at `LAST_COMMITTED_HEIGHT`, and returns the
-/// dependencies of a batcher whose view calls run over the real `StorageViewStateReaderFactory`.
-/// The caller states the class manager expectations, so that each test owns the number of reads it
-/// asserts on.
+/// Deploys instance 0 of `contract` in real batcher storage at `LAST_COMMITTED_HEIGHT`, and returns
+/// the dependencies of a batcher whose view calls run over the real
+/// `StorageViewStateReaderFactory`. The caller states the class manager expectations, so that each
+/// test owns the number of reads it asserts on.
 fn deploy_contract_in_real_storage(contract: FeatureContract) -> MockDependenciesWithRealStorage {
+    deploy_contract_instances_in_real_storage(contract, &[0], IndexMap::new())
+}
+
+/// Deploys one instance of `contract` per entry of `instance_ids` in real batcher storage at
+/// `LAST_COMMITTED_HEIGHT`, writes `storage_diffs` alongside them, and returns the dependencies of
+/// a batcher whose view calls run over the real `StorageViewStateReaderFactory`. The caller states
+/// the class manager expectations, so that each test owns the number of reads it asserts on.
+fn deploy_contract_instances_in_real_storage(
+    contract: FeatureContract,
+    instance_ids: &[u16],
+    storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
+) -> MockDependenciesWithRealStorage {
     let class_hash = contract.get_class_hash();
     let mut mock_dependencies = MockDependenciesWithRealStorage::default();
 
@@ -2628,7 +2644,11 @@ fn deploy_contract_in_real_storage(contract: FeatureContract) -> MockDependencie
         .append_state_diff(
             LAST_COMMITTED_HEIGHT,
             ThinStateDiff {
-                deployed_contracts: indexmap! { contract.get_instance_address(0) => class_hash },
+                deployed_contracts: instance_ids
+                    .iter()
+                    .map(|instance_id| (contract.get_instance_address(*instance_id), class_hash))
+                    .collect(),
+                storage_diffs,
                 ..declaration(contract)
             },
         )
