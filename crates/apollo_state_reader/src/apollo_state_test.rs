@@ -275,3 +275,44 @@ async fn class_reader_deadline_bounds_the_total_wait_across_requests() {
          {elapsed:?}."
     );
 }
+
+/// Reproduces, without the real class manager transport, the panic a naive fix would reintroduce:
+/// `LocalComponentClient::send` hands its response sender to the server before the request
+/// resolves, and the server's `tx.send(response).await.expect("Response connection should be
+/// open.")` panics if that sender's receiver was dropped first. A deadline that raced `request`
+/// itself against a timer and dropped it on expiry would drop that receiver the moment the
+/// deadline passed. `block_on_request` must instead let `request` keep running to completion in
+/// the background, so a slow "server" can still deliver its response.
+#[tokio::test(flavor = "multi_thread")]
+async fn class_reader_deadline_does_not_drop_the_request_mid_flight() {
+    let (response_sender, mut response_receiver) = tokio::sync::mpsc::channel::<()>(1);
+    let server_delay = Duration::from_millis(200);
+    let deadline_budget = Duration::from_millis(50);
+
+    let request = async move {
+        tokio::time::sleep(server_delay).await;
+        response_sender.send(()).await.expect("Response connection should be open.");
+    };
+
+    let class_reader = ClassReader {
+        // Unused: `request` above stands in for the class manager call.
+        reader: Arc::new(StalledClassManagerClient),
+        runtime: tokio::runtime::Handle::current(),
+        deadline: Some(Instant::now() + deadline_budget),
+    };
+
+    let result = tokio::task::spawn_blocking(move || class_reader.block_on_request(request))
+        .await
+        .expect("block_on_request panicked.");
+
+    assert_matches!(
+        result,
+        Err(StateError::StateReadError(message)) if message.contains("timed out")
+    );
+    // The request must still run to completion and successfully deliver its response; had it
+    // been dropped instead, `response_sender.send` above would have panicked before this point.
+    tokio::time::timeout(server_delay * 2, response_receiver.recv())
+        .await
+        .expect("The detached request never completed.")
+        .expect("The response channel closed before the request could send its response.");
+}
