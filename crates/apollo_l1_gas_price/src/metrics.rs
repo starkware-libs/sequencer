@@ -116,8 +116,7 @@ pub(crate) fn register_provider_metrics() {
 }
 
 /// Registers one counter series per `currency_pair`. Runs once per process.
-// [Temporary comment] `pub` until the Chainlink client (A9) calls it; the feed guards (A7/A8)
-// increment these counters.
+// [Temporary comment] `pub` until the Chainlink client (A9) calls it.
 pub fn register_chainlink_guard_metrics() {
     static CHAINLINK_GUARD_METRICS_REGISTRATION: Once = Once::new();
     CHAINLINK_GUARD_METRICS_REGISTRATION.call_once(|| {

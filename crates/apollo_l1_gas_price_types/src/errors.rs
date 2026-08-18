@@ -49,7 +49,6 @@ pub enum ExchangeRateOracleClientError {
     AllUrlsFailedError(u64, usize),
     #[error("Invalid rate from oracle: {0}")]
     InvalidRateError(String),
-    // [Temporary comment] The five variants below are first returned by the feed guards (A7/A8).
     #[error(
         "Stale {pair_name} price feed: last updated at {updated_at}, priced for block timestamp \
          {block_timestamp}, maximum accepted staleness is {max_staleness_seconds} seconds"
