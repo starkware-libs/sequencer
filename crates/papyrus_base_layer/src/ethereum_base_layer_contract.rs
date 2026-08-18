@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::future::IntoFuture;
 use std::ops::RangeInclusive;
 use std::time::Duration;
@@ -23,8 +23,9 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, BlockTimestamp};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
@@ -44,6 +45,11 @@ use crate::{
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 pub type EthereumContractAddress = Address;
+
+/// Upper bound on concurrent `eth_getBlockByNumber` requests issued while resolving block
+/// timestamps, so a range spanning many blocks resolves them in bounded batches rather than all at
+/// once.
+const MAX_CONCURRENT_BLOCK_HEADER_FETCHES: usize = 8;
 
 #[cfg(test)]
 #[path = "ethereum_base_layer_contract_test.rs"]
@@ -188,27 +194,52 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
         debug!("Got events in {:?}, matching_logs: {:?}", block_range, matching_logs);
 
-        // Note that these errors should never happen... but since we are depending on an external
-        // service to provider the logs, it is not impossible for temporary glitches to cause weird
-        // data inconsistencies like a missing number or header.
-        let block_header_futures = matching_logs.into_iter().map(|log| async move {
+        // Each event is stamped with its block's timestamp. Logs in the same block share it, so
+        // resolve it once per distinct block, and skip the fetch entirely for blocks whose logs
+        // already carry `block_timestamp` from the provider. The rest are fetched with bounded
+        // concurrency.
+        let blocks_missing_timestamp: BTreeSet<L1BlockNumber> = matching_logs
+            .iter()
+            .filter(|log| log.block_timestamp.is_none())
+            .filter_map(|log| log.block_number)
+            .collect();
+
+        let fetched_headers = futures::stream::iter(blocks_missing_timestamp.into_iter().map(
+            |block_number| async move {
+                (block_number, immutable_self.get_block_header_immutable(block_number).await)
+            },
+        ))
+        .buffer_unordered(MAX_CONCURRENT_BLOCK_HEADER_FETCHES)
+        .collect::<Vec<_>>()
+        .await;
+
+        let mut block_timestamps: BTreeMap<L1BlockNumber, BlockTimestamp> = BTreeMap::new();
+        for (block_number, header) in fetched_headers {
+            // A fetch error fails this range; the caller retries on the next poll. A missing header
+            // leaves the block unresolved, handled below.
+            if let Some(header) = header? {
+                block_timestamps.insert(block_number, header.timestamp);
+            }
+        }
+
+        let mut parsed_events = Vec::with_capacity(matching_logs.len());
+        for log in matching_logs {
             let Some(block_number) = log.block_number else {
                 return Err(EthereumBaseLayerError::BlockNumberMissingError(Box::new(log)));
             };
-            let header = immutable_self.get_block_header_immutable(block_number).await?;
-            let Some(header) = header else {
-                return Err(EthereumBaseLayerError::BlockHeaderMissingError(Box::new(log)));
+            let block_timestamp = match log.block_timestamp {
+                Some(timestamp) => BlockTimestamp(timestamp),
+                None => match block_timestamps.get(&block_number) {
+                    Some(timestamp) => *timestamp,
+                    None => {
+                        return Err(EthereumBaseLayerError::BlockHeaderMissingError(Box::new(log)));
+                    }
+                },
             };
-            parse_event(log, header.timestamp)
-        });
-        // TODO(guyn): replace this with try_join_all.
-        let events = futures::future::join_all(block_header_futures).await;
-        let mut parsed_events = Vec::with_capacity(events.len());
-        for event in events {
-            match event {
+            match parse_event(log, block_timestamp) {
                 Ok(event) => parsed_events.push(event),
-                Err(EthereumBaseLayerError::CalldataValueOutOfRange(_)) => {
-                    warn!("Skipping event due to calldata value out of range {:?}", event);
+                Err(error @ EthereumBaseLayerError::CalldataValueOutOfRange(_)) => {
+                    warn!("Skipping event due to calldata value out of range {error:?}");
                 }
                 Err(error) => return Err(error),
             }

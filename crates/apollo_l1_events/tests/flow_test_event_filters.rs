@@ -28,7 +28,7 @@ use papyrus_base_layer::test_utils::{
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
     DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
 };
-use papyrus_base_layer::BaseLayerContract;
+use papyrus_base_layer::{BaseLayerContract, L1Event};
 use utils::{L1_CONTRACT_ADDRESS, L2_ENTRY_POINT};
 
 // This test requires that we do some manual work to produce the logs we expect to get from the
@@ -162,6 +162,80 @@ async fn cannot_parse_log_message_to_l1() {
     assert_matches!(
         result,
         Err(EthereumBaseLayerError::TypeError(alloy::sol_types::Error::InvalidLog { .. }))
+    );
+}
+
+// Logs that share a block resolve their timestamp with a single block-header fetch, not one per
+// log. The mock is given exactly one block response for three same-block logs, so a per-log fetch
+// would exhaust the queue and fail.
+#[tokio::test]
+async fn many_logs_in_one_block_fetch_the_block_header_once() {
+    let asserter = Asserter::new();
+    let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone());
+    let mut base_layer = EthereumBaseLayerContract::new_with_provider(
+        EthereumBaseLayerConfig::default(),
+        provider.root().clone(),
+    );
+
+    let filters = event_identifiers_to_track();
+    let shared_block_number = 5;
+    let logs: Vec<Log> = (0..3)
+        .map(|nonce| {
+            encode_message_into_log(
+                filters[0],
+                shared_block_number,
+                &[U256::from(15), U256::from(202)],
+                U256::from(nonce),
+                Some(U256::from(420)),
+            )
+        })
+        .collect();
+
+    asserter.push_success(&logs);
+    // Exactly one block response for the three same-block logs.
+    asserter.push_success(&dummy_block::<B256>());
+
+    let events = base_layer
+        .events(0..=shared_block_number, &[filters[0]])
+        .await
+        .expect("one block fetch should satisfy all same-block logs");
+    assert_eq!(events.len(), 3);
+}
+
+// When the log carries `blockTimestamp`, no block-header fetch is issued at all: no block response
+// is queued, so any fetch would exhaust the queue and fail. The event carries the log's own
+// timestamp.
+#[tokio::test]
+async fn log_block_timestamp_skips_the_block_header_fetch() {
+    let asserter = Asserter::new();
+    let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone());
+    let mut base_layer = EthereumBaseLayerContract::new_with_provider(
+        EthereumBaseLayerConfig::default(),
+        provider.root().clone(),
+    );
+
+    let filters = event_identifiers_to_track();
+    let block_number = 7;
+    let expected_timestamp = 987654321;
+    let mut log = encode_message_into_log(
+        filters[0],
+        block_number,
+        &[U256::from(15), U256::from(202)],
+        U256::from(127),
+        Some(U256::from(420)),
+    );
+    log.block_timestamp = Some(expected_timestamp);
+
+    asserter.push_success(&vec![log]);
+    // Deliberately no block response queued.
+
+    let events = base_layer
+        .events(0..=block_number, &[filters[0]])
+        .await
+        .expect("timestamp on the log should avoid any block fetch");
+    assert_matches!(
+        &events[0],
+        L1Event::LogMessageToL2 { block_timestamp, .. } if block_timestamp.0 == expected_timestamp
     );
 }
 
