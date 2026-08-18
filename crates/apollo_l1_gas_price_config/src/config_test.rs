@@ -3,7 +3,12 @@ use std::mem::swap;
 use rstest::rstest;
 use validator::Validate;
 
-use super::{AllRateBoundsConfig, L1GasPriceProviderConfig};
+use super::{
+    AllRateBoundsConfig,
+    ChainlinkOracleConfig,
+    FreshnessWindow,
+    L1GasPriceProviderConfig,
+};
 
 // A zero mean window would make the provider divide by zero when computing the mean gas price,
 // so it must be rejected at config load instead of panicking later during block production.
@@ -63,5 +68,62 @@ fn rejects_unusable_rate_bounds(
     let mut config = AllRateBoundsConfig::default();
     let (minimum_micro_units, maximum_micro_units) = select_bounds(&mut config);
     break_bounds(minimum_micro_units, maximum_micro_units);
+    assert!(config.validate().is_err());
+}
+
+#[test]
+fn accepts_default_chainlink_oracle_config() {
+    assert!(ChainlinkOracleConfig::default().validate().is_ok());
+}
+
+// A zero `max_staleness_seconds` rejects every reading not written in the block's own second;
+// a zero `failure_retry_interval_seconds` re-queries a failing feed on every proposal.
+#[rstest]
+#[case::zero_max_staleness(ChainlinkOracleConfig {
+    freshness: FreshnessWindow {
+        max_staleness_seconds: 0,
+        ..ChainlinkOracleConfig::default().freshness
+    },
+    ..Default::default()
+})]
+#[case::zero_failure_retry_interval(ChainlinkOracleConfig {
+    failure_retry_interval_seconds: 0,
+    ..Default::default()
+})]
+fn rejects_out_of_range_chainlink_fields(#[case] config: ChainlinkOracleConfig) {
+    assert!(config.validate().is_err());
+}
+
+// A zero `sampling_interval_seconds` re-reads the feeds on every proposal, so one second is the
+// smallest accepted interval.
+#[rstest]
+#[case::zero(0, false)]
+#[case::one_second(1, true)]
+fn validates_sampling_interval_seconds_range(
+    #[case] sampling_interval_seconds: u64,
+    #[case] is_accepted: bool,
+) {
+    let config = ChainlinkOracleConfig { sampling_interval_seconds, ..Default::default() };
+
+    assert_eq!(config.validate().is_ok(), is_accepted);
+}
+
+#[test]
+fn default_freshness_window_reaches_further_back_than_forward() {
+    let freshness = ChainlinkOracleConfig::default().freshness;
+
+    assert_eq!(freshness.max_staleness_seconds, (24 + 1) * 3600);
+    assert_eq!(freshness.max_future_updated_at_seconds, 300);
+}
+
+#[rstest]
+#[case::inverted(FreshnessWindow {
+    max_staleness_seconds: 300,
+    max_future_updated_at_seconds: 90_000,
+})]
+#[case::equal(FreshnessWindow { max_staleness_seconds: 300, max_future_updated_at_seconds: 300 })]
+fn rejects_a_forward_bound_at_or_above_the_backward_bound(#[case] freshness: FreshnessWindow) {
+    let config = ChainlinkOracleConfig { freshness, ..Default::default() };
+
     assert!(config.validate().is_err());
 }
