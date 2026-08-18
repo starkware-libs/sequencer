@@ -1897,8 +1897,12 @@ name = "apollo_l1_gas_price_config"
 version = "0.19.0-rc.2"
 dependencies = [
  "apollo_config",
+ "apollo_l1_gas_price_types",
+ "rstest",
  "serde",
+ "serde_json",
  "starknet_api",
+ "strum",
  "url",
  "validator",
 ]

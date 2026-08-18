@@ -14,12 +14,14 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::secrets::Sensitive;
-use apollo_config::validators::validate_ascii;
+use apollo_config::validators::{create_validation_error, validate_ascii};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_l1_gas_price_types::CurrencyPair;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
+use strum::IntoEnumIterator;
 use url::Url;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 #[cfg(test)]
 #[path = "config_test.rs"]
@@ -91,6 +93,136 @@ impl Default for ExchangeRateOracleConfig {
             max_cache_size: 100,
             query_timeout_sec: 10,
         }
+    }
+}
+
+/// Decimals of the micro-unit rate bounds.
+pub const RATE_MICRO_UNIT_DECIMALS: u32 = 6;
+
+/// Inclusive absolute bounds on a pair's rate, in micro units (1e-6) of its quote currency.
+// [Temporary comment] No reader yet: the guards arrive in A7.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Validate)]
+pub struct RateBounds {
+    pub minimum_micro_units: u64,
+    pub maximum_micro_units: u64,
+}
+
+impl SerializeConfig for RateBounds {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "minimum_micro_units",
+                &self.minimum_micro_units,
+                "Lowest accepted rate for this pair, in micro units (1e-6) of the quote currency, \
+                 so a value of 20000000 on ETH/USD means $20.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "maximum_micro_units",
+                &self.maximum_micro_units,
+                "Highest accepted rate for this pair, in micro units (1e-6) of the quote \
+                 currency, so a value of 50000000000 on ETH/USD means $50,000.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// Absolute bounds every exchange rate must fall in, whichever source reports it.
+// [Temporary comment] No reader yet: A7 checks rates, B2 nests this in `L1GasPriceProviderConfig`.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_rate_bounds_config"))]
+pub struct RateBoundsConfig {
+    /// Micro-USD per ETH.
+    #[validate(nested)]
+    pub eth_usd: RateBounds,
+    /// Micro-USD per STRK.
+    #[validate(nested)]
+    pub strk_usd: RateBounds,
+    /// Micro-STRK per ETH.
+    #[validate(nested)]
+    pub eth_strk: RateBounds,
+}
+
+impl RateBoundsConfig {
+    /// The bounds a rate on `pair` is judged against.
+    pub fn bounds(&self, pair: CurrencyPair) -> RateBounds {
+        match pair {
+            CurrencyPair::EthUsd => self.eth_usd,
+            CurrencyPair::StrkUsd => self.strk_usd,
+            CurrencyPair::EthStrk => self.eth_strk,
+        }
+    }
+}
+
+impl Default for RateBoundsConfig {
+    fn default() -> Self {
+        const MICRO_UNITS_PER_UNIT: u64 = 10u64.pow(RATE_MICRO_UNIT_DECIMALS);
+
+        Self {
+            // $20 .. $50,000 per ETH, ~10x above the all-time high.
+            eth_usd: RateBounds {
+                minimum_micro_units: 20 * MICRO_UNITS_PER_UNIT,
+                maximum_micro_units: 50_000 * MICRO_UNITS_PER_UNIT,
+            },
+            // $0.0001 .. $10 per STRK.
+            strk_usd: RateBounds {
+                minimum_micro_units: MICRO_UNITS_PER_UNIT / 10_000,
+                maximum_micro_units: 10 * MICRO_UNITS_PER_UNIT,
+            },
+            // 10,000 .. 1,000,000 STRK per ETH, roughly 10x either side of spot near 8.2e4.
+            eth_strk: RateBounds {
+                minimum_micro_units: 10_000 * MICRO_UNITS_PER_UNIT,
+                maximum_micro_units: 1_000_000 * MICRO_UNITS_PER_UNIT,
+            },
+        }
+    }
+}
+
+/// The config key a pair's bounds live under.
+fn bounds_config_key(pair: CurrencyPair) -> &'static str {
+    match pair {
+        CurrencyPair::EthUsd => "eth_usd",
+        CurrencyPair::StrkUsd => "strk_usd",
+        CurrencyPair::EthStrk => "eth_strk",
+    }
+}
+
+/// Cross-field checks the per-field `range` attributes cannot express.
+fn validate_rate_bounds_config(config: &RateBoundsConfig) -> Result<(), ValidationError> {
+    for pair in CurrencyPair::iter() {
+        let bounds = config.bounds(pair);
+        let pair_key = bounds_config_key(pair);
+        if bounds.minimum_micro_units == 0 {
+            return Err(create_validation_error(
+                format!("{pair_key}.minimum_micro_units is zero"),
+                "zero sanity bound",
+                "A zero minimum disables the lower sanity bound; set it to the lowest plausible \
+                 value.",
+            ));
+        }
+        if bounds.minimum_micro_units >= bounds.maximum_micro_units {
+            return Err(create_validation_error(
+                format!(
+                    "{pair_key}.minimum_micro_units ({}) is not below \
+                     {pair_key}.maximum_micro_units ({})",
+                    bounds.minimum_micro_units, bounds.maximum_micro_units
+                ),
+                "inverted sanity bounds",
+                "Ensure each minimum sanity bound is strictly below its maximum.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+impl SerializeConfig for RateBoundsConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        CurrencyPair::iter()
+            .flat_map(|pair| {
+                prepend_sub_config_name(self.bounds(pair).dump(), bounds_config_key(pair))
+            })
+            .collect()
     }
 }
 
