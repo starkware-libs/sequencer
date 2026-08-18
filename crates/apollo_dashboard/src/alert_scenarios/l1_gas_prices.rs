@@ -62,6 +62,7 @@ pub(crate) fn get_strk_to_usd_error_count_alert() -> Alert {
     )
 }
 
+/// Eth to Strk is queried when validating a proposal too, so every node's gauge moves.
 pub(crate) fn get_eth_to_strk_rate_frozen_alert() -> Alert {
     const ALERT_NAME: &str = "eth_to_strk_rate_frozen";
     oracle_rate_frozen_alert(
@@ -69,9 +70,12 @@ pub(crate) fn get_eth_to_strk_rate_frozen_alert() -> Alert {
         "Eth to Strk rate frozen",
         &ETH_TO_STRK_RATE,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        ObserverApplicability::Applicable,
     )
 }
 
+/// Strk to Usd is queried only when building a proposal; observers never propose, so their gauge
+/// stays flat and the alert excludes them.
 pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
     const ALERT_NAME: &str = "strk_to_usd_rate_frozen";
     oracle_rate_frozen_alert(
@@ -79,6 +83,7 @@ pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
         "Strk to Usd rate frozen",
         &SNIP35_STRK_USD_RATE,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        ObserverApplicability::NotApplicable,
     )
 }
 
@@ -191,14 +196,12 @@ fn oracle_error_count_alert(
 /// impossible for a live 18-decimal rate. Unlike the error-count alert there is deliberately no
 /// `or vector(0)`: an absent gauge must stay no-data (so an oracle that never resolves doesn't look
 /// "frozen"); only a present-but-flat gauge trips this.
-///
-/// Applies to observers too: a frozen upstream feed is env-wide and observer nodes run the same
-/// oracle client, so the alert should fire regardless of node role.
 fn oracle_rate_frozen_alert(
     name: &str,
     title: &str,
     rate_metric: &dyn MetricQueryName,
     severity: impl Into<SeverityValueOrPlaceholder>,
+    observer_applicability: ObserverApplicability,
 ) -> Alert {
     Alert::new(
         name,
@@ -208,6 +211,6 @@ fn oracle_rate_frozen_alert(
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         severity,
-        ObserverApplicability::Applicable,
+        observer_applicability,
     )
 }
