@@ -95,7 +95,7 @@ async fn wait_for_query_to_finish<Kind: ChainlinkRate>(client: &ChainlinkOracleC
     panic!("Query did not finish within {MAX_POLL_ATTEMPTS} attempts");
 }
 
-/// The failure the client holds, which a held valid read masks.
+/// The failure the client holds, which a valid read close enough to the caller masks.
 fn held_error<Kind: ChainlinkRate>(
     client: &ChainlinkOracleClient<Kind>,
 ) -> Option<ExchangeRateOracleClientError> {
@@ -166,6 +166,23 @@ async fn eth_to_fri_rejects_when_either_leg_is_stale(
         Err(ExchangeRateOracleClientError::StaleFeedError { pair, .. })
             if pair == expected_pair
     );
+}
+
+/// The freshness guards are measured against the block timestamp the caller asks for, so a round
+/// written in that very block is accepted however far it leads the timestamp of the client's
+/// previous read.
+#[tokio::test]
+async fn freshness_is_measured_against_the_block_timestamp() {
+    let config = test_config();
+    let offset_into_the_interval = config.freshness.max_future_updated_at_seconds + 1;
+    assert!(offset_into_the_interval < sampling_interval_seconds());
+    let block_timestamp = TIMESTAMP + offset_into_the_interval;
+
+    let client = make_client::<StrkToUsd>(strk_usd_responses(FeedFixture::new(
+        STRK_USD_ANSWER,
+        block_timestamp,
+    )));
+    assert_eq!(resolve_rate(&client, block_timestamp).await.unwrap(), STRK_TO_USD_RATE);
 }
 
 #[tokio::test]
@@ -457,4 +474,68 @@ async fn no_call_is_denied_a_rate_the_client_holds() {
         tokio::task::yield_now().await;
     }
     assert!(held_error(&client).is_some(), "the failing query was never harvested");
+}
+
+/// The last valid read is served while it is within `MAX_FALLBACK_SAMPLING_INTERVALS` of the block
+/// timestamp asked for, however many intervals passed without a call.
+#[rstest]
+#[case::at_the_allowance(MAX_FALLBACK_SAMPLING_INTERVALS, true)]
+#[case::one_interval_past_the_allowance(MAX_FALLBACK_SAMPLING_INTERVALS + 1, false)]
+#[case::many_intervals_later(60, false)]
+#[tokio::test(start_paused = true)]
+async fn last_valid_rate_is_served_only_within_the_allowance(
+    #[case] num_intervals_ahead: u64,
+    #[case] is_served: bool,
+) {
+    let client = client_with_batcher::<StrkToUsd>(batcher_client_failing_after(
+        strk_usd_responses(FeedFixture::new(STRK_USD_ANSWER, fresh_updated_at())),
+        CALLS_PER_FEED_PER_QUERY,
+    ));
+    let rate = resolve_rate(&client, TIMESTAMP).await.unwrap();
+
+    // No call is made in between, so nothing refreshes the read the client holds.
+    let elapsed_seconds = num_intervals_ahead * sampling_interval_seconds();
+    tokio::time::advance(Duration::from_secs(elapsed_seconds)).await;
+    let later_timestamp = TIMESTAMP + elapsed_seconds;
+    wait_for_held_error(&client, later_timestamp).await;
+
+    let result = client.fetch_rate(later_timestamp).await;
+    if is_served {
+        assert_eq!(result.unwrap(), rate);
+    } else {
+        assert_matches!(result, Err(ExchangeRateOracleClientError::ContractCallError(_)));
+    }
+}
+
+/// A re-proposal asks for a timestamp the client has already read past, so it is served a read that
+/// leads it.
+#[tokio::test]
+async fn an_earlier_timestamp_is_served_a_held_rate_within_the_allowance() {
+    let client = make_client::<StrkToUsd>(strk_usd_responses(FeedFixture::new(
+        STRK_USD_ANSWER,
+        fresh_updated_at(),
+    )));
+    let rate = resolve_rate(&client, TIMESTAMP).await.unwrap();
+
+    let earlier_timestamp =
+        TIMESTAMP - MAX_FALLBACK_SAMPLING_INTERVALS * sampling_interval_seconds();
+    assert_eq!(client.fetch_rate(earlier_timestamp).await.unwrap(), rate);
+}
+
+/// The allowance bounds the distance in both directions, so a timestamp further back than it is not
+/// priced from a read taken that far ahead of it.
+#[tokio::test]
+async fn an_earlier_timestamp_past_the_allowance_is_not_served_a_held_rate() {
+    let client = make_client::<StrkToUsd>(strk_usd_responses(FeedFixture::new(
+        STRK_USD_ANSWER,
+        fresh_updated_at(),
+    )));
+    resolve_rate(&client, TIMESTAMP).await.unwrap();
+
+    let earlier_timestamp =
+        TIMESTAMP - (MAX_FALLBACK_SAMPLING_INTERVALS + 1) * sampling_interval_seconds();
+    assert_matches!(
+        client.fetch_rate(earlier_timestamp).await,
+        Err(ExchangeRateOracleClientError::QueryNotReadyError(_))
+    );
 }
