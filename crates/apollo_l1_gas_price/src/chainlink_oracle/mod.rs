@@ -41,10 +41,18 @@ mod test;
 #[cfg(test)]
 mod test_utils;
 
+// How many sampling intervals may separate the last valid read's block timestamp from the block
+// timestamp being served, while that read is still served. Three read intervals, 45 minutes at the
+// production 900 second interval. The bound applies in both directions, because a re-proposal can
+// ask for a timestamp earlier than the read the client holds.
+const MAX_FALLBACK_SAMPLING_INTERVALS: u64 = 3;
+
 // A read in flight, resolving to a rate already dated by the block timestamp it was issued for.
 type RateQuery = AbortOnDropHandle<Result<ValidRead, ExchangeRateOracleClientError>>;
 
-// A rate that passed every guard, and the block timestamp it was read for.
+// A rate that passed every guard, and the block timestamp it was read for. That timestamp is a
+// block timestamp rather than a local one, because the distance a later caller measures against it
+// must come out the same on every node, including on a replay of the same block.
 #[derive(Clone, Copy)]
 struct ValidRead {
     rate: ExchangeRate,
@@ -53,10 +61,11 @@ struct ValidRead {
 
 #[derive(Default)]
 struct OracleState {
-    // The newest read that passed every guard, served to callers until a newer one replaces it.
+    // The newest read that passed every guard, served to callers while it is within
+    // `MAX_FALLBACK_SAMPLING_INTERVALS` of their own block timestamp.
     last_valid_read: Option<ValidRead>,
     // The newest query's failure, cleared by the next success. Served only when no valid read is
-    // held.
+    // close enough to the caller.
     last_error: Option<ExchangeRateOracleClientError>,
     // The query in flight. A single slot bounds this client to one query at a time.
     query: Option<RateQuery>,
@@ -86,7 +95,8 @@ pub trait ChainlinkRate: RateKind {
 ///
 /// Consensus calls `fetch_rate` on every proposal build and validate, so the call must not block on
 /// the batcher: the feed is read by a background query spawned at most once per
-/// `sampling_interval_seconds`, and every caller is served the last valid read.
+/// `sampling_interval_seconds`, and every caller is served the last valid read while that read is
+/// within `MAX_FALLBACK_SAMPLING_INTERVALS` of the caller's own block timestamp.
 ///
 /// Reads are not deterministic across nodes: `call_contract` executes against the batcher's latest
 /// committed block rather than state pinned to the queried timestamp, so two nodes can read
@@ -228,10 +238,14 @@ impl<Kind: ChainlinkRate> ExchangeRateOracleClientTrait for ChainlinkOracleClien
             state.last_attempt_instant = Some(Instant::now());
         }
 
-        // A caller whose own read has not resolved is served the read the client already holds,
-        // including the caller that spawned the read in flight. A held failure is served only when
-        // no valid read is held.
-        if let Some(valid_read) = state.last_valid_read {
+        // A caller whose own read has not resolved is served the last valid read while it is close
+        // enough. The distance is measured between block timestamps, in both directions, so a
+        // re-proposal for an earlier timestamp reaches the same decision the proposer did.
+        let max_fallback_distance_seconds =
+            MAX_FALLBACK_SAMPLING_INTERVALS.saturating_mul(self.config.sampling_interval_seconds);
+        if let Some(valid_read) = state.last_valid_read.filter(|valid_read| {
+            block_timestamp.abs_diff(valid_read.block_timestamp) <= max_fallback_distance_seconds
+        }) {
             return Ok(valid_read.rate);
         }
         match state.last_error.clone() {
