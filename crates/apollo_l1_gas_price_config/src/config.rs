@@ -101,7 +101,6 @@ pub const RATE_MICRO_UNIT_DECIMALS: u32 = 6;
 
 /// Inclusive absolute bounds on a rate, in micro units (1e-6) of the pair's quote currency,
 /// together with the pair they bound.
-// [Temporary comment] No reader yet: the guards arrive in A7.
 #[derive(Clone, Copy, Debug)]
 pub struct RateBounds {
     pub minimum_micro_units: u64,
@@ -186,7 +185,7 @@ impl SerializeConfig for DerivedRateBoundsConfig {
 }
 
 /// Absolute bounds every exchange rate must fall in, whichever source reports it.
-// [Temporary comment] No reader yet: A7 checks rates, B2 nests this in `L1GasPriceProviderConfig`.
+// [Temporary comment] No production reader yet: B2 nests this in `L1GasPriceProviderConfig`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 #[validate(schema(function = "validate_rate_bounds_config"))]
 pub struct RateBoundsConfig {
