@@ -23,6 +23,44 @@ pub(crate) static V1_BOUND_CAIRO1_CONTRACT_CASM: LazyLock<CasmContractClass> =
             .unwrap()
     });
 
+pub(crate) static EMPTY_SPAN_EMITTING_ACCOUNT_SIERRA: LazyLock<SierraContractClass> =
+    LazyLock::new(|| {
+        let compiler_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+            serde_json::from_str(include_str!(
+                "../resources/empty_span_emitting_account.sierra.json"
+            ))
+            .unwrap();
+        SierraContractClass::from(compiler_contract_class)
+    });
+
+pub(crate) static EMPTY_SPAN_EMITTING_ACCOUNT_CASM: LazyLock<CasmContractClass> =
+    LazyLock::new(|| {
+        serde_json::from_str(include_str!("../resources/empty_span_emitting_account.casm.json"))
+            .unwrap()
+    });
+
+pub(crate) static DEPRECATED_SPAN_FORWARDING_ACCOUNT_SIERRA: LazyLock<SierraContractClass> =
+    LazyLock::new(|| {
+        let compiler_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+            serde_json::from_str(include_str!(
+                "../resources/deprecated_span_forwarding_account.sierra.json"
+            ))
+            .unwrap();
+        SierraContractClass::from(compiler_contract_class)
+    });
+
+pub(crate) static DEPRECATED_SPAN_FORWARDING_ACCOUNT_CASM: LazyLock<CasmContractClass> =
+    LazyLock::new(|| {
+        serde_json::from_str(include_str!(
+            "../resources/deprecated_span_forwarding_account.casm.json"
+        ))
+        .unwrap()
+    });
+
+pub(crate) static DEPRECATED_EMIT_PROXY: LazyLock<DeprecatedContractClass> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../resources/deprecated_emit_proxy.casm.json")).unwrap()
+});
+
 pub(crate) static DATA_GAS_ACCOUNT_CONTRACT_SIERRA: LazyLock<SierraContractClass> =
     LazyLock::new(|| {
         let compiler_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =

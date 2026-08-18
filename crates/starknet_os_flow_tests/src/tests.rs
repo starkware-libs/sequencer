@@ -102,6 +102,11 @@ use crate::initial_state::{
 use crate::special_contracts::{
     DATA_GAS_ACCOUNT_CONTRACT_CASM,
     DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
+    DEPRECATED_EMIT_PROXY,
+    DEPRECATED_SPAN_FORWARDING_ACCOUNT_CASM,
+    DEPRECATED_SPAN_FORWARDING_ACCOUNT_SIERRA,
+    EMPTY_SPAN_EMITTING_ACCOUNT_CASM,
+    EMPTY_SPAN_EMITTING_ACCOUNT_SIERRA,
     V1_BOUND_CAIRO0_CONTRACT,
     V1_BOUND_CAIRO1_CONTRACT_CASM,
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
@@ -1827,6 +1832,282 @@ async fn test_syscalls_with_alternating_inner_calls() {
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
+}
+
+/// Regression for STARKNET-96: a DeployAccount V3 constructor that forwards the (empty)
+/// `account_deployment_data` span into `emit_event`. The OS builds that span for DeployAccount V3,
+/// and if its endpoints are felt-zero (`cast(0, felt*)`) instead of relocatable pointers, the OS
+/// syscall decoder aborts with "Expected relocatable" while native Blockifier accepts the tx —
+/// making the committed block unprovable. Running the OS to completion here exercises the fix.
+#[tokio::test]
+async fn test_deploy_account_v3_empty_deployment_data_span_emit() {
+    let account_sierra = &EMPTY_SPAN_EMITTING_ACCOUNT_SIERRA;
+    let account_casm = &EMPTY_SPAN_EMITTING_ACCOUNT_CASM;
+    let class_hash = account_sierra.calculate_class_hash();
+    let compiled_class_hash = account_casm.hash(&HashVersion::V2);
+    let (mut test_builder, _) = TestBuilder::create_standard([]).await;
+    let chain_id = &test_builder.chain_id();
+
+    // Declare the malicious account class from the funded account.
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let sierra_version = account_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1(((**account_casm).clone(), sierra_version.clone())),
+        sierra_program_length: account_sierra.sierra_program.len(),
+        abi_length: account_sierra.abi.len(),
+        sierra_version,
+    };
+    let account_declare_tx =
+        DeclareTransaction::create(declare_tx(declare_args), class_info, chain_id).unwrap();
+    test_builder.add_cairo1_declare_tx(account_declare_tx, account_sierra);
+
+    // A zero proxy address keeps this test focused on the modern emit-event syscall.
+    let constructor_calldata = calldata![Felt::ZERO];
+
+    // Precompute the counterfactual address and fund it.
+    let salt = ContractAddressSalt(Felt::from(1993));
+    let account_address = calculate_contract_address(
+        salt,
+        class_hash,
+        &constructor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(account_address);
+
+    // DeployAccount V3 — the constructor emits the empty `account_deployment_data` span.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: salt,
+        constructor_calldata,
+    };
+    let deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(account_address)),
+        chain_id,
+    )
+    .unwrap();
+    // The constructor emits exactly one event: empty keys (the account_deployment_data span) and
+    // data `[1]`, before the fee-transfer event.
+    let constructor_event = EventPredicateExpectation {
+        description: "constructor emits the empty account_deployment_data span as event keys"
+            .to_string(),
+        predicate: Box::new(move |event| {
+            event.from_address == account_address
+                && event.content.keys.is_empty()
+                && event.content.data.0 == vec![Felt::ONE]
+        }),
+    };
+    test_builder.add_deploy_account_tx_with_events(deploy_account_tx, vec![constructor_event]);
+
+    // Before the fix, the OS run aborts here with "Expected relocatable".
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_validations(true, None);
+}
+
+/// Regression for STARKNET-96 via the DEPRECATED (Cairo0) syscall parser. A DeployAccount V3
+/// constructor forwards the (empty) `account_deployment_data` span — whose endpoints the OS builds
+/// as felt-zero nulls (`cast(0, felt*)`) — into a Cairo0 emit-proxy through `library_call`. The
+/// proxy re-emits that span via the deprecated `emit_event` syscall, whose keys are decoded by the
+/// deprecated `read_felt_array`. Without the guard there, the OS aborts with "Expected relocatable"
+/// while native Blockifier (real empty segment) accepts the tx — an unprovable committed block.
+/// Running the OS to completion here exercises the deprecated-parser fix.
+#[tokio::test]
+async fn test_deploy_account_v3_null_span_deprecated_parser() {
+    let account_sierra = &DEPRECATED_SPAN_FORWARDING_ACCOUNT_SIERRA;
+    let account_casm = &DEPRECATED_SPAN_FORWARDING_ACCOUNT_CASM;
+    let account_class_hash = account_sierra.calculate_class_hash();
+    let compiled_class_hash = account_casm.hash(&HashVersion::V2);
+    let (mut test_builder, _) = TestBuilder::create_standard([]).await;
+    let chain_id = &test_builder.chain_id();
+
+    // Declare the forwarder account (Cairo1) from the funded account.
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash: account_class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let sierra_version = account_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1(((**account_casm).clone(), sierra_version.clone())),
+        sierra_program_length: account_sierra.sierra_program.len(),
+        abi_length: account_sierra.abi.len(),
+        sierra_version,
+    };
+    let account_declare_tx =
+        DeclareTransaction::create(declare_tx(declare_args), class_info, chain_id).unwrap();
+    test_builder.add_cairo1_declare_tx(account_declare_tx, account_sierra);
+
+    // Declare the Cairo0 emit-proxy and take its class hash. Declare V0 skips nonce handling, so it
+    // does not consume the funded account's nonce.
+    let proxy = &DEPRECATED_EMIT_PROXY;
+    let proxy_class_hash = ClassHash(compute_deprecated_class_hash(proxy).unwrap());
+    let proxy_declare_args = declare_tx_args! {
+        version: TransactionVersion::ZERO,
+        max_fee: Fee(1_000_000_000_000_000),
+        class_hash: proxy_class_hash,
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+    };
+    let proxy_class_info = get_class_info_of_cairo0_contract((**proxy).clone());
+    let proxy_declare_tx =
+        DeclareTransaction::create(declare_tx(proxy_declare_args), proxy_class_info, chain_id)
+            .unwrap();
+    test_builder.add_cairo0_declare_tx(proxy_declare_tx, proxy_class_hash);
+
+    // Constructor calldata is the proxy class hash to `library_call`. Precompute the counterfactual
+    // address and fund it.
+    let constructor_calldata = calldata![proxy_class_hash.0];
+    let salt = ContractAddressSalt(Felt::from(1995));
+    let account_address = calculate_contract_address(
+        salt,
+        account_class_hash,
+        &constructor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(account_address);
+
+    // DeployAccount V3 — the constructor forwards the empty `account_deployment_data` span into the
+    // Cairo0 proxy, which re-emits it through the deprecated `emit_event` syscall.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash: account_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: salt,
+        constructor_calldata,
+    };
+    let deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(account_address)),
+        chain_id,
+    )
+    .unwrap();
+    // The proxy emits exactly one event with empty keys and empty data (keys=calldata=the empty
+    // span, data_len=0), before the fee-transfer event. `library_call` preserves the caller's
+    // storage address, so the event originates from the account address.
+    let proxy_event = EventPredicateExpectation {
+        description: "Cairo0 proxy re-emits the empty account_deployment_data span via a \
+                      deprecated emit_event syscall"
+            .to_string(),
+        predicate: Box::new(move |event| {
+            event.from_address == account_address
+                && event.content.keys.is_empty()
+                && event.content.data.0.is_empty()
+        }),
+    };
+    test_builder.add_deploy_account_tx_with_events(deploy_account_tx, vec![proxy_event]);
+
+    // Before the deprecated fix, the OS run aborts here with "Expected relocatable" reached through
+    // the Cairo0 `emit_event` path.
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_validations(true, None);
+}
+
+/// Regression for an empty modern span crossing into Cairo 0 and being forwarded into a
+/// deprecated syscall. Native Blockifier materializes a relocatable empty-calldata segment for
+/// the Cairo 0 call, while the OS passes through its felt-zero pointer. The Cairo 0 delegate proxy
+/// forwards that calldata into `library_call`; both executions must accept it as the same empty
+/// array.
+#[tokio::test]
+async fn test_empty_modern_span_forwarded_through_cairo0_deprecated_syscall() {
+    let cairo0_proxy = FeatureContract::DelegateProxy;
+    let cairo0_implementation = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let implementation_class_hash = get_class_hash_of_feature_contract(cairo0_implementation);
+    let (mut test_builder, [proxy_address, _implementation_address]) =
+        TestBuilder::create_standard([
+            (cairo0_proxy, calldata![]),
+            (cairo0_implementation, default_test_contract_constructor_calldata()),
+        ])
+        .await;
+
+    let mut expected_storage_updates = HashMap::new();
+    let set_implementation_calldata =
+        create_calldata(proxy_address, "set_implementation_hash", &[implementation_class_hash.0]);
+    test_builder
+        .add_funded_account_invoke(invoke_tx_args! { calldata: set_implementation_calldata });
+    update_expected_storage(
+        &mut expected_storage_updates,
+        proxy_address,
+        **get_storage_var_address("implementation_hash", &[]),
+        implementation_class_hash.0,
+    );
+
+    let account_sierra = &EMPTY_SPAN_EMITTING_ACCOUNT_SIERRA;
+    let account_casm = &EMPTY_SPAN_EMITTING_ACCOUNT_CASM;
+    let class_hash = account_sierra.calculate_class_hash();
+    let compiled_class_hash = account_casm.hash(&HashVersion::V2);
+    let chain_id = &test_builder.chain_id();
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let sierra_version = account_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1(((**account_casm).clone(), sierra_version.clone())),
+        sierra_program_length: account_sierra.sierra_program.len(),
+        abi_length: account_sierra.abi.len(),
+        sierra_version,
+    };
+    let account_declare_tx =
+        DeclareTransaction::create(declare_tx(declare_args), class_info, chain_id).unwrap();
+    test_builder.add_cairo1_declare_tx(account_declare_tx, account_sierra);
+
+    let constructor_calldata = calldata![**proxy_address];
+    let salt = ContractAddressSalt(Felt::from(1994));
+    let account_address = calculate_contract_address(
+        salt,
+        class_hash,
+        &constructor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(account_address);
+
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: salt,
+        constructor_calldata,
+    };
+    let deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(account_address)),
+        chain_id,
+    )
+    .unwrap();
+    test_builder.add_deploy_account_tx(deploy_account_tx);
+
+    let invoke_args = invoke_tx_args! {
+        sender_address: account_address,
+        nonce: test_builder.next_nonce(account_address),
+        calldata: calldata![Felt::ZERO, Felt::ZERO, Felt::ZERO],
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
+    test_builder.add_invoke_tx(invoke_tx, None, None);
+
+    // `read_write_read` is executed by the proxy through `library_call`, so it writes to the
+    // proxy's storage. This assertion proves the cross-version call was not optimized away.
+    update_expected_storage(
+        &mut expected_storage_updates,
+        proxy_address,
+        Felt::from(15),
+        Felt::ONE,
+    );
+
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_validations(
+        true,
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() }),
+    );
 }
 
 #[rstest]
