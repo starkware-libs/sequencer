@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785235395936,
+  "lastUpdate": 1787029898239,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -917,6 +917,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1398.79883181,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da6ac4502874d2de0949a91ea2f58eb48f303dd7",
+          "message": "apollo_cairo_utils: deserialize retdata rejecting leftover felts (#14975)",
+          "timestamp": "2026-08-18T04:43:01Z",
+          "tree_id": "c6c15875321244b9ec2c290c842870201900f6b3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/da6ac4502874d2de0949a91ea2f58eb48f303dd7"
+        },
+        "date": 1787029897581,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 952.63239622,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1524.23901424,
             "unit": "ms"
           }
         ]
