@@ -185,7 +185,7 @@ impl SerializeConfig for DerivedRateBoundsConfig {
 }
 
 /// Absolute bounds every exchange rate must fall in, whichever source reports it.
-// [Temporary comment] No production reader yet: B2 nests this in `L1GasPriceProviderConfig`.
+// [Temporary comment] B2 nests this in `L1GasPriceProviderConfig`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 #[validate(schema(function = "validate_rate_bounds_config"))]
 pub struct RateBoundsConfig {
@@ -333,8 +333,7 @@ impl SerializeConfig for FreshnessWindow {
 }
 
 /// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
-// [Temporary comment] No reader yet: A8 reads the feeds through these fields and A9 wires the
-// source in, and B2 nests this under `L1GasPriceProviderConfig`.
+// [Temporary comment] A9 wires the source in; B2 nests this under `L1GasPriceProviderConfig`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ChainlinkOracleConfig {
     /// Quotes USD per ETH.

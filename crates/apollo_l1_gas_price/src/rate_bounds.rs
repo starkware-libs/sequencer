@@ -1,8 +1,5 @@
 //! The absolute sanity bounds every exchange rate must fall in, whichever source reports it.
 
-// [Temporary comment] `pub` with no production caller yet: the Chainlink feed read (A8) and the
-// HTTP oracle (C1) both call this; A8 narrows it to `pub(crate)`.
-
 use apollo_l1_gas_price_config::config::RateBounds;
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
 use apollo_l1_gas_price_types::ExchangeRate;
@@ -21,7 +18,7 @@ mod rate_bounds_test;
 /// Absolute bounds are the only defense against a feed wired to the wrong asset or a
 /// plausible-but-poisoned answer: consensus checks that validators agree with each other, never
 /// that the agreed value is sane, and every node reads the same chain state.
-pub fn check_rate_bounds(
+pub(crate) fn check_rate_bounds(
     rate: ExchangeRate,
     bounds: RateBounds,
 ) -> Result<(), ExchangeRateOracleClientError> {
