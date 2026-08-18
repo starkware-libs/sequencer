@@ -1,4 +1,4 @@
-use apollo_consensus_orchestrator::cende::python_test::parse_accessed_keys_input_test;
+use apollo_consensus_orchestrator::cende::python_compat::parse_accessed_keys_input_test;
 
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 

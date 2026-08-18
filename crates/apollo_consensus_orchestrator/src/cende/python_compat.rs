@@ -15,8 +15,8 @@ use starknet_api::{contract_address, felt, nonce};
 use super::BlockAccessedKeysData;
 
 #[cfg(test)]
-#[path = "python_test_test.rs"]
-mod python_test_test;
+#[path = "python_compat_test.rs"]
+mod python_compat_test;
 
 /// The central-object blob fixture shared with the Python repo: the Python-side test writes it
 /// through the recorder and sends the `get_accessed_keys_input` response back here.

@@ -2,7 +2,7 @@
 mod cende_test;
 mod central_objects;
 #[cfg(any(feature = "testing", test))]
-pub mod python_test;
+pub mod python_compat;
 
 use std::sync::Arc;
 
