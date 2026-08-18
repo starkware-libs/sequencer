@@ -1,8 +1,5 @@
 //! Decoding of the retdata Chainlink's feeds return.
 
-// [Temporary comment] No production caller yet, and every item is `pub` so this module compiles
-// standalone. The feed read (A8) calls these and narrows them to `pub(super)`.
-
 use apollo_cairo_utils::{deserialize_retdata, RetdataDeserializationError, TryFromIterator};
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
 use apollo_l1_gas_price_types::{CurrencyPair, EXCHANGE_RATE_DECIMALS};
@@ -15,16 +12,16 @@ mod feed_decode_test;
 /// The Chainlink feeds report 8 decimals today. A range is accepted rather than the exact value so
 /// that a feed upgrade does not halt pricing, bounded so the rescale to `EXCHANGE_RATE_DECIMALS`
 /// can neither underflow nor produce an absurd scale factor.
-pub const MIN_FEED_DECIMALS: u32 = 6;
-pub const MAX_FEED_DECIMALS: u32 = EXCHANGE_RATE_DECIMALS;
+pub(super) const MIN_FEED_DECIMALS: u32 = 6;
+pub(super) const MAX_FEED_DECIMALS: u32 = EXCHANGE_RATE_DECIMALS;
 
 /// The fields of Chainlink's `Round` that the oracle consumes.
 #[derive(Debug)]
-pub struct ChainlinkRoundData {
+pub(super) struct ChainlinkRoundData {
     /// The price the feed reports, at the feed's own `decimals()`.
-    pub answer: u128,
+    pub(super) answer: u128,
     /// Unix seconds at which the aggregator last wrote this round.
-    pub updated_at: u64,
+    pub(super) updated_at: u64,
 }
 
 impl TryFromIterator<Felt> for ChainlinkRoundData {
@@ -53,7 +50,7 @@ impl TryFromIterator<Felt> for ChainlinkRoundData {
     }
 }
 
-pub fn decode_feed_decimals(
+pub(super) fn decode_feed_decimals(
     decimals_retdata: Vec<Felt>,
     pair: CurrencyPair,
 ) -> Result<u32, ExchangeRateOracleClientError> {
@@ -73,7 +70,7 @@ pub fn decode_feed_decimals(
     Ok(feed_decimals)
 }
 
-pub fn decode_feed_round(
+pub(super) fn decode_feed_round(
     round_retdata: Vec<Felt>,
 ) -> Result<ChainlinkRoundData, ExchangeRateOracleClientError> {
     decode_retdata(round_retdata)
