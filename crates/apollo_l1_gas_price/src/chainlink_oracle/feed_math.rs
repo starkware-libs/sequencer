@@ -1,8 +1,5 @@
 //! Decoding of Chainlink feed retdata, and the fixed-point arithmetic over the decoded answers.
 
-// [Temporary comment] No production caller yet, and every item is `pub` so this module compiles
-// standalone. The feed read (A8) and the client (A9) call these and narrow them to `pub(super)`.
-
 use apollo_cairo_utils::{deserialize_retdata, RetdataDeserializationError, TryFromIterator};
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
 use apollo_l1_gas_price_types::{
@@ -21,19 +18,19 @@ mod feed_math_test;
 /// The Chainlink feeds report 8 decimals today. A range is accepted rather than the exact value so
 /// that a feed upgrade does not halt pricing, bounded so the rescale to `EXCHANGE_RATE_DECIMALS`
 /// can neither underflow nor produce an absurd scale factor.
-pub const MIN_FEED_DECIMALS: u32 = 6;
-pub const MAX_FEED_DECIMALS: u32 = EXCHANGE_RATE_DECIMALS;
+const MIN_FEED_DECIMALS: u32 = 6;
+const MAX_FEED_DECIMALS: u32 = EXCHANGE_RATE_DECIMALS;
 
 /// Cap on the batcher error text the Chainlink oracle relays. A reverting view call's panic data
 /// reaches the logs, the failure cache, and (when the provider runs remotely) the RPC boundary, so
 /// the cap is byte-based to bound what all three consume.
-pub const MAX_CONTRACT_CALL_ERROR_BYTES: usize = 256;
-pub const TRUNCATION_MARKER: &str = "...[truncated]";
+pub(super) const MAX_CONTRACT_CALL_ERROR_BYTES: usize = 256;
+pub(super) const TRUNCATION_MARKER: &str = "...[truncated]";
 
 /// A rate at `RATE_DECIMALS`, or the guard trip that rejected it.
-pub type RateResult = Result<ExchangeRate, ExchangeRateOracleClientError>;
+pub(super) type RateResult = Result<ExchangeRate, ExchangeRateOracleClientError>;
 
-pub fn truncate_contract_call_error(error_text: String) -> String {
+pub(super) fn truncate_contract_call_error(error_text: String) -> String {
     if error_text.len() <= MAX_CONTRACT_CALL_ERROR_BYTES {
         return error_text;
     }
@@ -46,7 +43,7 @@ pub fn truncate_contract_call_error(error_text: String) -> String {
     format!("{}{TRUNCATION_MARKER}", &error_text[..head_end])
 }
 
-pub fn decode_feed_decimals(
+pub(super) fn decode_feed_decimals(
     decimals_retdata: Vec<Felt>,
     pair: CurrencyPair,
 ) -> Result<u32, ExchangeRateOracleClientError> {
@@ -66,7 +63,13 @@ pub fn decode_feed_decimals(
     Ok(feed_decimals)
 }
 
-pub fn decode_retdata<T>(retdata: Vec<Felt>) -> Result<T, ExchangeRateOracleClientError>
+pub(super) fn decode_feed_round(
+    round_retdata: Vec<Felt>,
+) -> Result<ChainlinkRoundData, ExchangeRateOracleClientError> {
+    decode_retdata(round_retdata)
+}
+
+fn decode_retdata<T>(retdata: Vec<Felt>) -> Result<T, ExchangeRateOracleClientError>
 where
     T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
 {
@@ -74,7 +77,7 @@ where
         .map_err(|error| ExchangeRateOracleClientError::ParseError(error.to_string()))
 }
 
-pub fn rescale_to_rate_decimals(answer: u128, feed_decimals: u32) -> RateResult {
+pub(super) fn rescale_to_rate_decimals(answer: u128, feed_decimals: u32) -> RateResult {
     EXCHANGE_RATE_DECIMALS
         .checked_sub(feed_decimals)
         .and_then(|exponent| 10u128.checked_pow(exponent))
@@ -87,6 +90,8 @@ pub fn rescale_to_rate_decimals(answer: u128, feed_decimals: u32) -> RateResult 
         })
 }
 
+// [Temporary comment] `pub` with no caller yet: the client (A9) derives ETH/STRK from the two USD
+// legs and narrows this to `pub(super)`.
 /// STRK per ETH, at `EXCHANGE_RATE_DECIMALS`, from two USD prices that already carry
 /// `EXCHANGE_RATE_DECIMALS`.
 pub fn derive_eth_to_fri_rate(
@@ -113,11 +118,11 @@ pub fn derive_eth_to_fri_rate(
 
 /// The fields of Chainlink's `Round` that the oracle consumes.
 #[derive(Debug)]
-pub struct ChainlinkRoundData {
+pub(super) struct ChainlinkRoundData {
     /// The price the feed reports, at the feed's own `decimals()`.
-    pub answer: u128,
+    pub(super) answer: u128,
     /// Unix seconds at which the aggregator last wrote this round.
-    pub updated_at: u64,
+    pub(super) updated_at: u64,
 }
 
 impl TryFromIterator<Felt> for ChainlinkRoundData {

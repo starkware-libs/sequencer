@@ -34,4 +34,4 @@ pub mod exchange_rate_oracle;
 pub mod l1_gas_price_provider;
 pub mod l1_gas_price_scraper;
 pub mod metrics;
-pub mod rate_bounds;
+pub(crate) mod rate_bounds;
