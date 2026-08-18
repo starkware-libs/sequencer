@@ -29,6 +29,10 @@ pub const DEFAULT_ETH_TO_FRI_RATE: ExchangeRate = 10_u128.pow(21);
 /// A currency conversion rate, as an 18-decimal fixed-point integer.
 pub type ExchangeRate = u128;
 
+/// Fixed-point scale of every `ExchangeRate`, whichever source reported it.
+pub const EXCHANGE_RATE_DECIMALS: u32 = 18;
+pub const EXCHANGE_RATE_SCALE: ExchangeRate = 10u128.pow(EXCHANGE_RATE_DECIMALS);
+
 /// Currency pair a reading or rate belongs to.
 pub const LABEL_NAME_CURRENCY_PAIR: &str = "currency_pair";
 
