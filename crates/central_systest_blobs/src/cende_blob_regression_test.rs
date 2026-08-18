@@ -264,6 +264,7 @@ impl From<BlockData> for BlobParameters {
             // Populated per blob in [BlobFactory::finalize], where all blocks are visible.
             recent_state_commitment_infos: vec![],
             initial_reads,
+            block_hash_commitments: partial_block_hash_components.header_commitments.clone(),
         }
     }
 }

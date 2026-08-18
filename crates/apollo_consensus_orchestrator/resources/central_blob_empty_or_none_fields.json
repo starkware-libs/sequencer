@@ -76,5 +76,12 @@
   "compiled_class_hashes_for_migration": [],
   "proposal_commitment": "0x80020000",
   "parent_proposal_commitment": null,
-  "recent_block_hashes": []
+  "recent_block_hashes": [],
+  "block_hash_commitments": {
+    "transaction_commitment": "0x0",
+    "event_commitment": "0x0",
+    "receipt_commitment": "0x0",
+    "state_diff_commitment": "0x0",
+    "concatenated_counts": "0x0"
+  }
 }
