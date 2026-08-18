@@ -333,7 +333,8 @@ impl SerializeConfig for FreshnessWindow {
 }
 
 /// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
-// [Temporary comment] A9 wires the source in; B2 nests this under `L1GasPriceProviderConfig`.
+// [Temporary comment] B3 selects the source per feed and B4 builds the client; B2 nests this under
+// `L1GasPriceProviderConfig`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ChainlinkOracleConfig {
     /// Quotes USD per ETH.

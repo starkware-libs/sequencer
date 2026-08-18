@@ -13,7 +13,7 @@ mod feed_math_test;
 /// Fixed-point scale of every rate the Chainlink oracle returns, matching
 /// `EXCHANGE_RATE_DECIMALS`.
 const RATE_DECIMALS: u32 = 18;
-const RATE_SCALE: u128 = 10u128.pow(RATE_DECIMALS);
+pub(super) const RATE_SCALE: u128 = 10u128.pow(RATE_DECIMALS);
 pub(crate) const MICRO_UNIT_TO_RATE_SCALE: u128 =
     10u128.pow(RATE_DECIMALS - RATE_MICRO_UNIT_DECIMALS);
 
@@ -86,10 +86,8 @@ pub(super) fn rescale_to_rate_decimals(answer: u128, feed_decimals: u32) -> Rate
         })
 }
 
-// [Temporary comment] `pub` with no caller yet: the client (A9) derives ETH/STRK from the two USD
-// legs and narrows this to `pub(super)`.
 /// STRK per ETH, at `RATE_DECIMALS`, from two USD prices that already carry `RATE_DECIMALS`.
-pub fn derive_eth_to_fri_rate(
+pub(super) fn derive_eth_to_fri_rate(
     eth_to_usd_rate: ExchangeRate,
     strk_to_usd_rate: ExchangeRate,
 ) -> RateResult {

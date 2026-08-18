@@ -41,6 +41,7 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 testing = []
