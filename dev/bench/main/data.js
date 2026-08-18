@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787036447128,
+  "lastUpdate": 1787050928851,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7309,6 +7309,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1378.40369558,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c31b14884d7100963e02969cc3c28f5491c89c92",
+          "message": "Merge main-v0.14.3 into main (#14919)\n\n* workspace: emit line-tables-only debuginfo in dev profile (#14877)\n\nAdds `[profile.dev] debug = \"line-tables-only\"` to keep panic/backtrace\nfile:line and tracing call-site info while dropping the full DWARF\nvariable/type info that dominates codegen time, linker memory, and\ntarget/ disk. A `dev-debug` profile (`cargo build --profile dev-debug`)\nrestores full debug info on demand.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* apollo_gateway: stop auto-discovering bench helper as a bench target (#14878)\n\nbenches/utils.rs is a helper module included by benches/main.rs (the explicit\n[[bench]], gated on the `testing` feature). Cargo's bench auto-discovery also\npicked utils.rs up as a standalone, feature-less bench target, so\n`cargo bench`/`cargo clippy --benches` failed to compile it without\n`--features testing` (it references apollo_gateway::test_utils). Set\nautobenches = false so only the explicit [[bench]] is a bench target.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\n\n* No conflicts in main-v0.14.3 -> main merge, this commit is for any change needed to pass the CI.\n\n---------\n\nCo-authored-by: Avi Cohen <avi.cohen@starkware.co>\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-18T10:35:43Z",
+          "tree_id": "081d61048be40cbc40671ae685e874c71b199888",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c31b14884d7100963e02969cc3c28f5491c89c92"
+        },
+        "date": 1787050928144,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 990.5777283,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1489.5269835,
             "unit": "ms"
           }
         ]
