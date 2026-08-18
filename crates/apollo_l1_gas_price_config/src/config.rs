@@ -18,7 +18,8 @@ use apollo_config::validators::{create_validation_error, validate_ascii};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_gas_price_types::CurrencyPair;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
+use starknet_types_core::felt::Felt;
 use url::Url;
 use validator::{Validate, ValidationError};
 
@@ -241,6 +242,142 @@ impl SerializeConfig for AllRateBoundsConfig {
         let mut config = prepend_sub_config_name(self.eth_usd.dump(), "eth_usd");
         config.extend(prepend_sub_config_name(self.strk_usd.dump(), "strk_usd"));
         config.extend(prepend_sub_config_name(self.eth_strk.dump(), "eth_strk"));
+        config
+    }
+}
+
+/// The window a feed round's `updated_at` must fall in, relative to the block being priced.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_freshness_window"))]
+pub struct FreshnessWindow {
+    #[validate(range(min = 1))]
+    pub max_staleness_seconds: u64,
+    pub max_future_updated_at_seconds: u64,
+}
+
+/// Catches exchanged bounds: the forward bound covers only clock skew, so it must sit strictly
+/// below the backward one, which covers a full heartbeat.
+fn validate_freshness_window(freshness: &FreshnessWindow) -> Result<(), ValidationError> {
+    if freshness.max_future_updated_at_seconds >= freshness.max_staleness_seconds {
+        return Err(create_validation_error(
+            format!(
+                "max_future_updated_at_seconds ({}) is not below max_staleness_seconds ({})",
+                freshness.max_future_updated_at_seconds, freshness.max_staleness_seconds
+            ),
+            "inverted freshness window",
+            "Keep max_future_updated_at_seconds, which covers clock skew, below \
+             max_staleness_seconds, which covers the feed's heartbeat.",
+        ));
+    }
+    Ok(())
+}
+
+impl SerializeConfig for FreshnessWindow {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "max_staleness_seconds",
+                &self.max_staleness_seconds,
+                "Maximum age (seconds) of a feed's `updated_at` relative to the block timestamp \
+                 being priced. An older reading is rejected, and for the derived ETH/STRK rate a \
+                 single stale leg rejects the whole rate.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_future_updated_at_seconds",
+                &self.max_future_updated_at_seconds,
+                "Maximum amount (seconds) by which a feed's `updated_at` may lead the block \
+                 timestamp being priced. Covers the clock skew between the sequencer that wrote \
+                 the round and this node.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher.
+// [Temporary comment] No reader yet: A8 reads the feeds through these fields and A9 wires the
+// source in, and B2 nests this under `L1GasPriceProviderConfig`.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+pub struct ChainlinkOracleConfig {
+    /// Quotes USD per ETH.
+    pub eth_usd_feed_address: ContractAddress,
+    /// Quotes USD per STRK.
+    pub strk_usd_feed_address: ContractAddress,
+    #[validate(nested)]
+    pub freshness: FreshnessWindow,
+    #[validate(range(min = 1))]
+    pub sampling_interval_seconds: u64,
+    #[validate(range(min = 1))]
+    pub failure_retry_interval_seconds: u64,
+}
+
+impl Default for ChainlinkOracleConfig {
+    fn default() -> Self {
+        // Chainlink proxy addresses on Starknet mainnet. The proxies are used rather than the
+        // aggregators behind them, because aggregators are rotated without notice.
+        const ETH_USD_PROXY_ADDRESS: &str =
+            "0x06b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26";
+        const STRK_USD_PROXY_ADDRESS: &str =
+            "0x076a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec";
+        // The feeds guarantee an update at least once per 24h heartbeat; the extra hour absorbs
+        // the delay between the heartbeat deadline and the update landing on-chain.
+        const HEARTBEAT_PLUS_MARGIN_SECONDS: u64 = (24 + 1) * 3600;
+        // `updated_at` and the block timestamp it is checked against both come from a
+        // sequencer's clock, so this only covers the skew between them.
+        const MAX_FUTURE_UPDATED_AT_SECONDS: u64 = 300;
+
+        Self {
+            eth_usd_feed_address: parse_feed_address(ETH_USD_PROXY_ADDRESS),
+            strk_usd_feed_address: parse_feed_address(STRK_USD_PROXY_ADDRESS),
+            freshness: FreshnessWindow {
+                max_staleness_seconds: HEARTBEAT_PLUS_MARGIN_SECONDS,
+                max_future_updated_at_seconds: MAX_FUTURE_UPDATED_AT_SECONDS,
+            },
+            sampling_interval_seconds: 900, // 15 minutes
+            // Successful reads are sampled once per sampling interval, so a failure that waited
+            // for the next sample would freeze the price for that long.
+            failure_retry_interval_seconds: 60,
+        }
+    }
+}
+
+fn parse_feed_address(hex_address: &str) -> ContractAddress {
+    ContractAddress::try_from(Felt::from_hex(hex_address).expect("Invalid feed address felt"))
+        .expect("Invalid feed contract address")
+}
+
+impl SerializeConfig for ChainlinkOracleConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::from_iter([
+            ser_param(
+                "eth_usd_feed_address",
+                &self.eth_usd_feed_address,
+                "Address of the Chainlink proxy feed quoting ETH/USD on Starknet.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_usd_feed_address",
+                &self.strk_usd_feed_address,
+                "Address of the Chainlink proxy feed quoting STRK/USD on Starknet.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "sampling_interval_seconds",
+                &self.sampling_interval_seconds,
+                "The size of the interval (seconds) a successful feed reading is sampled on, so \
+                 that every block priced within one interval shares a single reading.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "failure_retry_interval_seconds",
+                &self.failure_retry_interval_seconds,
+                "How long (seconds) after a failed read the feed is read again. Successful reads \
+                 are governed by `sampling_interval_seconds` instead.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        config.extend(prepend_sub_config_name(self.freshness.dump(), "freshness"));
         config
     }
 }
