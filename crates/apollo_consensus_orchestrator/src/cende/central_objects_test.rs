@@ -82,12 +82,24 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress, L1Address};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    EntryPointSelector,
+    EthAddress,
+    EventCommitment,
+    L1Address,
+    ReceiptCommitment,
+    StateDiffCommitment,
+    TransactionCommitment,
+};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::hash::PoseidonHash;
 use starknet_api::rpc_transaction::{
     EntryPointByType,
     InternalRpcDeclareTransactionV3,
@@ -782,6 +794,13 @@ fn central_blob() -> AerospikeBlob {
         ],
         recent_state_commitment_infos: recent_state_commitment_infos(),
         initial_reads: StateMaps::default(),
+        block_hash_commitments: BlockHeaderCommitments {
+            transaction_commitment: TransactionCommitment(felt!("0x10")),
+            event_commitment: EventCommitment(felt!("0x20")),
+            receipt_commitment: ReceiptCommitment(felt!("0x30")),
+            state_diff_commitment: StateDiffCommitment(PoseidonHash(felt!("0x40"))),
+            concatenated_counts: felt!("0x50"),
+        },
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -814,6 +833,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         recent_block_hashes: vec![],
         recent_state_commitment_infos: vec![],
         initial_reads: StateMaps::default(),
+        block_hash_commitments: BlockHeaderCommitments::default(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
