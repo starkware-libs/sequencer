@@ -292,7 +292,13 @@ pub async fn create_node_components(
                 .l1_gas_price_provider_config
                 .as_ref()
                 .expect("L1 Gas Price Provider config should be set");
-            Some(L1GasPriceProvider::new_with_oracle(l1_gas_price_provider_config.clone()))
+            Some(
+                L1GasPriceProvider::new_with_oracle(
+                    l1_gas_price_provider_config.clone(),
+                    clients.get_batcher_shared_client(),
+                )
+                .unwrap_or_else(|error| panic!("{error}")),
+            )
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             assert!(

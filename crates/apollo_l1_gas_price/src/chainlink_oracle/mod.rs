@@ -39,7 +39,7 @@ mod feed_read;
 #[cfg(test)]
 mod test;
 #[cfg(test)]
-mod test_utils;
+pub(crate) mod test_utils;
 
 // How many sampling intervals may separate the last valid read's block timestamp from the block
 // timestamp being served, while that read is still served. Three read intervals, 45 minutes at the
@@ -108,8 +108,6 @@ pub trait ChainlinkRate: RateKind {
 /// different rounds for the same block timestamp. Chainlink's deviation threshold is far inside the
 /// `l1_gas_price_margin_percent` validators compare within, so this is not expected to reject
 /// proposals.
-// [Temporary comment] Constructed only by tests; B4 builds it for a feed whose configured oracle
-// source is Chainlink.
 pub struct ChainlinkOracleClient<Kind: ChainlinkRate> {
     config: ChainlinkOracleConfig,
     bounds_config: AllRateBoundsConfig,
