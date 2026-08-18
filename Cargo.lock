@@ -1865,6 +1865,7 @@ dependencies = [
 name = "apollo_l1_gas_price"
 version = "0.19.0-rc.2"
 dependencies = [
+ "apollo_batcher_types",
  "apollo_cairo_utils",
  "apollo_config",
  "apollo_infra",
