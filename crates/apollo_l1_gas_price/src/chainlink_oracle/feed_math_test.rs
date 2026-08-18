@@ -2,37 +2,17 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 
 use super::*;
+use crate::chainlink_oracle::test_utils::{
+    decimals_retdata,
+    round_retdata,
+    ETH_TO_FRI_RATE,
+    ETH_USD_ANSWER,
+    FEED_DECIMALS,
+    STRK_TO_USD_RATE,
+    STRK_USD_ANSWER,
+};
 
-/// The scale the Chainlink feeds report at today.
-const FEED_DECIMALS: u32 = 8;
-/// $3000 per ETH at `FEED_DECIMALS`.
-const ETH_USD_ANSWER: u128 = 300_000_000_000;
-/// $0.03 per STRK at `FEED_DECIMALS`.
-const STRK_USD_ANSWER: u128 = 3_000_000;
-/// The rate the two answers above derive to: 100,000 STRK per ETH.
-const ETH_TO_FRI_RATE: u128 = 100_000 * EXCHANGE_RATE_SCALE;
-/// $0.03 per STRK at `RATE_DECIMALS`.
-const STRK_TO_USD_RATE: u128 = 30_000_000_000_000_000;
 const UPDATED_AT: u64 = 1_700_000_000;
-
-fn decimals_retdata(feed_decimals: u32) -> Vec<Felt> {
-    vec![Felt::from(feed_decimals)]
-}
-
-fn round_retdata(answer: u128, updated_at: u64) -> Vec<Felt> {
-    // A realistic phase-encoded `round_id`: `(phase_id << 128) | aggregator_round_id`, which
-    // exceeds u64.
-    const PHASE_ENCODED_ROUND_ID: &str = "0x100000000000000000000000000000042";
-    const BLOCK_NUMBER: u64 = 987_654;
-    const STARTED_AT: u64 = 1_699_999_000;
-    vec![
-        Felt::from_hex_unchecked(PHASE_ENCODED_ROUND_ID),
-        Felt::from(answer),
-        Felt::from(BLOCK_NUMBER),
-        Felt::from(STARTED_AT),
-        Felt::from(updated_at),
-    ]
-}
 
 /// The two fields the oracle reads sit at positions two and five of the flat five-felt `Round`, so
 /// this pins the layout the decoder assumes.
@@ -114,7 +94,7 @@ fn eth_to_fri_divides_the_two_usd_legs() {
     assert_eq!(derive_eth_to_fri_rate(eth_to_usd_rate, strk_to_usd_rate).unwrap(), ETH_TO_FRI_RATE);
 }
 
-/// Each answer is rescaled to `RATE_DECIMALS` before the division, so the derived rate comes out
+/// Each answer is rescaled to `EXCHANGE_RATE_DECIMALS` before the division, so the derived rate
 /// the same whatever scales the two feeds report at. The widest pairs also cover the rescale of the
 /// largest answer accepted without overflowing.
 #[rstest]

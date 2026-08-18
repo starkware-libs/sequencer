@@ -27,7 +27,7 @@ const MAX_FEED_DECIMALS: u32 = EXCHANGE_RATE_DECIMALS;
 pub(super) const MAX_CONTRACT_CALL_ERROR_BYTES: usize = 256;
 pub(super) const TRUNCATION_MARKER: &str = "...[truncated]";
 
-/// A rate at `RATE_DECIMALS`, or the guard trip that rejected it.
+/// A rate at `EXCHANGE_RATE_DECIMALS`, or the guard trip that rejected it.
 pub(super) type RateResult = Result<ExchangeRate, ExchangeRateOracleClientError>;
 
 pub(super) fn truncate_contract_call_error(error_text: String) -> String {
@@ -90,11 +90,9 @@ pub(super) fn rescale_to_rate_decimals(answer: u128, feed_decimals: u32) -> Rate
         })
 }
 
-// [Temporary comment] `pub` with no caller yet: the client (A9) derives ETH/STRK from the two USD
-// legs and narrows this to `pub(super)`.
 /// STRK per ETH, at `EXCHANGE_RATE_DECIMALS`, from two USD prices that already carry
 /// `EXCHANGE_RATE_DECIMALS`.
-pub fn derive_eth_to_fri_rate(
+pub(super) fn derive_eth_to_fri_rate(
     eth_to_usd_rate: ExchangeRate,
     strk_to_usd_rate: ExchangeRate,
 ) -> RateResult {

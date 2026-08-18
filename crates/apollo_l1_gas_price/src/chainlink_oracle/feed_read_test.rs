@@ -10,35 +10,18 @@ use super::*;
 use crate::chainlink_oracle::feed_math::{MAX_CONTRACT_CALL_ERROR_BYTES, TRUNCATION_MARKER};
 use crate::chainlink_oracle::test_utils::{
     batcher_client_from_responses,
-    feed_responses,
+    fresh_updated_at,
+    stale_updated_at,
+    strk_usd_responses,
+    test_config,
     FeedFixture,
     FeedResponses,
+    STRK_USD_ANSWER,
+    TIMESTAMP,
 };
-
-/// The block timestamp every reading below is dated against, and every freshness bound measured
-/// against.
-const TIMESTAMP: u64 = 1_700_000_000;
-/// $0.03 per STRK at `FEED_DECIMALS`.
-const STRK_USD_ANSWER: u128 = 3_000_000;
-
-fn test_config() -> ChainlinkOracleConfig {
-    ChainlinkOracleConfig::default()
-}
 
 fn strk_usd_feed() -> PairFeed {
     test_config().strk_usd_feed(&AllRateBoundsConfig::default())
-}
-
-fn fresh_updated_at() -> u64 {
-    TIMESTAMP
-}
-
-fn stale_updated_at() -> u64 {
-    TIMESTAMP - test_config().freshness.max_staleness_seconds - 1
-}
-
-fn strk_usd_responses(strk_usd: FeedFixture) -> FeedResponses {
-    feed_responses(test_config().strk_usd_feed_address, strk_usd)
 }
 
 /// Reads the STRK/USD feed against `TIMESTAMP`, the timestamp every fixture is dated against.
