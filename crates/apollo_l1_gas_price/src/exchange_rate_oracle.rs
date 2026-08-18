@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde_json;
+use serde_json::{from_value, Value};
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
@@ -26,7 +26,7 @@ use crate::metrics::ExchangeRateOracleMetrics;
 #[path = "exchange_rate_oracle_test.rs"]
 pub mod exchange_rate_oracle_test;
 
-pub const EXCHANGE_RATE_DECIMALS: u64 = 18;
+pub use apollo_l1_gas_price_types::EXCHANGE_RATE_DECIMALS;
 
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -172,7 +172,7 @@ fn resolve_query(
     body: String,
     metrics: &ExchangeRateOracleMetrics,
 ) -> Result<ExchangeRate, ExchangeRateOracleClientError> {
-    let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
+    let Ok(mut json): Result<Value, _> = serde_json::from_str(&body) else {
         return Err(ExchangeRateOracleClientError::ParseError(format!(
             "Failed to parse JSON: {body}"
         )));
@@ -195,16 +195,18 @@ fn resolve_query(
             "rate must be non-zero".to_string(),
         ));
     }
-    // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
-    let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
-        Some(decimals) => decimals,
-        None => {
-            return Err(ExchangeRateOracleClientError::MissingFieldError(
-                "decimals".to_string(),
-                body,
-            ));
-        }
-    };
+    // Extract decimals from API response. Also returns MissingFieldError if the value is not a
+    // number that fits the scale's own `u32`.
+    let decimals =
+        match json.get_mut("decimals").map(Value::take).and_then(|v| from_value::<u32>(v).ok()) {
+            Some(decimals) => decimals,
+            None => {
+                return Err(ExchangeRateOracleClientError::MissingFieldError(
+                    "decimals".to_string(),
+                    body,
+                ));
+            }
+        };
     if decimals != EXCHANGE_RATE_DECIMALS {
         return Err(ExchangeRateOracleClientError::InvalidDecimalsError(
             EXCHANGE_RATE_DECIMALS,
@@ -219,7 +221,7 @@ fn resolve_query(
 impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
-    /// - `decimals`: a `u64` value, must be equal to `EXCHANGE_RATE_DECIMALS`.
+    /// - `decimals`: a number equal to `EXCHANGE_RATE_DECIMALS`.
     #[instrument(skip(self))]
     async fn fetch_rate(
         &self,
