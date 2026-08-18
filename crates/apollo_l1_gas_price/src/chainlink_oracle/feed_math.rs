@@ -1,7 +1,7 @@
 //! Fixed-point arithmetic over the rates Chainlink's feeds report.
 
-// [Temporary comment] No production caller yet, and every item is `pub` so this module compiles
-// standalone. The feed read (A8) and the client (A9) call these and narrow them to `pub(super)`.
+// [Temporary comment] `derive_eth_to_fri_rate` has no caller yet: the client (A9) derives
+// ETH/STRK from the two USD legs and narrows it to `pub(super)`.
 
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
 use apollo_l1_gas_price_types::{ExchangeRate, EXCHANGE_RATE_DECIMALS, EXCHANGE_RATE_SCALE};
@@ -12,9 +12,9 @@ use ethnum::U256;
 mod feed_math_test;
 
 /// A rate at `EXCHANGE_RATE_DECIMALS`, or the guard trip that rejected it.
-pub type RateResult = Result<ExchangeRate, ExchangeRateOracleClientError>;
+pub(super) type RateResult = Result<ExchangeRate, ExchangeRateOracleClientError>;
 
-pub fn rescale_to_rate_decimals(raw_rate: u128, feed_decimals: u32) -> RateResult {
+pub(super) fn rescale_to_rate_decimals(raw_rate: u128, feed_decimals: u32) -> RateResult {
     EXCHANGE_RATE_DECIMALS
         .checked_sub(feed_decimals)
         .and_then(|exponent| 10u128.checked_pow(exponent))

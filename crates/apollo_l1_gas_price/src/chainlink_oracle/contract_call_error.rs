@@ -1,8 +1,5 @@
 //! Truncation of the batcher error text a failed view call relays.
 
-// [Temporary comment] No production caller yet: the feed read (A8) relays a failed `call_contract`
-// through this and narrows it to `pub(super)`.
-
 #[cfg(test)]
 #[path = "contract_call_error_test.rs"]
 mod contract_call_error_test;
@@ -10,10 +7,10 @@ mod contract_call_error_test;
 /// Cap on the batcher error text the Chainlink oracle relays. A reverting view call's panic data
 /// reaches the logs, the failure cache, and (when the provider runs remotely) the RPC boundary, so
 /// the cap is byte-based to bound what all three consume.
-pub const MAX_CONTRACT_CALL_ERROR_BYTES: usize = 256;
-pub const TRUNCATION_MARKER: &str = "...[truncated]";
+pub(super) const MAX_CONTRACT_CALL_ERROR_BYTES: usize = 256;
+pub(super) const TRUNCATION_MARKER: &str = "...[truncated]";
 
-pub fn truncate_contract_call_error(error_text: String) -> String {
+pub(super) fn truncate_contract_call_error(error_text: String) -> String {
     if error_text.len() <= MAX_CONTRACT_CALL_ERROR_BYTES {
         return error_text;
     }

@@ -57,7 +57,6 @@ pub enum ExchangeRateOracleClientError {
     AllUrlsFailedError(u64, usize),
     #[error("Invalid rate from oracle: {0}")]
     InvalidRateError(String),
-    // [Temporary comment] The five variants below are first returned by the feed guards (A7/A8).
     // TODO(Asaf): give the remaining variants the same pair context. Not a payload field for all
     // of them: `From<reqwest::Error>` and the `?` sites have no pair to supply, so this
     // likely needs a span field on `fetch_rate` instead.
