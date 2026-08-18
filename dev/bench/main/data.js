@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786972616588,
+  "lastUpdate": 1787036447128,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7275,6 +7275,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1257.1582053299999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9481cee2ae4b6367391d3a6d9d5f03a1b3c87afe",
+          "message": "apollo_config,apollo_config_manager: stop re-logging the config load on every poll (#14932)\n\nThe config manager reloads the config on a timer, and each reload re-emitted\nthe same three info lines in every pod: the periodic-check heartbeat, the\ndefault-values notice, and one line per custom config file. On a config that\nalmost never changes, that is ~7% of sequencer-gateway's log bytes and ~3% of\nsequencer-mempool's.\n\nThe startup load is the one worth reading, so the two loading.rs lines now\nreport at info for the first load of the process and at trace afterwards, and\nthe tick heartbeat drops to trace. An actual config change is still reported\nby log_config_diff, which is untouched.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-18T06:35:56Z",
+          "tree_id": "ec7bbfb8471771c5ea8e6accddcc308c129f337d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9481cee2ae4b6367391d3a6d9d5f03a1b3c87afe"
+        },
+        "date": 1787036446386,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 901.16426455,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1378.40369558,
             "unit": "ms"
           }
         ]
