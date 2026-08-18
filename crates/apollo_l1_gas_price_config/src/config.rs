@@ -317,8 +317,6 @@ impl SerializeConfig for FreshnessWindow {
 /// only what is Chainlink-specific: the bounds a feed's answer is judged against describe the rate
 /// rather than the source, so they live in `AllRateBoundsConfig`, which also bounds the derived
 /// ETH/STRK pair that has no feed of its own.
-// [Temporary comment] B4 builds the client that reads this.
-
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ChainlinkOracleConfig {
     /// Quotes USD per ETH.
@@ -426,7 +424,6 @@ pub struct L1GasPriceProviderConfig {
     // `rate_bounds_config` and `chainlink_oracle_config` apply to every feed, unlike the per-feed
     // HTTP configs, and both are validated while every feed is still on `Http`, so a bad value is
     // rejected at config load rather than at the moment an operator flips a source to `Chainlink`.
-    // [Temporary comment] B4 builds the client that reads these.
     #[validate(nested)]
     pub rate_bounds_config: AllRateBoundsConfig,
     #[validate(nested)]

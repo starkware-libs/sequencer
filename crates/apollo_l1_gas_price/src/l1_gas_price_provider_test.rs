@@ -1,10 +1,103 @@
+use std::collections::BTreeMap;
+use std::future::Future;
 use std::sync::Arc;
+use std::time::Duration;
 
-use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
-use apollo_l1_gas_price_types::{GasPriceData, MockExchangeRateOracleClientTrait, PriceInfo};
+use apollo_config::converters::UrlAndHeaders;
+use apollo_l1_gas_price_config::config::{
+    ExchangeRateOracleConfig,
+    ExchangeRateOracleSource,
+    L1GasPriceProviderConfig,
+};
+use apollo_l1_gas_price_types::{
+    CurrencyPair,
+    ExchangeRate,
+    GasPriceData,
+    L1GasPriceProviderResult,
+    MockExchangeRateOracleClientTrait,
+    PriceInfo,
+};
+use apollo_metrics::metrics::MetricDetails;
+use metrics::set_default_local_recorder;
+use metrics_exporter_prometheus::PrometheusBuilder;
+use mockito::{Mock, ServerGuard};
+use rstest::rstest;
+use serde_json::json;
 use starknet_api::block::{BlockTimestamp, GasPrice};
+use url::Url;
 
-use crate::l1_gas_price_provider::{L1GasPriceProvider, L1GasPriceProviderError, RingBuffer};
+use crate::chainlink_oracle::test_utils::{
+    batcher_client_serving_fresh_feeds,
+    ETH_TO_FRI_RATE,
+    STRK_TO_USD_RATE,
+    TIMESTAMP,
+};
+use crate::exchange_rate_oracle::EXCHANGE_RATE_DECIMALS;
+use crate::l1_gas_price_provider::{
+    L1GasPriceProvider,
+    L1GasPriceProviderError,
+    MissingBatcherClientError,
+    RingBuffer,
+    ETH_TO_STRK_ORACLE_SOURCE_CONFIG_KEY,
+    STRK_TO_USD_ORACLE_SOURCE_CONFIG_KEY,
+};
+use crate::metrics::EXCHANGE_RATE_ORACLE_RATE;
+
+// One HTTP rate per feed. The four rates the two sources serve are distinct, so a feed served by
+// the other feed's config, or by the source it did not select, resolves to a number named for that
+// other feed.
+const ETH_TO_STRK_HTTP_RATE: ExchangeRate = 111_000;
+const STRK_TO_USD_HTTP_RATE: ExchangeRate = 222_000;
+// The block timestamp the Chainlink fixtures are dated against, so every rate is queried for it.
+const RATE_QUERY_TIMESTAMP: u64 = TIMESTAMP;
+
+// Serves `rate` to every request, in the shape the HTTP oracle expects.
+fn mock_rate_response(server: &mut ServerGuard, rate: ExchangeRate) -> Mock {
+    server
+        .mock("GET", mockito::Matcher::Any)
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            json!({ "price": format!("0x{rate:x}"), "decimals": EXCHANGE_RATE_DECIMALS })
+                .to_string(),
+        )
+        .create()
+}
+
+fn http_oracle_config(server_url: &str) -> ExchangeRateOracleConfig {
+    ExchangeRateOracleConfig {
+        url_header_list: Some(vec![
+            UrlAndHeaders {
+                url: Url::parse(server_url).expect("The mock server URL should parse"),
+                headers: BTreeMap::new(),
+            }
+            .into(),
+        ]),
+        ..Default::default()
+    }
+}
+
+// The first call to either oracle only spawns the query, so the rate is polled until the background
+// query lands in the client's cache.
+async fn resolve_rate<FetchRate, RateQuery>(fetch_rate: FetchRate) -> ExchangeRate
+where
+    FetchRate: Fn() -> RateQuery,
+    RateQuery: Future<Output = L1GasPriceProviderResult<ExchangeRate>>,
+{
+    // `sleep` parks the runtime so the IO driver is polled and the HTTP round trip completes;
+    // `yield_now` alone does not, since the driver is polled only every few scheduler ticks.
+    const POLL_INTERVAL: Duration = Duration::from_millis(10);
+    const RESOLVE_TIMEOUT: Duration = Duration::from_secs(10);
+    tokio::time::timeout(RESOLVE_TIMEOUT, async {
+        loop {
+            if let Ok(rate) = fetch_rate().await {
+                return rate;
+            }
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("The oracle query did not resolve within {RESOLVE_TIMEOUT:?}"))
+}
 
 // Make a provider with five block prices. Timestamps are 2 seconds apart, starting from 0.
 // To get the prices for the middle three blocks use the timestamp for block[3].
@@ -168,4 +261,168 @@ fn gas_price_provider_uninitialized_error() {
     let timestamp = BlockTimestamp(0);
     let result = provider.add_price_info(GasPriceData { block_number: 42, timestamp, price_info });
     assert!(matches!(result, Err(L1GasPriceProviderError::NotInitializedError)));
+}
+
+/// Each feed resolves to the rate its own selected source serves, with both HTTP servers and the
+/// batcher wired in every case.
+#[rstest]
+#[case::both_http(
+    ExchangeRateOracleSource::Http,
+    ExchangeRateOracleSource::Http,
+    ETH_TO_STRK_HTTP_RATE,
+    STRK_TO_USD_HTTP_RATE
+)]
+#[case::eth_to_strk_on_chainlink(
+    ExchangeRateOracleSource::Chainlink,
+    ExchangeRateOracleSource::Http,
+    ETH_TO_FRI_RATE,
+    STRK_TO_USD_HTTP_RATE
+)]
+#[case::strk_to_usd_on_chainlink(
+    ExchangeRateOracleSource::Http,
+    ExchangeRateOracleSource::Chainlink,
+    ETH_TO_STRK_HTTP_RATE,
+    STRK_TO_USD_RATE
+)]
+#[case::both_chainlink(
+    ExchangeRateOracleSource::Chainlink,
+    ExchangeRateOracleSource::Chainlink,
+    ETH_TO_FRI_RATE,
+    STRK_TO_USD_RATE
+)]
+#[tokio::test]
+async fn each_feed_is_served_by_the_source_selected_for_it(
+    #[case] eth_to_strk_oracle_source: ExchangeRateOracleSource,
+    #[case] strk_to_usd_oracle_source: ExchangeRateOracleSource,
+    #[case] expected_eth_to_fri_rate: ExchangeRate,
+    #[case] expected_strk_to_usd_rate: ExchangeRate,
+) {
+    let mut eth_to_strk_server = mockito::Server::new_async().await;
+    let _eth_to_strk_mock = mock_rate_response(&mut eth_to_strk_server, ETH_TO_STRK_HTTP_RATE);
+    let mut strk_to_usd_server = mockito::Server::new_async().await;
+    let _strk_to_usd_mock = mock_rate_response(&mut strk_to_usd_server, STRK_TO_USD_HTTP_RATE);
+
+    let config = L1GasPriceProviderConfig {
+        eth_to_strk_oracle_source,
+        strk_to_usd_oracle_source,
+        eth_to_strk_oracle_config: http_oracle_config(&eth_to_strk_server.url()),
+        strk_to_usd_oracle_config: http_oracle_config(&strk_to_usd_server.url()),
+        ..Default::default()
+    };
+    let provider =
+        L1GasPriceProvider::new_with_oracle(config, Some(batcher_client_serving_fresh_feeds()))
+            .expect("A batcher client is available, so both sources are buildable");
+
+    assert_eq!(
+        resolve_rate(|| provider.eth_to_fri_rate(RATE_QUERY_TIMESTAMP)).await,
+        expected_eth_to_fri_rate,
+        "The ETH/STRK feed selected {eth_to_strk_oracle_source:?}, so it should have been served \
+         by that source, reading the ETH/STRK feed's own config"
+    );
+    assert_eq!(
+        resolve_rate(|| provider.strk_to_usd_rate(RATE_QUERY_TIMESTAMP)).await,
+        expected_strk_to_usd_rate,
+        "The STRK/USD feed selected {strk_to_usd_oracle_source:?}, so it should have been served \
+         by that source, reading the STRK/USD feed's own config"
+    );
+}
+
+/// Each feed's rate is published on the series labeled with that feed's currency pair, whichever
+/// source built the feed's client.
+#[rstest]
+#[case::http(ExchangeRateOracleSource::Http, ETH_TO_STRK_HTTP_RATE, STRK_TO_USD_HTTP_RATE)]
+#[case::chainlink(ExchangeRateOracleSource::Chainlink, ETH_TO_FRI_RATE, STRK_TO_USD_RATE)]
+#[tokio::test]
+async fn each_feed_publishes_on_its_own_metrics_series(
+    #[case] oracle_source: ExchangeRateOracleSource,
+    #[case] expected_eth_to_fri_rate: ExchangeRate,
+    #[case] expected_strk_to_usd_rate: ExchangeRate,
+) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let mut eth_to_strk_server = mockito::Server::new_async().await;
+    let _eth_to_strk_mock = mock_rate_response(&mut eth_to_strk_server, ETH_TO_STRK_HTTP_RATE);
+    let mut strk_to_usd_server = mockito::Server::new_async().await;
+    let _strk_to_usd_mock = mock_rate_response(&mut strk_to_usd_server, STRK_TO_USD_HTTP_RATE);
+
+    let config = L1GasPriceProviderConfig {
+        eth_to_strk_oracle_source: oracle_source,
+        strk_to_usd_oracle_source: oracle_source,
+        eth_to_strk_oracle_config: http_oracle_config(&eth_to_strk_server.url()),
+        strk_to_usd_oracle_config: http_oracle_config(&strk_to_usd_server.url()),
+        ..Default::default()
+    };
+    let provider =
+        L1GasPriceProvider::new_with_oracle(config, Some(batcher_client_serving_fresh_feeds()))
+            .expect("A batcher client is available, so both sources are buildable");
+    resolve_rate(|| provider.eth_to_fri_rate(RATE_QUERY_TIMESTAMP)).await;
+    resolve_rate(|| provider.strk_to_usd_rate(RATE_QUERY_TIMESTAMP)).await;
+
+    let rendered_metrics = recorder.handle().render();
+    for (pair, expected_rate) in [
+        (CurrencyPair::EthStrk, expected_eth_to_fri_rate),
+        (CurrencyPair::StrkUsd, expected_strk_to_usd_rate),
+    ] {
+        assert_eq!(
+            EXCHANGE_RATE_ORACLE_RATE
+                .parse_numeric_metric::<ExchangeRate>(&rendered_metrics, &pair.labels()),
+            Some(expected_rate),
+            "The {pair:?} rate the {oracle_source:?} source served was not published on {}",
+            EXCHANGE_RATE_ORACLE_RATE.get_name()
+        );
+    }
+}
+
+/// A provider whose feeds both select `Http` is built without a batcher client.
+#[test]
+fn http_sources_do_not_need_a_batcher_client() {
+    let config = L1GasPriceProviderConfig {
+        eth_to_strk_oracle_source: ExchangeRateOracleSource::Http,
+        strk_to_usd_oracle_source: ExchangeRateOracleSource::Http,
+        ..Default::default()
+    };
+    assert!(L1GasPriceProvider::new_with_oracle(config, None).is_ok());
+}
+
+/// A feed selecting `Chainlink` without a batcher client is rejected while the components are
+/// built, with a message naming every offending config key.
+#[rstest]
+#[case::eth_to_strk(
+    ExchangeRateOracleSource::Chainlink,
+    ExchangeRateOracleSource::Http,
+    vec![ETH_TO_STRK_ORACLE_SOURCE_CONFIG_KEY]
+)]
+#[case::strk_to_usd(
+    ExchangeRateOracleSource::Http,
+    ExchangeRateOracleSource::Chainlink,
+    vec![STRK_TO_USD_ORACLE_SOURCE_CONFIG_KEY]
+)]
+#[case::both_feeds(
+    ExchangeRateOracleSource::Chainlink,
+    ExchangeRateOracleSource::Chainlink,
+    vec![ETH_TO_STRK_ORACLE_SOURCE_CONFIG_KEY, STRK_TO_USD_ORACLE_SOURCE_CONFIG_KEY]
+)]
+fn chainlink_source_without_a_batcher_client_is_rejected(
+    #[case] eth_to_strk_oracle_source: ExchangeRateOracleSource,
+    #[case] strk_to_usd_oracle_source: ExchangeRateOracleSource,
+    #[case] expected_source_config_keys: Vec<&'static str>,
+) {
+    let config = L1GasPriceProviderConfig {
+        eth_to_strk_oracle_source,
+        strk_to_usd_oracle_source,
+        ..Default::default()
+    };
+    let error = L1GasPriceProvider::new_with_oracle(config, None).unwrap_err();
+    let message = error.to_string();
+    for &source_config_key in &expected_source_config_keys {
+        assert!(
+            message.contains(source_config_key),
+            "The error message should name {source_config_key}, but it is: {message}"
+        );
+    }
+    assert_eq!(
+        error,
+        MissingBatcherClientError { source_config_keys: expected_source_config_keys }
+    );
 }
