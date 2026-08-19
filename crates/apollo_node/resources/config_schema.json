@@ -604,6 +604,11 @@
     "privacy": "Public",
     "value": 8
   },
+  "committer_config.storage_config.inner_storage_config.max_read_tasks": {
+    "description": "Upper bound on the blocking tasks a single multi-key read is split across",
+    "privacy": "Public",
+    "value": 32
+  },
   "committer_config.storage_config.inner_storage_config.max_subcompactions": {
     "description": "Maximum number of subcompactions for parallel compaction",
     "privacy": "Public",

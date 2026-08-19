@@ -41,4 +41,5 @@ libmdbx.workspace = true
 page_size.workspace = true
 rstest.workspace = true
 rust-rocksdb.workspace = true
+tempfile.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
