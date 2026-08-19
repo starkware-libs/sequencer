@@ -3,15 +3,19 @@ use std::sync::Once;
 
 use apollo_config::converters::UrlAndHeaders;
 use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
+use apollo_l1_gas_price_types::errors::ExchangeRateOracleErrorType;
+use apollo_l1_gas_price_types::{CurrencyPair, LABEL_NAME_CURRENCY_PAIR, LABEL_NAME_ERROR_TYPE};
 use metrics_exporter_prometheus::PrometheusBuilder;
+use strum::IntoEnumIterator;
 use url::Url;
 
 use super::{ExchangeRateOracleMetrics, ETH_TO_STRK_ORACLE_METRICS};
 use crate::exchange_rate_oracle::ExchangeRateOracleClient;
 
-/// Guard owned by this test, so the assertions on its state do not depend on whether another test
-/// in the process already registered the ETH→STRK set.
-static TEST_REGISTRATION: Once = Once::new();
+/// Guards owned by the tests, so the assertions on their state do not depend on whether another
+/// test in the process already registered the shared oracle metrics.
+static REPEATED_CONSTRUCTION_REGISTRATION: Once = Once::new();
+static ZERO_SAMPLE_REGISTRATION: Once = Once::new();
 
 fn oracle_config() -> ExchangeRateOracleConfig {
     let url_and_headers =
@@ -32,16 +36,53 @@ fn repeated_client_construction_registers_metrics_once() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
     let oracle_metrics = ExchangeRateOracleMetrics {
-        registration_guard: &TEST_REGISTRATION,
+        registration_guard: &REPEATED_CONSTRUCTION_REGISTRATION,
         ..ETH_TO_STRK_ORACLE_METRICS
     };
-    assert!(!TEST_REGISTRATION.is_completed());
+    assert!(!REPEATED_CONSTRUCTION_REGISTRATION.is_completed());
 
     let _first_client = ExchangeRateOracleClient::new(oracle_config(), oracle_metrics);
-    assert!(TEST_REGISTRATION.is_completed());
+    assert!(REPEATED_CONSTRUCTION_REGISTRATION.is_completed());
 
-    oracle_metrics.success_count.increment(1);
+    oracle_metrics.record_success(5);
     let _second_client = ExchangeRateOracleClient::new(oracle_config(), oracle_metrics);
 
-    oracle_metrics.success_count.assert_eq::<u64>(&recorder.handle().render(), 1);
+    oracle_metrics.success_count.assert_eq::<u64>(
+        &recorder.handle().render(),
+        1,
+        &CurrencyPair::EthStrk.labels(),
+    );
+}
+
+/// Registration publishes a zero sample per label permutation, so a pair that never failed renders
+/// as 0 instead of being absent from the scrape.
+#[test]
+fn oracle_metrics_register_at_zero_for_every_permutation() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let oracle_metrics = ExchangeRateOracleMetrics {
+        registration_guard: &ZERO_SAMPLE_REGISTRATION,
+        ..ETH_TO_STRK_ORACLE_METRICS
+    };
+    oracle_metrics.register();
+
+    let metrics_as_string = recorder.handle().render();
+    for currency_pair in CurrencyPair::iter() {
+        oracle_metrics.success_count.assert_eq::<u64>(
+            &metrics_as_string,
+            0,
+            &currency_pair.labels(),
+        );
+        for error_type in ExchangeRateOracleErrorType::iter() {
+            oracle_metrics.error_count.assert_eq::<u64>(
+                &metrics_as_string,
+                0,
+                &[
+                    (LABEL_NAME_CURRENCY_PAIR, <&str>::from(currency_pair)),
+                    (LABEL_NAME_ERROR_TYPE, <&str>::from(error_type)),
+                ],
+            );
+        }
+    }
 }

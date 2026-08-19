@@ -2,7 +2,7 @@ pub mod errors;
 #[cfg(test)]
 mod test;
 
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Display};
 use std::iter::Sum;
 use std::sync::Arc;
 
@@ -32,10 +32,13 @@ pub type ExchangeRate = u128;
 /// Currency pair a reading or rate belongs to.
 pub const LABEL_NAME_CURRENCY_PAIR: &str = "currency_pair";
 
+/// Variant of `ExchangeRateOracleClientError` a failed query returned.
+pub const LABEL_NAME_ERROR_TYPE: &str = "error_type";
+
 /// The pair a reading or rate quotes.
-// [Temporary comment] No consumer yet: `labels()` lands with the oracle metrics PR, `pair_name()`
-// with the rate-bounds PR.
-#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, PartialEq, Eq, VariantNames)]
+#[derive(
+    Clone, Copy, Debug, Deserialize, EnumIter, IntoStaticStr, PartialEq, Eq, Serialize, VariantNames,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum CurrencyPair {
     EthUsd,
@@ -55,6 +58,13 @@ impl CurrencyPair {
 
     pub fn labels(self) -> [(&'static str, &'static str); 1] {
         [(LABEL_NAME_CURRENCY_PAIR, self.into())]
+    }
+}
+
+/// Renders the operator-facing `pair_name`, not the snake_case label value.
+impl Display for CurrencyPair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.pair_name())
     }
 }
 
