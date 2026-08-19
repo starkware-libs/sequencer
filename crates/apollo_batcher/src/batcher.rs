@@ -770,6 +770,18 @@ impl Batcher {
         &self,
         input: CallContractInput,
     ) -> BatcherResult<CallContractOutput> {
+        // Acquired before any storage access or state reader setup, so a call rejected under load
+        // costs nothing beyond the semaphore check.
+        let view_call_permit =
+            self.view_call_semaphore.clone().try_acquire_owned().map_err(|_| {
+                REJECTED_VIEW_CALLS.increment(1);
+                warn!(
+                    "Rejecting view call, all {MAX_CONCURRENT_VIEW_CALLS} view call slots are \
+                     taken."
+                );
+                BatcherError::ContractCallFailed { reason: TOO_MANY_VIEW_CALLS_REASON.to_string() }
+            })?;
+
         let height = self.get_height_from_storage()?;
 
         // Get the block info for the latest committed block.
@@ -790,16 +802,6 @@ impl Batcher {
             self.versioned_constants(),
             BouncerConfig::max(),
         );
-
-        let view_call_permit =
-            self.view_call_semaphore.clone().try_acquire_owned().map_err(|_| {
-                REJECTED_VIEW_CALLS.increment(1);
-                warn!(
-                    "Rejecting view call, all {MAX_CONCURRENT_VIEW_CALLS} view call slots are \
-                     taken."
-                );
-                BatcherError::ContractCallFailed { reason: TOO_MANY_VIEW_CALLS_REASON.to_string() }
-            })?;
 
         let call_task = tokio::task::spawn_blocking(move || {
             // Owned by the blocking task, so the slot is freed only when the execution ends. A
