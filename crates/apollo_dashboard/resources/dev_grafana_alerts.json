@@ -902,7 +902,7 @@
       "name": "eth_to_strk_error_count",
       "title": "Eth to Strk error count",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -928,7 +928,7 @@
       "name": "eth_to_strk_rate_frozen",
       "title": "Eth to Strk rate frozen",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "sum(changes(eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))",
+      "expr": "sum(changes(exchange_rate_oracle_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\"}[1h]))",
       "conditions": [
         {
           "evaluator": {
@@ -954,7 +954,7 @@
       "name": "eth_to_strk_success_count",
       "title": "Eth to Strk success count",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(exchange_rate_oracle_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -2176,7 +2176,7 @@
       "name": "strk_to_usd_error_count",
       "title": "Strk to Usd error count",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(snip35_strk_usd_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -2202,7 +2202,7 @@
       "name": "strk_to_usd_rate_frozen",
       "title": "Strk to Usd rate frozen",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "sum(changes(snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))",
+      "expr": "sum(changes(exchange_rate_oracle_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}[1h]))",
       "conditions": [
         {
           "evaluator": {
@@ -2228,7 +2228,7 @@
       "name": "strk_to_usd_success_count",
       "title": "Strk to Usd success count",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(snip35_strk_usd_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(exchange_rate_oracle_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {

@@ -438,7 +438,7 @@
           "description": "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
           "type": "timeseries",
           "exprs": [
-            "snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e18"
+            "exchange_rate_oracle_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"strk_usd\"} / 1e18"
           ],
           "extra_params": {}
         },
@@ -447,29 +447,38 @@
           "description": "Indicates whether the STRK→USD rate query succeeded (1m window)",
           "type": "timeseries",
           "exprs": [
-            "changes(snip35_strk_usd_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+            "changes(exchange_rate_oracle_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"strk_usd\"}[1m])"
           ],
           "extra_params": {
             "log_query": "\"Caching conversion rate for timestamp\""
           }
         },
         {
-          "title": "STRK/USD Rate Query Error Count",
-          "description": "The number of times the STRK→USD rate query failed (10m window)",
+          "title": "STRK/USD Rate Query Error Count by Error Type",
+          "description": "The number of times the STRK→USD rate query failed, split by error type (10m window)",
           "type": "timeseries",
           "exprs": [
-            "increase(snip35_strk_usd_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+            "increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"strk_usd\"}[10m])"
           ],
           "extra_params": {
             "log_query": "\"Failed to resolve query to\" OR \"Timeout when resolving query to\" OR \"Query failed to join handle for timestamp\""
           }
         },
         {
+          "title": "STRK/USD Rate Query Total Error Count",
+          "description": "The number of times the STRK→USD rate query failed, summed over error types (10m window). The error count alert thresholds this sum.",
+          "type": "timeseries",
+          "exprs": [
+            "sum(increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"strk_usd\"}[10m]))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Seconds Since Last Successful STRK→USD Rate Update",
           "description": "The number of seconds since the last successful STRK→USD rate update (assuming there was an update in the last 12 hours).",
           "type": "timeseries",
           "exprs": [
-            "time() - max(last_over_time(snip35_strk_usd_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
+            "time() - max(last_over_time(exchange_rate_oracle_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"strk_usd\"}[12h]))"
           ],
           "extra_params": {
             "unit": "s",
@@ -1687,7 +1696,7 @@
           "description": "The number of seconds since the last successful ETH→STRK rate update (assuming there was an update in the last 12 hours). Expected cadence: ~15 minutes.",
           "type": "timeseries",
           "exprs": [
-            "time() - max(last_over_time(eth_to_strk_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
+            "time() - max(last_over_time(exchange_rate_oracle_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"eth_strk\"}[12h]))"
           ],
           "extra_params": {
             "unit": "s",
@@ -1715,29 +1724,38 @@
           "description": "Indicates whether the ETH→STRK rate query succeeded (1m window) \nExpected to be 1 every 15 minutes.",
           "type": "timeseries",
           "exprs": [
-            "changes(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+            "changes(exchange_rate_oracle_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"eth_strk\"}[1m])"
           ],
           "extra_params": {
             "log_query": "\"Caching conversion rate for timestamp\""
           }
         },
         {
-          "title": "ETH→STRK Rate Query Error Count",
-          "description": "The number of times the ETH→STRK rate query failed (10m window)",
+          "title": "ETH→STRK Rate Query Error Count by Error Type",
+          "description": "The number of times the ETH→STRK rate query failed, split by error type (10m window)",
           "type": "timeseries",
           "exprs": [
-            "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+            "increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"eth_strk\"}[10m])"
           ],
           "extra_params": {
             "log_query": "\"Failed to resolve query to\" OR \"Timeout when resolving query to\" OR \"Query failed to join handle for timestamp\""
           }
         },
         {
+          "title": "ETH→STRK Rate Query Total Error Count",
+          "description": "The number of times the ETH→STRK rate query failed, summed over error types (10m window). The error count alert thresholds this sum.",
+          "type": "timeseries",
+          "exprs": [
+            "sum(increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"eth_strk\"}[10m]))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "ETH→STRK rate",
           "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1000000000000000000000)",
           "type": "timeseries",
           "exprs": [
-            "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1000000000000000000000"
+            "exchange_rate_oracle_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", currency_pair=\"eth_strk\"} / 1000000000000000000000"
           ],
           "extra_params": {
             "log_query": "\"Caching conversion rate for timestamp\""
