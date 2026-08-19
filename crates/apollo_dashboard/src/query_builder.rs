@@ -32,6 +32,46 @@ pub(crate) fn seconds_since_last_timestamp(metric: &dyn MetricQueryName) -> Stri
     format!("time() - max(last_over_time({}[12h]))", metric.get_name_with_filter())
 }
 
+/// Narrows a labeled metric to one label value.
+///
+/// Example: `with_label(&m, "currency_pair", "eth_strk")` → `m{..., currency_pair="eth_strk"}`
+pub(crate) fn with_label(metric: &dyn MetricQueryName, label: &str, value: &str) -> String {
+    metric.get_name_with_filer_and_additional_fields(&format!("{label}=\"{value}\""))
+}
+
+/// `increase()` of one label value of a labeled metric.
+///
+/// - `filter_zeros`: if `true`, appends ` > 0`.
+pub(crate) fn increase_with_label(
+    metric: &dyn MetricQueryName,
+    label: &str,
+    value: &str,
+    duration: &str,
+    filter_zeros: bool,
+) -> String {
+    let filter = if filter_zeros { " > 0" } else { "" };
+    format!("increase({}[{}]){}", with_label(metric, label, value), duration, filter)
+}
+
+/// `sum(increase())` of one label value of a labeled metric, aggregating across instances.
+pub(crate) fn sum_increase_with_label(
+    metric: &dyn MetricQueryName,
+    label: &str,
+    value: &str,
+    duration: &str,
+) -> String {
+    format!("sum({})", increase_with_label(metric, label, value, duration, false))
+}
+
+/// Seconds since the last event timestamp recorded for one label value of a labeled gauge.
+pub(crate) fn seconds_since_last_timestamp_with_label(
+    metric: &dyn MetricQueryName,
+    label: &str,
+    value: &str,
+) -> String {
+    format!("time() - max(last_over_time({}[12h]))", with_label(metric, label, value))
+}
+
 /// Builds `sum(increase(<metric>[<duration>]))` for aggregating a counter across all instances.
 ///
 /// Example: `sum_increase(&m, "1h")` → `sum(increase(my_counter{...}[1h]))`
