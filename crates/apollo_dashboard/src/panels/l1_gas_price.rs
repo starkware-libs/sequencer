@@ -1,8 +1,8 @@
 use apollo_l1_gas_price::metrics::{
-    ETH_TO_STRK_ERROR_COUNT,
-    ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
-    ETH_TO_STRK_RATE,
-    ETH_TO_STRK_SUCCESS_COUNT,
+    EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+    EXCHANGE_RATE_ORACLE_LAST_SUCCESS_TIMESTAMP_SECONDS,
+    EXCHANGE_RATE_ORACLE_RATE,
+    EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
@@ -12,18 +12,30 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
-use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
+use apollo_l1_gas_price_types::{CurrencyPair, DEFAULT_ETH_TO_FRI_RATE, LABEL_NAME_CURRENCY_PAIR};
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::Row;
 use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
-use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
+use crate::query_builder::{
+    increase,
+    increase_with_label,
+    seconds_since_last_timestamp,
+    seconds_since_last_timestamp_with_label,
+    with_label,
+    DEFAULT_DURATION,
+};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
     Panel::new(
         "ETH→STRK Rate Query Error Count",
         format!("The number of times the ETH→STRK rate query failed ({DEFAULT_DURATION} window)"),
-        increase(&ETH_TO_STRK_ERROR_COUNT, DEFAULT_DURATION),
+        increase_with_label(
+            &EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+            LABEL_NAME_CURRENCY_PAIR,
+            CurrencyPair::EthStrk.into(),
+            DEFAULT_DURATION,
+        ),
         PanelType::TimeSeries,
     )
     .with_log_query(
@@ -37,7 +49,11 @@ fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
         "Seconds Since Last Successful ETH→STRK Rate Update",
         "The number of seconds since the last successful ETH→STRK rate update (assuming there was \
          an update in the last 12 hours). Expected cadence: ~15 minutes.",
-        seconds_since_last_timestamp(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS),
+        seconds_since_last_timestamp_with_label(
+            &EXCHANGE_RATE_ORACLE_LAST_SUCCESS_TIMESTAMP_SECONDS,
+            LABEL_NAME_CURRENCY_PAIR,
+            CurrencyPair::EthStrk.into(),
+        ),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
@@ -49,7 +65,14 @@ fn get_panel_eth_to_strk_success_count() -> Panel {
         "ETH→STRK Rate Query Success (binary)",
         "Indicates whether the ETH→STRK rate query succeeded (1m window) \nExpected to be 1 every \
          15 minutes.",
-        format!("changes({}[1m])", ETH_TO_STRK_SUCCESS_COUNT.get_name_with_filter()),
+        format!(
+            "changes({}[1m])",
+            with_label(
+                &EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
+                LABEL_NAME_CURRENCY_PAIR,
+                CurrencyPair::EthStrk.into()
+            )
+        ),
         PanelType::TimeSeries,
     )
     .with_log_query("Caching conversion rate for timestamp")
@@ -59,7 +82,15 @@ fn get_panel_eth_to_strk_rate() -> Panel {
     Panel::new(
         "ETH→STRK rate",
         format!("ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE={DEFAULT_ETH_TO_FRI_RATE})"),
-        format!("{} / {}", ETH_TO_STRK_RATE.get_name_with_filter(), DEFAULT_ETH_TO_FRI_RATE),
+        format!(
+            "{} / {}",
+            with_label(
+                &EXCHANGE_RATE_ORACLE_RATE,
+                LABEL_NAME_CURRENCY_PAIR,
+                CurrencyPair::EthStrk.into()
+            ),
+            DEFAULT_ETH_TO_FRI_RATE
+        ),
         PanelType::TimeSeries,
     )
     .with_log_query("Caching conversion rate for timestamp")
