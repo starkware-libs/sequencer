@@ -104,8 +104,23 @@ impl ComponentStarter for MempoolP2pRunner {
                 Some((message_result, broadcasted_message_metadata)) = self.broadcasted_topic_server.next() => {
                     match message_result {
                         Ok(message) => {
-                            // TODO(alonl): consider calculating the tx_hash and printing it instead of the entire tx.
-                            debug!("Received transaction batch from network, forwarding to gateway. Batch: {:?}", message.0);
+                            // Identifiers only. Debug-formatting the whole batch made this the
+                            // largest log site in this component. The tx_hash would identify a
+                            // transaction better, but computing it needs a ChainId that the
+                            // runner does not hold, so (sender, nonce) stands in for it.
+                            debug!(
+                                "Received a batch of {} transactions from network, forwarding to \
+                                 gateway. (sender_address, nonce): {:?}",
+                                message.0.len(),
+                                message
+                                    .0
+                                    .iter()
+                                    .map(|rpc_tx| (
+                                        rpc_tx.calculate_sender_address().ok(),
+                                        rpc_tx.nonce()
+                                    ))
+                                    .collect::<Vec<_>>()
+                            );
                             for rpc_tx in message.0 {
                                 let permit = match gateway_semaphore.clone().try_acquire_owned() {
                                     Ok(permit) => permit,
