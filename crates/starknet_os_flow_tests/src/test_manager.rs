@@ -680,12 +680,23 @@ impl<S: FlowTestState> TestBuilder<S> {
     }
 
     pub(crate) fn add_deploy_account_tx(&mut self, tx: DeployAccountTransaction) {
+        self.add_deploy_account_tx_with_events(tx, Vec::new());
+    }
+
+    /// Like `add_deploy_account_tx`, but registers `event_expectations` (in emission order) for the
+    /// constructor's events; the fee-transfer expectation is appended automatically last.
+    pub(crate) fn add_deploy_account_tx_with_events(
+        &mut self,
+        tx: DeployAccountTransaction,
+        mut event_expectations: Vec<EventPredicateExpectation>,
+    ) {
+        event_expectations.push(expect_fee_token_transfer_to_sequencer_event());
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::DeployAccount(tx),
             )),
             expected_revert_reason: None,
-            event_expectations: vec![expect_fee_token_transfer_to_sequencer_event()],
+            event_expectations,
         });
     }
 

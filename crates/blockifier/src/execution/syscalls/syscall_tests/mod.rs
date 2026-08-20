@@ -14,6 +14,7 @@ mod get_execution_info;
 mod keccak;
 mod library_call;
 mod meta_tx;
+mod null_empty_span;
 mod out_of_gas;
 mod replace_class;
 mod secp;
