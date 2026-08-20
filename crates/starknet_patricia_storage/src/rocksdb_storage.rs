@@ -388,8 +388,8 @@ impl Storage for RocksDbStorage {
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let mut batch = WriteBatch::default();
-        for key in key_to_value.keys() {
-            batch.put(&key.0, &key_to_value[key].0);
+        for (key, value) in key_to_value.iter() {
+            batch.put(&key.0, &value.0);
         }
         Ok(self.db.write_opt(&batch, &self.options.write_options)?)
     }
