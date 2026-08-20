@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787059808564,
+  "lastUpdate": 1787224360181,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7377,6 +7377,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1410.23845445,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b29fca3d15da2d00ad0530aa6512884f5b5f1458",
+          "message": "apollo_class_manager_types,apollo_batcher_types,apollo_mempool,apollo_gateway: drop unused dev-deps (#14796)\n\nAll deleted entries have zero references in their crates:\n- apollo_class_manager_types: six stale dev-dependencies survived the\n  removal of this crate's tests (the crate has no test code at all);\n  mockall stays for the testing-gated automock in lib.rs.\n- apollo_batcher_types: apollo_storage (MDBX stack) compiled for every\n  test build of this widely-built types crate, for nothing.\n- apollo_mempool: apollo_network dev-dependency and the\n  apollo_network/testing entry in its own testing feature. A feature\n  entry that names a dev-dependency only affects the package's own test\n  builds, so the forward never propagated to apollo_mempool/testing\n  consumers; mempool's own tests pass without it.\n- apollo_gateway: apollo_mempool dev-dependency.\n\nCI compile-time cost only; none of these edges ship in any binary.",
+          "timestamp": "2026-08-20T10:37:09Z",
+          "tree_id": "bdb9db33d1f99cdaf8b7790777a3786a956ea1fa",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b29fca3d15da2d00ad0530aa6512884f5b5f1458"
+        },
+        "date": 1787224359497,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 949.00028833,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1478.75598188,
             "unit": "ms"
           }
         ]
