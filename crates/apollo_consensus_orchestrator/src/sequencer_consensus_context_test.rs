@@ -1001,6 +1001,15 @@ async fn collected_heights_for(
 #[case::non_empty_cende_recorder_breaks_on_first_gap(Some(BlockNumber(90)), (93..=100).collect(), vec![])]
 #[case::empty_cende_recorder_stops_at_middle_gap(None, (93..=95).chain(98..=100).collect(), (93..=95).collect())]
 #[case::non_empty_cende_recorder_stops_at_middle_gap(Some(BlockNumber(90)), (90..=92).chain(95..=100).collect(), (90..=92).collect())]
+// The recorder is behind by exactly the backfill window: the fetched range must be bounded to
+// the cap (rather than growing with the lag) while still returning the capped delta.
+#[case::non_empty_cende_recorder_hits_cap(Some(BlockNumber(90)), (90..=100).collect(), (90..=99).collect())]
+// The recorder is far behind the cap: the range fetched from the batcher must stay bounded to
+// the cap's size instead of spanning the full (much larger) lag.
+#[case::non_empty_cende_recorder_far_behind_hits_cap(Some(BlockNumber(50)), (50..=100).collect(), (50..=59).collect())]
+// The empty-recorder fallback window must still be fetched in full (not truncated to the
+// backfill cap) so that a leading gap doesn't cost a real entry at the top of the window.
+#[case::empty_cende_recorder_leading_gap_reaches_cap(None, (91..=100).collect(), (91..=100).collect())]
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_sends_expected_delta(
     #[case] cende_offset: Option<BlockNumber>,
