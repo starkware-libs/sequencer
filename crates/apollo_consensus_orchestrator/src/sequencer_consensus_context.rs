@@ -1145,10 +1145,11 @@ impl ConsensusContext for SequencerConsensusContext {
                     Some(block_data.compute_accessed_keys(&sync_block.state_diff.clone().into()))
                 }
                 Ok(None) => {
-                    panic!(
-                        "The accessed-keys data for synced block {block_number} is expected to be \
-                         ready."
+                    error!(
+                        "Recorder does not yet have accessed-keys data for synced block \
+                         {block_number}."
                     );
+                    return false;
                 }
                 Err(e) => {
                     error!(
