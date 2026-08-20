@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787230608743,
+  "lastUpdate": 1787231254822,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7445,6 +7445,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1357.12667485,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dd206fe4c1e253a8a259e877ab05f69c8caf447c",
+          "message": "apollo_transaction_converter,blockifier: drop test-only blockifier dep and dead build-deps section (#14797)\n\napollo_transaction_converter's tests used blockifier only for\nChainInfo::create_for_testing().chain_id, which is CHAIN_ID_FOR_TESTS from\nstarknet_api::test_utils — already a dev-dependency here. Swapping the two\ncall sites removes the whole blockifier stack from this crate's test builds.\n\nblockifier's [build-dependencies] section is dead config: the crate has no\nbuild script (build.rs was removed), so cargo never compiles it.",
+          "timestamp": "2026-08-20T12:32:59Z",
+          "tree_id": "624528235c1d2021a8f561c453a7011694e0906c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/dd206fe4c1e253a8a259e877ab05f69c8caf447c"
+        },
+        "date": 1787231254136,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 985.82371153,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1423.2358014200001,
             "unit": "ms"
           }
         ]
