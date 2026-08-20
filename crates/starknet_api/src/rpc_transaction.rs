@@ -11,7 +11,14 @@ use starknet_core::types::EntryPointsByType as StarknetCoreEntryPointsByType;
 use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 
 use crate::contract_class::EntryPointType;
-use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{
+    AddressDerivationHash,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
@@ -178,7 +185,9 @@ impl RpcTransaction {
         match self {
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => Ok(tx.sender_address),
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                tx.calculate_contract_address()
+                // Pedersen-only convenience accessor (no consensus/production caller); the
+                // version-gated deploy-account address is derived during conversion.
+                tx.calculate_contract_address(AddressDerivationHash::Pedersen)
             }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => Ok(tx.sender_address),
         }
@@ -542,7 +551,18 @@ impl TransactionHasher for RpcDeployAccountTransactionV3 {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
-        get_deploy_account_transaction_v3_hash(self, chain_id, transaction_version)
+        // The raw (pre-conversion) RPC form derives the address with Pedersen. The version-gated
+        // address (Blake2 from 0.14.4) is applied only at conversion, where the internal form
+        // stores it and InternalRpcDeployAccountTransaction::calculate_transaction_hash reuses it.
+        // Don't "align" these two paths without re-checking the migration -- they intentionally
+        // differ once Blake2 is active.
+        let contract_address = self.calculate_contract_address(AddressDerivationHash::Pedersen)?;
+        get_deploy_account_transaction_v3_hash(
+            self,
+            chain_id,
+            transaction_version,
+            contract_address,
+        )
     }
 }
 
