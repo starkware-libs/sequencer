@@ -51,6 +51,7 @@ use apollo_transaction_converter::transaction_converter::{
 };
 use apollo_versioned_constants::VersionedConstants;
 use async_trait::async_trait;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
@@ -1097,7 +1098,7 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
-        let sync_block = match self.deps.state_sync_client.get_block(height).await {
+        let mut sync_block = match self.deps.state_sync_client.get_block(height).await {
             Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
                 return false;
             }
@@ -1142,7 +1143,22 @@ impl ConsensusContext for SequencerConsensusContext {
             match self.deps.cende_ambassador.get_accessed_keys_input(block_number).await {
                 Ok(Some(block_data)) => {
                     info!("Fetched accessed-keys data for synced block {block_number}.");
-                    Some(block_data.compute_accessed_keys(&sync_block.state_diff.clone().into()))
+                    // Move the state diff into a `CommitmentStateDiff` (a cheap field rename, no
+                    // cloning) to compute the accessed keys, then move it back so `sync_block`
+                    // still carries its state diff when passed to `add_sync_block` below.
+                    // `CommitmentStateDiff` has no `deprecated_declared_classes` field, so it is
+                    // set aside and restored, instead of round-tripping through the conversion
+                    // (which would silently replace it with an empty vector).
+                    let mut state_diff = std::mem::take(&mut sync_block.state_diff);
+                    let deprecated_declared_classes =
+                        std::mem::take(&mut state_diff.deprecated_declared_classes);
+                    let commitment_state_diff: CommitmentStateDiff = state_diff.into();
+                    let accessed_keys = block_data.compute_accessed_keys(&commitment_state_diff);
+                    sync_block.state_diff = ThinStateDiff {
+                        deprecated_declared_classes,
+                        ..commitment_state_diff.into()
+                    };
+                    Some(accessed_keys)
                 }
                 Ok(None) => {
                     panic!(
