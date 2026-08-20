@@ -1167,6 +1167,17 @@ class EchoCenterService:
         last = self.shared.get_last_stored_commitment_height()
         return self._json_response({"block_number": last}, requests.codes.ok)
 
+    def handle_get_witness_height_offset(self) -> flask.Response:
+        """
+        GET /cende_recorder/get_witness_height_offset
+
+        Returns one past the last contiguously-stored commitment-info height (or null);
+        the sequencer skips its retrospective check entirely on null.
+        """
+        last = self.shared.get_last_stored_commitment_height()
+        offset = None if last is None else last + 1
+        return self._json_response({"block_number": offset}, requests.codes.ok)
+
     def handle_report_snapshot(self) -> flask.Response:
         """Return current in-memory tx tracking snapshot."""
         snap = self.shared.get_report_snapshot()
@@ -1481,6 +1492,11 @@ def get_latest_received_block() -> flask.Response:
 @app.route("/cende_recorder/get_last_stored_commitment_height", methods=["GET"])
 def get_last_stored_commitment_height() -> flask.Response:
     return service.handle_get_last_stored_commitment_height()
+
+
+@app.route("/cende_recorder/get_witness_height_offset", methods=["GET"])
+def get_witness_height_offset() -> flask.Response:
+    return service.handle_get_witness_height_offset()
 
 
 @app.route("/echonet/report", methods=["GET"])
