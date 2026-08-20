@@ -74,13 +74,6 @@ pub fn biguint_to_felt(biguint: BigUint) -> NativeBlockifierResult<Felt> {
     Ok(Felt::from_hex(&biguint_hex).map_err(NativeBlockifierInputError::from)?)
 }
 
-pub fn to_py_vec<T, PyT, F>(values: Vec<T>, converter: F) -> Vec<PyT>
-where
-    F: FnMut(T) -> PyT,
-{
-    values.into_iter().map(converter).collect()
-}
-
 pub fn from_py_felts(py_felts: Vec<PyFelt>) -> Vec<Felt> {
     py_felts.into_iter().map(|felt| felt.0).collect()
 }
