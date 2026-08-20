@@ -300,6 +300,21 @@ impl RocksDbStorage {
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?)
     }
+
+    /// Concatenates `chunk`'s key bytes into one buffer and records each key's `(start, end)`
+    /// byte range within it, so the chunk moves into a blocking task as two allocations total
+    /// instead of one per key.
+    fn flatten_keys(chunk: &[&DbKey]) -> (Vec<u8>, Vec<(usize, usize)>) {
+        let total_bytes = chunk.iter().map(|key| key.0.len()).sum();
+        let mut key_bytes = Vec::with_capacity(total_bytes);
+        let mut key_spans = Vec::with_capacity(chunk.len());
+        for key in chunk {
+            let start = key_bytes.len();
+            key_bytes.extend_from_slice(&key.0);
+            key_spans.push((start, key_bytes.len()));
+        }
+        (key_bytes, key_spans)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -351,8 +366,13 @@ impl ImmutableReadOnlyStorage for RocksDbStorage {
             .chunks(keys_per_task)
             .map(|chunk| {
                 let db = self.db.clone();
-                let raw_keys: Vec<Vec<u8>> = chunk.iter().map(|key| key.0.clone()).collect();
-                spawn_blocking(move || Self::mget_from_raw_keys(raw_keys, &db))
+                // One allocation for the bytes and one for the spans, instead of one allocation
+                // per key: a chunk can hold thousands of keys on a large witness fetch.
+                let (key_bytes, key_spans) = Self::flatten_keys(chunk);
+                spawn_blocking(move || {
+                    let raw_keys = key_spans.iter().map(|&(start, end)| &key_bytes[start..end]);
+                    Self::mget_from_raw_keys(raw_keys, &db)
+                })
             })
             .collect();
 
