@@ -108,8 +108,6 @@ starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 tikv-jemallocator.workspace = true
 
-[build-dependencies]
-apollo_infra_utils.workspace = true
 
 [[bench]]
 harness = false

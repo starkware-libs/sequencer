@@ -30,7 +30,6 @@ tracing.workspace = true
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 mempool_test_utils.workspace = true
 mockall.workspace = true
