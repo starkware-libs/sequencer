@@ -27,16 +27,46 @@ class OsInputBuildError(RuntimeError):
     """Raised when the cende blob lacks a field required to assemble OsHints."""
 
 
-def decompress_state_commitment_infos(compressed: str) -> JsonObject:
+# A real mainnet StateCommitmentInfos payload is bounded by trie sizes; a
+# decompressed payload above this is either corrupt or a decompression bomb
+# smuggled in the (attacker-reachable) WRITE_BLOB request body.
+_MAX_STATE_COMMITMENT_INFOS_DECOMPRESSED_BYTES = 256 * 1024 * 1024
+_DECOMPRESS_CHUNK_BYTES = 1024 * 1024
+
+
+def decompress_state_commitment_infos(
+    compressed: str,
+    *,
+    max_decompressed_bytes: int = _MAX_STATE_COMMITMENT_INFOS_DECOMPRESSED_BYTES,
+) -> JsonObject:
     """
     Reverse of the committer's `base64(zstd(serde_json(StateCommitmentInfos)))`
     pipeline. The streaming decompressor is required: the Rust frame omits the
     content size, which the one-shot `zstandard.decompress()` rejects.
+
+    Reads in bounded chunks and stops once `max_decompressed_bytes` is
+    exceeded, since a maliciously- or accidentally-crafted small `compressed`
+    payload can otherwise decompress into gigabytes of output (zstd routinely
+    achieves 1000x+ ratios on repetitive data).
     """
     try:
         raw = base64.b64decode(compressed)
-        decompressed = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
-        return json.loads(decompressed)
+        reader = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw))
+        chunks: List[bytes] = []
+        decompressed_size = 0
+        while True:
+            chunk = reader.read(_DECOMPRESS_CHUNK_BYTES)
+            if not chunk:
+                break
+            decompressed_size += len(chunk)
+            if decompressed_size > max_decompressed_bytes:
+                raise OsInputBuildError(
+                    "decompressed state_commitment_infos exceeds "
+                    f"{max_decompressed_bytes} bytes; refusing to continue "
+                    "(possible decompression bomb)"
+                )
+            chunks.append(chunk)
+        return json.loads(b"".join(chunks))
     except (ValueError, zstandard.ZstdError) as exc:
         raise OsInputBuildError(
             f"failed to decode compressed state_commitment_infos: {exc}"
