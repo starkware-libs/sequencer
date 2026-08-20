@@ -6,9 +6,11 @@ use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
-use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
+use apollo_l1_gas_price_types::errors::{
+    ExchangeRateOracleClientError,
+    ExchangeRateOracleErrorType,
+};
 use apollo_l1_gas_price_types::{ExchangeRate, ExchangeRateOracleClientTrait};
-use apollo_metrics::metrics::set_unix_now_seconds;
 use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
@@ -146,12 +148,15 @@ impl ExchangeRateOracleClient {
                     }
                     Ok(Err(e)) => {
                         warn!("Failed to resolve query to {url}: {e:?}");
+                        metrics.record_error((&e).into());
                     }
                     Err(_) => {
                         warn!("Timeout when resolving query to {url}");
+                        // The enum has no timeout variant: a request that ran out of time is
+                        // counted as a failed request.
+                        metrics.record_error(ExchangeRateOracleErrorType::RequestError);
                     }
                 };
-                metrics.error_count.increment(1);
             }
             warn!("All {list_len} URLs in the list failed for timestamp {adjusted_timestamp}");
             Err(ExchangeRateOracleClientError::AllUrlsFailedError(
@@ -206,9 +211,7 @@ fn resolve_query(
             decimals,
         ));
     }
-    metrics.success_count.increment(1);
-    set_unix_now_seconds(metrics.last_success_timestamp);
-    metrics.rate.set_lossy(rate);
+    metrics.record_success(rate);
     Ok(rate)
 }
 
@@ -265,7 +268,7 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
             }
             Err(e) => {
                 warn!("Query failed to join handle for timestamp {timestamp}: {e:?}");
-                self.metrics.error_count.increment(1);
+                self.metrics.record_error(ExchangeRateOracleErrorType::JoinError);
                 // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
                 return Err(ExchangeRateOracleClientError::JoinError(e.to_string()));
