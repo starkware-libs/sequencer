@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787048628331,
+  "lastUpdate": 1787217660979,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1019,6 +1019,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1424.82580548,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "634e9565619c4b644ffc6469eed5e19b5c65620a",
+          "message": "apollo_l1_gas_price,apollo_l1_gas_price_types,apollo_dashboard: fold oracle metrics onto labels (#14981)\n\nThe eight per-pair oracle metrics and the five `chainlink_oracle_*` guard counters become four\nmetrics carrying a `currency_pair` label: `exchange_rate_oracle_success_count`,\n`exchange_rate_oracle_error_count` (also labeled by `error_type`),\n`exchange_rate_oracle_last_success_timestamp_seconds` and `exchange_rate_oracle_rate`. The counters\nare the same whichever oracle serves the pair.\n\n`ExchangeRateOracleMetrics` keeps the per-pair bundle, now holding the shared handles plus the pair\nit stamps, and exposes `record_success` / `record_error` so no call site assembles labels. Its\nregistration guard is shared by every pair: registering a labeled metric writes every permutation,\nso a per-pair guard would zero the counts already recorded for the other pairs.\n\nThe three guard errors carry `pair: CurrencyPair` instead of `pair_name: String`.",
+          "timestamp": "2026-08-20T08:58:07Z",
+          "tree_id": "38b0e6bfeefa2c7611ff3299809f67d2bd2909c3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/634e9565619c4b644ffc6469eed5e19b5c65620a"
+        },
+        "date": 1787217660231,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 984.96465922,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1494.66168372,
             "unit": "ms"
           }
         ]
