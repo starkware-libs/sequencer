@@ -3,8 +3,9 @@
 %lang starknet
 %builtins pedersen range_check bitwise
 
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import library_call, library_call_l1_handler
+from starkware.starknet.common.syscalls import emit_event, library_call, library_call_l1_handler
 
 // The hash of the implementation contract class.
 @storage_var
@@ -17,6 +18,17 @@ func set_implementation_hash{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, ran
 ) {
     implementation_hash.write(value=implementation_hash_);
     return ();
+}
+
+@external
+@raw_input
+@raw_output
+func emit_event_raw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    selector: felt, calldata_size: felt, calldata: felt*
+) -> (retdata_size: felt, retdata: felt*) {
+    emit_event(keys_len=calldata_size, keys=calldata, data_len=0, data=calldata);
+    let (empty: felt*) = alloc();
+    return (retdata_size=0, retdata=empty);
 }
 
 @external
