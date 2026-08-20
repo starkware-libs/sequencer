@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787224360181,
+  "lastUpdate": 1787230608743,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7411,6 +7411,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1478.75598188,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b9248be86033add74ef5f846514eecfce1ca5933",
+          "message": "apollo_cairo_utils,apollo_staking: drop blockifier dep, take Vec<Felt> instead of Retdata (#14782)\n\napollo_cairo_utils imported blockifier solely for Retdata, a newtype over\nVec<Felt>, dragging the full execution stack into its dependency tree\n(352 -> 17 unique normal deps). Take Vec<Felt> directly and let callers\nunwrap the newtype. apollo_staking, the only current consumer, already\ndepends on blockifier for its own Retdata handling, so this does not\nshrink any shipped binary today; it makes apollo_cairo_utils cheap for\nfuture consumers and shrinks its rebuild cone.",
+          "timestamp": "2026-08-20T12:18:48Z",
+          "tree_id": "e0caae4bacd29d55767b375884f0b143992d81a0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b9248be86033add74ef5f846514eecfce1ca5933"
+        },
+        "date": 1787230608090,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 884.10157563,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1357.12667485,
             "unit": "ms"
           }
         ]
