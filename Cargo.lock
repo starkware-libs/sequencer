@@ -1386,7 +1386,7 @@ dependencies = [
  "apollo_config",
  "apollo_consensus_config",
  "apollo_consensus_orchestrator_config",
- "apollo_network",
+ "apollo_network_config",
  "apollo_reverts",
  "apollo_staking_config",
  "serde",
@@ -2006,7 +2006,7 @@ name = "apollo_mempool_p2p_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_network",
+ "apollo_network_config",
  "serde",
  "validator",
 ]
@@ -2102,6 +2102,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_metrics",
+ "apollo_network_config",
  "apollo_network_types",
  "apollo_propeller",
  "assert_matches",
@@ -2156,6 +2157,18 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "apollo_network_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "libp2p",
+ "serde",
+ "starknet_api",
+ "tokio-retry",
+ "validator",
 ]
 
 [[package]]
@@ -2747,7 +2760,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_central_sync_config",
  "apollo_config",
- "apollo_network",
+ "apollo_network_config",
  "apollo_p2p_sync_config",
  "apollo_reverts",
  "apollo_rpc",
