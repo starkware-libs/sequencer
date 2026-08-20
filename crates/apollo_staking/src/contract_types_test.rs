@@ -138,20 +138,16 @@ fn epoch_try_from_conversion_errors(#[case] raw_felts: Vec<Felt>) {
 
 #[rstest]
 fn optional_epoch_try_from_some() {
-    let result = CairoOption::<Epoch>::try_from(Retdata(vec![
-        Felt::ZERO,
-        Felt::ONE,
-        Felt::TWO,
-        Felt::THREE,
-    ]))
-    .unwrap()
-    .0;
+    let result =
+        CairoOption::<Epoch>::try_from(vec![Felt::ZERO, Felt::ONE, Felt::TWO, Felt::THREE])
+            .unwrap()
+            .0;
     assert_eq!(result, Some(Epoch { epoch_id: 1, start_block: BlockNumber(2), epoch_length: 3 }));
 }
 
 #[rstest]
 fn optional_epoch_try_from_none() {
-    let result = CairoOption::<Epoch>::try_from(Retdata(vec![Felt::ONE])).unwrap().0;
+    let result = CairoOption::<Epoch>::try_from(vec![Felt::ONE]).unwrap().0;
     assert_eq!(result, None);
 }
 
@@ -161,12 +157,12 @@ fn optional_epoch_try_from_none() {
 #[case::some_long_length(vec![Felt::ZERO, Felt::ONE, Felt::ONE, Felt::ONE, Felt::ONE])]
 #[case::none_wrong_length(vec![Felt::ONE, Felt::TWO])]
 fn optional_epoch_try_from_invalid_length(#[case] raw_felts: Vec<Felt>) {
-    let err = CairoOption::<Epoch>::try_from(Retdata(raw_felts)).unwrap_err();
+    let err = CairoOption::<Epoch>::try_from(raw_felts).unwrap_err();
     assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
 }
 
 #[rstest]
 fn optional_epoch_try_from_invalid_variant() {
-    let err = CairoOption::<Epoch>::try_from(Retdata(vec![Felt::TWO])).unwrap_err();
+    let err = CairoOption::<Epoch>::try_from(vec![Felt::TWO]).unwrap_err();
     assert_matches!(err, RetdataDeserializationError::UnexpectedEnumVariant { variant: 2 });
 }

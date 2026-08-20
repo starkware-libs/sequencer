@@ -7,7 +7,6 @@ license-file.workspace = true
 description = "Cairo related utilities."
 
 [dependencies]
-blockifier.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 
