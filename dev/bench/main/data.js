@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787231254822,
+  "lastUpdate": 1787232423428,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7479,6 +7479,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1423.2358014200001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47b5bcb0d65bf5732bb45d7744ecf6dc3dc224de",
+          "message": "starknet_patricia_storage: split RocksDB multi-key reads across blocking tasks (#15000)\n\n`multi_get` batches at the API level but issues the underlying file reads one at a\ntime, so a large batch runs at queue depth ~1 and costs `n_keys * read_latency`\nhowever many IOPS the device can serve. On a committer replaying mainnet traffic, a\nsingle block's witness fetch measured 101,639 reads in 50.9s -- 2,008 reads/sec at\n0.65ms each, using 12% of the disk's provisioned IOPS and 2% of its bandwidth.\n\nSplit the batch across blocking tasks so several reads are in flight at once. Every\ntask is spawned before any is awaited, so they run concurrently, and awaiting them in\norder keeps the values aligned with the requested keys.\n\nMeasured on that same block after the change: witness fetch 50.9s -> 2.7s, with queue\ndepth 1.3 -> 24.4 and read latency unchanged, confirming the reads were always\nconcurrent-capable and simply were not being issued concurrently.\n\n`max_read_tasks` is configurable; 1 restores the previous behaviour. It is added to\nthe committer app configs too, since node loading discards schema defaults and would\notherwise fail on the missing key.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-20T12:46:50Z",
+          "tree_id": "ca6b6aab5d6735d56f9a9a6252d010d494c8add9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/47b5bcb0d65bf5732bb45d7744ecf6dc3dc224de"
+        },
+        "date": 1787232422662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 988.91926344,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1467.6803156400001,
             "unit": "ms"
           }
         ]
