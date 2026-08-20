@@ -12,6 +12,7 @@ use apollo_l1_gas_price_config::config::{
     RateBounds,
 };
 use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
+use futures::try_join;
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
@@ -74,9 +75,14 @@ pub async fn read_feed(
     let feed_address = feed.feed_address;
     // `decimals` is read with every rate rather than cached: a feed that changes it rescales the
     // answer by a power of ten, which the absolute bounds are too wide to catch.
-    let decimals_retdata = call_view(batcher_client, feed_address, DECIMALS_ENTRY_POINT).await?;
-    let round_retdata =
-        call_view(batcher_client, feed_address, LATEST_ROUND_DATA_ENTRY_POINT).await?;
+    // The two reads are independent and land on the block-proposal path, so they are issued
+    // concurrently rather than one after the other: a feed read costs one batcher round trip
+    // instead of two. Each leg holds a view-call slot for the overlap, and the two per feed sit far
+    // under the batcher's concurrent-view-call cap.
+    let (decimals_retdata, round_retdata) = try_join!(
+        call_view(batcher_client, feed_address, DECIMALS_ENTRY_POINT),
+        call_view(batcher_client, feed_address, LATEST_ROUND_DATA_ENTRY_POINT),
+    )?;
     let feed_decimals = decode_feed_decimals(decimals_retdata, pair)?;
 
     let round = decode_feed_round(round_retdata)?;
