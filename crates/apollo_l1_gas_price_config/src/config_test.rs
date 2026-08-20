@@ -1,5 +1,8 @@
 use std::mem::swap;
 
+use apollo_config::dumping::SerializeConfig;
+use apollo_config::loading::load;
+use apollo_config::SerializedContent;
 use rstest::rstest;
 use validator::Validate;
 
@@ -8,6 +11,7 @@ use super::{
     ChainlinkOracleConfig,
     FreshnessWindow,
     L1GasPriceProviderConfig,
+    RateBoundsConfig,
 };
 
 // A zero mean window would make the provider divide by zero when computing the mean gas price,
@@ -126,4 +130,50 @@ fn rejects_a_forward_bound_at_or_above_the_backward_bound(#[case] freshness: Fre
     let config = ChainlinkOracleConfig { freshness, ..Default::default() };
 
     assert!(config.validate().is_err());
+}
+
+// The checks on the nested configs only run if the provider declares the fields
+// `#[validate(nested)]`, so assert through the provider root rather than through the nested
+// struct.
+#[test]
+fn provider_validation_reaches_the_nested_chainlink_config() {
+    let config = L1GasPriceProviderConfig {
+        chainlink_oracle_config: ChainlinkOracleConfig {
+            sampling_interval_seconds: 0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    assert!(config.validate().is_err());
+}
+
+#[test]
+fn provider_validation_reaches_the_nested_rate_bounds_config() {
+    let config = L1GasPriceProviderConfig {
+        rate_bounds_config: AllRateBoundsConfig {
+            eth_usd: RateBoundsConfig { minimum_micro_units: 0, maximum_micro_units: 1 },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    assert!(config.validate().is_err());
+}
+
+// The nested configs reach a node only through the param paths `dump()` emits, so a load of those
+// paths must reproduce the config they were dumped from.
+#[test]
+fn provider_config_round_trips_through_serialize_config() {
+    let config = L1GasPriceProviderConfig::default();
+    let dumped_values = config
+        .dump()
+        .into_iter()
+        .map(|(param_path, param)| match param.content {
+            SerializedContent::DefaultValue(value) => (param_path, value),
+            content => panic!("`{param_path}` was dumped without a default value: {content:?}"),
+        })
+        .collect();
+
+    assert_eq!(load::<L1GasPriceProviderConfig>(&dumped_values).unwrap(), config);
 }
