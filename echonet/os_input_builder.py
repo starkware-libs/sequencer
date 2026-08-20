@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import base64
 import io
-import json
 from typing import Any, Dict, List, Optional
 
 import zstandard
@@ -27,20 +26,82 @@ class OsInputBuildError(RuntimeError):
     """Raised when the cende blob lacks a field required to assemble OsHints."""
 
 
+# Felts are length-prefixed and minimally encoded, so a longer length means the layout drifted.
+MAX_FELT_BYTE_LENGTH = 32
+
+
+class _BincodeReader:
+    """Reads the committer's bincode form: u64 little-endian lengths, big-endian felts."""
+
+    def __init__(self, payload: bytes):
+        self._payload = payload
+        self._pos = 0
+
+    def _take(self, n_bytes: int) -> bytes:
+        end = self._pos + n_bytes
+        if end > len(self._payload):
+            raise OsInputBuildError(f"truncated payload: wanted {n_bytes} bytes at {self._pos}")
+        chunk = self._payload[self._pos : end]
+        self._pos = end
+        return chunk
+
+    def read_u64(self) -> int:
+        return int.from_bytes(self._take(8), "little")
+
+    def read_felt(self) -> str:
+        # Felts drop leading zero bytes, so the length varies from 1 to MAX_FELT_BYTE_LENGTH.
+        length = self.read_u64()
+        if length > MAX_FELT_BYTE_LENGTH:
+            raise OsInputBuildError(f"felt length {length} exceeds {MAX_FELT_BYTE_LENGTH}")
+        return hex(int.from_bytes(self._take(length), "big"))
+
+    def read_commitment_info(self) -> JsonObject:
+        previous_root = self.read_felt()
+        updated_root = self.read_felt()
+        tree_height = self._take(1)[0]
+        commitment_facts: Dict[str, List[str]] = {}
+        for _ in range(self.read_u64()):
+            # Bound before the value list: assigning into the dict inline would read them first.
+            fact = self.read_felt()
+            commitment_facts[fact] = [self.read_felt() for _ in range(self.read_u64())]
+        return {
+            "previous_root": previous_root,
+            "updated_root": updated_root,
+            "tree_height": tree_height,
+            "commitment_facts": commitment_facts,
+        }
+
+    def assert_consumed(self) -> None:
+        if self._pos != len(self._payload):
+            raise OsInputBuildError(
+                f"decode consumed {self._pos} of {len(self._payload)} bytes; layout has changed"
+            )
+
+
 def decompress_state_commitment_infos(compressed: str) -> JsonObject:
     """
-    Reverse of the committer's `base64(zstd(serde_json(StateCommitmentInfos)))`
-    pipeline. The streaming decompressor is required: the Rust frame omits the
-    content size, which the one-shot `zstandard.decompress()` rejects.
+    Reverse of the committer's `base64(zstd(bincode(StateCommitmentInfos)))` pipeline; see
+    `StateCommitmentInfos::compress` in starknet_committer's `patricia_merkle_tree/types.rs`.
     """
     try:
         raw = base64.b64decode(compressed)
-        decompressed = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
-        return json.loads(decompressed)
+        payload = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
     except (ValueError, zstandard.ZstdError) as exc:
-        raise OsInputBuildError(
-            f"failed to decode compressed state_commitment_infos: {exc}"
-        ) from exc
+        raise OsInputBuildError(f"failed to decompress state_commitment_infos: {exc}") from exc
+
+    reader = _BincodeReader(payload)
+    contracts_trie = reader.read_commitment_info()
+    classes_trie = reader.read_commitment_info()
+    storage_tries: Dict[str, JsonObject] = {}
+    for _ in range(reader.read_u64()):
+        address = reader.read_felt()
+        storage_tries[address] = reader.read_commitment_info()
+    reader.assert_consumed()
+    return {
+        "contracts_trie_commitment_info": contracts_trie,
+        "classes_trie_commitment_info": classes_trie,
+        "storage_tries_commitment_infos": storage_tries,
+    }
 
 
 def build_os_cli_input(
