@@ -3,29 +3,9 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::*;
+use crate::chainlink_oracle::test_utils::{decimals_retdata, round_retdata, STRK_USD_ANSWER};
 
-/// $0.03 per STRK at the scale the Chainlink feeds report at today.
-const STRK_USD_ANSWER: u128 = 3_000_000;
 const UPDATED_AT: u64 = 1_700_000_000;
-
-pub(super) fn decimals_retdata(feed_decimals: u32) -> Vec<Felt> {
-    vec![Felt::from(feed_decimals)]
-}
-
-pub(super) fn round_retdata(answer: u128, updated_at: u64) -> Vec<Felt> {
-    // A realistic phase-encoded `round_id`: `(phase_id << 128) | aggregator_round_id`, which
-    // exceeds u64.
-    const PHASE_ENCODED_ROUND_ID: &str = "0x100000000000000000000000000000042";
-    const BLOCK_NUMBER: u64 = 987_654;
-    const STARTED_AT: u64 = 1_699_999_000;
-    vec![
-        Felt::from_hex_unchecked(PHASE_ENCODED_ROUND_ID),
-        Felt::from(answer),
-        Felt::from(BLOCK_NUMBER),
-        Felt::from(STARTED_AT),
-        Felt::from(updated_at),
-    ]
-}
 
 /// The two fields the oracle reads sit at positions two and five of the flat five-felt `Round`, so
 /// this pins the layout the decoder assumes.

@@ -29,7 +29,7 @@ pub(super) fn rescale_to_rate_decimals(raw_rate: u128, feed_decimals: u32) -> Ra
 
 /// STRK per ETH, at `EXCHANGE_RATE_DECIMALS`, from two USD prices that already carry
 /// `EXCHANGE_RATE_DECIMALS`.
-pub fn derive_eth_to_fri_rate(
+pub(super) fn derive_eth_to_fri_rate(
     eth_to_usd_rate: ExchangeRate,
     strk_to_usd_rate: ExchangeRate,
 ) -> RateResult {
