@@ -604,6 +604,11 @@
     "privacy": "Public",
     "value": 8
   },
+  "committer_config.storage_config.inner_storage_config.max_read_tasks": {
+    "description": "Max parallel disk reads per multi-key batch (disk queue depth). Higher trades provisioned IOPS for faster large batches; 1 disables splitting. Small batches use fewer tasks.",
+    "privacy": "Public",
+    "value": 32
+  },
   "committer_config.storage_config.inner_storage_config.max_subcompactions": {
     "description": "Maximum number of subcompactions for parallel compaction",
     "privacy": "Public",

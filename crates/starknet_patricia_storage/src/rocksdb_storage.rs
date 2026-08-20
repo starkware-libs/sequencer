@@ -1,5 +1,6 @@
 use core::fmt;
 use std::collections::BTreeMap;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -58,6 +59,14 @@ const MAX_WRITE_BUFFERS: i32 = 4;
 const NUM_THREADS: i32 = 8;
 // Maximum number of background compactions (STT files merge and rewrite) and flushes.
 const MAX_BACKGROUND_JOBS: i32 = 8;
+// `multi_get` issues its reads one at a time, so an unsplit batch is bound by read latency rather
+// than by IOPS. Raising this only shifts the wait into the disk and blocking-pool queues; lowering
+// it leaves IOPS idle on large batches. Binds only above TARGET_KEYS_PER_READ_TASK keys per task.
+const MAX_READ_TASKS: usize = 32;
+// Keys per task. Each task reads its chunk serially, so wall time grows with this times the
+// per-read latency; lower buys parallelism, higher only amortizes the task spawn, which is
+// negligible beside a disk read. Chunks are balanced, so the smallest is about half this.
+const TARGET_KEYS_PER_READ_TASK: usize = 32;
 
 pub struct RocksDbOptions {
     pub db_options: Options,
@@ -156,6 +165,9 @@ pub struct RocksDbStorageConfig {
     pub use_mmap_reads: bool,
     /// Whether to spawn blocking tasks for read operations.
     pub spawn_blocking_reads: bool,
+    /// Max parallel disk reads per multi-key batch (disk queue depth). Higher trades provisioned
+    /// IOPS for faster large batches; 1 disables splitting. Small batches use fewer tasks.
+    pub max_read_tasks: NonZeroUsize,
 }
 
 impl Default for RocksDbStorageConfig {
@@ -176,6 +188,8 @@ impl Default for RocksDbStorageConfig {
             enable_statistics: true,
             use_mmap_reads: false,
             spawn_blocking_reads: true,
+            max_read_tasks: NonZeroUsize::new(MAX_READ_TASKS)
+                .expect("MAX_READ_TASKS should be nonzero"),
         }
     }
 }
@@ -255,6 +269,14 @@ impl SerializeConfig for RocksDbStorageConfig {
                 "Whether to spawn blocking tasks for read operations",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_read_tasks",
+                &self.max_read_tasks,
+                "Max parallel disk reads per multi-key batch (disk queue depth). Higher trades \
+                 provisioned IOPS for faster large batches; 1 disables splitting. Small batches \
+                 use fewer tasks.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -312,14 +334,33 @@ impl ImmutableReadOnlyStorage for RocksDbStorage {
     }
 
     async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        if self.config.spawn_blocking_reads {
-            let db = self.db.clone();
-            let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
-            Ok(spawn_blocking(move || Self::mget_from_raw_keys(keys, &db)).await??)
-        } else {
-            let raw_keys = keys.iter().map(|k| k.0.as_slice());
-            Ok(Self::mget_from_raw_keys(raw_keys, &self.db)?)
+        // Reached whenever every key hit the cache above; `chunks` would panic on a zero size.
+        if keys.is_empty() {
+            return Ok(Vec::new());
         }
+        if !self.config.spawn_blocking_reads {
+            let raw_keys = keys.iter().map(|k| k.0.as_slice());
+            return Self::mget_from_raw_keys(raw_keys, &self.db);
+        }
+
+        // All spawned before any await, so they overlap; in-order await keeps values aligned.
+        let n_tasks =
+            keys.len().div_ceil(TARGET_KEYS_PER_READ_TASK).min(self.config.max_read_tasks.get());
+        let keys_per_task = keys.len().div_ceil(n_tasks);
+        let handles: Vec<_> = keys
+            .chunks(keys_per_task)
+            .map(|chunk| {
+                let db = self.db.clone();
+                let raw_keys: Vec<Vec<u8>> = chunk.iter().map(|key| key.0.clone()).collect();
+                spawn_blocking(move || Self::mget_from_raw_keys(raw_keys, &db))
+            })
+            .collect();
+
+        let mut values = Vec::with_capacity(keys.len());
+        for handle in handles {
+            values.extend(handle.await??);
+        }
+        Ok(values)
     }
 }
 
