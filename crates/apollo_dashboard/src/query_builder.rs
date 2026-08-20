@@ -36,7 +36,26 @@ pub(crate) fn seconds_since_last_timestamp(metric: &dyn MetricQueryName) -> Stri
 ///
 /// Example: `with_label(&m, "currency_pair", "eth_strk")` → `m{..., currency_pair="eth_strk"}`
 pub(crate) fn with_label(metric: &dyn MetricQueryName, label: &str, value: &str) -> String {
-    metric.get_name_with_filer_and_additional_fields(&format!("{label}=\"{value}\""))
+    with_labels(metric, &[(label, value)])
+}
+
+/// Narrows a multi-dimensional labeled metric to one value per label.
+pub(crate) fn with_labels(metric: &dyn MetricQueryName, labels: &[(&str, &str)]) -> String {
+    let filters = labels
+        .iter()
+        .map(|(label, value)| format!("{label}=\"{value}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    metric.get_name_with_filer_and_additional_fields(&filters)
+}
+
+/// `sum(increase())` of one series of a multi-dimensional labeled metric.
+pub(crate) fn sum_increase_with_labels(
+    metric: &dyn MetricQueryName,
+    labels: &[(&str, &str)],
+    duration: &str,
+) -> String {
+    format!("sum(increase({}[{}]))", with_labels(metric, labels), duration)
 }
 
 /// `increase()` of one label value of a labeled metric.

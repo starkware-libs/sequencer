@@ -951,17 +951,43 @@
       "severity": "$$$eth_to_strk_rate_frozen-severity$$$"
     },
     {
-      "name": "eth_to_strk_success_count",
-      "title": "Eth to Strk success count",
+      "name": "eth_to_strk_rate_out_of_bounds",
+      "title": "Eth to Strk rate outside the configured bounds",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(exchange_rate_oracle_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "sum(increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\", error_type=\"rate_out_of_bounds_error\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              1.0
+              0.0
             ],
-            "type": "lt"
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$eth_to_strk_rate_out_of_bounds-severity$$$"
+    },
+    {
+      "name": "eth_to_strk_success_count",
+      "title": "Eth to Strk oracle produced no rate",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(max((time() - exchange_rate_oracle_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\"}) and (exchange_rate_oracle_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"eth_strk\"} > 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2700.0
+            ],
+            "type": "gt"
           },
           "operator": {
             "type": "and"
@@ -2225,17 +2251,43 @@
       "severity": "$$$strk_to_usd_rate_frozen-severity$$$"
     },
     {
-      "name": "strk_to_usd_success_count",
-      "title": "Strk to Usd success count",
+      "name": "strk_to_usd_rate_out_of_bounds",
+      "title": "Strk to Usd rate outside the configured bounds",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(exchange_rate_oracle_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "sum(increase(exchange_rate_oracle_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\", error_type=\"rate_out_of_bounds_error\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              1.0
+              0.0
             ],
-            "type": "lt"
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "severity": "$$$strk_to_usd_rate_out_of_bounds-severity$$$"
+    },
+    {
+      "name": "strk_to_usd_success_count",
+      "title": "Strk to Usd oracle produced no rate",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "(max((time() - exchange_rate_oracle_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}) and (exchange_rate_oracle_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"} > 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2700.0
+            ],
+            "type": "gt"
           },
           "operator": {
             "type": "and"
