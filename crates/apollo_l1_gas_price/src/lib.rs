@@ -29,8 +29,6 @@
 //! unusable precisely when it is already degraded. The configured minimums and the default
 //! ETH→STRK rate are safe floors the operator has verified are always economically viable.
 
-// [Temporary comment] The source each feed reads from becomes configurable in B3 and is built in
-// B4. Until then only the HTTP client is constructed.
 pub mod chainlink_oracle;
 pub mod communication;
 pub mod exchange_rate_oracle;
