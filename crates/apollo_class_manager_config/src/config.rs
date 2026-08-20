@@ -3,13 +3,13 @@ use std::path::PathBuf;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_storage::db::DbConfig;
-use apollo_storage::mmap_file::MmapFileConfig;
-use apollo_storage::storage_reader_server::{
+use apollo_storage_config::db::DbConfig;
+use apollo_storage_config::mmap_file::MmapFileConfig;
+use apollo_storage_config::storage_reader_server::{
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
-use apollo_storage::{StorageConfig, StorageScope};
+use apollo_storage_config::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
