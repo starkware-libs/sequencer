@@ -303,7 +303,8 @@ impl RocksDbStorage {
 
     /// Concatenates `chunk`'s key bytes into one buffer and records each key's `(start, end)`
     /// byte range within it, so the chunk moves into a blocking task as two allocations total
-    /// instead of one per key.
+    /// instead of one per key. Ranges are half-open (`end` exclusive) and ordered as in `chunk`;
+    /// a zero-length key yields an empty range.
     fn flatten_keys(chunk: &[&DbKey]) -> (Vec<u8>, Vec<(usize, usize)>) {
         let total_bytes = chunk.iter().map(|key| key.0.len()).sum();
         let mut key_bytes = Vec::with_capacity(total_bytes);
