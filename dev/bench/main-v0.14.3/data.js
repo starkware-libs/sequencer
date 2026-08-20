@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787220793241,
+  "lastUpdate": 1787222842322,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1087,6 +1087,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1429.58783522,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "357ff44979866cc32dc29c79dea3f97bb5635454",
+          "message": "apollo_l1_gas_price_config: Chainlink oracle config (#14983)",
+          "timestamp": "2026-08-20T10:32:08Z",
+          "tree_id": "e6a16f369eaa768405cced78c2823666a5cb2fef",
+          "url": "https://github.com/starkware-libs/sequencer/commit/357ff44979866cc32dc29c79dea3f97bb5635454"
+        },
+        "date": 1787222841594,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 905.14837986,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1412.0024273800002,
             "unit": "ms"
           }
         ]
