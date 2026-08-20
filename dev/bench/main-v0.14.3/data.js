@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787217660979,
+  "lastUpdate": 1787220793241,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1053,6 +1053,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1494.66168372,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fcd7eab9f8854bd25b3c0681bf6c6b49a6405b76",
+          "message": "apollo_l1_gas_price_config,apollo_l1_gas_price_types: source-agnostic rate bounds (#14982)",
+          "timestamp": "2026-08-20T09:49:06Z",
+          "tree_id": "263d5b6893a075b062490e9dfbc0fce38061433c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/fcd7eab9f8854bd25b3c0681bf6c6b49a6405b76"
+        },
+        "date": 1787220792554,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1183.64175038,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1429.58783522,
             "unit": "ms"
           }
         ]
