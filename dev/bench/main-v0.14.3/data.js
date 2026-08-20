@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787222842322,
+  "lastUpdate": 1787232564709,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1121,6 +1121,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1412.0024273800002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e24f0004b739fa02dfc5c7ca8e371c8b4fa65db",
+          "message": "apollo_l1_gas_price: Chainlink retdata decoding and rate arithmetic (#14989)",
+          "timestamp": "2026-08-20T13:03:08Z",
+          "tree_id": "9224bf9c7499f00cb96bea9cc48bd451e9d2e17c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2e24f0004b739fa02dfc5c7ca8e371c8b4fa65db"
+        },
+        "date": 1787232563971,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 933.62014299,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1509.1265356099998,
             "unit": "ms"
           }
         ]
