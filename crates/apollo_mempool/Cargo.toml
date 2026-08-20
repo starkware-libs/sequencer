@@ -10,7 +10,6 @@ description = "Transaction pool management for pending transactions in the Stark
 testing = [
   "apollo_mempool_p2p_types/testing",
   "apollo_metrics/testing",
-  "apollo_network/testing",
   "apollo_network_types/testing",
   "apollo_time/testing",
   "blockifier/testing",
@@ -49,7 +48,6 @@ tracing.workspace = true
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_mempool_p2p_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
-apollo_network = { workspace = true, features = ["testing"] }
 apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 apollo_time = { workspace = true, features = ["testing"] }
