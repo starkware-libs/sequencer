@@ -2,17 +2,21 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::ENTRY_POINT_BUILTIN_ORDER;
 use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 
-use super::{validate_entry_point_builtins, CAIRO1_SUPPORTED_BUILTINS};
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallInfo, ExtendedExecutionResources};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point_execution::{
+    validate_entry_point_builtins,
+    CAIRO1_SUPPORTED_BUILTINS,
+};
 use crate::execution::errors::PreExecutionError;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
@@ -130,4 +134,22 @@ fn validate_entry_point_builtins_rejects_invalid(#[case] builtins: Vec<BuiltinNa
         }
         other => panic!("Expected UnsupportedCairo1Builtins({builtins:?}), got {other:?}."),
     }
+}
+
+// `CAIRO1_SUPPORTED_BUILTINS` must stay identical to the compiler's source-of-truth
+// `ENTRY_POINT_BUILTIN_ORDER`; this guards against drift when the Cairo compiler is bumped.
+#[test]
+fn cairo1_supported_builtins_in_sync_with_compiler_order() {
+    // Both lists use different casings (blockifier: snake_case; compiler: UpperCamel), so compare
+    // them casing-agnostically by stripping underscores and lowercasing.
+    let supported_builtins: Vec<String> =
+        CAIRO1_SUPPORTED_BUILTINS.iter().map(|builtin| builtin.to_str().replace('_', "")).collect();
+    let compiler_builtins: Vec<String> = ENTRY_POINT_BUILTIN_ORDER
+        .iter()
+        .map(|generic_id| generic_id.0.to_ascii_lowercase())
+        .collect();
+    assert_eq!(
+        supported_builtins, compiler_builtins,
+        "CAIRO1_SUPPORTED_BUILTINS drifted from the compiler's ENTRY_POINT_BUILTIN_ORDER."
+    );
 }
