@@ -41,7 +41,6 @@ use apollo_mempool_types::communication::{
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::db::DbError;
-use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
@@ -74,22 +73,25 @@ use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
-    BlockHeader,
     BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
+    BlockTimestamp,
     GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
+    concat_counts,
+    BlockHeaderCommitments,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, invoke_tx_args, tx_hash};
@@ -183,6 +185,9 @@ const CAIRO_STEPS_RECURSION_DEPTH_EXCEEDING_RESOURCE_BOUNDS: u64 = 400_000;
 /// `state_diff_height()`, one past the last written diff, and takes its block info from the block
 /// before that.
 const LAST_COMMITTED_HEIGHT: BlockNumber = BlockNumber(0);
+/// Distinguishable from the default, so a test can tell a real committed value from a synthesized
+/// one.
+const COMMITTED_BLOCK_TIMESTAMP: BlockTimestamp = BlockTimestamp(1_700_000_000);
 
 struct TestViewStateReaderFactory {
     state: Arc<Mutex<CachedState<DictStateReader>>>,
@@ -2603,27 +2608,38 @@ async fn call_contract_times_out_when_the_state_reader_never_answers() {
 /// The caller states the class manager expectations, so that each test owns the number of reads it
 /// asserts on.
 fn deploy_contract_in_real_storage(contract: FeatureContract) -> MockDependenciesWithRealStorage {
+    deploy_contract_in_real_storage_with_commitment(
+        contract,
+        committed_block_hash_components(GasPrice(1)),
+    )
+}
+
+/// The block-hash components a real commit writes, which is what a view call sources its block info
+/// from. Every price is set to `gas_price`, so a test can state one and assert it survives.
+fn committed_block_hash_components(gas_price: GasPrice) -> PartialBlockHashComponents {
+    let price_per_token = GasPricePerToken { price_in_wei: gas_price, price_in_fri: gas_price };
+    PartialBlockHashComponents {
+        block_number: LAST_COMMITTED_HEIGHT,
+        l1_gas_price: price_per_token,
+        l1_data_gas_price: price_per_token,
+        l2_gas_price: price_per_token,
+        timestamp: COMMITTED_BLOCK_TIMESTAMP,
+        ..Default::default()
+    }
+}
+
+/// Writes no block header: nothing in production writes one to the batcher's storage, so seeding
+/// one would assert against a precondition the node never has.
+fn deploy_contract_in_real_storage_with_commitment(
+    contract: FeatureContract,
+    block_hash_components: PartialBlockHashComponents,
+) -> MockDependenciesWithRealStorage {
     let class_hash = contract.get_class_hash();
     let mut mock_dependencies = MockDependenciesWithRealStorage::default();
 
-    let gas_price = GasPricePerToken { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
     mock_dependencies
         .storage_writer
         .begin_rw_txn()
-        .unwrap()
-        .append_header(
-            LAST_COMMITTED_HEIGHT,
-            &BlockHeader {
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    block_number: LAST_COMMITTED_HEIGHT,
-                    l1_gas_price: gas_price,
-                    l1_data_gas_price: gas_price,
-                    l2_gas_price: gas_price,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        )
         .unwrap()
         .append_state_diff(
             LAST_COMMITTED_HEIGHT,
@@ -2634,10 +2650,7 @@ fn deploy_contract_in_real_storage(contract: FeatureContract) -> MockDependencie
         )
         .unwrap()
         // The commitment manager panics on a committed height with no hash commitment behind it.
-        .set_partial_block_hash_components(
-            &LAST_COMMITTED_HEIGHT,
-            &PartialBlockHashComponents::default(),
-        )
+        .set_partial_block_hash_components(&LAST_COMMITTED_HEIGHT, &block_hash_components)
         .unwrap()
         .commit()
         .unwrap();
@@ -2716,4 +2729,85 @@ async fn repeated_view_calls_fetch_the_class_once() {
             .await
             .unwrap();
     }
+}
+
+/// A committed block may carry a zero gas price, and a view call spends no fee, so it must not be
+/// the reason the call fails.
+#[tokio::test(flavor = "multi_thread")]
+async fn call_contract_over_a_committed_zero_gas_price_succeeds() {
+    let contract = SIERRA_GAS_TRACKED_RECURSIVE_CONTRACT;
+    let mut mock_dependencies = deploy_contract_in_real_storage_with_commitment(
+        contract,
+        committed_block_hash_components(GasPrice(0)),
+    );
+    mock_dependencies
+        .class_manager_client
+        .expect_get_executable()
+        .returning(move |_| Ok(Some(contract.get_class())));
+    mock_dependencies
+        .class_manager_client
+        .expect_get_sierra()
+        .returning(move |_| Ok(Some(contract.get_sierra())));
+    let batcher = create_batcher_with_real_storage(mock_dependencies).await;
+
+    let result = batcher
+        .call_contract(recurse_call_contract_input(
+            contract,
+            RECURSION_DEPTH_WITHIN_RESOURCE_BOUNDS,
+        ))
+        .await;
+
+    assert_eq!(result.unwrap().retdata, vec![]);
+}
+
+/// A block committed before block hash components existed has no block info to build a context
+/// from. The caller is told that, rather than being handed a bare internal error.
+#[tokio::test]
+async fn call_contract_without_stored_block_info_names_what_is_missing() {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_get_partial_block_hash_components().returning(|_| Ok(None));
+    let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
+
+    let result = batcher
+        .call_contract(CallContractInput {
+            contract_address: Default::default(),
+            entry_point: "get_stakers".to_string(),
+            calldata: vec![],
+        })
+        .await;
+
+    assert_matches!(
+        result,
+        Err(BatcherError::ContractCallFailed { reason }) if reason.contains("No block info stored")
+    );
+}
+
+/// The data availability mode is committed to by the block hash, so the block info reported for a
+/// committed block must be the mode that block was built with.
+#[rstest]
+#[case::calldata(L1DataAvailabilityMode::Calldata)]
+#[case::blob(L1DataAvailabilityMode::Blob)]
+#[tokio::test]
+async fn block_info_reports_the_committed_data_availability_mode(
+    #[case] l1_da_mode: L1DataAvailabilityMode,
+) {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_get_partial_block_hash_components().returning(move |_| {
+        Ok(Some(PartialBlockHashComponents {
+            header_commitments: BlockHeaderCommitments {
+                concatenated_counts: concat_counts(0, 0, 0, l1_da_mode),
+                ..Default::default()
+            },
+            ..Default::default()
+        }))
+    });
+    let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
+
+    let block_info = batcher.get_block_info(LAST_COMMITTED_HEIGHT).unwrap();
+
+    assert_eq!(block_info.use_kzg_da, l1_da_mode.is_use_kzg_da());
 }
