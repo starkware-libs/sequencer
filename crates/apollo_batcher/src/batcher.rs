@@ -55,7 +55,6 @@ use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
     GlobalRootMarkerStorageWriter,
 };
-use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
@@ -100,7 +99,6 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{
     BlockHash,
-    BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
     GasPrice,
@@ -110,6 +108,7 @@ use starknet_api::block::{
     UnixTimestamp,
 };
 use starknet_api::block_hash::block_hash_calculator::{
+    extract_l1_da_mode_from_concatenated_counts,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
@@ -712,38 +711,61 @@ impl Batcher {
         })
     }
 
-    // Returns the block info for the given committed block number.
-    fn get_block_info(&self, block_number: BlockNumber) -> BatcherResult<BlockInfo> {
-        let header = self.storage_reader.get_block_header(block_number).map_err(|err| {
-            warn!("Failed to get block header for committed block {block_number}: {err}");
-            BatcherError::InternalError
-        })?;
-
-        let convert_price = |price: GasPrice| -> BatcherResult<NonzeroGasPrice> {
-            price.try_into().map_err(|e| {
-                warn!("Failed to convert price: {e}");
+    /// Returns the block info of the given committed block. Sourced from its block hash components
+    /// rather than its header, because nothing writes headers to the batcher's storage.
+    pub(crate) fn get_block_info(&self, block_number: BlockNumber) -> BatcherResult<BlockInfo> {
+        let block_hash_components = self
+            .storage_reader
+            .get_partial_block_hash_components(block_number)
+            .map_err(|err| {
+                warn!(
+                    "Failed to get the block hash components of committed block {block_number}: \
+                     {err}"
+                );
                 BatcherError::InternalError
-            })
+            })?
+            .ok_or_else(|| {
+                // Only a block committed before block hash components existed lacks them.
+                warn!("Committed block {block_number} has no block hash components stored.");
+                BatcherError::ContractCallFailed {
+                    reason: format!(
+                        "No block info stored for committed block {block_number}, so no block \
+                         context can be built for it."
+                    ),
+                }
+            })?;
+
+        // A price of zero is floored rather than rejected: it would fail a view call, which charges
+        // no fee, over a price it never spends.
+        let convert_price = |price: GasPrice| -> NonzeroGasPrice {
+            NonzeroGasPrice::new(price).unwrap_or(NonzeroGasPrice::MIN)
         };
 
         Ok(BlockInfo {
-            block_number: header.block_number,
-            block_timestamp: header.timestamp,
-            sequencer_address: header.sequencer.0,
+            block_number: block_hash_components.block_number,
+            block_timestamp: block_hash_components.timestamp,
+            sequencer_address: block_hash_components.sequencer.0,
             gas_prices: GasPrices {
                 eth_gas_prices: GasPriceVector {
-                    l1_gas_price: convert_price(header.l1_gas_price.price_in_wei)?,
-                    l1_data_gas_price: convert_price(header.l1_data_gas_price.price_in_wei)?,
-                    l2_gas_price: convert_price(header.l2_gas_price.price_in_wei)?,
+                    l1_gas_price: convert_price(block_hash_components.l1_gas_price.price_in_wei),
+                    l1_data_gas_price: convert_price(
+                        block_hash_components.l1_data_gas_price.price_in_wei,
+                    ),
+                    l2_gas_price: convert_price(block_hash_components.l2_gas_price.price_in_wei),
                 },
                 strk_gas_prices: GasPriceVector {
-                    l1_gas_price: convert_price(header.l1_gas_price.price_in_fri)?,
-                    l1_data_gas_price: convert_price(header.l1_data_gas_price.price_in_fri)?,
-                    l2_gas_price: convert_price(header.l2_gas_price.price_in_fri)?,
+                    l1_gas_price: convert_price(block_hash_components.l1_gas_price.price_in_fri),
+                    l1_data_gas_price: convert_price(
+                        block_hash_components.l1_data_gas_price.price_in_fri,
+                    ),
+                    l2_gas_price: convert_price(block_hash_components.l2_gas_price.price_in_fri),
                 },
             },
-            use_kzg_da: header.l1_da_mode.is_use_kzg_da(),
-            starknet_version: header.starknet_version,
+            use_kzg_da: extract_l1_da_mode_from_concatenated_counts(
+                &block_hash_components.header_commitments.concatenated_counts,
+            )
+            .is_use_kzg_da(),
+            starknet_version: block_hash_components.starknet_version,
         })
     }
 
@@ -1792,7 +1814,10 @@ pub trait BatcherStorageReader: Send + Sync {
         height: BlockNumber,
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
 
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1891,14 +1916,11 @@ impl BatcherStorageReader for StorageReader {
         Ok((parent_hash, partial_block_hash_components))
     }
 
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash> {
-        self.begin_ro_txn()?
-            .get_block_header(block_number)?
-            .map(|header| header.block_header_without_hash)
-            .ok_or_else(|| StorageError::NotFound {
-                resource_type: "block header".to_string(),
-                resource_id: block_number.to_string(),
-            })
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>> {
+        self.begin_ro_txn()?.get_partial_block_hash_components(&height)
     }
 }
 

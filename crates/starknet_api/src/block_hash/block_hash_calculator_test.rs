@@ -1,7 +1,11 @@
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use super::{concat_counts, extract_event_count_from_concatenated_counts};
+use super::{
+    concat_counts,
+    extract_event_count_from_concatenated_counts,
+    extract_l1_da_mode_from_concatenated_counts,
+};
 use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
@@ -219,6 +223,16 @@ fn extract_event_count_from_concatenated_counts_test(
     let concatenated =
         concat_counts(tx_count, event_count, state_diff_len, L1DataAvailabilityMode::Blob);
     assert_eq!(extract_event_count_from_concatenated_counts(&concatenated), event_count);
+}
+
+#[rstest]
+#[case(L1DataAvailabilityMode::Calldata)]
+#[case(L1DataAvailabilityMode::Blob)]
+fn extract_l1_da_mode_from_concatenated_counts_test(#[case] l1_da_mode: L1DataAvailabilityMode) {
+    // state_diff_length occupies the bytes just before the mode, so max it out to catch a
+    // bit-offset error. The transaction count stays zero to keep the felt below the prime.
+    let concatenated = concat_counts(0, usize::MAX, usize::MAX, l1_da_mode);
+    assert_eq!(extract_l1_da_mode_from_concatenated_counts(&concatenated), l1_da_mode);
 }
 
 /// Test that if one of the input to block hash changes, the hash changes.
