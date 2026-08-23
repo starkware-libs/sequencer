@@ -5,6 +5,7 @@ pub mod infra_alerts;
 pub mod l1_endpoints;
 pub mod l1_gas_prices;
 pub mod l1_handlers;
+pub mod l2_gas_price;
 pub mod mempool_size;
 pub mod preconfirmed;
 pub mod remote_server_connections;
