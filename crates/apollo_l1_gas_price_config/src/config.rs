@@ -154,7 +154,6 @@ impl SerializeConfig for RateBoundsConfig {
 }
 
 /// Absolute bounds every exchange rate must fall in, whichever source reports it.
-// [Temporary comment] B2 nests this in `L1GasPriceProviderConfig`.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 #[validate(schema(function = "validate_all_rate_bounds_config"))]
 pub struct AllRateBoundsConfig {
@@ -296,12 +295,14 @@ impl SerializeConfig for FreshnessWindow {
     }
 }
 
-/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher. Holds
+/// Configuration for reading Chainlink's on-chain Starknet price feeds through the batcher. Unlike
+/// the per-feed `ExchangeRateOracleConfig`s, one instance of this config serves both feeds: the
+/// ETH/STRK rate is derived from the same two on-chain feeds the STRK/USD rate is read from. Holds
 /// only what is Chainlink-specific: the bounds a feed's answer is judged against describe the rate
 /// rather than the source, so they live in `AllRateBoundsConfig`, which also bounds the derived
 /// ETH/STRK pair that has no feed of its own.
-// [Temporary comment] B3 selects the source per feed and B4 builds the client; B2 nests this under
-// `L1GasPriceProviderConfig`.
+// [Temporary comment] B3 selects the source per feed and B4 builds the client.
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct ChainlinkOracleConfig {
     /// Quotes USD per ETH.
@@ -404,6 +405,13 @@ pub struct L1GasPriceProviderConfig {
     pub eth_to_strk_oracle_config: ExchangeRateOracleConfig,
     #[validate(nested)]
     pub strk_to_usd_oracle_config: ExchangeRateOracleConfig,
+    // Both apply to every feed, unlike the per-feed HTTP configs above.
+    // [Temporary comment] B3 adds the per-feed source switch and B4 builds the client that reads
+    // these.
+    #[validate(nested)]
+    pub rate_bounds_config: AllRateBoundsConfig,
+    #[validate(nested)]
+    pub chainlink_oracle_config: ChainlinkOracleConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -416,6 +424,8 @@ impl Default for L1GasPriceProviderConfig {
             max_time_gap_seconds: 900, // 15 minutes
             eth_to_strk_oracle_config: ExchangeRateOracleConfig::default(),
             strk_to_usd_oracle_config: ExchangeRateOracleConfig::default(),
+            rate_bounds_config: AllRateBoundsConfig::default(),
+            chainlink_oracle_config: ChainlinkOracleConfig::default(),
         }
     }
 }
@@ -457,6 +467,12 @@ impl SerializeConfig for L1GasPriceProviderConfig {
         config.extend(prepend_sub_config_name(
             self.strk_to_usd_oracle_config.dump(),
             "strk_to_usd_oracle_config",
+        ));
+        config
+            .extend(prepend_sub_config_name(self.rate_bounds_config.dump(), "rate_bounds_config"));
+        config.extend(prepend_sub_config_name(
+            self.chainlink_oracle_config.dump(),
+            "chainlink_oracle_config",
         ));
         config
     }
