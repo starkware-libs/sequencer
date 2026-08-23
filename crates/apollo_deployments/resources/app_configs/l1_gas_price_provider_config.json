@@ -5,6 +5,8 @@
   "l1_gas_price_provider_config.strk_to_usd_oracle_config.lag_interval_seconds": 900,
   "l1_gas_price_provider_config.strk_to_usd_oracle_config.max_cache_size": 100,
   "l1_gas_price_provider_config.strk_to_usd_oracle_config.query_timeout_sec": 10,
+  "l1_gas_price_provider_config.eth_to_strk_oracle_source": "Http",
+  "l1_gas_price_provider_config.strk_to_usd_oracle_source": "Http",
   "l1_gas_price_provider_config.rate_bounds_config.eth_usd.minimum_micro_units": 20000000,
   "l1_gas_price_provider_config.rate_bounds_config.eth_usd.maximum_micro_units": 50000000000,
   "l1_gas_price_provider_config.rate_bounds_config.strk_usd.minimum_micro_units": 100,

@@ -87,6 +87,8 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "http_server_config.static_config.port",
     "l1_gas_price_provider_config.chainlink_oracle_config.eth_usd_feed_address",
     "l1_gas_price_provider_config.chainlink_oracle_config.strk_usd_feed_address",
+    "l1_gas_price_provider_config.eth_to_strk_oracle_source",
+    "l1_gas_price_provider_config.strk_to_usd_oracle_source",
     "mempool_config.dynamic_config.transaction_ttl",
     "mempool_p2p_config.network_config.advertised_multiaddr.#is_none",
     "mempool_p2p_config.network_config.advertised_multiaddr",
