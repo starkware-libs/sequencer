@@ -327,7 +327,8 @@ async fn get_proposal_content(
                     args.override_l2_gas_price_fri,
                     &args.min_l2_gas_price_per_height,
                     args.fee_actual,
-                );
+                )
+                .published_price;
                 let fin_payload = ProposalFinPayload {
                     commitment_parts: CommitmentParts::from(&info),
                     l2_gas_info: L2GasInfo {
