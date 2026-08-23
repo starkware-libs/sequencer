@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787473209133,
+  "lastUpdate": 1787490184558,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1223,6 +1223,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1390.24343507,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cf49e97aa45ced0a59bd03bde93d0ba5143cc799",
+          "message": "apollo_l1_gas_price_config,apollo_deployments,apollo_node: add ExchangeRateOracleSource (#14995)\n\nAdds `ExchangeRateOracleSource` (`Http` default, `Chainlink`) and the two\n`*_oracle_source` fields that carry it, one per feed, so a feed moves off the\nHTTP oracle by a config edit rather than a code deploy. Both feeds default to\n`Http` and nothing reads either field yet: B4 builds each feed's client from its\nsource. The enum, both fields and both params are deleted with the HTTP oracle\nin C1, as the `TODO(asaf-sw)` on the enum records.\n\nBoth param descriptions state that `Chainlink` requires a batcher client, and\nthat it is mainnet-only until the feeds are deployed off mainnet.\n\nAlso makes the shared `QuotedRateBoundsConfig` descriptions pair-agnostic. They\nare served for both `eth_usd` and `strk_usd`, so the ETH/USD worked conversion\nwas shipped against `strk_usd`'s default of 100, which is $0.0001 rather than\n$20. Every description keeps a worked micro-unit conversion.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-23T12:45:05Z",
+          "tree_id": "a941b3aac7c3658a945b4d66679044d04ddca003",
+          "url": "https://github.com/starkware-libs/sequencer/commit/cf49e97aa45ced0a59bd03bde93d0ba5143cc799"
+        },
+        "date": 1787490183949,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 841.02715249,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1314.62318485,
             "unit": "ms"
           }
         ]
