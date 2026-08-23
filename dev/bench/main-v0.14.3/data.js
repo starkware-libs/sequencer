@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787240296334,
+  "lastUpdate": 1787473209133,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1189,6 +1189,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1418.11991977,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "67b09ff3756e8f65356a95053b8af54de65b5977",
+          "message": "apollo_batcher,starknet_api: source view call block info from the committed block hash components (#15006)\n\nBatcher::call_contract could not serve any height above genesis: get_block_info read\nthe headers table, which nothing in the batcher writes, so every non-genesis call\nfailed with a bare InternalError.\n\nSource the block info from the partial block hash components instead, which every\ncommit already writes. The data availability mode is recovered from\nconcatenated_counts rather than assumed, since it is committed to by the block hash.\n\nAlso floor a committed zero gas price to NonzeroGasPrice::MIN instead of failing the\ncall, matching the RPC view-call path, and name the missing record when a block\npredates block hash components.\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-23T08:05:46Z",
+          "tree_id": "387c29bc83720dfcb82aa3f0c652e04a5a54399c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/67b09ff3756e8f65356a95053b8af54de65b5977"
+        },
+        "date": 1787473208463,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 911.23303272,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1390.24343507,
             "unit": "ms"
           }
         ]
