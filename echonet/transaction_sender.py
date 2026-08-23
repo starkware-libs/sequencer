@@ -51,6 +51,19 @@ def _extract_revert_errors_by_tx_hash(block: JsonObject) -> Dict[str, str]:
     return out
 
 
+def _should_pause_forwarding(source_block_number: int) -> bool:
+    """Whether forwarding should wait for the committed tip to catch up."""
+    committed_block_number = shared.get_last_block()
+    if committed_block_number is None:
+        # Before the run's first blob, the tip is the block the sequencer was reverted to.
+        committed_block_number = (
+            shared.get_current_start_block(default_start_block=CONFIG.blocks.start_block) - 1
+        )
+
+    block_lead = source_block_number - committed_block_number
+    return block_lead > CONFIG.tx_sender.max_block_lead_before_pausing
+
+
 def _compress_and_encode_json(value: Any) -> str:
     """
     Mirror the Rust `compress_and_encode` helper used by the node:
@@ -92,6 +105,9 @@ async def fetch_block_transactions(
     raise last_err
 
 
+_TX_QUEUE_SIZE = 30
+
+
 @dataclass(frozen=True, slots=True)
 class SenderConfig:
     feeder_url: str = CONFIG.feeder.base_url
@@ -103,10 +119,15 @@ class SenderConfig:
     access_fgw_attempts: int = 3
     retry_backoff_seconds: float = 0.5
     max_retry_sleep_seconds: float = 30.0
-    sequencer_not_ready_retry_attempts: int = CONFIG.tx_sender.max_pending_txs_before_pausing * 2
+    # At ~0.5s per attempt, 20x the lead is ~5x the wall clock the tip needs to advance it.
+    sequencer_not_ready_retry_attempts: int = CONFIG.tx_sender.max_block_lead_before_pausing * 20
 
-    queue_size: int = 30
-    blocks_to_wait_before_failing_tx: int = CONFIG.tx_sender.max_pending_txs_before_pausing
+    queue_size: int = _TX_QUEUE_SIZE
+    # The producer buffers up to `queue_size` txs past the consumer, so a pending tx's block
+    # legitimately trails `current_block` by the block lead plus that many blocks.
+    blocks_to_wait_before_failing_tx: int = (
+        CONFIG.tx_sender.max_block_lead_before_pausing + _TX_QUEUE_SIZE
+    ) * 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,10 +389,7 @@ class TransactionSenderService:
                         if prepared is None:  # L1_HANDLER
                             continue
 
-                        while (
-                            shared.get_pending_tx_count()
-                            >= CONFIG.tx_sender.max_pending_txs_before_pausing
-                        ):
+                        while _should_pause_forwarding(item.source_block_number):
                             await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
 
                         async with forwarding_lock:
