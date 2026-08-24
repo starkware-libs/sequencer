@@ -503,12 +503,15 @@ impl ServiceConfig {
         })
     }
 
-    /// Logs the fully resolved configuration (file + env + CLI merge) once at startup.
+    /// Logs the resolved service and prover settings (file + env + CLI merge) once at startup.
+    /// The `contract_class_manager_config` and `runner_config` sub-configs are not included.
     ///
-    /// Secrets are redacted: RPC and blocking-check URLs are logged host-only; TLS key/cert
-    /// paths are never logged.
+    /// It logs the RPC and blocking-check URLs host-only, and never logs the TLS key and
+    /// certificate paths.
     pub fn log_startup_summary(&self) {
-        let transport = match self.transport {
+        let version = env!("CARGO_PKG_VERSION");
+        let git_sha = option_env!("GIT_SHA").unwrap_or("unknown");
+        let transport_label = match self.transport {
             TransportMode::Http => "http",
             TransportMode::Https { .. } => "https",
         };
@@ -516,9 +519,11 @@ impl ServiceConfig {
             self.prover_config.blocking_check_url.as_deref().map(redact_url_host);
         info!(
             event = "config_resolved",
+            version,
+            git_sha,
             ip = %self.ip,
             port = self.port,
-            transport,
+            transport = transport_label,
             max_concurrent_requests = self.max_concurrent_requests,
             max_queued_requests = self.max_queued_requests,
             queue_wait_timeout_millis = self.queue_wait_timeout_millis,
@@ -536,7 +541,7 @@ impl ServiceConfig {
             blocking_check_host = ?blocking_check_host,
             blocking_check_timeout_millis = self.prover_config.blocking_check_timeout_millis,
             blocking_check_fail_open = self.prover_config.blocking_check_fail_open,
-            "Resolved service configuration."
+            "Starting Starknet transaction prover."
         );
     }
 }
