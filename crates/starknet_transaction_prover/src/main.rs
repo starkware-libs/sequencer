@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::log_redact::redact_url_host;
+    use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::{
@@ -45,6 +46,10 @@ async fn main() -> anyhow::Result<()> {
         LogFormat::Json => registry.with(fmt::layer().json()).init(),
         LogFormat::Text => registry.with(fmt::layer()).init(),
     }
+
+    // After tracing init so the hook's `error!` reaches the subscriber;
+    // earlier panics hit the default stderr handler.
+    install_panic_hook();
 
     let config = ServiceConfig::from_args(args)?;
 
