@@ -1,10 +1,11 @@
 //! Prometheus `/metrics` endpoint as a tower middleware layer.
 //!
 //! Short-circuits `GET /metrics` ahead of jsonrpsee so scrapes never run
-//! through the JSON-RPC parser. Label cardinality is bounded by the
-//! enumerations in [`names`] — no user-controlled values become labels.
+//! through the JSON-RPC parser. The metric names live in [`names`]. No
+//! user-controlled value becomes a label, so cardinality stays bounded.
 
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use anyhow::Context as _;
 use bytes::Bytes;
@@ -19,22 +20,27 @@ use tower::{Layer, Service};
 #[path = "metrics_test.rs"]
 mod metrics_test;
 
-/// Path served by [`MetricsLayer`].
 pub const METRICS_PATH: &str = "/metrics";
 
-/// Metric name constants. Kept here so `metrics!` invocations elsewhere link
-/// to a single definition instead of bare string literals.
+/// How often [`spawn_upkeep`] drains the recorder's histogram samples. The
+/// exporter reclaims samples only during upkeep or while rendering a scrape.
+/// Without this loop, a deployment that is never scraped holds every sample
+/// for the life of the process.
+const UPKEEP_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Metric name constants, so `metrics!` calls elsewhere point at one
+/// definition instead of repeating string literals.
 pub mod names {
-    /// Build identity. Value is always 1; labels carry version + git_sha.
+    /// Build identity. Always 1, labelled with `version` and `git_sha`.
     pub const BUILD_INFO: &str = "prover_build_info";
 }
 
 /// Initializes the global Prometheus exporter and emits the `build_info`
-/// gauge. Returns the handle used by [`MetricsLayer`] to render the scrape
+/// gauge. Returns the handle that [`MetricsLayer`] uses to render the scrape
 /// response.
 ///
-/// Should be called exactly once at startup. The handle is cheap to clone
-/// (it wraps an `Arc`).
+/// Call it exactly once at startup. The handle wraps an `Arc`, so cloning it
+/// is cheap.
 pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<PrometheusHandle> {
     let handle = PrometheusBuilder::new()
         .install_recorder()
@@ -48,7 +54,18 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     Ok(handle)
 }
 
-/// tower [`Layer`] that intercepts `GET /metrics`.
+/// Spawns the recorder's upkeep loop. Separate from [`install_exporter`] so
+/// tests can install a recorder without a tokio runtime.
+pub fn spawn_upkeep(handle: PrometheusHandle) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(UPKEEP_INTERVAL);
+        loop {
+            ticker.tick().await;
+            handle.run_upkeep();
+        }
+    })
+}
+
 #[derive(Clone)]
 pub struct MetricsLayer {
     handle: PrometheusHandle,
