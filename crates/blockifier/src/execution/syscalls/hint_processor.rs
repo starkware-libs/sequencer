@@ -861,6 +861,15 @@ pub fn read_felt_array<TErr>(vm: &VirtualMachine, ptr: &mut Relocatable) -> Resu
 where
     TErr: From<StarknetApiError> + From<VirtualMachineError> + From<MemoryError> + From<MathError>,
 {
+    // If the start and end pointers are the same, the array is empty.
+    // This check is necessary to handle the case where both pointers are zero, and thus are not
+    // relocatable values.
+    let array_start = vm.get_maybe(&*ptr);
+    if array_start.is_some() && array_start == vm.get_maybe(&(*ptr + 1_usize)?) {
+        *ptr = (*ptr + 2)?;
+        return Ok(vec![]);
+    }
+
     let array_data_start_ptr = vm.get_relocatable(*ptr)?;
     *ptr = (*ptr + 1)?;
     let array_data_end_ptr = vm.get_relocatable(*ptr)?;

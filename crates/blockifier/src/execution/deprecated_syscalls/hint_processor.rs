@@ -937,6 +937,12 @@ where
         + From<TryFromBigIntError<BigUint>>,
 {
     let array_size = felt_from_ptr(vm, ptr)?;
+    // An empty array's data pointer may be a felt-zero null (`cast(0, felt*)`) rather than a real
+    // segment.
+    if array_size == Felt::ZERO {
+        *ptr = (*ptr + 1)?;
+        return Ok(vec![]);
+    }
     let array_data_start_ptr = vm.get_relocatable(*ptr)?;
     *ptr = (*ptr + 1)?;
 
