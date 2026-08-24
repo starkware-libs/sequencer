@@ -2,6 +2,10 @@ include: configs/overlays/hybrid/common/services/l1.yaml
 
 config:
   sequencerConfig:
+    l1_gas_price_provider_config.eth_to_strk_oracle_source: Http
+    l1_gas_price_provider_config.strk_to_usd_oracle_source: Http
+    l1_gas_price_provider_config.chainlink_oracle_config.eth_usd_feed_address: '0x06b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26'
+    l1_gas_price_provider_config.chainlink_oracle_config.strk_usd_feed_address: '0x076a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec'
     base_layer_config.bpo1_start_block_number: 23973546
     base_layer_config.bpo2_start_block_number: 24168146
     base_layer_config.fusaka_no_bpo_start_block_number: 23934586

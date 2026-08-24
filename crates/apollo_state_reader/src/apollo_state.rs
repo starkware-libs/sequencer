@@ -1,4 +1,6 @@
+use std::future::Future;
 use std::sync::Arc;
+use std::time::Instant;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_storage::class_hash::ClassHashStorageReader;
@@ -33,13 +35,55 @@ pub struct ClassReader {
     pub reader: SharedClassManagerClient,
     // Used to invoke async functions from sync reader code.
     pub runtime: tokio::runtime::Handle,
+    /// Bounds the total time this reader may spend waiting on the class manager, across every
+    /// request it makes. This reader runs inside a blocking task on a shared blocking-thread
+    /// pool; a stalled class manager would otherwise pin that thread forever, since the pool has
+    /// no way to cancel a thread that is blocked inside `block_on`. A single deadline (set once,
+    /// e.g. at construction) rather than a per-request duration keeps a class hash that needs
+    /// several requests (Casm and Sierra) from being able to add up to a multiple of the caller's
+    /// intended bound. `None` leaves requests unbounded.
+    pub deadline: Option<Instant>,
 }
 
 impl ClassReader {
+    /// Runs `request` on `self.runtime`, bounding it by `self.deadline` when set.
+    ///
+    /// Spawns `request` rather than awaiting it directly: a local class manager is reached
+    /// through a channel whose response sender the server already holds once the request is
+    /// sent (see `LocalComponentClient::send`), and the server panics if that channel's receiver
+    /// is dropped before the response is sent — "considered a bug" by its own comment, since a
+    /// well-behaved client always waits for its response. Racing `request` itself against the
+    /// deadline with `tokio::time::timeout` would drop it, and that receiver, the moment the
+    /// deadline passed. Spawning first means only our wait is bounded; `request` keeps running
+    /// to completion in the background so the server never observes a closed channel.
+    fn block_on_request<Fut>(&self, request: Fut) -> StateResult<Fut::Output>
+    where
+        Fut: Future + Send + 'static,
+        Fut::Output: Send + 'static,
+    {
+        let Some(deadline) = self.deadline else {
+            return Ok(self.runtime.block_on(request));
+        };
+
+        self.runtime.block_on(async {
+            let request_task = self.runtime.spawn(request);
+            match tokio::time::timeout_at(deadline.into(), request_task).await {
+                Ok(join_result) => join_result.map_err(|join_error| {
+                    StateError::StateReadError(format!(
+                        "Class manager request task panicked: {join_error}"
+                    ))
+                }),
+                Err(_elapsed) => Err(StateError::StateReadError(
+                    "Class manager request timed out; the reader's deadline passed.".to_string(),
+                )),
+            }
+        })
+    }
+
     fn read_executable(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+        let reader = self.reader.clone();
         let casm = self
-            .runtime
-            .block_on(self.reader.get_executable(class_hash))
+            .block_on_request(async move { reader.get_executable(class_hash).await })?
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
@@ -56,9 +100,9 @@ impl ClassReader {
     }
 
     fn read_sierra(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
+        let reader = self.reader.clone();
         let sierra = self
-            .runtime
-            .block_on(self.reader.get_sierra(class_hash))
+            .block_on_request(async move { reader.get_sierra(class_hash).await })?
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
@@ -80,9 +124,9 @@ impl ClassReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<Option<CompiledClassHash>> {
+        let reader = self.reader.clone();
         let compiled_class_hash_v2 = self
-            .runtime
-            .block_on(self.reader.get_executable_class_hash_v2(class_hash))
+            .block_on_request(async move { reader.get_executable_class_hash_v2(class_hash).await })?
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
         Ok(compiled_class_hash_v2)
     }

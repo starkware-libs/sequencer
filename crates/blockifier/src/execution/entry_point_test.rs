@@ -7,15 +7,27 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use num_bigint::BigInt;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
+use starknet_api::block::StarknetVersion;
 use starknet_api::core::EntryPointSelector;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, felt, storage_key};
+use strum::IntoEnumIterator;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::context::{BlockContext, ChainInfo};
+use crate::context::{BlockContext, ChainInfo, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo};
-use crate::execution::entry_point::{call_view_entry_point, CallEntryPoint};
+use crate::execution::common_hints::ExecutionMode;
+use crate::execution::entry_point::{
+    call_view_entry_point,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    SierraGasRevertTracker,
+    VIEW_CALL_MAX_N_STEPS,
+    VIEW_CALL_MAX_SIERRA_GAS,
+};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR_FELT;
 use crate::retdata;
@@ -23,6 +35,7 @@ use crate::state::cached_state::CachedState;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
+use crate::transaction::objects::TransactionInfo;
 
 #[test]
 fn test_call_info_iteration() {
@@ -590,4 +603,72 @@ fn test_call_view_entry_point_non_existing_function() {
         panic!("Expected ExecutionFailed error");
     };
     assert_eq!(error_trace.last_retdata.0, vec![ENTRYPOINT_NOT_FOUND_ERROR_FELT]);
+}
+
+/// Builds an execution context whose step limit is the block's `invoke_tx_max_n_steps`, which is
+/// what `call_view_entry_point` caps.
+fn create_context_with_block_step_limit() -> EntryPointExecutionContext {
+    let block_context = BlockContext::create_for_testing();
+    let tx_context = Arc::new(TransactionContext {
+        block_context: Arc::new(block_context),
+        tx_info: TransactionInfo::default(),
+    });
+    let limit_steps_by_resources = false;
+    EntryPointExecutionContext::new(
+        tx_context,
+        ExecutionMode::Execute,
+        limit_steps_by_resources,
+        SierraGasRevertTracker::new(GasAmount(0)),
+    )
+}
+
+#[test]
+fn cap_remaining_steps_lowers_the_limit() {
+    let mut context = create_context_with_block_step_limit();
+    let block_step_limit = context.n_remaining_steps();
+    let capped_step_limit = block_step_limit / 2;
+
+    assert_eq!(context.cap_remaining_steps(capped_step_limit), capped_step_limit);
+    assert_eq!(context.n_remaining_steps(), capped_step_limit);
+}
+
+#[test]
+fn cap_remaining_steps_never_raises_the_limit() {
+    let mut context = create_context_with_block_step_limit();
+    let block_step_limit = context.n_remaining_steps();
+    let capped_step_limit = block_step_limit / 2;
+    context.cap_remaining_steps(capped_step_limit);
+
+    assert_eq!(context.cap_remaining_steps(capped_step_limit), capped_step_limit);
+    assert_eq!(context.cap_remaining_steps(block_step_limit), capped_step_limit);
+    assert_eq!(context.cap_remaining_steps(usize::MAX), capped_step_limit);
+    assert_eq!(context.n_remaining_steps(), capped_step_limit);
+}
+
+/// Pins the doc comments on the view call bounds, so a future version bumping a versioned constant
+/// cannot silently invalidate them.
+#[test]
+fn view_call_resource_bounds_match_versioned_constants() {
+    assert_eq!(
+        VIEW_CALL_MAX_SIERRA_GAS,
+        VersionedConstants::latest_constants().os_constants.validate_max_sierra_gas,
+        "Sierra gas bound no longer equals the current validate_max_sierra_gas."
+    );
+
+    let first_version = VersionedConstants::first_version();
+    for version in StarknetVersion::iter().filter(|version| version >= &first_version) {
+        let versioned_constants = VersionedConstants::get(&version).unwrap();
+        let step_gas_cost = versioned_constants.os_constants.gas_costs.base.step_gas_cost;
+        assert_eq!(
+            u32::try_from(VIEW_CALL_MAX_N_STEPS).unwrap(),
+            versioned_constants.validate_max_n_steps,
+            "Step bound no longer equals validate_max_n_steps in {version}."
+        );
+        assert_eq!(
+            VIEW_CALL_MAX_SIERRA_GAS.0,
+            u64::try_from(VIEW_CALL_MAX_N_STEPS).unwrap() * step_gas_cost,
+            "The two bounds are no longer equivalent budgets in {version}, whose step_gas_cost is \
+             {step_gas_cost}."
+        );
+    }
 }

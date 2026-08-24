@@ -12,7 +12,12 @@ mod histograms;
 
 // re exports
 pub use crate::metrics::counters::{LabeledMetricCounter, MetricCounter};
-pub use crate::metrics::gauges::{set_unix_now_seconds, LabeledMetricGauge, MetricGauge};
+pub use crate::metrics::gauges::{
+    set_unix_now_seconds,
+    set_unix_now_seconds_with_labels,
+    LabeledMetricGauge,
+    MetricGauge,
+};
 pub use crate::metrics::histograms::{HistogramValue, LabeledMetricHistogram, MetricHistogram};
 
 /// Global variable set by the main config to enable collecting profiling metrics.

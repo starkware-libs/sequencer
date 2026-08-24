@@ -978,6 +978,7 @@ dependencies = [
 name = "apollo_cairo_utils"
 version = "0.0.0"
 dependencies = [
+ "rstest",
  "starknet-types-core",
  "thiserror 1.0.69",
 ]
@@ -1871,6 +1872,8 @@ dependencies = [
 name = "apollo_l1_gas_price"
 version = "0.0.0"
 dependencies = [
+ "apollo_batcher_types",
+ "apollo_cairo_utils",
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
@@ -1879,15 +1882,20 @@ dependencies = [
  "apollo_metrics",
  "assert_matches",
  "async-trait",
+ "ethnum",
  "futures",
  "lru 0.12.5",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockall",
  "mockito",
  "papyrus_base_layer",
  "reqwest 0.12.24",
  "rstest",
  "serde_json",
+ "starknet-types-core",
  "starknet_api",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
@@ -1900,7 +1908,11 @@ name = "apollo_l1_gas_price_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_l1_gas_price_types",
+ "rstest",
  "serde",
+ "serde_json",
+ "starknet-types-core",
  "starknet_api",
  "url",
  "validator",
@@ -2689,6 +2701,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_storage",
  "assert_matches",
+ "async-trait",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",

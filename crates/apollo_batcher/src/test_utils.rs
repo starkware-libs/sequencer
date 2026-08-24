@@ -28,14 +28,7 @@ use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
-use starknet_api::block::{
-    BlockHash,
-    BlockHeaderWithoutHash,
-    BlockInfo,
-    BlockNumber,
-    GasPrice,
-    GasPricePerToken,
-};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
@@ -328,16 +321,9 @@ impl Default for MockDependencies {
         storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
-        let valid_gas_price =
-            GasPricePerToken { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
-        storage_reader.expect_get_block_header().returning(move |_| {
-            Ok(BlockHeaderWithoutHash {
-                l1_gas_price: valid_gas_price,
-                l1_data_gas_price: valid_gas_price,
-                l2_gas_price: valid_gas_price,
-                ..Default::default()
-            })
-        });
+        storage_reader
+            .expect_get_partial_block_hash_components()
+            .returning(|_| Ok(Some(PartialBlockHashComponents::default())));
         storage_reader
             .expect_get_parent_hash_and_partial_block_hash_components()
             .with(eq(INITIAL_HEIGHT.prev().unwrap()))
