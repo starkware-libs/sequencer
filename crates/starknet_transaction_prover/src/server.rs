@@ -41,8 +41,8 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 ///
 /// Layer order (tower makes the last-added layer innermost):
 /// - `RequestLogLayer` is outermost so the latency it measures covers every other layer.
-/// - `HealthLayer` (and `MetricsLayer` when configured) sit inside it so `/health` probes and
-///   `/metrics` scrapes short-circuit before CORS/OHTTP.
+/// - `HealthLayer` and `MetricsLayer` sit inside it so probes and scrapes complete before
+///   CORS/OHTTP.
 /// - `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression applies to the inner JSON-RPC
 ///   response (the client's inner `Accept-Encoding` travels through BHTTP into jsonrpsee) rather
 ///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
@@ -55,7 +55,7 @@ macro_rules! prover_http_middleware {
         ServiceBuilder::new()
             .layer(RequestLogLayer)
             .layer(HealthLayer)
-            .option_layer($metrics_layer)
+            .layer($metrics_layer)
             .option_layer($cors_layer)
             .layer(MapRequestBodyLayer::new(HttpBody::new))
             .option_layer($ohttp_layer)
@@ -100,20 +100,26 @@ mod request_body_size_test;
 #[path = "server/ohttp_integration_test.rs"]
 mod ohttp_integration_test;
 
+/// The middleware layers `start_server` and `tls::start_tls_server` install, grouped into one
+/// struct so call sites name each layer instead of relying on positional order.
+pub struct ServerLayers {
+    pub cors_layer: Option<CorsLayer>,
+    pub ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    pub metrics_layer: MetricsLayer,
+}
+
 /// Starts the JSON-RPC server in either HTTP or HTTPS mode depending on the transport.
-#[allow(clippy::too_many_arguments)]
 pub async fn start_server(
     addr: SocketAddr,
     transport: &TransportMode,
     methods: Methods,
     max_connections: u32,
     max_request_body_size: u32,
-    cors_layer: Option<CorsLayer>,
-    ohttp_layer: Option<OhttpJsonrpseeLayer>,
-    metrics_layer: Option<MetricsLayer>,
+    layers: ServerLayers,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
+            let ServerLayers { cors_layer, ohttp_layer, metrics_layer } = layers;
             let server_config = ServerConfig::builder()
                 .max_connections(max_connections)
                 .max_request_body_size(max_request_body_size)
@@ -137,9 +143,7 @@ pub async fn start_server(
                 methods,
                 max_connections,
                 max_request_body_size,
-                cors_layer,
-                ohttp_layer,
-                metrics_layer,
+                layers,
             )
             .await
         }

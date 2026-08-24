@@ -11,6 +11,9 @@ use tokio::net::TcpListener;
 use tokio::sync::Notify;
 
 use super::spawn_accept_loop;
+use crate::server::metrics::MetricsLayer;
+use crate::server::test_recorder::shared_handle;
+use crate::server::ServerLayers;
 
 /// Lets the test hold a request inside the handler for as long as it needs.
 struct ParkedHandler {
@@ -42,9 +45,11 @@ async fn stopped_waits_for_an_in_flight_request_to_finish() {
         stop_handle,
         Methods::from(module),
         ServerConfig::builder().build(),
-        None,
-        None,
-        None,
+        ServerLayers {
+            cors_layer: None,
+            ohttp_layer: None,
+            metrics_layer: MetricsLayer::new(shared_handle().clone()),
+        },
         |socket, _remote_addr| async move { Some(socket) },
     );
 
