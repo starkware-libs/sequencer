@@ -341,6 +341,18 @@ produced.
 Request bodies are never inspected — transaction calldata is private user data and never reaches
 the log stream.
 
+### Shutdown
+
+`SIGTERM` and `SIGINT` trigger a graceful shutdown — the server stops accepting new requests and
+in-flight proofs are given the chance to drain. Both signals produce structured log events so
+deployment events are visible in the log stream: `shutdown_started` (carrying the `signal` name)
+when the drain begins, and `shutdown_complete` once the server has stopped.
+
+A **second** termination signal during the drain emits an `event="force_exit"` warning (also
+carrying the `signal` name) and forces `exit(1)`, so an operator can always reclaim a stuck
+process. Tokio keeps intercepting the signals process-wide once a handler exists, so without this
+path a follow-up Ctrl+C would be silently swallowed.
+
 ### Panics
 
 Process panics are captured by a global panic hook that emits a structured `event="panic"` log at
