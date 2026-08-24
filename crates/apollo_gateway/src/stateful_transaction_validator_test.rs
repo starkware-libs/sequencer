@@ -24,6 +24,7 @@ use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
+use starknet_api::transaction::TransactionHash;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::gateway_fixed_block_state_reader::MockGatewayFixedBlockStateReader;
@@ -58,6 +59,7 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
             chain_info: ChainInfo::create_for_testing(),
             state_reader_and_contract_manager: None,
             gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: None,
         };
 
     let result = stateful_validator
@@ -110,6 +112,7 @@ async fn test_run_pre_validation_checks(
             chain_info: ChainInfo::create_for_testing(),
             state_reader_and_contract_manager: None,
             gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: None,
         };
 
     let resource_bounds = if zero_gas_fee {
@@ -139,12 +142,14 @@ async fn test_instantiate_validator() {
         chain_info: ChainInfo::create_for_testing(),
         state_reader_factory: Arc::new(state_reader_factory),
         contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
+        replay_gas_prices_client: None,
     };
     // The whitelist is irrelevant for the test.
     let native_classes_whitelist = NativeClassesWhitelist::All;
 
-    let validator =
-        stateful_validator_factory.instantiate_validator(native_classes_whitelist).await;
+    let validator = stateful_validator_factory
+        .instantiate_validator(native_classes_whitelist, TransactionHash::default())
+        .await;
     assert!(validator.is_ok());
 }
 
@@ -217,6 +222,7 @@ async fn test_skip_validate(
             chain_info: ChainInfo::create_for_testing(),
             state_reader_and_contract_manager: None,
             gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: None,
         };
 
     let skip_validate = stateful_validator
@@ -321,10 +327,148 @@ async fn validate_resource_bounds(
             chain_info: ChainInfo::create_for_testing(),
             state_reader_and_contract_manager: None,
             gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: None,
         };
 
     let result = stateful_validator.validate_resource_bounds(&executable_tx).await;
     assert_eq!(result, expected_result);
+}
+
+/// Mainnet block 11926844: tx 0x1549342b's cap sits above its own block's price but below the
+/// committed block 11926843's, so only the source block's price can admit it.
+#[rstest]
+#[case::committed_block_prices(None, Err(()))]
+#[case::source_block_prices(Some(31507218957_u128), Ok(()))]
+#[tokio::test]
+async fn replay_gas_prices_admit_the_deadlocked_tx(
+    #[case] replay_l2_gas_price: Option<u128>,
+    #[case] expected_result: Result<(), ()>,
+) {
+    const COMMITTED_L2_GAS_PRICE: u128 = 32093567243;
+    const TX_MAX_L2_GAS_PRICE: u128 = 32000000000;
+
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l2_gas: ResourceBounds {
+            max_price_per_unit: GasPrice(TX_MAX_L2_GAS_PRICE),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(resource_bounds));
+
+    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
+    mock_gateway_fixed_block.expect_get_block_info().return_once(move || {
+        Ok(BlockInfo {
+            gas_prices: GasPrices {
+                strk_gas_prices: GasPriceVector {
+                    l2_gas_price: NonzeroGasPrice::new(GasPrice(COMMITTED_L2_GAS_PRICE)).unwrap(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    });
+
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig {
+                validate_resource_bounds: true,
+                min_gas_price_percentage: 100,
+                ..Default::default()
+            },
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: replay_l2_gas_price.map(|l2_gas_price| GasPriceVector {
+                l2_gas_price: NonzeroGasPrice::new(GasPrice(l2_gas_price)).unwrap(),
+                ..Default::default()
+            }),
+        };
+
+    let result = stateful_validator.validate_resource_bounds(&executable_tx).await;
+    assert_eq!(result.map_err(|_| ()), expected_result);
+}
+
+#[rstest]
+#[tokio::test]
+async fn saturating_threshold_rejects_on_an_implausible_block_price() {
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l2_gas: ResourceBounds { max_price_per_unit: GasPrice(1), ..Default::default() },
+        ..Default::default()
+    });
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(resource_bounds));
+
+    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
+    mock_gateway_fixed_block.expect_get_block_info().return_once(move || {
+        Ok(BlockInfo {
+            gas_prices: GasPrices {
+                strk_gas_prices: GasPriceVector {
+                    l2_gas_price: NonzeroGasPrice::new(GasPrice(u128::MAX)).unwrap(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    });
+
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig {
+                validate_resource_bounds: true,
+                min_gas_price_percentage: 100,
+                ..Default::default()
+            },
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: None,
+        };
+
+    assert!(stateful_validator.validate_resource_bounds(&executable_tx).await.is_err());
+}
+
+#[rstest]
+#[tokio::test]
+async fn replay_gas_prices_replace_the_whole_strk_vector() {
+    let replay_strk_gas_prices = GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::new(GasPrice(71204894033059)).unwrap(),
+        l1_data_gas_price: NonzeroGasPrice::new(GasPrice(81105312780)).unwrap(),
+        l2_gas_price: NonzeroGasPrice::new(GasPrice(31507218957)).unwrap(),
+    };
+    let committed_eth_gas_prices = GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::new(GasPrice(1180777236)).unwrap(),
+        ..Default::default()
+    };
+
+    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
+    let expected_eth_gas_prices = committed_eth_gas_prices.clone();
+    mock_gateway_fixed_block.expect_get_block_info().return_once(move || {
+        Ok(BlockInfo {
+            gas_prices: GasPrices {
+                eth_gas_prices: committed_eth_gas_prices,
+                strk_gas_prices: GasPriceVector::default(),
+            },
+            ..Default::default()
+        })
+    });
+
+    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
+        StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig::default(),
+            chain_info: ChainInfo::create_for_testing(),
+            state_reader_and_contract_manager: None,
+            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: Some(replay_strk_gas_prices.clone()),
+        };
+
+    let block_info = stateful_validator.block_info().await.unwrap();
+    assert_eq!(block_info.gas_prices.strk_gas_prices, replay_strk_gas_prices);
+    assert_eq!(
+        block_info.gas_prices.eth_gas_prices, expected_eth_gas_prices,
+        "the ETH vector is not replayed and must be left alone"
+    );
 }
 
 #[rstest]
@@ -432,6 +576,7 @@ async fn run_pre_validation_checks_test(
             chain_info: ChainInfo::create_for_testing(),
             state_reader_and_contract_manager: None,
             gateway_fixed_block_state_reader: mock_gateway_fixed_block,
+            replay_strk_gas_prices: None,
         };
 
     let mut mempool_client = MockMempoolClient::new();
