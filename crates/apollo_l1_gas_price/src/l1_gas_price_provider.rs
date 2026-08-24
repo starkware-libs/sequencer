@@ -2,28 +2,35 @@ use std::any::type_name;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_ms;
-use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
+use apollo_l1_gas_price_config::config::{
+    ExchangeRateOracleConfig,
+    ExchangeRateOracleSource,
+    L1GasPriceProviderConfig,
+};
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
+    EthToFri,
+    ExchangeRate,
     ExchangeRateOracleClientTrait,
     GasPriceData,
     L1GasPriceProviderResult,
     PriceInfo,
+    StrkToUsd,
 };
 use async_trait::async_trait;
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 
+use crate::chainlink_oracle::{ChainlinkOracleClient, ChainlinkRate};
 use crate::exchange_rate_oracle::ExchangeRateOracleClient;
 use crate::metrics::{
     register_provider_metrics,
-    ETH_TO_STRK_ORACLE_METRICS,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
-    STRK_TO_USD_ORACLE_METRICS,
 };
 
 #[cfg(test)]
@@ -81,16 +88,16 @@ impl L1GasPriceProvider {
         }
     }
 
-    pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
-        let eth_to_strk_oracle_client = ExchangeRateOracleClient::new(
-            config.eth_to_strk_oracle_config.clone(),
-            ETH_TO_STRK_ORACLE_METRICS,
-        );
-        let strk_to_usd_oracle_client = ExchangeRateOracleClient::new(
-            config.strk_to_usd_oracle_config.clone(),
-            STRK_TO_USD_ORACLE_METRICS,
-        );
-        Self::new(config, Arc::new(eth_to_strk_oracle_client), Arc::new(strk_to_usd_oracle_client))
+    /// Builds each feed's oracle client from the source selected for it in `config`.
+    pub fn new_with_oracle(
+        config: L1GasPriceProviderConfig,
+        batcher_client: SharedBatcherClient,
+    ) -> Self {
+        Self::new(
+            config.clone(),
+            build_exchange_rate_oracle_client::<EthToFri>(&config, &batcher_client),
+            build_exchange_rate_oracle_client::<StrkToUsd>(&config, &batcher_client),
+        )
     }
 
     pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
@@ -202,18 +209,73 @@ impl L1GasPriceProvider {
         Ok(price_info_out)
     }
 
-    pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
+    pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<ExchangeRate> {
         self.eth_to_strk_oracle_client
             .fetch_rate(timestamp)
             .await
             .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
     }
 
-    pub async fn strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
+    pub async fn strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<ExchangeRate> {
         self.strk_to_usd_oracle_client
             .fetch_rate(timestamp)
             .await
             .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
+    }
+}
+
+// The single feed a rate kind names, and the config fields that select where it is read from: a
+// feed's source, the HTTP config that source reads, and the key an operator edits to change it.
+// Selected by the rate kind, so a feed's client cannot be built from the other feed's fields.
+// [Temporary comment] Deleted in C1 with the `Http` source: Chainlink reads the
+// `ChainlinkOracleConfig` both feeds share, so nothing is selected per feed.
+trait SourceSelectableFeed: ChainlinkRate {
+    fn source(config: &L1GasPriceProviderConfig) -> ExchangeRateOracleSource;
+
+    fn http_config(config: &L1GasPriceProviderConfig) -> &ExchangeRateOracleConfig;
+}
+
+impl SourceSelectableFeed for EthToFri {
+    fn source(config: &L1GasPriceProviderConfig) -> ExchangeRateOracleSource {
+        config.eth_to_strk_oracle_source
+    }
+
+    fn http_config(config: &L1GasPriceProviderConfig) -> &ExchangeRateOracleConfig {
+        &config.eth_to_strk_oracle_config
+    }
+}
+
+impl SourceSelectableFeed for StrkToUsd {
+    fn source(config: &L1GasPriceProviderConfig) -> ExchangeRateOracleSource {
+        config.strk_to_usd_oracle_source
+    }
+
+    fn http_config(config: &L1GasPriceProviderConfig) -> &ExchangeRateOracleConfig {
+        &config.strk_to_usd_oracle_config
+    }
+}
+
+// Builds the client of the single feed `Kind` names. Its source, HTTP config, metrics bundle and
+// Chainlink read all come from `Kind`, so one feed's client can only ever serve that feed's rate.
+fn build_exchange_rate_oracle_client<Kind: SourceSelectableFeed>(
+    config: &L1GasPriceProviderConfig,
+    batcher_client: &SharedBatcherClient,
+) -> Arc<dyn ExchangeRateOracleClientTrait> {
+    let pair = Kind::PAIR;
+    let source = Kind::source(config);
+    info!("Building the {pair:?} exchange rate oracle client from source {source:?}");
+    match source {
+        // [Temporary comment] Deleted in C1, leaving the Chainlink client as the only client built
+        // here.
+        ExchangeRateOracleSource::Http => Arc::new(ExchangeRateOracleClient::new(
+            Kind::http_config(config).clone(),
+            Kind::metrics(),
+        )),
+        ExchangeRateOracleSource::Chainlink => Arc::new(ChainlinkOracleClient::<Kind>::new(
+            config.chainlink_oracle_config.clone(),
+            config.rate_bounds_config.clone(),
+            batcher_client.clone(),
+        )),
     }
 }
 

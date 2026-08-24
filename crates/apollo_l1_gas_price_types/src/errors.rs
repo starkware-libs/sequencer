@@ -1,6 +1,9 @@
 use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
+use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
+
+use crate::CurrencyPair;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1GasPriceProviderError {
@@ -31,7 +34,12 @@ pub enum L1GasPriceClientError {
     ExchangeRateOracleClientError(#[from] ExchangeRateOracleClientError),
 }
 
-#[derive(Clone, Debug, Error, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Error, Serialize, Deserialize, PartialEq, Eq, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ExchangeRateOracleErrorType),
+    derive(IntoStaticStr, EnumIter, VariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum ExchangeRateOracleClientError {
     #[error("Join error: {0}")]
     JoinError(String),
@@ -42,13 +50,42 @@ pub enum ExchangeRateOracleClientError {
     #[error("Missing or invalid field: {0}. Body: {1}")]
     MissingFieldError(String, String),
     #[error("Invalid decimals value: expected {0}, got {1}")]
-    InvalidDecimalsError(u64, u64),
+    InvalidDecimalsError(u32, u32),
     #[error("Query not yet resolved: timestamp={0}")]
     QueryNotReadyError(u64),
     #[error("All URLs in the list failed for timestamp {0}, starting with index {1}")]
     AllUrlsFailedError(u64, usize),
     #[error("Invalid rate from oracle: {0}")]
     InvalidRateError(String),
+    // TODO(Asaf): give the remaining variants the same pair context. Not a payload field for all
+    // of them: `From<reqwest::Error>` and the `?` sites have no pair to supply, so this
+    // likely needs a span field on `fetch_rate` instead.
+    #[error(
+        "Stale {pair} price feed: last updated at {updated_at}, priced for block timestamp \
+         {block_timestamp}, maximum accepted staleness is {max_staleness_seconds} seconds"
+    )]
+    StaleFeedError {
+        pair: CurrencyPair,
+        updated_at: u64,
+        block_timestamp: u64,
+        max_staleness_seconds: u64,
+    },
+    #[error(
+        "The {pair} price feed is dated {updated_at}, more than {max_future_updated_at_seconds} \
+         seconds ahead of the block timestamp {block_timestamp}"
+    )]
+    FutureFeedError {
+        pair: CurrencyPair,
+        updated_at: u64,
+        block_timestamp: u64,
+        max_future_updated_at_seconds: u64,
+    },
+    #[error("Rate {rate} for {pair} is outside the accepted range [{min_rate}, {max_rate}]")]
+    RateOutOfBoundsError { pair: CurrencyPair, rate: u128, min_rate: u128, max_rate: u128 },
+    #[error("Contract call to price feed failed: {0}")]
+    ContractCallError(String),
+    #[error("Arithmetic overflow while computing rate: {0}")]
+    ArithmeticError(String),
 }
 
 impl From<reqwest::Error> for ExchangeRateOracleClientError {
