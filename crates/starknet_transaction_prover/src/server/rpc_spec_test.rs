@@ -127,6 +127,7 @@ fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
         TEST_MAX_CONCURRENT_REQUESTS,
         0,
         std::time::Duration::from_secs(30),
+        crate::server::SaturationMonitor::default(),
     );
     rpc_impl.into_rpc()
 }
