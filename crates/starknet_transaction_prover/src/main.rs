@@ -25,6 +25,7 @@ async fn main() -> anyhow::Result<()> {
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
+    use starknet_transaction_prover::server::shutdown::spawn_signal_bridge;
     use starknet_transaction_prover::server::{
         start_server,
         OhttpJsonrpseeLayer,
@@ -113,6 +114,9 @@ async fn main() -> anyhow::Result<()> {
         "JSON-RPC proving server is running."
     );
 
+    spawn_signal_bridge(server_handle.clone())?;
+
     server_handle.stopped().await;
+    info!(event = "shutdown_complete", "JSON-RPC server stopped.");
     Ok(())
 }
