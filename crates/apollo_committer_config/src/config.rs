@@ -27,6 +27,9 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub db_path: PathBuf,
     pub storage_config: C,
     pub verify_state_diff_hash: bool,
+    /// If true, `read_paths_and_commit_block` requests are served as `commit_block` requests,
+    /// treating the accessed keys as an empty set.
+    pub serve_read_paths_as_commit_block: bool,
     /// Commit durations above this threshold (in milliseconds) are logged at WARN level.
     #[serde(
         deserialize_with = "deserialize_milliseconds_to_duration",
@@ -42,6 +45,13 @@ impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
                 "verify_state_diff_hash",
                 &self.verify_state_diff_hash,
                 "If true, the committer will verify the state diff hash.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "serve_read_paths_as_commit_block",
+                &self.serve_read_paths_as_commit_block,
+                "If true, read_paths_and_commit_block requests are served as commit_block \
+                 requests, treating the accessed keys as an empty set.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -73,6 +83,7 @@ impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
             db_path: "/data/committer".into(),
             storage_config: C::default(),
             verify_state_diff_hash: true,
+            serve_read_paths_as_commit_block: false,
             commit_duration_warn_threshold_millis: DEFAULT_COMMIT_DURATION_WARN_THRESHOLD,
         }
     }
