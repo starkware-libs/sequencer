@@ -43,8 +43,8 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 /// - `RequestLogLayer` is outermost so the latency it measures covers every other layer.
 /// - `HealthLayer` and `MetricsLayer` sit inside it so probes and scrapes complete before
 ///   CORS/OHTTP.
-/// - `HttpMetricsLayer` records per-request latency; it sits below `HealthLayer`/`MetricsLayer` so
-///   the probe and scrape traffic they short-circuit is excluded from the distribution.
+/// - `HttpMetricsLayer` records per-request latency. It sits below `HealthLayer` and
+///   `MetricsLayer`, so the probes and scrapes they short-circuit stay out of the distribution.
 /// - `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression applies to the inner JSON-RPC
 ///   response (the client's inner `Accept-Encoding` travels through BHTTP into jsonrpsee) rather
 ///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
