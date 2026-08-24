@@ -29,6 +29,10 @@ use tracing::warn;
 
 use crate::server::{HealthLayer, OhttpJsonrpseeLayer, RequestLogLayer, RequestSpanLayer};
 
+#[cfg(test)]
+#[path = "tls_test.rs"]
+mod tls_test;
+
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
