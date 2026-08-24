@@ -1,11 +1,21 @@
 //! Shared fixtures for middleware-layer tests.
 
+use std::time::Duration;
+
 use bytes::Bytes;
 use http::{HeaderMap, Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use jsonrpsee::server::HttpBody;
 
+use crate::server::health::HealthLayer;
 use crate::server::request_log::REQUEST_ID_HEADER;
+use crate::server::saturation::SaturationMonitor;
+
+/// `HealthLayer` with a fresh monitor and a zero threshold — never reports saturation; the zero
+/// threshold also avoids sleeps in tests.
+pub fn unsaturated_health_layer() -> HealthLayer {
+    HealthLayer::new(SaturationMonitor::default(), Duration::ZERO)
+}
 
 /// Inner service that echoes the request's `x-request-id` into the response
 /// body, so tests can observe the id downstream layers saw.
