@@ -176,6 +176,7 @@ and environment variables override values from the config file.
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
 | `LOG_FORMAT` | `--log-format` | `text` | Log output format. Accepts `text` or `json`. Use `json` in production so log aggregators (e.g. Datadog) parse the fields directly. |
+| `HEALTH_MAX_SATURATED_MS` | `--health-max-saturated-ms` | `10000` | How long the service must be continuously rejecting proving requests before `GET /health` flips to 503. See [`/health`](#health) under Observability. |
 
 ### TLS / HTTPS
 
@@ -220,6 +221,7 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
 | `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
 | `tls_key_file` | `TLS_KEY_FILE` | file path or null |
+| `health_max_saturated_ms` | `HEALTH_MAX_SATURATED_MS` | integer (ms) |
 
 ### Docker example with common options
 
@@ -288,9 +290,17 @@ scrape, and writes one structured log line per request, each carrying a request 
 | Status | Body | Meaning |
 |---|---|---|
 | `200 OK` | `{"status":"ok"}` | Service is accepting requests. |
+| `503 Service Unavailable` | `{"status":"unhealthy","reason":"saturated"}` | Service has been continuously rejecting proving requests for at least `HEALTH_MAX_SATURATED_MS` (default 10 seconds). Load balancer should drain this pod. |
+
+The same busy-rejects that return JSON-RPC error `-32005` (Service busy) drive the 503. The first
+reject opens a saturation window, and `/health` flips once that window has been open for
+`HEALTH_MAX_SATURATED_MS`. Any forward progress closes the window, so the service is back to 200 on
+the first probe after load drops. Forward progress means a request acquiring a worker slot, or a
+slot coming free when proving finishes, fails, or the client disconnects.
 
 The endpoint is deliberately unauthenticated, so load balancers, orchestrators, and uptime checks
-can call it. The router answers probes before CORS, compression, and JSON-RPC parsing run.
+can call it. For that same reason the response body is opaque, with no timestamps, counters, or
+upstream URLs. The router answers probes before CORS, compression, and JSON-RPC parsing run.
 
 ### `/metrics`
 
