@@ -9,6 +9,7 @@ fn main() {
 #[cfg(feature = "stwo_proving")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use std::io::IsTerminal;
     use std::net::SocketAddr;
     use std::sync::Arc;
 
@@ -21,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
         TransportMode,
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
-    use starknet_transaction_prover::server::log_redact::redact_url_host;
+    use starknet_transaction_prover::server::log_redact::{redact_url_host, text_log_ansi_enabled};
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
@@ -43,9 +44,16 @@ async fn main() -> anyhow::Result<()> {
         EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
     let registry = tracing_subscriber::registry().with(filter);
+    // The JSON layer never emits ANSI styling.
     match args.log_format {
         LogFormat::Json => registry.with(fmt::layer().json()).init(),
-        LogFormat::Text => registry.with(fmt::layer()).init(),
+        LogFormat::Text => {
+            let ansi_enabled = text_log_ansi_enabled(
+                std::io::stdout().is_terminal(),
+                std::env::var_os("NO_COLOR"),
+            );
+            registry.with(fmt::layer().with_ansi(ansi_enabled)).init()
+        }
     }
 
     // Installed after tracing init so the hook's `error!` reaches the subscriber.
