@@ -66,6 +66,7 @@ use crate::proof_archive_writer::{
     ProofArchiveError,
     ProofArchiveWriterTrait,
 };
+use crate::replay_gas_prices::ReplayGasPricesClient;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
@@ -172,6 +173,13 @@ impl<
                 contract_class_manager: ContractClassManager::start(
                     config.static_config.contract_class_manager_config.clone(),
                 ),
+                replay_gas_prices_client: (config.static_config.behavior_mode
+                    == BehaviorMode::Echonet)
+                    .then(|| {
+                        Arc::new(ReplayGasPricesClient::new(
+                            config.static_config.recorder_url.clone(),
+                        ))
+                    }),
             }),
             mempool_client,
             transaction_converter,
@@ -278,7 +286,10 @@ impl<
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.config.dynamic_config.native_classes_whitelist.clone())
+            .instantiate_validator(
+                self.config.dynamic_config.native_classes_whitelist.clone(),
+                executable_tx.tx_hash(),
+            )
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 

@@ -21,20 +21,21 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
-use num_rational::Ratio;
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::{BlockInfo, GasPriceVector, NonzeroGasPrice};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
 };
 use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 use tracing::{debug, Span};
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
+use crate::replay_gas_prices::ReplayGasPricesClient;
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 
 #[cfg(test)]
@@ -48,6 +49,7 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     async fn instantiate_validator(
         &self,
         native_classes_whitelist: NativeClassesWhitelist,
+        tx_hash: TransactionHash,
     ) -> StatefulTransactionValidatorResult<Box<Self::Validator>>;
 }
 
@@ -62,6 +64,7 @@ mockall::mock! {
         async fn instantiate_validator(
             &self,
             native_classes_whitelist: NativeClassesWhitelist,
+            tx_hash: TransactionHash,
         ) -> StatefulTransactionValidatorResult<Box<MockStatefulTransactionValidatorTrait>>;
     }
 }
@@ -72,6 +75,9 @@ pub struct StatefulTransactionValidatorFactory<TStateReaderFactory: StateReaderF
     pub chain_info: ChainInfo,
     pub state_reader_factory: Arc<TStateReaderFactory>,
     pub contract_class_manager: ContractClassManager,
+    // Set only under replay, where the committed block's gas prices are the wrong ones to
+    // validate against.
+    pub replay_gas_prices_client: Option<Arc<ReplayGasPricesClient>>,
 }
 
 #[async_trait]
@@ -86,7 +92,14 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
     async fn instantiate_validator(
         &self,
         native_classes_whitelist: NativeClassesWhitelist,
+        tx_hash: TransactionHash,
     ) -> StatefulTransactionValidatorResult<Box<Self::Validator>> {
+        // Resolved before the state snapshot below is pinned, so the recorder round-trips do not
+        // age the state that validation then runs against.
+        let replay_strk_gas_prices = match &self.replay_gas_prices_client {
+            Some(client) => client.strk_gas_prices(tx_hash).await,
+            None => None,
+        };
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let (blockifier_state_reader, gateway_fixed_block_state_reader) = self
@@ -115,6 +128,7 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
             self.chain_info.clone(),
             state_reader_and_contract_manager,
             gateway_fixed_block_state_reader,
+            replay_strk_gas_prices,
         )))
     }
 }
@@ -142,6 +156,7 @@ pub struct StatefulTransactionValidator<
     state_reader_and_contract_manager:
         Option<StateReaderAndContractManager<TGatewayStateReaderWithCompiledClasses>>,
     gateway_fixed_block_state_reader: TGatewayFixedBlockStateReader,
+    replay_strk_gas_prices: Option<GasPriceVector>,
 }
 
 #[async_trait]
@@ -195,13 +210,26 @@ where
             TGatewayStateReaderWithCompiledClasses,
         >,
         gateway_fixed_block_state_reader: TGatewayFixedBlockStateReader,
+        replay_strk_gas_prices: Option<GasPriceVector>,
     ) -> Self {
         Self {
             config,
             chain_info,
             state_reader_and_contract_manager: Some(state_reader_and_contract_manager),
             gateway_fixed_block_state_reader,
+            replay_strk_gas_prices,
         }
+    }
+
+    /// The block info both the explicit resource-bound check and blockifier's own fee bounds
+    /// validate against: under replay the transaction's source block prices, else the committed
+    /// block's.
+    async fn block_info(&self) -> StatefulTransactionValidatorResult<BlockInfo> {
+        let mut block_info = self.gateway_fixed_block_state_reader.get_block_info().await?;
+        if let Some(strk_gas_prices) = &self.replay_strk_gas_prices {
+            block_info.gas_prices.strk_gas_prices = strk_gas_prices.clone();
+        }
+        Ok(block_info)
     }
 
     fn take_state_reader_and_contract_manager(
@@ -227,16 +255,11 @@ where
         // Skip this validation during the systems bootstrap phase.
         if self.config.validate_resource_bounds {
             // TODO(Arni): getnext_l2_gas_price from the block header.
-            let previous_block_l2_gas_price = self
-                .gateway_fixed_block_state_reader
-                .get_block_info()
-                .await?
-                .gas_prices
-                .strk_gas_prices
-                .l2_gas_price;
+            let block_l2_gas_price =
+                self.block_info().await?.gas_prices.strk_gas_prices.l2_gas_price;
             self.validate_tx_l2_gas_price_within_threshold(
                 executable_tx.resource_bounds(),
-                previous_block_l2_gas_price,
+                block_l2_gas_price,
             )?;
         }
         Ok(())
@@ -320,7 +343,7 @@ where
         // The validation of a transaction is not affected by the casm hash migration.
         versioned_constants.disable_casm_hash_migration();
 
-        let mut block_info = self.gateway_fixed_block_state_reader.get_block_info().await?;
+        let mut block_info = self.block_info().await?;
         block_info.block_number = block_info.block_number.unchecked_next();
         let block_context = BlockContext::new(
             block_info,
@@ -359,16 +382,17 @@ where
     fn validate_tx_l2_gas_price_within_threshold(
         &self,
         tx_resource_bounds: ValidResourceBounds,
-        previous_block_l2_gas_price: NonzeroGasPrice,
+        block_l2_gas_price: NonzeroGasPrice,
     ) -> StatefulTransactionValidatorResult<()> {
         match tx_resource_bounds {
             ValidResourceBounds::AllResources(tx_resource_bounds) => {
                 let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
-                let gas_price_threshold_multiplier =
-                    Ratio::new(self.config.min_gas_price_percentage.into(), 100_u128);
-                let threshold = (gas_price_threshold_multiplier
-                    * previous_block_l2_gas_price.get().0)
-                    .to_integer();
+                // Saturates so an implausible block price rejects rather than wrapping.
+                let threshold = block_l2_gas_price
+                    .get()
+                    .0
+                    .checked_mul(self.config.min_gas_price_percentage.into())
+                    .map_or(u128::MAX, |scaled_price| scaled_price / 100);
                 if tx_l2_gas_price.0 < threshold {
                     return Err(StarknetError {
                         // We didn't have this kind of an error.
