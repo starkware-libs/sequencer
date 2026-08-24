@@ -1829,6 +1829,106 @@ async fn test_syscalls_with_alternating_inner_calls() {
     test_output.perform_default_validations();
 }
 
+/// Regression for STARKNET-96: a DeployAccount V3 constructor that forwards the (empty)
+/// `account_deployment_data` span into `emit_event`. The OS builds that span for DeployAccount V3,
+/// and if its endpoints are felt-zero (`cast(0, felt*)`) instead of relocatable pointers, the OS
+/// syscall decoder aborts with "Expected relocatable" while native Blockifier accepts the tx —
+/// making the committed block unprovable. Running the OS to completion here exercises the fix.
+#[tokio::test]
+async fn test_deploy_account_v3_empty_deployment_data_span_emit() {
+    let account = FeatureContract::EmptySpanEmittingAccount(RunnableCairo1::Casm);
+    let account_sierra = account.get_sierra();
+    let class_hash = account_sierra.calculate_class_hash();
+    let compiled_class_hash = account.get_compiled_class_hash(&HashVersion::V2);
+    let (mut test_builder, _) = TestBuilder::create_standard([]).await;
+    let chain_id = &test_builder.chain_id();
+
+    // Declare the malicious account class from the funded account.
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let class_info = account.get_class_info();
+    let account_declare_tx =
+        DeclareTransaction::create(declare_tx(declare_args), class_info, chain_id).unwrap();
+    test_builder.add_cairo1_declare_tx(account_declare_tx, &account_sierra);
+
+    // Declare the shared Cairo0 delegate proxy used by the deprecated syscall path. Declare V0
+    // skips nonce handling, so it does not consume the funded account's nonce.
+    let proxy = FeatureContract::DelegateProxy;
+    let proxy_class_hash = get_class_hash_of_feature_contract(proxy);
+    let proxy_declare_args = declare_tx_args! {
+        version: TransactionVersion::ZERO,
+        max_fee: Fee(1_000_000_000_000_000),
+        class_hash: proxy_class_hash,
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+    };
+    let proxy_class_info = proxy.get_class_info();
+    let proxy_declare_tx =
+        DeclareTransaction::create(declare_tx(proxy_declare_args), proxy_class_info, chain_id)
+            .unwrap();
+    test_builder.add_cairo0_declare_tx(proxy_declare_tx, proxy_class_hash);
+
+    // The constructor emits once through Cairo 1, then library-calls the Cairo0 proxy with the
+    // same empty span. This single deployment covers both syscall parsers.
+    let constructor_calldata = calldata![proxy_class_hash.0];
+
+    // Precompute the counterfactual address and fund it.
+    let salt = ContractAddressSalt(Felt::from(1993));
+    let account_address = calculate_contract_address(
+        salt,
+        class_hash,
+        &constructor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(account_address);
+
+    // DeployAccount V3 — the constructor emits the empty `account_deployment_data` span twice,
+    // once through each syscall parser.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: salt,
+        constructor_calldata,
+    };
+    let deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(account_address)),
+        chain_id,
+    )
+    .unwrap();
+    // The first constructor event comes from the modern syscall: empty keys and data `[1]`.
+    let constructor_event = EventPredicateExpectation {
+        description: "constructor emits the empty account_deployment_data span as event keys"
+            .to_string(),
+        predicate: Box::new(move |event| {
+            event.from_address == account_address
+                && event.content.keys.is_empty()
+                && event.content.data.0 == vec![Felt::ONE]
+        }),
+    };
+    // The second event comes from the Cairo0 proxy: empty keys and empty data.
+    let proxy_event = EventPredicateExpectation {
+        description: "Cairo0 proxy re-emits the empty account_deployment_data span via a \
+                      deprecated emit_event syscall"
+            .to_string(),
+        predicate: Box::new(move |event| {
+            event.from_address == account_address
+                && event.content.keys.is_empty()
+                && event.content.data.0.is_empty()
+        }),
+    };
+    test_builder
+        .add_deploy_account_tx_with_events(deploy_account_tx, vec![constructor_event, proxy_event]);
+
+    // Before the fix, the OS run aborts here with "Expected relocatable".
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_validations(true, None);
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_deprecated_tx_info() {
