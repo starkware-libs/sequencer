@@ -71,12 +71,8 @@ use apollo_l1_gas_price::metrics::{
     EXCHANGE_RATE_ORACLE_RATE,
     EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
 };
-<<<<<<< HEAD
-use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
-||||||| 12cf3b7d4a
-=======
 use apollo_l1_gas_price_types::{CurrencyPair, LABEL_NAME_CURRENCY_PAIR};
->>>>>>> origin/main-v0.14.3
+use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;

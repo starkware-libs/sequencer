@@ -978,13 +978,7 @@ dependencies = [
 name = "apollo_cairo_utils"
 version = "0.0.0"
 dependencies = [
-<<<<<<< HEAD
-||||||| 12cf3b7d4a
- "blockifier",
-=======
- "blockifier",
  "rstest",
->>>>>>> origin/main-v0.14.3
  "starknet-types-core",
  "thiserror 1.0.69",
 ]

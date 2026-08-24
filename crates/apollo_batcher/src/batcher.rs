@@ -1867,18 +1867,12 @@ pub trait BatcherStorageReader: Send + Sync {
         height: BlockNumber,
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
 
-<<<<<<< HEAD
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
-
     fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>>;
-||||||| 12cf3b7d4a
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
-=======
+
     fn get_partial_block_hash_components(
         &self,
         height: BlockNumber,
     ) -> StorageResult<Option<PartialBlockHashComponents>>;
->>>>>>> origin/main-v0.14.3
 }
 
 impl BatcherStorageReader for StorageReader {

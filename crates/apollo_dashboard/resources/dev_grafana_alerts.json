@@ -2306,13 +2306,7 @@
       "name": "strk_to_usd_rate_frozen",
       "title": "Strk to Usd rate frozen",
       "ruleGroup": "evaluation_rate_default",
-<<<<<<< HEAD
-      "expr": "(sum(changes(snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-||||||| 12cf3b7d4a
-      "expr": "sum(changes(snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]))",
-=======
-      "expr": "sum(changes(exchange_rate_oracle_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}[1h]))",
->>>>>>> origin/main-v0.14.3
+      "expr": "(sum(changes(exchange_rate_oracle_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", currency_pair=\"strk_usd\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
