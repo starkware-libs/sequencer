@@ -58,8 +58,13 @@ use starknet_types_core::felt::Felt;
 use crate::errors::{RunnerError, VirtualSnosProverError};
 use crate::proving::virtual_snos_prover::VirtualSnosProver;
 use crate::running::runner::{RunnerOutput, VirtualSnosRunner};
-use crate::server::metrics::{names as metric_names, outcomes};
-use crate::server::test_recorder::{metric_value, shared_handle};
+use crate::server::metrics::outcomes;
+use crate::server::test_recorder::{
+    duration_count_line,
+    metric_value,
+    outcome_total_line,
+    shared_handle,
+};
 use crate::test_utils::{
     build_client_side_rpc_invoke,
     resolve_test_mode,
@@ -291,17 +296,6 @@ async fn test_non_fee_max_amount_fields_accepted_when_validation_enabled() {
     );
 }
 
-/// Prometheus sample line for the outcome counter at a given `outcome` label. Callers baseline
-/// it before a request and assert the delta after, because the recorder is process-global
-/// (see `test_recorder`).
-fn outcome_total_line(outcome: &str) -> String {
-    format!("{}{{outcome=\"{}\"}}", metric_names::PROVE_TRANSACTION_OUTCOME_TOTAL, outcome)
-}
-
-fn duration_count_line() -> String {
-    format!("{}_count", metric_names::PROVE_TRANSACTION_DURATION_SECONDS)
-}
-
 /// Integration test for the full prover pipeline with a STRK `transfer` transaction.
 /// Runs on a Sepolia environment; in live/recording mode requires a Sepolia RPC node via
 /// `NODE_URL`.
@@ -331,7 +325,7 @@ async fn test_prove_transfer_transaction() {
     // Baseline the outcome counter and duration histogram so we can assert this request's deltas.
     let handle = shared_handle();
     let success_line = outcome_total_line(outcomes::SUCCESS);
-    let count_line = duration_count_line();
+    let count_line = duration_count_line(outcomes::SUCCESS);
     let before_success = metric_value(&handle.render(), &success_line);
     let before_count = metric_value(&handle.render(), &count_line);
 
@@ -341,9 +335,8 @@ async fn test_prove_transfer_transaction() {
     // Verify execution and proving succeeded.
     let output = result.expect("prove_transaction should succeed");
 
-    // Other prove_transaction calls in this binary bump the shared duration count in parallel,
-    // so that delta is a lower bound; only this test can produce a `success` outcome, so that
-    // delta stays exact.
+    // The duration count delta is a lower bound. See `metric_value`'s doc. Only this test
+    // produces a `success` outcome, so that delta stays exact.
     let scrape = handle.render();
     assert_eq!(metric_value(&scrape, &success_line) - before_success, 1.0, "success outcome delta");
     let count_delta = metric_value(&scrape, &count_line) - before_count;
@@ -360,16 +353,16 @@ async fn test_prove_transfer_transaction() {
     test_mode.finalize();
 }
 
-/// The proving-outcome counter and duration histogram are recorded for every request, including
-/// failures. A pending block is rejected during input validation — before any runner or proving
-/// work — so this asserts the failure-path recording without a live node or the `stwo_proving`
-/// feature. Deleting either the outcome-counter or the duration-histogram emission fails this test.
+/// The prover records the outcome counter and the duration histogram for every request, failures
+/// included. Input validation rejects a pending block before any runner or proving work starts, so
+/// this test covers the failure path without a live node or the `stwo_proving` feature. Deleting
+/// either the outcome-counter or the duration-histogram emission fails this test.
 #[cfg(not(feature = "stwo_proving"))]
 #[tokio::test]
 async fn prove_transaction_records_validation_failure_outcome_and_duration() {
     let handle = shared_handle();
-    let outcome_line = outcome_total_line(outcomes::VALIDATION);
-    let count_line = duration_count_line();
+    let outcome_line = outcome_total_line(outcomes::FAILURE_VALIDATION);
+    let count_line = duration_count_line(outcomes::FAILURE_VALIDATION);
     let before_outcome = metric_value(&handle.render(), &outcome_line);
     let before_count = metric_value(&handle.render(), &count_line);
 
@@ -382,9 +375,7 @@ async fn prove_transaction_records_validation_failure_outcome_and_duration() {
         "pending block should fail validation, got: {result:?}"
     );
 
-    // Other tests also produce `failure_validation` in parallel, so these deltas are lower
-    // bounds. `>= 1` still guards the emissions: every increment goes through the single
-    // recording wrapper in `prove_transaction`, so deleting either drops the delta to 0.
+    // These deltas are lower bounds. See `metric_value`'s doc.
     let scrape = handle.render();
     let outcome_delta = metric_value(&scrape, &outcome_line) - before_outcome;
     let count_delta = metric_value(&scrape, &count_line) - before_count;
