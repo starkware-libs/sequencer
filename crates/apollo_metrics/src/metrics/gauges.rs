@@ -36,6 +36,13 @@ pub fn set_unix_now_seconds(gauge: &MetricGauge) {
     gauge.set_lossy(Clock::unix_now(&DefaultClock));
 }
 
+pub fn set_unix_now_seconds_with_labels(
+    gauge: &LabeledMetricGauge,
+    label: &[(&'static str, &'static str)],
+) {
+    gauge.set_lossy(Clock::unix_now(&DefaultClock), label);
+}
+
 impl MetricGauge {
     pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
         Self { metric: Metric::new(scope, name, description) }
@@ -146,6 +153,10 @@ impl LabeledMetricGauge {
     }
 
     pub fn set<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
+        gauge!(self.get_name(), label).set(value.into_f64());
+    }
+
+    pub fn set_lossy<T: LossyIntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
         gauge!(self.get_name(), label).set(value.into_f64());
     }
 

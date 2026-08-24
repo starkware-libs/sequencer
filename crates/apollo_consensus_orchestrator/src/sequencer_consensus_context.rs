@@ -97,6 +97,7 @@ use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
     FeeMarketInfo,
+    NextL2GasPrice,
 };
 use crate::metrics::{
     record_build_proposal_failure,
@@ -428,7 +429,11 @@ impl SequencerConsensusContext {
 
     /// Returns the next L2 gas price without mutating context. Used when building the fin and when
     /// updating at decision time.
-    fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+    fn calculate_next_l2_gas_price(
+        &self,
+        height: BlockNumber,
+        l2_gas_used: GasAmount,
+    ) -> NextL2GasPrice {
         let fee_actual = compute_fee_actual(
             &self.fee_proposals_window,
             height,
@@ -498,7 +503,11 @@ impl SequencerConsensusContext {
     }
 
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
-        self.l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
+        let next_l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
+        // Only this path runs once per decided block, so the clamp counter is reported here rather
+        // than inside the shared computation.
+        next_l2_gas_price.record_clamping();
+        self.l2_gas_price = next_l2_gas_price.published_price;
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
         let config_min = get_min_gas_price_for_height(
@@ -986,8 +995,9 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Lock on active proposals was poisoned due to a previous panic")
             .update_for_reproposal(&height, &proposal_commitment, &build_param);
 
-        let next_l2_gas_price =
-            self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
+        let next_l2_gas_price = self
+            .calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used)
+            .published_price;
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender = self.start_stream(HeightAndRound(height.0, round)).await;
 

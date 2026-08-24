@@ -72,7 +72,12 @@ use crate::cende::{
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
 use crate::dynamic_gas_price::proposal_commitment_from;
-use crate::metrics::{CONSENSUS_L2_GAS_PRICE, CONSENSUS_L2_GAS_PRICE_AT_MINIMUM};
+use crate::metrics::{
+    CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
+    CONSENSUS_L2_GAS_PRICE_CLAMPED,
+    LABEL_L2_GAS_PRICE_CLAMP_BOUND,
+};
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
@@ -87,6 +92,7 @@ use crate::test_utils::{
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     PARTIAL_BLOCK_HASH,
+    TEST_MAX_L2_GAS_PRICE,
     TIMEOUT,
     TX_BATCH,
 };
@@ -869,6 +875,45 @@ async fn decision_reached_sends_correct_values() {
     // The price landed at the configured minimum (empty `min_l2_gas_price_per_height` → the
     // versioned-constants fallback), so the "at minimum" gauge must report 1.
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.assert_eq(&metrics, 1);
+}
+
+// A proposer computes the next price twice for the same block, once for the fin and once at
+// decision time. The clamp counter must move once, so that it stays comparable with a validator's.
+#[tokio::test]
+async fn clamped_l2_gas_price_counts_once_per_committed_block() {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.register();
+
+    // A full block at the ceiling drives the EIP-1559 result above it.
+    deps.setup_deps_for_build(SetupDepsArgs {
+        l2_gas_used: Some(VersionedConstants::latest_constants().max_block_size),
+        ..Default::default()
+    });
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(move |_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_height| Ok(()));
+
+    let mut context = deps.build_context();
+    context.l2_gas_price = TEST_MAX_L2_GAS_PRICE;
+    // `fee_proposals_window` is empty, so the proposer's `fee_proposal_fri` is `l2_gas_price`.
+    let proposal_commitment =
+        proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(TEST_MAX_L2_GAS_PRICE));
+
+    let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
+    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment, false).await.unwrap();
+
+    assert_eq!(context.l2_gas_price, TEST_MAX_L2_GAS_PRICE);
+    CONSENSUS_L2_GAS_PRICE_CLAMPED.assert_eq(
+        &recorder.handle().render(),
+        1,
+        &[(LABEL_L2_GAS_PRICE_CLAMP_BOUND, "maximum")],
+    );
 }
 
 // The blob's `parent_proposal_commitment` must bind the parent block's `fee_proposal_fri`, which
