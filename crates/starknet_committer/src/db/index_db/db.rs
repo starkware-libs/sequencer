@@ -113,6 +113,10 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
 
+/// The db key prefix of the lowest height whose commitment infos are stored.
+static COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (Felt::from_bytes_be(&PATRICIA_PATHS_PREFIX) + Felt::ONE).to_bytes_be());
+
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
     phantom: PhantomData<H>,
@@ -300,10 +304,10 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
         // patricia nodes.
         DbKey(match metadata_type {
             ForestMetadataType::CommitmentOffset => {
-                let mut key = Vec::with_capacity(64);
-                key.extend_from_slice(&*COMMITMENT_OFFSET_METADATA_PREFIX);
-                key.extend_from_slice(&[0u8; 32]);
-                key
+                singleton_metadata_key(&COMMITMENT_OFFSET_METADATA_PREFIX)
+            }
+            ForestMetadataType::CommitmentInfosLowerBound => {
+                singleton_metadata_key(&COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX)
             }
             ForestMetadataType::StateDiffHash(block_number) => {
                 block_number_based_key(&STATE_DIFF_HASH_METADATA_PREFIX, block_number)
@@ -351,6 +355,13 @@ fn block_number_based_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> Vec
     key.extend_from_slice(prefix);
     key.extend_from_slice(&block_number.serialize());
     key.extend_from_slice(&[0u8; 24]);
+    key
+}
+
+fn singleton_metadata_key(prefix: &[u8; 32]) -> Vec<u8> {
+    let mut key = Vec::with_capacity(64);
+    key.extend_from_slice(prefix);
+    key.extend_from_slice(&[0u8; 32]);
     key
 }
 
@@ -415,17 +426,12 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
     }
 }
 
-#[async_trait]
-impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
-    async fn write_with_metadata_and_commitment_infos(
-        &mut self,
-        filled_forest: &FilledForest,
-        metadata: HashMap<ForestMetadataType, DbValue>,
-        deleted_nodes: DeletedNodes,
+impl<S: Storage> IndexDb<S> {
+    /// Appends the DB operations of a single commitment-infos update to `operations`.
+    fn append_commitment_infos_update(
+        operations: &mut DbOperationMap,
         commitment_infos_update: CommitmentInfosUpdate,
-    ) -> SerializationResult<usize> {
-        let mut operations = DbOperationMap::new();
-        Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
+    ) -> SerializationResult<()> {
         match commitment_infos_update {
             CommitmentInfosUpdate::Delete(block_number) => {
                 operations.insert(
@@ -462,6 +468,24 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
                     DbOperation::Set(encoded),
                 );
             }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
+    async fn write_with_metadata_and_commitment_infos(
+        &mut self,
+        filled_forest: &FilledForest,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: DeletedNodes,
+        commitment_infos_updates: Vec<CommitmentInfosUpdate>,
+    ) -> SerializationResult<usize> {
+        let mut operations = DbOperationMap::new();
+        Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
+        for commitment_infos_update in commitment_infos_updates {
+            Self::append_commitment_infos_update(&mut operations, commitment_infos_update)?;
         }
         Ok(self.write_updates(operations).await)
     }
