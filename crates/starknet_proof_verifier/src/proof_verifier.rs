@@ -15,8 +15,8 @@ pub enum VerifyProofError {
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
     #[error(
-        "Unsupported proof version: got {actual}, expected {v1}.",
-        v1 = ProofVersion::V1,
+        "Unsupported proof version: got {actual}, expected {v2}.",
+        v2 = ProofVersion::V2,
     )]
     InvalidProofVersion { actual: Felt },
     #[error("Proof facts too short: expected at least 3 elements, got {length}.")]
@@ -70,7 +70,7 @@ impl ProgramOutput {
     /// The bootloader output for a single task is:
     ///   `[num_tasks, output_size, program_hash, ...task_output...]`
     ///
-    /// We replace `num_tasks` with `[PROOF_VERSION_V1, program_variant]` and skip `output_size`,
+    /// We replace `num_tasks` with `[PROOF_VERSION_V2, program_variant]` and skip `output_size`,
     /// which is a bootloader-internal field not part of the proof facts.
     pub fn try_into_proof_facts(
         &self,
@@ -85,7 +85,7 @@ impl ProgramOutput {
             return Err(ProgramOutputError::TooShort(self.0.len()));
         }
         // Add the proof version and variant markers in place of num_tasks.
-        let mut facts = vec![ProofVersion::V1.as_felt()];
+        let mut facts = vec![ProofVersion::V2.as_felt()];
         facts.push(program_variant);
         // Skip num_tasks (index 0) and output_size (index 1); add the task output
         // (program_hash followed by the virtual OS output).
@@ -122,7 +122,7 @@ pub fn reconstruct_output_preimage(
 
 /// Verifies a submitted proof against the proof facts using the circuit verifier.
 ///
-/// The first element of `proof_facts` must be V1, verified via `privacy-circuit-verify-v1`.
+/// The first element of `proof_facts` must be V2, verified via `privacy-circuit-verify-v2`.
 pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
     // Reject empty proof payloads before running the verifier.
     if proof.is_empty() {
@@ -138,20 +138,18 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
     let proof_bytes = proof.0.to_vec();
 
     match proof_version {
-        // TODO(Einat): Once privacy-circuit-verify exposes the V2 circuit, move V2 to its own arm
-        // that dispatches to it, and reject V1 here instead.
-        // V0 proofs are no longer verifiable: the v0 circuit was removed. V0 proof facts are only
-        // tolerated by the blockifier (gated per protocol version) for replaying historical blocks.
-        // V2 is defined but not verifiable yet: the v2 circuit is not wired up.
-        ProofVersion::V0 | ProofVersion::V2 => {
+        // V0 and V1 proofs are no longer verifiable: their circuits were removed. Those proof facts
+        // are only tolerated by the blockifier (gated per protocol version) for replaying
+        // historical blocks.
+        ProofVersion::V0 | ProofVersion::V1 => {
             return Err(VerifyProofError::InvalidProofVersion { actual: proof_version_felt });
         }
-        ProofVersion::V1 => {
-            let proof_output = privacy_circuit_verify_v1::PrivacyProofOutput {
+        ProofVersion::V2 => {
+            let proof_output = privacy_circuit_verify_v2::PrivacyProofOutput {
                 proof: proof_bytes,
                 output_preimage,
             };
-            privacy_circuit_verify_v1::verify_recursive_circuit(&proof_output)
+            privacy_circuit_verify_v2::verify_recursive_circuit(&proof_output)
                 .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
         }
     }

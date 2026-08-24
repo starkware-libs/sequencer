@@ -645,11 +645,9 @@ pub const PROOF_VERSION_V2: Felt = Felt::from_hex_unchecked("0x50524f4f4632");
 
 /// Supported proof-facts version markers.
 ///
-/// TODO(Einat): Once the OS asserts V2 and the V2 circuit is wired up, update this to state that V1
-/// is replay-only too and that V2 is the only verifiable version.
-/// V0 is retained only so that historical blocks carrying V0 proof facts can be replayed (e.g. via
-/// reexecution). Whether a version is accepted is gated per protocol version in the blockifier.
-/// V2 is defined ahead of the verifier and OS switch, and is not verifiable yet.
+/// V0 and V1 are retained only so that historical blocks carrying those proof facts can be replayed
+/// (e.g. via reexecution). Whether each version is accepted is gated per protocol version in the
+/// blockifier; the proof verifier only supports the current version, V2.
 #[cfg_attr(any(test, feature = "testing"), derive(EnumIter))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProofVersion {
