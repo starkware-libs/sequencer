@@ -5,6 +5,7 @@
 //! enumerations in [`names`] — no user-controlled values become labels.
 
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use anyhow::Context as _;
 use bytes::Bytes;
@@ -19,8 +20,13 @@ use tower::{Layer, Service};
 #[path = "metrics_test.rs"]
 mod metrics_test;
 
-/// Path served by [`MetricsLayer`].
 pub const METRICS_PATH: &str = "/metrics";
+
+/// How often [`spawn_upkeep`] drains the recorder's histogram samples. The
+/// exporter only reclaims them during upkeep or while rendering a scrape, so
+/// without this a deployment that is never scraped accumulates them for the
+/// lifetime of the process.
+const UPKEEP_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Metric name constants. Kept here so `metrics!` invocations elsewhere link
 /// to a single definition instead of bare string literals.
@@ -48,7 +54,18 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     Ok(handle)
 }
 
-/// tower [`Layer`] that intercepts `GET /metrics`.
+/// Spawns the recorder's upkeep loop. Kept separate from [`install_exporter`] so
+/// tests can install a recorder without a tokio runtime.
+pub fn spawn_upkeep(handle: PrometheusHandle) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(UPKEEP_INTERVAL);
+        loop {
+            ticker.tick().await;
+            handle.run_upkeep();
+        }
+    })
+}
+
 #[derive(Clone)]
 pub struct MetricsLayer {
     handle: PrometheusHandle,

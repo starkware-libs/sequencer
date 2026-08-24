@@ -22,26 +22,19 @@ use tokio_rustls::rustls::ServerConfig as RustlsServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
-use tower_http::cors::CorsLayer;
 use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{
-    HealthLayer,
-    MetricsLayer,
-    OhttpJsonrpseeLayer,
-    RequestLogLayer,
-    RequestSpanLayer,
-};
+use crate::server::{HealthLayer, RequestLogLayer, RequestSpanLayer, ServerLayers};
 
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Binds an HTTPS JSON-RPC server using the given TLS certificate and key.
+/// Binds an HTTPS JSON-RPC server using the given TLS certificate and key, wrapped in the
+/// middleware described by `layers`.
 ///
 /// Returns the bound local address and a handle that can be used to await or stop the server.
-#[allow(clippy::too_many_arguments)]
 pub async fn start_tls_server(
     addr: SocketAddr,
     cert_path: &Path,
@@ -49,10 +42,9 @@ pub async fn start_tls_server(
     methods: impl Into<Methods>,
     max_connections: u32,
     max_request_body_size: u32,
-    cors_layer: Option<CorsLayer>,
-    ohttp_layer: Option<OhttpJsonrpseeLayer>,
-    metrics_layer: Option<MetricsLayer>,
+    layers: ServerLayers,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
+    let ServerLayers { cors_layer, ohttp_layer, metrics_layer } = layers;
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
     let server_config = ServerConfig::builder()
