@@ -861,10 +861,13 @@ pub fn read_felt_array<TErr>(vm: &VirtualMachine, ptr: &mut Relocatable) -> Resu
 where
     TErr: From<StarknetApiError> + From<VirtualMachineError> + From<MemoryError> + From<MathError>,
 {
-    // Read both endpoints once and reuse them below, instead of re-reading the same memory cells
-    // via `get_relocatable`.
+    // Read each endpoint once and reuse the value on every path below, instead of reading the
+    // same memory cell again to convert it to a `Relocatable`.
     let array_data_start = vm.get_maybe(&*ptr);
-    let array_data_end = vm.get_maybe(&(*ptr + 1_usize)?);
+    let array_data_end = match array_data_start {
+        Some(_) => vm.get_maybe(&(*ptr + 1_usize)?),
+        None => None,
+    };
 
     // If the start and end pointers are the same, the array is empty.
     // This check is necessary to handle the case where both pointers are zero, and thus are not
@@ -887,9 +890,9 @@ where
 /// matching the error semantics of [`VirtualMachine::get_relocatable`] without re-reading memory.
 fn relocatable_from_memory_value(
     address: Relocatable,
-    value: Option<MaybeRelocatable>,
+    memory_value: Option<MaybeRelocatable>,
 ) -> Result<Relocatable, MemoryError> {
-    match value {
+    match memory_value {
         Some(MaybeRelocatable::RelocatableValue(relocatable)) => Ok(relocatable),
         Some(MaybeRelocatable::Int(_)) => Err(MemoryError::ExpectedRelocatable(Box::new(address))),
         None => Err(MemoryError::UnknownMemoryCell(Box::new(address))),
