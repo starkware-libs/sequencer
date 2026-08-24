@@ -344,6 +344,13 @@ pub struct BatcherDynamicConfig {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub proposer_idle_detection_delay_millis: Duration,
+    /// Maximal wall time (in milliseconds) a view entry point call may hold the batcher's request
+    /// slot, which block production shares.
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
+    pub view_call_timeout_millis: Duration,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -356,6 +363,7 @@ impl Default for BatcherDynamicConfig {
             validate_tx_polling_interval_millis: 10,
             results_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
+            view_call_timeout_millis: Duration::from_secs(5),
         }
     }
 }
@@ -402,6 +410,13 @@ impl SerializeConfig for BatcherDynamicConfig {
                 "Minimum time (in milliseconds) that must pass since block creation started \
                  before checking for idle state. If this delay has passed AND no transactions are \
                  currently being executed, the proposer will finish building the current block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "view_call_timeout_millis",
+                &self.view_call_timeout_millis.as_millis(),
+                "Maximal wall time (in milliseconds) a view entry point call may hold the \
+                 batcher's request slot, which block production shares.",
                 ParamPrivacyInput::Public,
             ),
         ]);

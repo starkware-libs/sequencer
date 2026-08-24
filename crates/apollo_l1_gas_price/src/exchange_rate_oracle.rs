@@ -6,9 +6,11 @@ use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
-use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
-use apollo_l1_gas_price_types::ExchangeRateOracleClientTrait;
-use apollo_metrics::metrics::set_unix_now_seconds;
+use apollo_l1_gas_price_types::errors::{
+    ExchangeRateOracleClientError,
+    ExchangeRateOracleErrorType,
+};
+use apollo_l1_gas_price_types::{ExchangeRate, ExchangeRateOracleClientTrait};
 use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
@@ -24,7 +26,7 @@ use crate::metrics::ExchangeRateOracleMetrics;
 #[path = "exchange_rate_oracle_test.rs"]
 pub mod exchange_rate_oracle_test;
 
-pub const EXCHANGE_RATE_DECIMALS: u64 = 18;
+pub use apollo_l1_gas_price_types::EXCHANGE_RATE_DECIMALS;
 
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -46,7 +48,7 @@ pub struct UrlAndHeaderMap {
     pub headers: Sensitive<HeaderMap>,
 }
 
-type PriceQuery = AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>>;
+type PriceQuery = AbortOnDropHandle<Result<ExchangeRate, ExchangeRateOracleClientError>>;
 
 /// Client for interacting with an exchange-rate oracle API.
 /// Concrete pair (ETH→STRK, STRK→USD, ...) is determined by `config.url_header_list`
@@ -59,7 +61,7 @@ pub struct ExchangeRateOracleClient {
     index: Arc<AtomicUsize>,
     url_header_list: Arc<Vec<UrlAndHeaderMap>>,
     client: reqwest::Client,
-    cached_prices: Arc<Mutex<LruCache<u64, u128>>>,
+    cached_prices: Arc<Mutex<LruCache<u64, ExchangeRate>>>,
     queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
     metrics: ExchangeRateOracleMetrics,
 }
@@ -99,7 +101,7 @@ impl ExchangeRateOracleClient {
     fn spawn_query(
         &self,
         quantized_timestamp: u64,
-    ) -> AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>> {
+    ) -> AbortOnDropHandle<Result<ExchangeRate, ExchangeRateOracleClientError>> {
         assert!(
             self.config.lag_interval_seconds > 0,
             "lag_interval_seconds should be greater than 0"
@@ -146,12 +148,15 @@ impl ExchangeRateOracleClient {
                     }
                     Ok(Err(e)) => {
                         warn!("Failed to resolve query to {url}: {e:?}");
+                        metrics.record_error((&e).into());
                     }
                     Err(_) => {
                         warn!("Timeout when resolving query to {url}");
+                        // The enum has no timeout variant: a request that ran out of time is
+                        // counted as a failed request.
+                        metrics.record_error(ExchangeRateOracleErrorType::RequestError);
                     }
                 };
-                metrics.error_count.increment(1);
             }
             warn!("All {list_len} URLs in the list failed for timestamp {adjusted_timestamp}");
             Err(ExchangeRateOracleClientError::AllUrlsFailedError(
@@ -166,7 +171,7 @@ impl ExchangeRateOracleClient {
 fn resolve_query(
     body: String,
     metrics: &ExchangeRateOracleMetrics,
-) -> Result<u128, ExchangeRateOracleClientError> {
+) -> Result<ExchangeRate, ExchangeRateOracleClientError> {
     let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
         return Err(ExchangeRateOracleClientError::ParseError(format!(
             "Failed to parse JSON: {body}"
@@ -190,8 +195,11 @@ fn resolve_query(
             "rate must be non-zero".to_string(),
         ));
     }
-    // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
-    let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
+    let decimals = match json
+        .get("decimals")
+        .and_then(|value| value.as_u64())
+        .and_then(|value| u32::try_from(value).ok())
+    {
         Some(decimals) => decimals,
         None => {
             return Err(ExchangeRateOracleClientError::MissingFieldError(
@@ -206,9 +214,7 @@ fn resolve_query(
             decimals,
         ));
     }
-    metrics.success_count.increment(1);
-    set_unix_now_seconds(metrics.last_success_timestamp);
-    metrics.rate.set_lossy(rate);
+    metrics.record_success(rate);
     Ok(rate)
 }
 
@@ -216,9 +222,12 @@ fn resolve_query(
 impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
-    /// - `decimals`: a `u64` value, must be equal to `EXCHANGE_RATE_DECIMALS`.
+    /// - `decimals`: a number equal to `EXCHANGE_RATE_DECIMALS`.
     #[instrument(skip(self))]
-    async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
+    async fn fetch_rate(
+        &self,
+        timestamp: u64,
+    ) -> Result<ExchangeRate, ExchangeRateOracleClientError> {
         const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
         let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
             .checked_div(self.config.lag_interval_seconds)
@@ -262,7 +271,7 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
             }
             Err(e) => {
                 warn!("Query failed to join handle for timestamp {timestamp}: {e:?}");
-                self.metrics.error_count.increment(1);
+                self.metrics.record_error(ExchangeRateOracleErrorType::JoinError);
                 // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
                 return Err(ExchangeRateOracleClientError::JoinError(e.to_string()));

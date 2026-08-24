@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -44,7 +45,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
-use apollo_state_reader::apollo_state::ApolloReader;
+use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::accessed_keys::{
     AccessedKeys,
@@ -57,7 +58,6 @@ use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
     GlobalRootMarkerStorageWriter,
 };
-use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
@@ -89,6 +89,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -96,6 +97,7 @@ use blockifier::context::BlockContext;
 use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::StateReader;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
@@ -103,7 +105,6 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{
     BlockHash,
-    BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
     GasPrice,
@@ -113,6 +114,7 @@ use starknet_api::block::{
     ReplayBlockMetadata,
 };
 use starknet_api::block_hash::block_hash_calculator::{
+    extract_l1_da_mode_from_concatenated_counts,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
@@ -121,7 +123,7 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 use validator::Validate;
@@ -146,6 +148,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     BATCHER_L1_EVENTS_PROVIDER_ERRORS,
+    BATCHER_VIEW_CALL_CLASS_CACHE_METRICS,
     BUILDING_HEIGHT,
     GLOBAL_ROOT_HEIGHT,
     L2_GAS_IN_LAST_BLOCK,
@@ -155,6 +158,7 @@ use crate::metrics::{
     NUM_TRANSACTION_IN_BLOCK,
     PROVING_GAS_IN_LAST_BLOCK,
     REJECTED_TRANSACTIONS,
+    REJECTED_VIEW_CALLS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SIERRA_GAS_IN_LAST_BLOCK,
@@ -182,12 +186,38 @@ use crate::utils::{
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
+/// Maximal number of felts a view entry point call may return, about 3.2 MB at 32 bytes per felt.
+/// Far above the largest legitimate reader (the staking contract's staker list, a few felts per
+/// staker), and small enough to stay cheap to serialize over the batcher's remote server boundary.
+///
+/// Bounds the top-level return value only.
+pub(crate) const MAX_VIEW_CALL_RETDATA_LENGTH: usize = 100_000;
+
+/// Maximal number of view calls that may occupy tokio blocking threads at once.
+///
+/// The node runs on a bare `#[tokio::main]` runtime, so the blocking pool holds tokio's default of
+/// 512 threads, and `spawn_blocking` beyond that queues instead of failing. Block production shares
+/// that pool (block_builder execution and block hash computation), as do the gateway's stateful
+/// validator and the transaction converter, so view calls, a non-critical read path, get a small
+/// slice of it: 32 slots is under 7% of the pool, leaving block production unaffected even when
+/// every view call slot is stuck. A view call that a caller abandoned keeps its thread parked until
+/// execution ends, so this is also the cap on how many such threads can pile up.
+pub(crate) const MAX_CONCURRENT_VIEW_CALLS: usize = 32;
+
+/// Reason returned when all view call slots are taken. Names no internal component, since it
+/// reaches external callers.
+pub(crate) const TOO_MANY_VIEW_CALLS_REASON: &str =
+    "Too many concurrent contract calls. Try again later.";
+
 #[cfg_attr(test, apollo_proc_macros::upgrade_fields_visibility(pub(crate)))]
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
     /// Factory for creating state readers used to execute view calls (e.g. call_contract).
     view_state_reader_factory: Box<dyn ViewStateReaderFactory>,
+    /// Caps how many view calls may occupy tokio blocking threads at once. A permit is held by the
+    /// blocking task itself, so it is returned only when the execution really ends.
+    view_call_semaphore: Arc<Semaphore>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
@@ -264,6 +294,7 @@ impl Batcher {
             config,
             storage_reader,
             view_state_reader_factory,
+            view_call_semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_VIEW_CALLS)),
             storage_writer,
             committer_client,
             l1_events_provider_client,
@@ -685,38 +716,61 @@ impl Batcher {
         })
     }
 
-    // Returns the block info for the given committed block number.
-    fn get_block_info(&self, block_number: BlockNumber) -> BatcherResult<BlockInfo> {
-        let header = self.storage_reader.get_block_header(block_number).map_err(|err| {
-            warn!("Failed to get block header for committed block {block_number}: {err}");
-            BatcherError::InternalError
-        })?;
-
-        let convert_price = |price: GasPrice| -> BatcherResult<NonzeroGasPrice> {
-            price.try_into().map_err(|e| {
-                warn!("Failed to convert price: {e}");
+    /// Returns the block info of the given committed block. Sourced from its block hash components
+    /// rather than its header, because nothing writes headers to the batcher's storage.
+    pub(crate) fn get_block_info(&self, block_number: BlockNumber) -> BatcherResult<BlockInfo> {
+        let block_hash_components = self
+            .storage_reader
+            .get_partial_block_hash_components(block_number)
+            .map_err(|err| {
+                warn!(
+                    "Failed to get the block hash components of committed block {block_number}: \
+                     {err}"
+                );
                 BatcherError::InternalError
-            })
+            })?
+            .ok_or_else(|| {
+                // Only a block committed before block hash components existed lacks them.
+                warn!("Committed block {block_number} has no block hash components stored.");
+                BatcherError::ContractCallFailed {
+                    reason: format!(
+                        "No block info stored for committed block {block_number}, so no block \
+                         context can be built for it."
+                    ),
+                }
+            })?;
+
+        // A price of zero is floored rather than rejected: it would fail a view call, which charges
+        // no fee, over a price it never spends.
+        let convert_price = |price: GasPrice| -> NonzeroGasPrice {
+            NonzeroGasPrice::new(price).unwrap_or(NonzeroGasPrice::MIN)
         };
 
         Ok(BlockInfo {
-            block_number: header.block_number,
-            block_timestamp: header.timestamp,
-            sequencer_address: header.sequencer.0,
+            block_number: block_hash_components.block_number,
+            block_timestamp: block_hash_components.timestamp,
+            sequencer_address: block_hash_components.sequencer.0,
             gas_prices: GasPrices {
                 eth_gas_prices: GasPriceVector {
-                    l1_gas_price: convert_price(header.l1_gas_price.price_in_wei)?,
-                    l1_data_gas_price: convert_price(header.l1_data_gas_price.price_in_wei)?,
-                    l2_gas_price: convert_price(header.l2_gas_price.price_in_wei)?,
+                    l1_gas_price: convert_price(block_hash_components.l1_gas_price.price_in_wei),
+                    l1_data_gas_price: convert_price(
+                        block_hash_components.l1_data_gas_price.price_in_wei,
+                    ),
+                    l2_gas_price: convert_price(block_hash_components.l2_gas_price.price_in_wei),
                 },
                 strk_gas_prices: GasPriceVector {
-                    l1_gas_price: convert_price(header.l1_gas_price.price_in_fri)?,
-                    l1_data_gas_price: convert_price(header.l1_data_gas_price.price_in_fri)?,
-                    l2_gas_price: convert_price(header.l2_gas_price.price_in_fri)?,
+                    l1_gas_price: convert_price(block_hash_components.l1_gas_price.price_in_fri),
+                    l1_data_gas_price: convert_price(
+                        block_hash_components.l1_data_gas_price.price_in_fri,
+                    ),
+                    l2_gas_price: convert_price(block_hash_components.l2_gas_price.price_in_fri),
                 },
             },
-            use_kzg_da: header.l1_da_mode.is_use_kzg_da(),
-            starknet_version: header.starknet_version,
+            use_kzg_da: extract_l1_da_mode_from_concatenated_counts(
+                &block_hash_components.header_commitments.concatenated_counts,
+            )
+            .is_use_kzg_da(),
+            starknet_version: block_hash_components.starknet_version,
         })
     }
 
@@ -753,6 +807,18 @@ impl Batcher {
         &self,
         input: CallContractInput,
     ) -> BatcherResult<CallContractOutput> {
+        // Acquired before any storage access or state reader setup, so a call rejected under load
+        // costs nothing beyond the semaphore check.
+        let view_call_permit =
+            self.view_call_semaphore.clone().try_acquire_owned().map_err(|_| {
+                REJECTED_VIEW_CALLS.increment(1);
+                warn!(
+                    "Rejecting view call, all {MAX_CONCURRENT_VIEW_CALLS} view call slots are \
+                     taken."
+                );
+                BatcherError::ContractCallFailed { reason: TOO_MANY_VIEW_CALLS_REASON.to_string() }
+            })?;
+
         let height = self.get_height_from_storage()?;
 
         // Get the block info for the latest committed block.
@@ -761,7 +827,12 @@ impl Batcher {
             Some(last_committed_block) => self.get_block_info(last_committed_block)?,
         };
 
-        let state_reader = self.view_state_reader_factory.create(height);
+        let state_reader = self.view_state_reader_factory.create(
+            height,
+            self.config.dynamic_config.native_classes_whitelist.clone(),
+            tokio::runtime::Handle::current(),
+            self.config.dynamic_config.view_call_timeout_millis,
+        );
         let block_context = BlockContext::new(
             block_info,
             self.config.static_config.block_builder_config.chain_info.clone(),
@@ -769,7 +840,11 @@ impl Batcher {
             BouncerConfig::max(),
         );
 
-        let retdata = tokio::task::spawn_blocking(move || {
+        let call_task = tokio::task::spawn_blocking(move || {
+            // Owned by the blocking task, so the slot is freed only when the execution ends. A
+            // caller that stops waiting (the view call timeout, a dropped connection) must not
+            // free a slot that a still-parked thread occupies.
+            let _view_call_permit = view_call_permit;
             call_view_entry_point(
                 state_reader,
                 Arc::new(block_context),
@@ -778,13 +853,32 @@ impl Batcher {
                 Calldata::from(input.calldata),
             )
             .map(|call_info| call_info.execution.retdata.0)
-        })
-        .await
-        .map_err(|err| {
-            error!("Failed to spawn blocking task for call_contract: {err}");
-            BatcherError::InternalError
-        })?
-        .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
+        });
+
+        // Timing out releases the batcher's request slot but does not cancel the blocking task,
+        // which runs to completion on its own thread. The class manager request the task blocks
+        // on is itself bounded by this same timeout (passed into the state reader above), so a
+        // stalled class manager cannot pin that thread past this window and starve the blocking
+        // thread pool block production also depends on.
+        let view_call_timeout = self.config.dynamic_config.view_call_timeout_millis;
+        let retdata = tokio::time::timeout(view_call_timeout, call_task)
+            .await
+            .map_err(|_| {
+                error!("View call timed out after {view_call_timeout:?}.");
+                BatcherError::ContractCallFailed {
+                    reason: format!(
+                        "Call timed out after {} seconds.",
+                        view_call_timeout.as_secs()
+                    ),
+                }
+            })?
+            .map_err(|err| {
+                error!("Failed to spawn blocking task for call_contract: {err}");
+                BatcherError::InternalError
+            })?
+            .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
+
+        validate_retdata_length(retdata.len())?;
 
         Ok(CallContractOutput { retdata })
     }
@@ -1583,6 +1677,19 @@ impl Batcher {
     }
 }
 
+/// Rejects a view call whose return value is too large to hand back to the caller.
+pub(crate) fn validate_retdata_length(retdata_length: usize) -> BatcherResult<()> {
+    if retdata_length > MAX_VIEW_CALL_RETDATA_LENGTH {
+        return Err(BatcherError::ContractCallFailed {
+            reason: format!(
+                "Returned {retdata_length} felts, exceeding the limit of \
+                 {MAX_VIEW_CALL_RETDATA_LENGTH}."
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// Logs the result of the transactions execution in the proposal.
 fn log_txs_execution_result(
     proposal_id: ProposalId,
@@ -1683,18 +1790,22 @@ pub async fn create_batcher(
         config: config.static_config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
+    // Block production and view calls share one class cache.
+    let contract_class_manager =
+        ContractClassManager::start(config.static_config.contract_class_manager_config.clone());
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.static_config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
-        contract_class_manager: ContractClassManager::start(
-            config.static_config.contract_class_manager_config.clone(),
-        ),
-        class_manager_client,
+        contract_class_manager: contract_class_manager.clone(),
+        class_manager_client: class_manager_client.clone(),
         proof_manager_client,
         worker_pool,
     });
-    let view_state_reader_factory =
-        Box::new(StorageViewStateReaderFactory { storage_reader: storage_reader.clone() });
+    let view_state_reader_factory = Box::new(StorageViewStateReaderFactory {
+        storage_reader: storage_reader.clone(),
+        contract_class_manager,
+        class_manager_client,
+    });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
 
@@ -1756,9 +1867,18 @@ pub trait BatcherStorageReader: Send + Sync {
         height: BlockNumber,
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
 
+<<<<<<< HEAD
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
 
     fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>>;
+||||||| 12cf3b7d4a
+    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
+=======
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>>;
+>>>>>>> origin/main-v0.14.3
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1868,14 +1988,11 @@ impl BatcherStorageReader for StorageReader {
         Ok((parent_hash, partial_block_hash_components))
     }
 
-    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash> {
-        self.begin_ro_txn()?
-            .get_block_header(block_number)?
-            .map(|header| header.block_header_without_hash)
-            .ok_or_else(|| StorageError::NotFound {
-                resource_type: "block header".to_string(),
-                resource_id: block_number.to_string(),
-            })
+    fn get_partial_block_hash_components(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<PartialBlockHashComponents>> {
+        self.begin_ro_txn()?.get_partial_block_hash_components(&height)
     }
 
     fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>> {
@@ -1985,16 +2102,59 @@ impl BatcherStorageWriter for StorageWriter {
 /// real storage infrastructure.
 #[cfg_attr(test, automock)]
 pub trait ViewStateReaderFactory: Send + Sync {
-    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send>;
+    /// `native_classes_whitelist` gates which classes may execute under Cairo native, and must be
+    /// the one block production runs with, so a view call returns what a block would compute.
+    /// The reader blocks on the class manager through `runtime`, from the blocking task the view
+    /// call runs in; `class_manager_request_timeout` bounds the reader's total time waiting on
+    /// the class manager (not each individual request), so a stalled class manager cannot pin the
+    /// blocking task's thread past the view call's own timeout.
+    fn create(
+        &self,
+        block_number: BlockNumber,
+        native_classes_whitelist: NativeClassesWhitelist,
+        runtime: tokio::runtime::Handle,
+        class_manager_request_timeout: Duration,
+    ) -> Box<dyn StateReader + Send>;
 }
 
 pub(crate) struct StorageViewStateReaderFactory {
     pub(crate) storage_reader: StorageReader,
+    pub(crate) contract_class_manager: ContractClassManager,
+    pub(crate) class_manager_client: SharedClassManagerClient,
 }
 
 impl ViewStateReaderFactory for StorageViewStateReaderFactory {
-    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send> {
-        Box::new(ApolloReader::new(self.storage_reader.clone(), block_number))
+    fn create(
+        &self,
+        block_number: BlockNumber,
+        native_classes_whitelist: NativeClassesWhitelist,
+        runtime: tokio::runtime::Handle,
+        class_manager_request_timeout: Duration,
+    ) -> Box<dyn StateReader + Send> {
+        // The batcher's storage records class declarations but never writes the definitions, so a
+        // class is only readable through the class manager.
+        // The deadline is computed once here rather than passing the duration into `ClassReader`,
+        // so a class hash that takes several class manager requests (Casm and Sierra) is still
+        // bounded by a single `class_manager_request_timeout`, not a multiple of it.
+        let class_reader = Some(ClassReader {
+            reader: self.class_manager_client.clone(),
+            runtime,
+            deadline: Some(Instant::now() + class_manager_request_timeout),
+        });
+        let apollo_reader = ApolloReader::new_with_class_reader(
+            self.storage_reader.clone(),
+            block_number,
+            class_reader,
+        );
+        // The class cache is shared with block production, so a view call fetches and compiles only
+        // the classes neither has seen yet. Its hits and misses are counted apart from block
+        // production's, which view calls would otherwise dominate.
+        Box::new(StateReaderAndContractManager::new_with_native_classes_whitelist(
+            apollo_reader,
+            self.contract_class_manager.clone(),
+            native_classes_whitelist,
+            Some(BATCHER_VIEW_CALL_CLASS_CACHE_METRICS),
+        ))
     }
 }
 

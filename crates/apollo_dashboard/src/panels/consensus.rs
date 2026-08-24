@@ -53,22 +53,30 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
     CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_L2_GAS_PRICE_CLAMPED,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
+    LABEL_L2_GAS_PRICE_CLAMP_BOUND,
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
     SNIP35_FEE_ACTUAL_FRI,
     SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
     SNIP35_FEE_TARGET_ATTO_USD,
     SNIP35_FEE_TARGET_FRI,
 };
 use apollo_l1_gas_price::metrics::{
-    SNIP35_STRK_USD_ERROR_COUNT,
-    SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS,
-    SNIP35_STRK_USD_RATE,
-    SNIP35_STRK_USD_SUCCESS_COUNT,
+    EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+    EXCHANGE_RATE_ORACLE_LAST_SUCCESS_TIMESTAMP_SECONDS,
+    EXCHANGE_RATE_ORACLE_RATE,
+    EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
 };
+<<<<<<< HEAD
 use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
+||||||| 12cf3b7d4a
+=======
+use apollo_l1_gas_price_types::{CurrencyPair, LABEL_NAME_CURRENCY_PAIR};
+>>>>>>> origin/main-v0.14.3
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
@@ -79,8 +87,11 @@ use crate::dashboard::Row;
 use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{
     increase,
-    seconds_since_last_timestamp,
+    increase_with_label,
+    seconds_since_last_timestamp_with_label,
     sum_by_label,
+    sum_increase_with_label,
+    with_label,
     DisplayMethod,
     DEFAULT_DURATION,
     RANGE_DURATION,
@@ -325,6 +336,25 @@ fn get_panel_consensus_l2_gas_price() -> Panel {
         format!("{} / 1e9", CONSENSUS_L2_GAS_PRICE.get_name_with_filter()),
         PanelType::TimeSeries,
     )
+}
+
+fn get_panel_consensus_l2_gas_price_clamped() -> Panel {
+    Panel::new(
+        "L2 Gas Price Clamped By Bound",
+        format!(
+            "The number of blocks whose computed L2 gas price was pulled to a bound \
+             ({DEFAULT_DURATION} window). The minimum series ticks throughout an ordinary ramp \
+             towards the SNIP-35 floor; the maximum series is the one that signals trouble"
+        ),
+        sum_by_label(
+            &CONSENSUS_L2_GAS_PRICE_CLAMPED,
+            LABEL_L2_GAS_PRICE_CLAMP_BOUND,
+            DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"maximum gas price\" OR \"below minimum gas price\"")
 }
 
 fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
@@ -721,6 +751,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_proof_manager_store_latency(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
+            get_panel_consensus_l2_gas_price_clamped(),
         ],
     )
 }
@@ -781,6 +812,19 @@ fn get_panel_snip35_fee_target() -> Panel {
     )
 }
 
+fn get_panel_snip35_fee_target_above_maximum() -> Panel {
+    Panel::new(
+        "Fee Target Above Maximum",
+        format!(
+            "The number of blocks whose oracle-derived fee_target exceeded the L2 gas price \
+             maximum ({DEFAULT_DURATION} window)"
+        ),
+        increase(&SNIP35_FEE_TARGET_ABOVE_MAXIMUM, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"exceeds the L2 gas price maximum\"")
+}
+
 fn get_panel_snip35_fee_target_atto_usd() -> Panel {
     Panel::new(
         "Fee Target (USD per 1B L2 gas)",
@@ -795,16 +839,32 @@ fn get_panel_snip35_strk_usd_rate() -> Panel {
     Panel::new(
         "STRK/USD Rate (USD)",
         "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
-        format!("{} / 1e18", SNIP35_STRK_USD_RATE.get_name_with_filter()),
+        format!(
+            "{} / 1e18",
+            with_label(
+                &EXCHANGE_RATE_ORACLE_RATE,
+                LABEL_NAME_CURRENCY_PAIR,
+                CurrencyPair::StrkUsd.into()
+            )
+        ),
         PanelType::TimeSeries,
     )
 }
 
 fn get_panel_snip35_strk_usd_error_count() -> Panel {
     Panel::new(
-        "STRK/USD Rate Query Error Count",
-        format!("The number of times the STRK→USD rate query failed ({DEFAULT_DURATION} window)"),
-        increase(&SNIP35_STRK_USD_ERROR_COUNT, DEFAULT_DURATION),
+        "STRK/USD Rate Query Error Count by Error Type",
+        format!(
+            "The number of times the STRK→USD rate query failed, split by error type \
+             ({DEFAULT_DURATION} window)"
+        ),
+        increase_with_label(
+            &EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+            LABEL_NAME_CURRENCY_PAIR,
+            CurrencyPair::StrkUsd.into(),
+            DEFAULT_DURATION,
+            true,
+        ),
         PanelType::TimeSeries,
     )
     .with_log_query(
@@ -813,11 +873,35 @@ fn get_panel_snip35_strk_usd_error_count() -> Panel {
     )
 }
 
+fn get_panel_snip35_strk_usd_total_error_count() -> Panel {
+    Panel::new(
+        "STRK/USD Rate Query Total Error Count",
+        format!(
+            "The number of times the STRK→USD rate query failed, summed over error types \
+             ({DEFAULT_DURATION} window). The error count alert thresholds this sum."
+        ),
+        sum_increase_with_label(
+            &EXCHANGE_RATE_ORACLE_ERROR_COUNT,
+            LABEL_NAME_CURRENCY_PAIR,
+            CurrencyPair::StrkUsd.into(),
+            DEFAULT_DURATION,
+        ),
+        PanelType::TimeSeries,
+    )
+}
+
 fn get_panel_snip35_strk_usd_success_count() -> Panel {
     Panel::new(
         "STRK/USD Rate Query Success (Binary)",
         "Indicates whether the STRK→USD rate query succeeded (1m window)",
-        format!("changes({}[1m])", SNIP35_STRK_USD_SUCCESS_COUNT.get_name_with_filter()),
+        format!(
+            "changes({}[1m])",
+            with_label(
+                &EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
+                LABEL_NAME_CURRENCY_PAIR,
+                CurrencyPair::StrkUsd.into()
+            )
+        ),
         PanelType::TimeSeries,
     )
     .with_log_query("Caching conversion rate for timestamp")
@@ -828,7 +912,11 @@ fn get_panel_snip35_strk_usd_seconds_since_last_successful_update() -> Panel {
         "Seconds Since Last Successful STRK→USD Rate Update",
         "The number of seconds since the last successful STRK→USD rate update (assuming there was \
          an update in the last 12 hours).",
-        seconds_since_last_timestamp(&SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS),
+        seconds_since_last_timestamp_with_label(
+            &EXCHANGE_RATE_ORACLE_LAST_SUCCESS_TIMESTAMP_SECONDS,
+            LABEL_NAME_CURRENCY_PAIR,
+            CurrencyPair::StrkUsd.into(),
+        ),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
@@ -842,10 +930,12 @@ pub(crate) fn get_snip35_row() -> Row {
             get_panel_snip35_fee_actual(),
             get_panel_snip35_fee_proposal(),
             get_panel_snip35_fee_target(),
+            get_panel_snip35_fee_target_above_maximum(),
             get_panel_snip35_fee_target_atto_usd(),
             get_panel_snip35_strk_usd_rate(),
             get_panel_snip35_strk_usd_success_count(),
             get_panel_snip35_strk_usd_error_count(),
+            get_panel_snip35_strk_usd_total_error_count(),
             get_panel_snip35_strk_usd_seconds_since_last_successful_update(),
         ],
     )

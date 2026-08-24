@@ -1,5 +1,6 @@
 use apollo_batcher::metrics::{
     BATCHER_CLASS_CACHE_METRICS,
+    BATCHER_VIEW_CALL_CLASS_CACHE_METRICS,
     L2_GAS_IN_LAST_BLOCK,
     NUM_TRANSACTION_IN_BLOCK,
     PROVING_GAS_IN_LAST_BLOCK,
@@ -24,14 +25,18 @@ use crate::query_builder::{sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 
+/// `source` names the reader the metrics count, since one scope may have several: the batcher
+/// counts block production and view calls separately over the same cache.
 fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
     class_cache_metrics: &CacheMetrics,
+    source: &str,
 ) -> Panel {
-    let scope = class_cache_metrics.get_scope();
-    let name = format!("Class Cache Miss in {scope}");
+    class_cache_metrics.validate_scope();
+
+    let name = format!("Class Cache Miss in {source}");
     let description = format!(
         "The ratio of cache misses when requesting compiled classes from the Blockifier State \
-         Reader in {scope}"
+         Reader in {source}"
     );
     Panel::ratio_time_series(
         name.as_str(),
@@ -43,15 +48,20 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
 }
 
 fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
-    let class_cache_metrics = BATCHER_CLASS_CACHE_METRICS;
-
     let name = "Native Class Returned Ratio in Batcher";
     let description = "The ratio of Native classes returned by the Blockifier in Batcher";
+    // `NATIVE_CLASS_RETURNED` counts every class the batcher's state readers return, so the
+    // denominator sums the cache traffic of all of them.
     Panel::ratio_time_series(
         name,
         description,
         &NATIVE_CLASS_RETURNED,
-        &[class_cache_metrics.misses(), class_cache_metrics.hits()],
+        &[
+            BATCHER_CLASS_CACHE_METRICS.misses(),
+            BATCHER_CLASS_CACHE_METRICS.hits(),
+            BATCHER_VIEW_CALL_CLASS_CACHE_METRICS.misses(),
+            BATCHER_VIEW_CALL_CLASS_CACHE_METRICS.hits(),
+        ],
         BLOCKIFIER_METRIC_RATE_DURATION,
     )
 }
@@ -140,10 +150,20 @@ pub(crate) fn get_blockifier_row() -> Row {
     Row::new(
         "Blockifier",
         vec![
-            get_panel_blockifier_state_reader_class_cache_miss_ratio(&BATCHER_CLASS_CACHE_METRICS),
+            get_panel_blockifier_state_reader_class_cache_miss_ratio(
+                &BATCHER_CLASS_CACHE_METRICS,
+                "Batcher",
+            ),
             // TODO(Arni): Add native class returned ratio for gateway
             get_panel_blockifier_state_reader_native_class_returned_ratio(),
-            get_panel_blockifier_state_reader_class_cache_miss_ratio(&GATEWAY_CLASS_CACHE_METRICS),
+            get_panel_blockifier_state_reader_class_cache_miss_ratio(
+                &GATEWAY_CLASS_CACHE_METRICS,
+                "Gateway",
+            ),
+            get_panel_blockifier_state_reader_class_cache_miss_ratio(
+                &BATCHER_VIEW_CALL_CLASS_CACHE_METRICS,
+                "Batcher View Calls",
+            ),
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
             get_panel_blocks_full_by_resource(),

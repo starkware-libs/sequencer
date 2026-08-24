@@ -406,6 +406,17 @@ pub fn extract_event_count_from_concatenated_counts(concatenated_counts: &Felt) 
     u64::from_be_bytes(event_count_bytes).try_into().expect("Expected event count to fit in usize")
 }
 
+/// Extracts the L1 data availability mode from concatenated_counts.
+pub fn extract_l1_da_mode_from_concatenated_counts(
+    concatenated_counts: &Felt,
+) -> L1DataAvailabilityMode {
+    // Byte 24 is the L1 data availability mode field, whose top bit carries the mode.
+    match concatenated_counts.to_bytes_be()[24] & 0b10000000 {
+        0 => L1DataAvailabilityMode::Calldata,
+        _ => L1DataAvailabilityMode::Blob,
+    }
+}
+
 // For starknet version >= 0.13.3, returns:
 // [Poseidon (
 //     "STARKNET_GAS_PRICES0", gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
