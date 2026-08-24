@@ -251,13 +251,13 @@ docker run -e RUST_LOG=warn ... <IMAGE>
 docker run -e LOG_FORMAT=json ... <IMAGE>
 ```
 
-`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`,
-and `span` keys. The `text` format may include ANSI colour codes. `json` never does, so use
-`--log-format json` in containers and in production. A URL can carry credentials in its userinfo
-component, so the service redacts every logged URL down to `scheme://host[:port]`. That covers
-`rpc_node_url` in the startup logs and in its CLI-override message, and `blocking_check_url` in its
-CLI-override message. The startup logs say only whether the blocking check is enabled, never its
-URL.
+`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`, and
+`span` keys. The `text` format adds ANSI colour codes only when stdout is a terminal, and `json`
+never does. Use `--log-format json` in containers and in production. A URL can carry credentials in
+its userinfo component, so the service redacts every logged URL down to `scheme://host[:port]`. That
+covers `rpc_node_url` in the startup logs and in its CLI-override message, and `blocking_check_url`
+in its CLI-override message. The startup logs say only whether the blocking check is enabled, never
+its URL.
 
 ## Compression
 
