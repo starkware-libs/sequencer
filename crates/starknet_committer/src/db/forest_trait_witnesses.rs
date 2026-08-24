@@ -59,8 +59,8 @@ pub trait ForestReaderWithWitnesses:
     ) -> TraversalResult<StarknetForestProofs>;
 }
 
-/// Writes forest + metadata + deleted nodes, and applies [`CommitmentInfosUpdate`] in the same
-/// batch.
+/// Writes forest + metadata + deleted nodes, and applies the [`CommitmentInfosUpdate`]s in the
+/// same batch.
 #[async_trait]
 pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send {
     async fn write_with_metadata_and_commitment_infos(
@@ -68,7 +68,7 @@ pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send 
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
-        commitment_infos_update: CommitmentInfosUpdate,
+        commitment_infos_updates: Vec<CommitmentInfosUpdate>,
     ) -> SerializationResult<usize>;
 }
 
