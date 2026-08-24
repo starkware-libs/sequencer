@@ -1,8 +1,8 @@
 //! Test-only helper for sharing a Prometheus recorder across unit tests.
 //!
 //! `metrics-exporter-prometheus` installs into a single global recorder, so two tests that each
-//! call `install_exporter` would race on it; this module installs once via a `OnceLock` and hands
-//! the same handle to every test.
+//! call `install_exporter` would race on it. This module installs the recorder once through a
+//! `OnceLock` and hands the same handle to every test.
 
 use std::sync::OnceLock;
 
@@ -23,10 +23,10 @@ pub fn shared_handle() -> &'static PrometheusHandle {
 ///
 /// `needle` must be the metric name plus whatever labels uniquely identify
 /// the series (e.g. `prover_..._outcome_total{outcome="success"}`). Returns
-/// `0.0` when the series is absent, so callers can take a baseline before an
-/// action and assert the delta afterward — the recorder is process-global, so
-/// other tests may have already moved the absolute value. `# HELP`/`# TYPE`
-/// comment lines are skipped.
+/// `0.0` when the series is absent, so a caller can read a baseline before an
+/// action and assert the delta afterward. The recorder is process-global, so
+/// another test may have already moved the absolute value. Lines starting with
+/// `# HELP` or `# TYPE` are skipped.
 pub fn metric_value(scrape: &str, needle: &str) -> f64 {
     scrape
         .lines()
