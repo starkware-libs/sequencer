@@ -16,6 +16,8 @@ use jsonrpsee::server::HttpBody;
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use tower::{Layer, Service};
 
+use crate::server::http_metrics;
+
 #[cfg(test)]
 #[path = "metrics_test.rs"]
 mod metrics_test;
@@ -45,7 +47,17 @@ const DURATION_HISTOGRAM_BUCKETS: &[(&str, &[f64])] = &[
     (names::PROVE_TRANSACTION_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
     (names::OS_RUN_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
     (names::STWO_PROVE_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
+    (http_metrics::names::REQUEST_DURATION_SECONDS, HTTP_DURATION_BUCKETS),
 ];
+
+/// Bucket bounds, in seconds, for the HTTP latency histogram. Probe and scrape
+/// traffic is short-circuited above this layer, so this covers JSON-RPC calls:
+/// a millisecond-scale reject at one end, and at the other a proving POST held
+/// open for its queue wait plus the proof itself. Boundaries at 2s and 10s match
+/// the proving histogram so the two can be read against each other, and the 30s
+/// boundary is the default queue-wait timeout.
+const HTTP_DURATION_BUCKETS: &[f64] =
+    &[0.005, 0.025, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 45.0, 60.0];
 
 /// Metric name constants. Kept here so `metrics!` invocations elsewhere link
 /// to a single definition instead of bare string literals.
@@ -111,6 +123,25 @@ pub fn spawn_upkeep(handle: PrometheusHandle) -> tokio::task::JoinHandle<()> {
             handle.run_upkeep();
         }
     })
+}
+
+/// Increments a gauge on construction and decrements it on drop, so a panic or
+/// a dropped future cannot leak the gauge upward.
+pub struct GaugeGuard {
+    metric: &'static str,
+}
+
+impl GaugeGuard {
+    pub fn acquire(metric: &'static str) -> Self {
+        metrics::gauge!(metric).increment(1.0);
+        Self { metric }
+    }
+}
+
+impl Drop for GaugeGuard {
+    fn drop(&mut self) {
+        metrics::gauge!(self.metric).decrement(1.0);
+    }
 }
 
 #[derive(Clone)]
