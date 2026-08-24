@@ -871,28 +871,15 @@ where
         return Ok(vec![]);
     }
 
-    // Reuse the values already read above instead of re-reading the same memory cells via
-    // `vm.get_relocatable`.
-    let array_data_start_ptr = expect_relocatable(array_data_start, *ptr)?;
+    // This function runs once per array-typed syscall argument, so the endpoints are converted from
+    // the values read above rather than looked up in memory a second time.
+    let array_data_start_ptr = relocatable_from_memory_value(array_data_start, *ptr)?;
     *ptr = (*ptr + 1)?;
-    let array_data_end_ptr = expect_relocatable(array_data_end, *ptr)?;
+    let array_data_end_ptr = relocatable_from_memory_value(array_data_end, *ptr)?;
     *ptr = (*ptr + 1)?;
     let array_size = (array_data_end_ptr - array_data_start_ptr)?;
 
     Ok(felt_range_from_ptr(vm, array_data_start_ptr, array_size)?)
-}
-
-/// Mirrors `VirtualMachine::get_relocatable`'s error semantics for a value already read via
-/// `VirtualMachine::get_maybe`.
-fn expect_relocatable(
-    value: Option<MaybeRelocatable>,
-    address: Relocatable,
-) -> Result<Relocatable, MemoryError> {
-    match value {
-        Some(MaybeRelocatable::RelocatableValue(relocatable)) => Ok(relocatable),
-        Some(MaybeRelocatable::Int(_)) => Err(MemoryError::ExpectedRelocatable(Box::new(address))),
-        None => Err(MemoryError::UnknownMemoryCell(Box::new(address))),
-    }
 }
 
 pub fn write_segment(
@@ -905,4 +892,17 @@ pub fn write_segment(
     write_maybe_relocatable(vm, ptr, segment_end_ptr)?;
 
     Ok(())
+}
+
+/// Converts a value read from `address` via `VirtualMachine::get_maybe` into a `Relocatable`,
+/// reproducing the errors `VirtualMachine::get_relocatable` would have returned for that address.
+fn relocatable_from_memory_value(
+    memory_value: Option<MaybeRelocatable>,
+    address: Relocatable,
+) -> Result<Relocatable, MemoryError> {
+    match memory_value {
+        Some(MaybeRelocatable::RelocatableValue(relocatable)) => Ok(relocatable),
+        Some(MaybeRelocatable::Int(_)) => Err(MemoryError::ExpectedRelocatable(Box::new(address))),
+        None => Err(MemoryError::UnknownMemoryCell(Box::new(address))),
+    }
 }
