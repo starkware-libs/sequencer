@@ -864,19 +864,35 @@ where
     // If the start and end pointers are the same, the array is empty.
     // This check is necessary to handle the case where both pointers are zero, and thus are not
     // relocatable values.
-    let array_start = vm.get_maybe(&*ptr);
-    if array_start.is_some() && array_start == vm.get_maybe(&(*ptr + 1_usize)?) {
+    let array_data_start = vm.get_maybe(&*ptr);
+    let array_data_end = vm.get_maybe(&(*ptr + 1_usize)?);
+    if array_data_start.is_some() && array_data_start == array_data_end {
         *ptr = (*ptr + 2)?;
         return Ok(vec![]);
     }
 
-    let array_data_start_ptr = vm.get_relocatable(*ptr)?;
+    // Reuse the values already read above instead of re-reading the same memory cells via
+    // `vm.get_relocatable`.
+    let array_data_start_ptr = expect_relocatable(array_data_start, *ptr)?;
     *ptr = (*ptr + 1)?;
-    let array_data_end_ptr = vm.get_relocatable(*ptr)?;
+    let array_data_end_ptr = expect_relocatable(array_data_end, *ptr)?;
     *ptr = (*ptr + 1)?;
     let array_size = (array_data_end_ptr - array_data_start_ptr)?;
 
     Ok(felt_range_from_ptr(vm, array_data_start_ptr, array_size)?)
+}
+
+/// Mirrors `VirtualMachine::get_relocatable`'s error semantics for a value already read via
+/// `VirtualMachine::get_maybe`.
+fn expect_relocatable(
+    value: Option<MaybeRelocatable>,
+    address: Relocatable,
+) -> Result<Relocatable, MemoryError> {
+    match value {
+        Some(MaybeRelocatable::RelocatableValue(relocatable)) => Ok(relocatable),
+        Some(MaybeRelocatable::Int(_)) => Err(MemoryError::ExpectedRelocatable(Box::new(address))),
+        None => Err(MemoryError::UnknownMemoryCell(Box::new(address))),
+    }
 }
 
 pub fn write_segment(
