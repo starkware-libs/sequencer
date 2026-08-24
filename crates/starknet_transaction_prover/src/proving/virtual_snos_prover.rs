@@ -26,7 +26,7 @@ use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
 use crate::config::ProverConfig;
 use crate::errors::VirtualSnosProverError;
 use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
-use crate::server::metrics::{names as metric_names, outcomes};
+use crate::server::metrics::{names, outcomes};
 
 /// Result of a successful prove transaction operation.
 ///
@@ -171,17 +171,26 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         let start_time = Instant::now();
         let result = self.prove_transaction_inner(block_id, transaction).await;
         let total_duration = start_time.elapsed();
-        // Recorded on every outcome so success-only SLO percentiles can be
-        // computed in the query layer.
-        metrics::histogram!(metric_names::PROVE_TRANSACTION_DURATION_SECONDS)
-            .record(total_duration.as_secs_f64());
         let outcome = match &result {
             Ok(_) => outcomes::SUCCESS,
             Err(err) => err.metric_outcome(),
         };
-        metrics::counter!(metric_names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome)
+        // Spans the whole call -- input validation, the optional blocking check,
+        // the virtual OS run and proving -- and is recorded for failures too,
+        // whose latency profile differs sharply from a success. `outcome` is what
+        // lets a query separate them.
+        metrics::histogram!(
+            names::PROVE_TRANSACTION_DURATION_SECONDS,
+            "outcome" => outcome,
+        )
+        .record(total_duration.as_secs_f64());
+        metrics::counter!(names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome)
             .increment(1);
-        info!(total_duration_ms = %total_duration.as_millis(), outcome, "prove_transaction completed");
+        info!(
+            total_duration_ms = %total_duration.as_millis(),
+            outcome,
+            "prove_transaction completed"
+        );
         result
     }
 
@@ -224,15 +233,14 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
         let os_duration = os_start.elapsed();
-        metrics::histogram!(metric_names::OS_RUN_DURATION_SECONDS)
-            .record(os_duration.as_secs_f64());
+        metrics::histogram!(names::OS_RUN_DURATION_SECONDS).record(os_duration.as_secs_f64());
         info!(os_duration_ms = %os_duration.as_millis(), "OS execution completed");
 
         let prove_start = Instant::now();
         let result = self.prove_virtual_snos_run(runner_output).await?;
 
         let prove_duration = prove_start.elapsed();
-        metrics::histogram!(metric_names::STWO_PROVE_DURATION_SECONDS)
+        metrics::histogram!(names::STWO_PROVE_DURATION_SECONDS)
             .record(prove_duration.as_secs_f64());
         info!(prove_duration_ms = %prove_duration.as_millis(), "Proving completed");
 

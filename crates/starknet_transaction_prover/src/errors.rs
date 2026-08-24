@@ -13,6 +13,10 @@ use thiserror::Error;
 
 use crate::server::metrics::outcomes;
 
+#[cfg(test)]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 #[derive(Debug, Error)]
 pub enum VirtualBlockExecutorError {
     #[error(transparent)]
@@ -142,13 +146,13 @@ impl VirtualSnosProverError {
         match self {
             VirtualSnosProverError::InvalidTransactionType(_)
             | VirtualSnosProverError::InvalidTransactionInput(_)
-            | VirtualSnosProverError::ValidationError(_) => outcomes::VALIDATION,
-            VirtualSnosProverError::TransactionBlocked => outcomes::BLOCKED,
-            VirtualSnosProverError::RunnerError(_) => outcomes::RUNNER,
+            | VirtualSnosProverError::ValidationError(_) => outcomes::FAILURE_VALIDATION,
+            VirtualSnosProverError::TransactionBlocked => outcomes::FAILURE_BLOCKED,
+            VirtualSnosProverError::RunnerError(_) => outcomes::FAILURE_RUNNER,
             VirtualSnosProverError::OutputParseError(_)
-            | VirtualSnosProverError::ProgramOutputError(_) => outcomes::OUTPUT_PARSE,
+            | VirtualSnosProverError::ProgramOutputError(_) => outcomes::FAILURE_OUTPUT_PARSE,
             #[cfg(feature = "stwo_proving")]
-            VirtualSnosProverError::ProvingError(_) => outcomes::PROVING,
+            VirtualSnosProverError::ProvingError(_) => outcomes::FAILURE_PROVING,
         }
     }
 }
@@ -164,43 +168,4 @@ pub enum ConfigError {
     MissingRequiredField(String),
     #[error("Incomplete TLS configuration: {0}")]
     IncompleteTlsConfig(String),
-}
-
-#[cfg(test)]
-mod tests {
-    use starknet_proof_verifier::ProgramOutputError;
-
-    use super::*;
-    use crate::server::metrics::outcomes;
-
-    #[test]
-    fn metric_outcome_maps_each_variant_to_its_label() {
-        // `mut` is used only when the `stwo_proving` variant is compiled in.
-        #[allow(unused_mut)]
-        let mut cases: Vec<(VirtualSnosProverError, &str)> = vec![
-            (VirtualSnosProverError::InvalidTransactionType(String::new()), outcomes::VALIDATION),
-            (VirtualSnosProverError::InvalidTransactionInput(String::new()), outcomes::VALIDATION),
-            (VirtualSnosProverError::ValidationError(String::new()), outcomes::VALIDATION),
-            (VirtualSnosProverError::TransactionBlocked, outcomes::BLOCKED),
-            (
-                VirtualSnosProverError::RunnerError(Box::new(RunnerError::InputGenerationError(
-                    String::new(),
-                ))),
-                outcomes::RUNNER,
-            ),
-            (
-                VirtualSnosProverError::ProgramOutputError(ProgramOutputError::TooShort(0)),
-                outcomes::OUTPUT_PARSE,
-            ),
-        ];
-        #[cfg(feature = "stwo_proving")]
-        cases.push((
-            VirtualSnosProverError::ProvingError(ProvingError::ProverExecution(String::new())),
-            outcomes::PROVING,
-        ));
-
-        for (error, expected) in &cases {
-            assert_eq!(error.metric_outcome(), *expected, "unexpected outcome for {error:?}");
-        }
-    }
 }

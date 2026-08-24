@@ -301,6 +301,10 @@ Like `/health`, scrapes bypass CORS and JSON-RPC parsing, and the endpoint is un
 | Metric | Type | Labels | Description |
 |---|---|---|---|
 | `prover_build_info` | gauge | `version`, `git_sha` | Always 1. Used to identify the running build from a scrape. `git_sha` comes from the `GIT_SHA` docker build arg, and is `unknown` when the build doesn't pass it. |
+| `prover_prove_transaction_outcome_total` | counter | `outcome` | Every proving request that reaches the prover, so its total is the shared denominator for all proving rates. `outcome` is a bounded enum: `success`, `failure_validation`, `failure_blocked`, `failure_runner`, `failure_output_parse`, `failure_proving`. |
+| `prover_prove_transaction_duration_seconds` | histogram | `outcome` | Duration of the whole proving call — input validation, the optional blocking check, the virtual OS run and proving. Recorded for failures too, so filter on `outcome` for success-only percentiles. |
+| `prover_os_run_duration_seconds` | histogram | — | Virtual OS execution time, recorded for successful runs only. |
+| `prover_stwo_prove_duration_seconds` | histogram | — | STWO proving time, recorded for successful runs only. Emitted only by builds with the `stwo_proving` feature. |
 
 Label cardinality is bounded — no user-controlled values become labels.
 
