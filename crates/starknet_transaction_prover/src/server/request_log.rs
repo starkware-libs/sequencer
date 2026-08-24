@@ -6,8 +6,8 @@
 //! `latency_ms` per HTTP request, and echoes `request_id` on the response so
 //! callers can quote it. The id is accepted from the incoming `x-request-id`
 //! header or generated as a UUID v4. `GET /health` probes and `GET /metrics`
-//! scrapes still get the id echo but are exempt from logging — at typical
-//! probe/scrape periods they would drown real traffic.
+//! scrapes still get the id echo but no log line. At typical probe and scrape
+//! periods they would drown out real traffic.
 //!
 //! It deliberately does NOT bind the id to a span covering the downstream
 //! dispatch. For OHTTP traffic this layer runs on the *outer* envelope, whose
