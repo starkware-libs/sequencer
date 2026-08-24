@@ -640,16 +640,20 @@ pub const PROOF_VERSION_V0: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
 // Represent the `PROOF_VERSION_V1` marker as a Felt ('PROOF1').
 pub const PROOF_VERSION_V1: Felt = Felt::from_hex_unchecked("0x50524f4f4631");
 
+// Represent the `PROOF_VERSION_V2` marker as a Felt ('PROOF2').
+pub const PROOF_VERSION_V2: Felt = Felt::from_hex_unchecked("0x50524f4f4632");
+
 /// Supported proof-facts version markers.
 ///
-/// V0 is retained only so that historical blocks carrying V0 proof facts can be replayed (e.g. via
-/// reexecution). Whether V0 is accepted is gated per protocol version in the blockifier; the proof
-/// verifier no longer supports it.
+/// V0 and V1 are retained only so that historical blocks carrying those proof facts can be replayed
+/// (e.g. via reexecution). Whether each version is accepted is gated per protocol version in the
+/// blockifier; the proof verifier only supports the current version, V2.
 #[cfg_attr(any(test, feature = "testing"), derive(EnumIter))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProofVersion {
     V0,
     V1,
+    V2,
 }
 
 impl ProofVersion {
@@ -658,6 +662,7 @@ impl ProofVersion {
         match self {
             ProofVersion::V0 => PROOF_VERSION_V0,
             ProofVersion::V1 => PROOF_VERSION_V1,
+            ProofVersion::V2 => PROOF_VERSION_V2,
         }
     }
 
@@ -666,6 +671,7 @@ impl ProofVersion {
         match self {
             ProofVersion::V0 => "PROOF0",
             ProofVersion::V1 => "PROOF1",
+            ProofVersion::V2 => "PROOF2",
         }
     }
 }
@@ -677,6 +683,8 @@ impl TryFrom<Felt> for ProofVersion {
             Ok(ProofVersion::V0)
         } else if value == PROOF_VERSION_V1 {
             Ok(ProofVersion::V1)
+        } else if value == PROOF_VERSION_V2 {
+            Ok(ProofVersion::V2)
         } else {
             Err(())
         }
@@ -748,9 +756,10 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         // Validate that the first element is a supported proof version marker.
         let proof_version = ProofVersion::try_from(*proof_version).map_err(|()| {
             StarknetApiError::InvalidProofFacts(format!(
-                "Expected first field to be {} or {}, but got {}",
+                "Expected first field to be one of {}, {}, {}, but got {}",
                 ProofVersion::V0,
                 ProofVersion::V1,
+                ProofVersion::V2,
                 proof_version,
             ))
         })?;

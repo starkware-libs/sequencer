@@ -336,8 +336,10 @@ patricia_root_cli.path = "crates/patricia_root_cli"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
-privacy-circuit-verify-v1 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
+# TODO(Einat): The `v0.14.4` tag does not exist on proving-utils yet; it is the placeholder for the
+# V2 circuit verifier and prover release. The workspace does not resolve until it is pushed.
+privacy-circuit-verify-v2 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.4" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.4" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
