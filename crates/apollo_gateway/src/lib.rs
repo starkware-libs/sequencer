@@ -6,6 +6,7 @@ pub mod metrics;
 pub mod proof_archive_writer;
 #[cfg(test)]
 mod proof_archive_writer_test;
+mod replay_gas_prices;
 mod state_reader;
 #[cfg(any(feature = "testing", test))]
 mod state_reader_test_utils;
