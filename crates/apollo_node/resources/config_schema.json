@@ -574,6 +574,11 @@
     "privacy": "Public",
     "value": false
   },
+  "committer_config.serve_read_paths_as_commit_block": {
+    "description": "If true, read_paths_and_commit_block requests are served as commit_block requests, treating the accessed keys as an empty set.",
+    "privacy": "Public",
+    "value": false
+  },
   "committer_config.storage_config.cache_size": {
     "description": "Max number of entries in the cache",
     "privacy": "Public",

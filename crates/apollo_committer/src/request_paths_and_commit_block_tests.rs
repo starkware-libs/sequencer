@@ -376,6 +376,49 @@ async fn read_paths_and_commit_block_happy_flow() {
         .await;
 }
 
+/// Verifies that when `serve_read_paths_as_commit_block` is on, a request with non-empty accessed
+/// keys is served exactly like a request with empty accessed keys.
+#[tokio::test]
+async fn serve_read_paths_as_commit_block_ignores_accessed_keys() {
+    let state_diff = BLOCK_0_STATE_DIFF.clone();
+    let state_diff_commitment = Some(calculate_state_diff_hash(&state_diff));
+    let height = 0;
+
+    let mut flag_on_committer = new_test_committer().await;
+    flag_on_committer.config.serve_read_paths_as_commit_block = true;
+    let flag_on_response = flag_on_committer
+        .read_paths_and_commit_block(read_paths_and_commit_block_request(
+            state_diff.clone(),
+            state_diff_commitment,
+            height,
+            ACCESSED_KEYS.clone(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(flag_on_committer.offset, BlockNumber(height + 1));
+
+    let mut empty_keys_committer = new_test_committer().await;
+    let empty_keys_response = empty_keys_committer
+        .read_paths_and_commit_block(read_paths_and_commit_block_request(
+            state_diff,
+            state_diff_commitment,
+            height,
+            AccessedKeys::default(),
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(flag_on_response.global_root, empty_keys_response.global_root);
+    assert_eq!(
+        decompress_response_commitment_infos(&flag_on_response),
+        decompress_response_commitment_infos(&empty_keys_response),
+    );
+    assert_eq!(
+        flag_on_committer.load_witnesses_digest(BlockNumber(height)).await.unwrap(),
+        empty_keys_committer.load_witnesses_digest(BlockNumber(height)).await.unwrap(),
+    );
+}
+
 /// Flow overview:
 /// 1. Commit block 0 via [crate::committer::Committer::commit_block] (no witnesses fetched).
 /// 2. Commit block 1 via [crate::committer::Committer::read_paths_and_commit_block], requesting
