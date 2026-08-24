@@ -29,13 +29,7 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{
-    HealthLayer,
-    HttpMetricsLayer,
-    RequestLogLayer,
-    RequestSpanLayer,
-    ServerLayers,
-};
+use crate::server::{HttpMetricsLayer, RequestLogLayer, RequestSpanLayer, ServerLayers};
 
 #[cfg(test)]
 #[path = "tls_test.rs"]
@@ -119,12 +113,17 @@ fn spawn_accept_loop<PrepareStream, PrepareStreamFuture, ServedStream>(
     PrepareStreamFuture: Future<Output = Option<ServedStream>> + Send,
     ServedStream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let ServerLayers { cors_layer, ohttp_layer, metrics_layer } = layers;
+    let ServerLayers { cors_layer, ohttp_layer, metrics_layer, health_layer } = layers;
 
     // See `prover_http_middleware!` for the full layer-order rationale.
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(prover_http_middleware!(metrics_layer, cors_layer, ohttp_layer))
+        .set_http_middleware(prover_http_middleware!(
+            health_layer,
+            metrics_layer,
+            cors_layer,
+            ohttp_layer
+        ))
         .to_service_builder();
 
     tokio::spawn(async move {
