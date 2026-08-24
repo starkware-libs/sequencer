@@ -50,6 +50,7 @@ const DURATION_HISTOGRAM_BUCKETS: &[(&str, &[f64])] = &[
     (names::OS_RUN_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
     (names::STWO_PROVE_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
     (http_metrics::names::REQUEST_DURATION_SECONDS, HTTP_DURATION_BUCKETS),
+    (names::QUEUE_WAIT_DURATION_SECONDS, QUEUE_WAIT_DURATION_BUCKETS),
 ];
 
 /// Bucket bounds, in seconds, for the HTTP latency histogram. The layers above
@@ -61,6 +62,13 @@ const DURATION_HISTOGRAM_BUCKETS: &[(&str, &[f64])] = &[
 /// timeout.
 const HTTP_DURATION_BUCKETS: &[f64] =
     &[0.005, 0.025, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 45.0, 60.0];
+
+/// Bucket bounds, in seconds, for the queue-wait histogram. A request either
+/// finds a free worker slot at once or waits behind proofs, so the buckets are
+/// densest near zero. The last boundary is the default queue-wait timeout, so
+/// the count of waits that ran to the timeout is exact.
+const QUEUE_WAIT_DURATION_BUCKETS: &[f64] =
+    &[0.001, 0.01, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0];
 
 /// Metric name constants, so `metrics!` calls elsewhere point at one
 /// definition instead of repeating string literals.
@@ -81,6 +89,10 @@ pub mod names {
     pub const OS_RUN_DURATION_SECONDS: &str = "prover_os_run_duration_seconds";
     /// Stwo proving sub-step duration. Bucketed.
     pub const STWO_PROVE_DURATION_SECONDS: &str = "prover_stwo_prove_duration_seconds";
+    /// Requests admitted to the queue but not yet running (waiting for a worker slot). Gauge.
+    pub const QUEUE_WAITING_REQUESTS: &str = "prover_queue_waiting_requests";
+    /// Time a request waited in the queue before acquiring a worker slot. Bucketed.
+    pub const QUEUE_WAIT_DURATION_SECONDS: &str = "prover_queue_wait_duration_seconds";
 }
 
 /// Fixed, bounded set of values for the `outcome` label on
@@ -92,6 +104,10 @@ pub mod outcomes {
     pub const FAILURE_RUNNER: &str = "failure_runner";
     pub const FAILURE_OUTPUT_PARSE: &str = "failure_output_parse";
     pub const FAILURE_PROVING: &str = "failure_proving";
+    /// Rejected at admission because the queue (running + waiting) was full.
+    pub const REJECTED_QUEUE_FULL: &str = "rejected_queue_full";
+    /// Rejected after waiting past `queue_wait_timeout` for a worker slot.
+    pub const REJECTED_WAIT_TIMEOUT: &str = "rejected_wait_timeout";
 }
 
 /// Initializes the global Prometheus exporter and emits the `build_info`
@@ -117,6 +133,19 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     // Pre-register at zero so the series exists in scrapes before the first panic.
     metrics::counter!(names::PANICS_TOTAL).increment(0);
     super::http_metrics::preregister_http_metrics();
+    // Queue depth starts at zero. Busy-rejects are folded into the outcome counter, so
+    // pre-register both reject outcomes too. A rejection-rate query then has series from startup.
+    metrics::gauge!(names::QUEUE_WAITING_REQUESTS).set(0.0);
+    metrics::counter!(
+        names::PROVE_TRANSACTION_OUTCOME_TOTAL,
+        "outcome" => outcomes::REJECTED_QUEUE_FULL,
+    )
+    .increment(0);
+    metrics::counter!(
+        names::PROVE_TRANSACTION_OUTCOME_TOTAL,
+        "outcome" => outcomes::REJECTED_WAIT_TIMEOUT,
+    )
+    .increment(0);
     Ok(handle)
 }
 
