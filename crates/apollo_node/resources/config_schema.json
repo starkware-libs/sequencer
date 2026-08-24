@@ -559,6 +559,16 @@
     "privacy": "Public",
     "value": 3000
   },
+  "committer_config.commitment_infos_pruning_config.max_deletions_per_commit": {
+    "description": "At most this many heights' commitment infos are pruned per commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "committer_config.commitment_infos_pruning_config.retention_blocks": {
+    "description": "Commitment infos of heights below the committer offset minus this value are pruned from storage when committing a block with witnesses.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "committer_config.db_path": {
     "description": "Path to the committer storage directory.",
     "privacy": "Public",
