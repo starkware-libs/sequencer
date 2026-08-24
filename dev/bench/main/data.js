@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787232423428,
+  "lastUpdate": 1787586620421,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7513,6 +7513,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1467.6803156400001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74587f8aa5d8f199fb421e834eccdcea13c4ffc6",
+          "message": "Merge pull request #15016 from starkware-libs/asaf/merge-main-v0.14.3-into-main-1787575391\n\nMerge main-v0.14.3 into main",
+          "timestamp": "2026-08-24T15:34:05Z",
+          "tree_id": "799dc02998a4c6e33ca79fa52f7805b6fe2e96cc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/74587f8aa5d8f199fb421e834eccdcea13c4ffc6"
+        },
+        "date": 1787586618671,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 947.6174164099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1440.32238545,
             "unit": "ms"
           }
         ]
