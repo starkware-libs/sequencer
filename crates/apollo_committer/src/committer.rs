@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::ops::Range;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -152,6 +153,8 @@ where
     config: CommitterConfig<S::Config>,
     /// The next block number to commit.
     offset: BlockNumber,
+    /// The lowest height whose commitment infos are stored; infos of lower heights were pruned.
+    commitment_infos_lower_bound: BlockNumber,
 }
 
 impl<S, ForestDB> Committer<S, ForestDB>
@@ -169,8 +172,19 @@ where
         )
         .await
         .unwrap_or_default();
-        info!("Initializing committer with offset: {offset}");
-        Self { forest_storage, config, offset }
+        // An absent lower bound means no pruning has occurred yet; start pruning from the current
+        // offset.
+        let commitment_infos_lower_bound = Self::load_block_number_metadata_or_panic(
+            &mut forest_storage,
+            ForestMetadataType::CommitmentInfosLowerBound,
+        )
+        .await
+        .unwrap_or(offset);
+        info!(
+            "Initializing committer with offset: {offset}, commitment infos lower bound: \
+             {commitment_infos_lower_bound}"
+        );
+        Self { forest_storage, config, offset, commitment_infos_lower_bound }
     }
 
     fn update_offset(&mut self, offset: BlockNumber) {
@@ -496,6 +510,21 @@ where
         CommitterError::Internal { height, message: error_message }
     }
 
+    /// Returns the range of heights whose commitment infos should be pruned when advancing the
+    /// commitment offset to `next_offset`: heights below `next_offset - retention_blocks`,
+    /// starting from the current lower bound and capped at `max_deletions_per_commit` heights.
+    /// The range is empty when the retention window is not exceeded.
+    fn commitment_infos_heights_to_prune(&self, next_offset: BlockNumber) -> Range<u64> {
+        let pruning_config = &self.config.commitment_infos_pruning_config;
+        let lower_bound = self.commitment_infos_lower_bound.0;
+        let retention_start = next_offset.0.saturating_sub(pruning_config.retention_blocks);
+        lower_bound
+            ..retention_start.clamp(
+                lower_bound,
+                lower_bound.saturating_add(pruning_config.max_deletions_per_commit),
+            )
+    }
+
     /// Commits the next block and returns merged Patricia witness facts for OS input, persisting
     /// digest + payload for idempotent replay.
     pub async fn read_paths_and_commit_block(
@@ -567,15 +596,31 @@ where
                 .await
                 .map_err(|err| self.map_internal_error(err))?;
 
-                let (metadata, next_offset) =
+                let (mut metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
 
-                let commitment_infos_updates =
+                let mut commitment_infos_updates =
                     vec![CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                         block_number: height,
                         keys_digest: digest,
                         commitment_infos: state_commitment_infos.clone(),
                     })];
+                let heights_to_prune = self.commitment_infos_heights_to_prune(next_offset);
+                let pruned_lower_bound = BlockNumber(heights_to_prune.end);
+                if !heights_to_prune.is_empty() {
+                    info!(
+                        "Pruning commitment infos of heights [{}, {})",
+                        heights_to_prune.start, heights_to_prune.end
+                    );
+                    metadata.insert(
+                        ForestMetadataType::CommitmentInfosLowerBound,
+                        db_block_number_value(pruned_lower_bound),
+                    );
+                    commitment_infos_updates.extend(
+                        heights_to_prune
+                            .map(|height| CommitmentInfosUpdate::Delete(BlockNumber(height))),
+                    );
+                }
 
                 info!(
                     "For block number {height}, writing filled forest and \
@@ -603,6 +648,7 @@ where
                     self.config.commit_duration_warn_threshold_millis,
                 );
                 self.update_offset(next_offset);
+                self.commitment_infos_lower_bound = pruned_lower_bound;
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
                     state_commitment_infos: state_commitment_infos.compress()?,
