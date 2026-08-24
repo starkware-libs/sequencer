@@ -162,7 +162,8 @@ class SleepConfig:
 class TxSenderTuning:
     """Tuning parameters for transaction_sender consumer."""
 
-    max_pending_txs_before_pausing: int = 15
+    # Max blocks a forwarded tx's source block may run ahead of the committed tip.
+    max_block_lead_before_pausing: int = 10
     poll_interval_seconds: float = 0.25
 
 
@@ -263,7 +264,7 @@ class EchonetConfig:
 
         start_block = int(keys["start_block"])
         blocked_senders_csv = str(keys.get("blocked_senders", ""))
-        max_pending_txs_before_pausing = int(keys.get("max_pending_txs_before_pausing", 15))
+        max_block_lead_before_pausing = int(keys.get("max_block_lead_before_pausing", 10))
 
         feeder_bypass = str(secrets.get("feeder_x_throttling_bypass", "")).strip()
         feeder_headers = MappingProxyType(
@@ -298,12 +299,12 @@ class EchonetConfig:
             ),
             sleep=SleepConfig(),
             tx_sender=TxSenderTuning(
-                max_pending_txs_before_pausing=max_pending_txs_before_pausing,
+                max_block_lead_before_pausing=max_block_lead_before_pausing,
             ),
             block_store=BlockStoreTuning(
                 max_blocks_to_keep_in_memory=max(
                     BlockStoreTuning.max_blocks_to_keep_in_memory,
-                    max_pending_txs_before_pausing // 2,
+                    max_block_lead_before_pausing * 2,
                 ),
             ),
             severity=SeverityConfig(),
