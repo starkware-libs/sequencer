@@ -1,9 +1,15 @@
 use std::sync::{Arc, LazyLock};
 
-use privacy_circuit_verify_v1::VERSION_BYTES;
+use privacy_circuit_verify_v2::utils::ProofHeader;
 use rstest::rstest;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
-use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion, PROOF_VERSION_V0};
+use starknet_api::transaction::fields::{
+    Proof,
+    ProofFacts,
+    ProofVersion,
+    PROOF_VERSION_V0,
+    PROOF_VERSION_V1,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::{reconstruct_output_preimage, verify_proof, ProgramOutput, VerifyProofError};
@@ -11,6 +17,9 @@ use crate::{reconstruct_output_preimage, verify_proof, ProgramOutput, VerifyProo
 /// Version directory under `resources/regression_test/` whose pinned, valid proof fixture the
 /// negative tests below mutate. Keep in sync with the newest `#[case]` of
 /// `regression_verify_proof_from_old_prover`.
+// TODO(Einat): This fixture holds a V1 proof, which the V2 circuit verifier cannot verify.
+// Regenerate it against the V2 prover (see `regression_verify_proof_from_old_prover` below) and
+// point this at the new version directory.
 const FIXTURE_PROOF_VERSION: &str = "0.14.3";
 
 /// Upper bound, in bytes, on the decompressed proof size used by the negative tests that mutate the
@@ -49,8 +58,8 @@ fn roundtrip_program_output_to_proof_facts_and_back() {
     let program_variant = Felt::from(0x42_u64);
     let proof_facts = program_output.try_into_proof_facts(program_variant).unwrap();
 
-    // Verify the proof facts structure: [PROOF_VERSION_V1, variant, program_hash, ...task_output].
-    assert_eq!(proof_facts.0[0], ProofVersion::V1.as_felt());
+    // Verify the proof facts structure: [PROOF_VERSION_V2, variant, program_hash, ...task_output].
+    assert_eq!(proof_facts.0[0], ProofVersion::V2.as_felt());
     assert_eq!(proof_facts.0[1], program_variant);
     assert_eq!(proof_facts.0[2], program_hash);
     assert_eq!(&proof_facts.0[3..], &task_output);
@@ -81,6 +90,9 @@ fn roundtrip_program_output_to_proof_facts_and_back() {
 ///    crates/starknet_proof_verifier/resources/regression_test/{version}/
 /// ```
 /// 4. Add a new `#[case("{version}")]` below.
+// TODO(Einat): The `0.14.3` fixture is a V1 proof and no longer verifiable by the V2 circuit, so
+// this case fails until it is replaced. Once the V2 prover is available, regenerate the fixtures
+// per the instructions above, add the new version directory, and drop the `0.14.3` case.
 #[rstest]
 #[case("0.14.3")]
 fn regression_verify_proof_from_old_prover(#[case] starknet_version: &str) {
@@ -93,21 +105,24 @@ fn regression_verify_proof_from_old_prover(#[case] starknet_version: &str) {
 // The negative tests below all start from the `VALID_PROOF_FIXTURE` proof / proof-facts pair and
 // apply one small mutation, asserting that verification then fails.
 
-/// Splits a wire-format proof into its `VERSION_BYTES`-long version prefix and the zstd-compressed
-/// payload, then decompresses the payload. Mirrors the verifier's own `split_proof_version` +
-/// decompress framing, which the uncompressed-domain negative tests need so they mutate the proof
-/// the verifier actually deserializes rather than the version header.
+/// Splits a wire-format proof into its `ProofHeader::SIZE`-long header prefix and the
+/// zstd-compressed payload, then decompresses the payload. Mirrors the verifier's own
+/// `split_proof_header` + decompress framing, which the uncompressed-domain negative tests need so
+/// they mutate the proof the verifier actually deserializes rather than the header.
+///
+/// The header is the proof version followed by the circuit's preprocessed root, which the verifier
+/// reads to select the circuit config — so it is wider than the version alone.
 fn split_and_decompress_proof(proof: &[u8]) -> (&[u8], Vec<u8>) {
-    let (version_prefix, compressed_payload) = proof.split_at(VERSION_BYTES);
+    let (header_prefix, compressed_payload) = proof.split_at(ProofHeader::SIZE);
     let decompressed_payload =
         zstd::bulk::decompress(compressed_payload, MAX_DECOMPRESSED_PROOF_BYTES).unwrap();
-    (version_prefix, decompressed_payload)
+    (header_prefix, decompressed_payload)
 }
 
 /// Re-frames a (mutated) decompressed payload back into the wire format the verifier expects: the
-/// original version prefix followed by the zstd-compressed payload.
-fn reframe_proof(version_prefix: &[u8], decompressed_payload: &[u8]) -> Vec<u8> {
-    let mut proof = version_prefix.to_vec();
+/// original header prefix followed by the zstd-compressed payload.
+fn reframe_proof(header_prefix: &[u8], decompressed_payload: &[u8]) -> Vec<u8> {
+    let mut proof = header_prefix.to_vec();
     proof.extend(zstd::bulk::compress(decompressed_payload, 0).unwrap());
     proof
 }
@@ -125,17 +140,19 @@ fn verify_proof_rejects_empty_proof() {
 #[test]
 fn verify_proof_rejects_proof_facts_too_short() {
     let (_proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
-    let short_facts = ProofFacts(Arc::new(vec![ProofVersion::V1.as_felt(), Felt::ZERO]));
+    let short_facts = ProofFacts(Arc::new(vec![ProofVersion::V2.as_felt(), Felt::ZERO]));
     let result = verify_proof(short_facts, Proof::from(compressed_proof));
     assert_eq!(result, Err(VerifyProofError::ProofFactsTooShort { length: 2 }));
 }
 
-/// A version marker that is not V1 is rejected: an arbitrary unsupported marker, and V0 — whose
-/// circuit was removed, so it must be rejected up front rather than dispatched to a verifier.
+/// A version marker that is not V2 is rejected: an arbitrary unsupported marker, and V0 / V1 —
+/// whose circuits were removed, so they must be rejected up front rather than dispatched to a
+/// verifier.
 #[rstest]
 #[case::unsupported(Felt::from(0xDEAD_u64))]
 #[case::v0(PROOF_VERSION_V0)]
-fn verify_proof_rejects_non_v1_proof_version(#[case] version_marker: Felt) {
+#[case::v1(PROOF_VERSION_V1)]
+fn verify_proof_rejects_non_v2_proof_version(#[case] version_marker: Felt) {
     let (proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
     let mut tampered_facts = (*proof_facts.0).clone();
     tampered_facts[0] = version_marker;
@@ -175,11 +192,11 @@ fn verify_proof_rejects_corrupted_compressed_proof() {
 #[test]
 fn verify_proof_rejects_corrupted_uncompressed_proof() {
     let (proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
-    let (version_prefix, mut decompressed_proof) = split_and_decompress_proof(&compressed_proof);
+    let (header_prefix, mut decompressed_proof) = split_and_decompress_proof(&compressed_proof);
     let middle = decompressed_proof.len() / 2;
     decompressed_proof[middle] ^= 0xFF;
     let result =
-        verify_proof(proof_facts, Proof::from(reframe_proof(version_prefix, &decompressed_proof)));
+        verify_proof(proof_facts, Proof::from(reframe_proof(header_prefix, &decompressed_proof)));
     assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
 }
 
@@ -188,9 +205,9 @@ fn verify_proof_rejects_corrupted_uncompressed_proof() {
 #[test]
 fn verify_proof_rejects_truncated_uncompressed_proof() {
     let (proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
-    let (version_prefix, mut decompressed_proof) = split_and_decompress_proof(&compressed_proof);
+    let (header_prefix, mut decompressed_proof) = split_and_decompress_proof(&compressed_proof);
     decompressed_proof.truncate(decompressed_proof.len() - 100);
     let result =
-        verify_proof(proof_facts, Proof::from(reframe_proof(version_prefix, &decompressed_proof)));
+        verify_proof(proof_facts, Proof::from(reframe_proof(header_prefix, &decompressed_proof)));
     assert!(matches!(result, Err(VerifyProofError::Verification(_))), "got {result:?}");
 }
