@@ -19,6 +19,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::server::config::{TransportMode, DEFAULT_MAX_REQUEST_BODY_SIZE};
 use crate::server::metrics::MetricsLayer;
+use crate::server::middleware_test_utils::unsaturated_health_layer;
 use crate::server::mock_rpc::MockProvingRpc;
 use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::test_recorder::shared_handle;
@@ -39,6 +40,7 @@ async fn start_test_http_server(max_request_body_size: u32) -> (SocketAddr, Serv
             cors_layer: None,
             ohttp_layer: None,
             metrics_layer: MetricsLayer::new(shared_handle().clone()),
+            health_layer: unsaturated_health_layer(),
         },
     )
     .await
