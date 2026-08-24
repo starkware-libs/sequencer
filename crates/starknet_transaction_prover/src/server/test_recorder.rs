@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 
 use metrics_exporter_prometheus::PrometheusHandle;
 
-use crate::server::metrics::install_exporter;
+use crate::server::metrics::{install_exporter, names};
 
 static SHARED_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
 
@@ -35,4 +35,17 @@ pub fn metric_value(scrape: &str, needle: &str) -> f64 {
         .and_then(|line| line.rsplit_once(' '))
         .and_then(|(_, value)| value.parse().ok())
         .unwrap_or(0.0)
+}
+
+/// Prometheus sample line for the proving outcome counter at a given `outcome`
+/// label. Callers baseline it before a request and assert the delta after,
+/// because the recorder is process-global.
+pub fn outcome_total_line(outcome: &str) -> String {
+    format!("{}{{outcome=\"{}\"}}", names::PROVE_TRANSACTION_OUTCOME_TOTAL, outcome)
+}
+
+/// Prometheus `_count` line of the proving duration histogram for one `outcome`.
+/// The histogram is labelled, so the label is required to pin a single series.
+pub fn duration_count_line(outcome: &str) -> String {
+    format!("{}_count{{outcome=\"{}\"}}", names::PROVE_TRANSACTION_DURATION_SECONDS, outcome)
 }
