@@ -127,6 +127,13 @@ RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
         cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json; \
     fi
 
+# Commit the binary is built from. The build reads it at compile time and exports it as the
+# `git_sha` label on the `prover_build_info` gauge. Declared after the cargo-chef cook step so that
+# overriding it (--build-arg GIT_SHA=$(git rev-parse HEAD)) does not invalidate the cached
+# dependency layer.
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+
 # Copy source and build starknet_transaction_prover (without cairo_native feature).
 COPY . .
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml

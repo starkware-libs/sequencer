@@ -18,9 +18,11 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::server::config::{TransportMode, DEFAULT_MAX_REQUEST_BODY_SIZE};
+use crate::server::metrics::MetricsLayer;
 use crate::server::mock_rpc::MockProvingRpc;
 use crate::server::rpc_api::ProvingRpcServer;
-use crate::server::start_server;
+use crate::server::test_recorder::shared_handle;
+use crate::server::{start_server, ServerLayers};
 
 const NUM_CALLDATA_FELTS: usize = 5_000;
 
@@ -33,9 +35,11 @@ async fn start_test_http_server(max_request_body_size: u32) -> (SocketAddr, Serv
         methods.into(),
         10,
         max_request_body_size,
-        None,
-        None,
-        None,
+        ServerLayers {
+            cors_layer: None,
+            ohttp_layer: None,
+            metrics_layer: MetricsLayer::new(shared_handle().clone()),
+        },
     )
     .await
     .expect("Failed to start HTTP server")
