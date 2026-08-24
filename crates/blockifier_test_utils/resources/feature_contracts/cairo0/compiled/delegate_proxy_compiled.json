@@ -26,6 +26,25 @@
                     "type": "felt*"
                 }
             ],
+            "name": "emit_event_raw",
+            "outputs": [],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "selector",
+                    "type": "felt"
+                },
+                {
+                    "name": "calldata_size",
+                    "type": "felt"
+                },
+                {
+                    "name": "calldata",
+                    "type": "felt*"
+                }
+            ],
             "name": "__default__",
             "outputs": [
                 {
@@ -63,17 +82,21 @@
         "CONSTRUCTOR": [],
         "EXTERNAL": [
             {
-                "offset": 114,
+                "offset": 152,
                 "selector": "0x0"
             },
             {
-                "offset": 77,
+                "offset": 116,
+                "selector": "0x11588788d88e47ab2d3ee2758485e030ff0cdf78d3f49db3b964c27cef0b91d"
+            },
+            {
+                "offset": 87,
                 "selector": "0x1679fae2e055e520e40aa3151502bc246034020f987623497fa9bd662846fa7"
             }
         ],
         "L1_HANDLER": [
             {
-                "offset": 145,
+                "offset": 183,
                 "selector": "0x0"
             }
         ]
@@ -127,6 +150,16 @@
             "0x482680017ffb8000",
             "0x3",
             "0x208b7fff7fff7ffe",
+            "0x480680017fff8000",
+            "0x456d69744576656e74",
+            "0x400280007ff97fff",
+            "0x400380017ff97ffa",
+            "0x400380027ff97ffb",
+            "0x400380037ff97ffc",
+            "0x400380047ff97ffd",
+            "0x482680017ff98000",
+            "0x5",
+            "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x480680017fff8000",
@@ -139,7 +172,7 @@
             "0x480a7ffb7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe6",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffdc",
             "0x48127ffe7fff8000",
             "0x48127ff57fff8000",
             "0x48127ff57fff8000",
@@ -153,7 +186,7 @@
             "0x48127ffe7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe0",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffd6",
             "0x48127ff67fff8000",
             "0x48127ff67fff8000",
             "0x208b7fff7fff7ffe",
@@ -184,17 +217,45 @@
             "0x48127ffa7fff8000",
             "0x208b7fff7fff7ffe",
             "0x480a7ff87fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffba",
+            "0x480a7ff97fff8000",
+            "0x480a7ffa7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480280007ffb8000",
+            "0x480280017ffb8000",
+            "0x480280027ffb8000",
+            "0x480a7ffa7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff1",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480280037ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ffa7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ff87fff8000",
             "0x480a7ff97fff8000",
             "0x480a7ffa7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffcb",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffaf",
             "0x48127ffc7fff8000",
             "0x48127ffe7fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff97",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff71",
             "0x48127ffd7fff8000",
             "0x48127ff17fff8000",
             "0x48127ff17fff8000",
@@ -220,14 +281,14 @@
             "0x480a7ff97fff8000",
             "0x480a7ffa7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffaa",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff8e",
             "0x48127ffc7fff8000",
             "0x48127ffe7fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff82",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff5c",
             "0x48127ffd7fff8000",
             "0x48127ff17fff8000",
             "0x48127ff17fff8000",
@@ -325,7 +386,25 @@
                     }
                 }
             ],
-            "86": [
+            "47": [
+                {
+                    "accessible_scopes": [
+                        "starkware.starknet.common.syscalls",
+                        "starkware.starknet.common.syscalls.emit_event"
+                    ],
+                    "code": "syscall_handler.emit_event(segments=segments, syscall_ptr=ids.syscall_ptr)",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 4,
+                            "offset": 1
+                        },
+                        "reference_ids": {
+                            "starkware.starknet.common.syscalls.emit_event.syscall_ptr": 4
+                        }
+                    }
+                }
+            ],
+            "96": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -336,14 +415,32 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 8,
+                            "group": 9,
                             "offset": 29
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "153": [
+            "124": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.emit_event_raw"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 11,
+                            "offset": 19
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "191": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -354,7 +451,7 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 12,
+                            "group": 15,
                             "offset": 45
                         },
                         "reference_ids": {}
@@ -373,7 +470,7 @@
                     "raw_input",
                     "raw_output"
                 ],
-                "pc": 96,
+                "pc": 134,
                 "type": "function"
             },
             "__main__.__default__.Args": {
@@ -427,7 +524,7 @@
                     "l1_handler",
                     "raw_input"
                 ],
-                "pc": 129,
+                "pc": 167,
                 "type": "function"
             },
             "__main__.__l1_default__.Args": {
@@ -476,6 +573,64 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.emit_event": {
+                "destination": "starkware.starknet.common.syscalls.emit_event",
+                "type": "alias"
+            },
+            "__main__.emit_event_raw": {
+                "decorators": [
+                    "external",
+                    "raw_input"
+                ],
+                "pc": 106,
+                "type": "function"
+            },
+            "__main__.emit_event_raw.Args": {
+                "full_name": "__main__.emit_event_raw.Args",
+                "members": {
+                    "calldata": {
+                        "cairo_type": "felt*",
+                        "offset": 2
+                    },
+                    "calldata_size": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "selector": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
+            "__main__.emit_event_raw.ImplicitArgs": {
+                "full_name": "__main__.emit_event_raw.ImplicitArgs",
+                "members": {
+                    "pedersen_ptr": {
+                        "cairo_type": "starkware.cairo.common.cairo_builtins.HashBuiltin*",
+                        "offset": 1
+                    },
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
+            "__main__.emit_event_raw.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.emit_event_raw.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.implementation_hash": {
                 "type": "namespace"
             },
@@ -505,7 +660,7 @@
             },
             "__main__.implementation_hash.addr": {
                 "decorators": [],
-                "pc": 40,
+                "pc": 50,
                 "type": "function"
             },
             "__main__.implementation_hash.addr.Args": {
@@ -547,7 +702,7 @@
             },
             "__main__.implementation_hash.read": {
                 "decorators": [],
-                "pc": 45,
+                "pc": 55,
                 "type": "function"
             },
             "__main__.implementation_hash.read.Args": {
@@ -593,7 +748,7 @@
             },
             "__main__.implementation_hash.write": {
                 "decorators": [],
-                "pc": 58,
+                "pc": 68,
                 "type": "function"
             },
             "__main__.implementation_hash.write.Args": {
@@ -646,7 +801,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 70,
+                "pc": 80,
                 "type": "function"
             },
             "__main__.set_implementation_hash.Args": {
@@ -693,7 +848,7 @@
                     "raw_input",
                     "raw_output"
                 ],
-                "pc": 114,
+                "pc": 152,
                 "type": "function"
             },
             "__wrappers__.__default__.Args": {
@@ -729,7 +884,7 @@
                     "l1_handler",
                     "raw_input"
                 ],
-                "pc": 145,
+                "pc": 183,
                 "type": "function"
             },
             "__wrappers__.__l1_default__.Args": {
@@ -760,11 +915,47 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.emit_event_raw": {
+                "decorators": [
+                    "external",
+                    "raw_input"
+                ],
+                "pc": 116,
+                "type": "function"
+            },
+            "__wrappers__.emit_event_raw.Args": {
+                "full_name": "__wrappers__.emit_event_raw.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.emit_event_raw.ImplicitArgs": {
+                "full_name": "__wrappers__.emit_event_raw.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.emit_event_raw.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: starkware.cairo.common.cairo_builtins.HashBuiltin*, range_check_ptr: felt, bitwise_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.emit_event_raw.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.emit_event_raw.__wrapped_func": {
+                "destination": "__main__.emit_event_raw",
+                "type": "alias"
+            },
+            "__wrappers__.emit_event_raw_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.set_implementation_hash": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 77,
+                "pc": 87,
                 "type": "function"
             },
             "__wrappers__.set_implementation_hash.Args": {
@@ -1758,6 +1949,76 @@
                 "size": 8,
                 "type": "struct"
             },
+            "starkware.starknet.common.syscalls.emit_event": {
+                "decorators": [],
+                "pc": 40,
+                "type": "function"
+            },
+            "starkware.starknet.common.syscalls.emit_event.Args": {
+                "full_name": "starkware.starknet.common.syscalls.emit_event.Args",
+                "members": {
+                    "data": {
+                        "cairo_type": "felt*",
+                        "offset": 3
+                    },
+                    "data_len": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                    "keys": {
+                        "cairo_type": "felt*",
+                        "offset": 1
+                    },
+                    "keys_len": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 4,
+                "type": "struct"
+            },
+            "starkware.starknet.common.syscalls.emit_event.ImplicitArgs": {
+                "full_name": "starkware.starknet.common.syscalls.emit_event.ImplicitArgs",
+                "members": {
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "starkware.starknet.common.syscalls.emit_event.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.common.syscalls.emit_event.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "starkware.starknet.common.syscalls.emit_event.syscall_ptr": {
+                "cairo_type": "felt*",
+                "full_name": "starkware.starknet.common.syscalls.emit_event.syscall_ptr",
+                "references": [
+                    {
+                        "ap_tracking_data": {
+                            "group": 4,
+                            "offset": 0
+                        },
+                        "pc": 40,
+                        "value": "[cast(fp + (-7), felt**)]"
+                    },
+                    {
+                        "ap_tracking_data": {
+                            "group": 4,
+                            "offset": 1
+                        },
+                        "pc": 47,
+                        "value": "cast([fp + (-7)] + 5, felt*)"
+                    }
+                ],
+                "type": "reference"
+            },
             "starkware.starknet.common.syscalls.library_call": {
                 "decorators": [],
                 "pc": 0,
@@ -2054,6 +2315,14 @@
                     },
                     "pc": 32,
                     "value": "[cast(fp + (-5), felt**)]"
+                },
+                {
+                    "ap_tracking_data": {
+                        "group": 4,
+                        "offset": 0
+                    },
+                    "pc": 40,
+                    "value": "[cast(fp + (-7), felt**)]"
                 }
             ]
         }
