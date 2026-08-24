@@ -28,4 +28,3 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 indexmap.workspace = true
-rstest.workspace = true

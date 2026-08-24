@@ -63,13 +63,10 @@ apollo_network = { workspace = true, features = ["testing"] }
 apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 apollo_starknet_client.workspace = true
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
-apollo_storage = { workspace = true, features = ["testing"] }
-apollo_test_utils.workspace = true
 apollo_time = { workspace = true, features = ["testing", "tokio"] }
 apollo_transaction_converter = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
-blockifier_test_utils = { workspace = true }
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true

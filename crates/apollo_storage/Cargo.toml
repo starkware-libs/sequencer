@@ -55,12 +55,9 @@ apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec", "schemars"] }
-camelpaste.workspace = true
-futures.workspace = true
 insta = { workspace = true, features = ["yaml"] }
 metrics-exporter-prometheus.workspace = true
 nix.workspace = true
-num-traits.workspace = true
 paste.workspace = true
 pretty_assertions.workspace = true
 prometheus-parse.workspace = true
@@ -74,7 +71,6 @@ starknet_api = { workspace = true, features = ["testing"] }
 starknet_committer = { workspace = true, features = ["testing"] }
 tempfile = { workspace = true }
 test-case.workspace = true
-test-log.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tower = { workspace = true, features = ["util"] }
 

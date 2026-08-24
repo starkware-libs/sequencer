@@ -92,7 +92,6 @@ apollo_l1_events_types = { workspace = true, features = ["testing"] }
 futures.workspace = true
 metrics.workspace = true
 mockall.workspace = true
-rstest.workspace = true
 starknet_proof_verifier.workspace = true
 
 [[bin]]

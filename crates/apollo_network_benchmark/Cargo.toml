@@ -29,10 +29,8 @@ tracing-subscriber.workspace = true
 
 
 [dev-dependencies]
-assert_matches.workspace = true
 rstest.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
-tokio-stream.workspace = true
 
 [lints]
 workspace = true

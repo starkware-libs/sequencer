@@ -49,8 +49,5 @@ apollo_proof_manager_types = { workspace = true, features = ["testing"] }
 apollo_signature_manager_types = { workspace = true, features = ["testing"] }
 apollo_staking = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
-apollo_storage = { workspace = true }
 apollo_transaction_converter = { workspace = true, features = ["testing"] }
 mockall.workspace = true
-rstest.workspace = true
-tempfile.workspace = true
