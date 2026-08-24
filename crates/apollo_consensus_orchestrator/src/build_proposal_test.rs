@@ -11,15 +11,18 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_infra::component_client::ClientError;
 use apollo_transaction_converter::{MockTransactionConverterTrait, TransactionConverterError};
 use assert_matches::assert_matches;
-use starknet_api::block::GasPrice;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError};
+use crate::cende::MockCendeContext;
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::test_utils::{create_proposal_build_arguments, INTERNAL_TX_BATCH, PARTIAL_BLOCK_HASH};
+use crate::utils::RetrospectiveStateCommitmentInfosError;
 
 #[tokio::test]
 async fn build_proposal_succeed() {
@@ -137,4 +140,47 @@ async fn cende_fail() {
 
     let res = build_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(BuildProposalError::CendeWriteError(_))));
+}
+
+/// The blob of height H must carry the state commitment infos (witnesses) of the next height's
+/// retrospective block, H + 1 - STORED_BLOCK_HASH_BUFFER. When neither the batcher nor the cende
+/// recorder has stored them, the round fails before the block is even proposed.
+#[tokio::test]
+async fn missing_retrospective_state_commitment_infos_fail() {
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
+    proposal_args.build_param.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    let next_height_retro_block_number =
+        BlockNumber(proposal_args.build_param.height.0 + 1 - STORED_BLOCK_HASH_BUFFER);
+
+    // Setup the retrospective block hash check to pass.
+    proposal_args.deps.batcher.expect_get_block_hash().returning(|_| Ok(BlockHash::default()));
+    proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(BlockHash::default()));
+
+    // The batcher doesn't have the retrospective block's state commitment infos, and the cende
+    // recorder's height offset shows it hasn't stored them either.
+    proposal_args
+        .deps
+        .batcher
+        .expect_has_state_commitment_infos()
+        .withf(move |block_number| *block_number == next_height_retro_block_number)
+        .returning(|_| Ok(false));
+    let mut cende_ambassador = MockCendeContext::new();
+    cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .returning(move || Ok(Some(next_height_retro_block_number)));
+    proposal_args.deps.cende_ambassador = cende_ambassador;
+
+    // No `propose_block` expectation is set: reaching the batcher would panic, proving the build
+    // fails before proposing.
+    let res = build_proposal(proposal_args.into()).await;
+    assert_matches!(
+        res,
+        Err(BuildProposalError::RetrospectiveStateCommitmentInfosError(
+            RetrospectiveStateCommitmentInfosError::NotStored { retrospective_block_number, .. }
+        )) if retrospective_block_number == next_height_retro_block_number
+    );
 }
