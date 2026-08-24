@@ -20,6 +20,47 @@ pub type ApolloStorage = CachedStorage<RocksDbStorage>;
 pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 
 pub const DEFAULT_COMMIT_DURATION_WARN_THRESHOLD: Duration = Duration::from_millis(3000);
+pub const DEFAULT_COMMITMENT_INFOS_RETENTION_BLOCKS: u64 = 1000;
+pub const DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT: u64 = 100;
+
+/// Configuration of commitment-infos pruning from the committer storage.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+pub struct CommitmentInfosPruningConfig {
+    /// The commitment infos of the `retention_blocks` highest committed heights are kept in
+    /// storage; those of lower heights are pruned when committing a block.
+    pub retention_blocks: u64,
+    /// At most this many heights are pruned per commit.
+    pub max_deletions_per_commit: u64,
+}
+
+impl SerializeConfig for CommitmentInfosPruningConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "retention_blocks",
+                &self.retention_blocks,
+                "The commitment infos of this many highest committed heights are kept in storage; \
+                 those of lower heights are pruned when committing a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_deletions_per_commit",
+                &self.max_deletions_per_commit,
+                "At most this many heights' commitment infos are pruned per commit.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for CommitmentInfosPruningConfig {
+    fn default() -> Self {
+        Self {
+            retention_blocks: DEFAULT_COMMITMENT_INFOS_RETENTION_BLOCKS,
+            max_deletions_per_commit: DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct CommitterConfig<C: StorageConfigTrait> {
@@ -33,6 +74,7 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub commit_duration_warn_threshold_millis: Duration,
+    pub commitment_infos_pruning_config: CommitmentInfosPruningConfig,
 }
 
 impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
@@ -58,6 +100,10 @@ impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
                 ParamPrivacyInput::Public,
             ),
         ]);
+        dump.extend(prepend_sub_config_name(
+            self.commitment_infos_pruning_config.dump(),
+            "commitment_infos_pruning_config",
+        ));
         dump.extend(prepend_sub_config_name(self.reader_config.dump(), "reader_config"));
         dump.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         dump
@@ -74,6 +120,7 @@ impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
             storage_config: C::default(),
             verify_state_diff_hash: true,
             commit_duration_warn_threshold_millis: DEFAULT_COMMIT_DURATION_WARN_THRESHOLD,
+            commitment_infos_pruning_config: CommitmentInfosPruningConfig::default(),
         }
     }
 }
