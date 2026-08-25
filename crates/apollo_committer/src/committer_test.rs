@@ -16,6 +16,7 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::db::forest_trait::ForestMetadataType;
 use starknet_committer::db::index_db::db::IndexDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing_test::traced_test;
@@ -159,8 +160,12 @@ async fn committer_offset() {
     committer.commit_block(commit_block_request(2, Some(4), 1)).await.unwrap_err();
     assert_eq!(committer.offset, BlockNumber(2));
 
-    let offset = ApolloTestCommitter::load_offset_or_panic(&mut committer.forest_storage).await;
-    assert_eq!(offset, BlockNumber(2));
+    let offset = ApolloTestCommitter::load_block_number_metadata_or_panic(
+        &mut committer.forest_storage,
+        ForestMetadataType::CommitmentOffset,
+    )
+    .await;
+    assert_eq!(offset, Some(BlockNumber(2)));
 }
 
 #[tokio::test]

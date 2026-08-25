@@ -116,6 +116,10 @@ enum CommitBlockHeightPlan {
     CommitTip { state_diff_commitment: StateDiffCommitment },
 }
 
+fn db_block_number_value(block_number: BlockNumber) -> DbValue {
+    DbValue(DbBlockNumber(block_number).serialize().to_vec())
+}
+
 fn commit_tip_metadata_bundle(
     height: BlockNumber,
     global_root: GlobalRoot,
@@ -124,10 +128,7 @@ fn commit_tip_metadata_bundle(
     let next_offset = height.unchecked_next();
     (
         HashMap::from([
-            (
-                ForestMetadataType::CommitmentOffset,
-                DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
-            ),
+            (ForestMetadataType::CommitmentOffset, db_block_number_value(next_offset)),
             (
                 ForestMetadataType::StateRoot(DbBlockNumber(height)),
                 serialize_felt_no_packing(global_root.0),
@@ -163,7 +164,12 @@ where
     pub async fn new(config: CommitterConfig<S::Config>) -> Self {
         let storage = S::create_storage(config.db_path.clone(), config.storage_config.clone());
         let mut forest_storage = ForestDB::new(storage);
-        let offset = Self::load_offset_or_panic(&mut forest_storage).await;
+        let offset = Self::load_block_number_metadata_or_panic(
+            &mut forest_storage,
+            ForestMetadataType::CommitmentOffset,
+        )
+        .await
+        .unwrap_or_default();
         info!("Initializing committer with offset: {offset}");
         Self { forest_storage, config, offset }
     }
@@ -388,7 +394,7 @@ where
         // Ignore entries with block number key equals to or higher than the offset.
         let metadata = HashMap::from([(
             ForestMetadataType::CommitmentOffset,
-            DbValue(DbBlockNumber(last_committed_block).serialize().to_vec()),
+            db_block_number_value(last_committed_block),
         )]);
         info!(
             "For block number {height}, writing filled forest and updating the commitment offset \
@@ -401,7 +407,7 @@ where
                 &filled_forest,
                 metadata,
                 deleted_nodes,
-                CommitmentInfosUpdate::Delete(height),
+                vec![CommitmentInfosUpdate::Delete(height)],
             )
             .await
             .map_err(|err| self.map_internal_error(err))?;
@@ -432,21 +438,22 @@ where
         Ok(GlobalRoot(deserialize_felt_no_packing(&db_value)))
     }
 
-    async fn load_offset_or_panic(forest_storage: &mut ForestDB) -> BlockNumber {
-        let db_offset = forest_storage
-            .read_metadata(ForestMetadataType::CommitmentOffset)
+    /// Loads a block number metadata entry, or `None` if it is absent.
+    async fn load_block_number_metadata_or_panic(
+        forest_storage: &mut ForestDB,
+        metadata_type: ForestMetadataType,
+    ) -> Option<BlockNumber> {
+        let db_value = forest_storage
+            .read_metadata(metadata_type.clone())
             .await
-            .expect("Failed to read commitment offset");
+            .unwrap_or_else(|error| panic!("Failed to read {metadata_type:?}: {error:?}"));
 
-        db_offset
-            .map(|value| {
-                let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
-                    panic!("Failed to deserialize commitment offset from {value:?}")
-                });
-                DbBlockNumber::deserialize(array_value)
-            })
-            .unwrap_or_default()
-            .0
+        db_value.map(|value| {
+            let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
+                panic!("Failed to deserialize {metadata_type:?} from {value:?}")
+            });
+            DbBlockNumber::deserialize(array_value).0
+        })
     }
 
     // Reads metadata from the storage, returns an error if it is not found.
@@ -573,6 +580,13 @@ where
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
 
+                let commitment_infos_updates =
+                    vec![CommitmentInfosUpdate::Write(CommitmentInfosWrite {
+                        block_number: height,
+                        keys_digest: digest,
+                        commitment_infos: state_commitment_infos.clone(),
+                    })];
+
                 info!(
                     "For block number {height}, writing filled forest and \
                      {commitment_facts_count} commitment facts to storage with metadata: \
@@ -587,11 +601,7 @@ where
                         &filled_forest,
                         metadata,
                         deleted_nodes,
-                        CommitmentInfosUpdate::Write(CommitmentInfosWrite {
-                            block_number: height,
-                            keys_digest: digest,
-                            commitment_infos: state_commitment_infos.clone(),
-                        }),
+                        commitment_infos_updates,
                     )
                     .await
                     .map_err(|e: SerializationError| self.map_internal_error(e))?;
