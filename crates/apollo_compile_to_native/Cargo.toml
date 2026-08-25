@@ -21,5 +21,4 @@ apollo_compilation_utils = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 assert_matches.workspace = true
 mempool_test_utils.workspace = true
-rstest.workspace = true
 toml_test_utils.workspace = true

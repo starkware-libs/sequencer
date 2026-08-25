@@ -44,7 +44,6 @@ apollo_staking = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
-enum-as-inner.workspace = true
 mockall.workspace = true
 rand.workspace = true
 rstest.workspace = true

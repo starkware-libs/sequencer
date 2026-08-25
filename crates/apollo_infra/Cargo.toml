@@ -45,10 +45,7 @@ validator.workspace = true
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_proc_macros.workspace = true
-assert_matches.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
-once_cell.workspace = true
-pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 strum = { workspace = true, features = ["derive"] }

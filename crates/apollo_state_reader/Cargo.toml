@@ -29,5 +29,4 @@ async-trait.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 indexmap.workspace = true
-rstest.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

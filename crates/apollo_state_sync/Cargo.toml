@@ -48,4 +48,3 @@ indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
 mockall.workspace = true
 rand.workspace = true
-rand_chacha.workspace = true

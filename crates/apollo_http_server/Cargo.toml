@@ -51,7 +51,6 @@ apollo_gateway_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 base64.workspace = true
-blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 flate2.workspace = true
 mempool_test_utils.workspace = true

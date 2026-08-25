@@ -10,7 +10,6 @@ description = "Task execution utilities for concurrent operations."
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
-futures.workspace = true
 rstest.workspace = true
 tokio-test.workspace = true
 

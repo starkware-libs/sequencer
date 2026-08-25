@@ -22,7 +22,6 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
-apollo_test_utils.workspace = true
 assert_matches.workspace = true
 colored.workspace = true
 itertools.workspace = true
