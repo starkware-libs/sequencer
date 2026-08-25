@@ -13,16 +13,17 @@ use rstest::rstest;
 use serde_json::Value;
 use tempfile::NamedTempFile;
 
-use crate::server::config::TransportMode;
-use crate::server::mock_rpc::MockProvingRpc;
-use crate::server::rpc_api::ProvingRpcServer;
+use crate::server::config::{TransportMode, DEFAULT_MAX_REQUEST_BODY_SIZE};
 use crate::server::rpc_impl::SPEC_VERSION;
 use crate::server::start_server;
+use crate::server::test_utils::{
+    ensure_crypto_provider,
+    jsonrpc_request,
+    loopback_addr,
+    mock_rpc_module,
+    TEST_MAX_CONNECTIONS,
+};
 use crate::server::tls::load_tls_acceptor;
-
-fn ensure_crypto_provider() {
-    let _ = tokio_rustls::rustls::crypto::aws_lc_rs::default_provider().install_default();
-}
 
 fn test_cert_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/test_tls/cert.pem")
@@ -42,30 +43,19 @@ fn write_pem_to_tempfile(pem_bytes: &[u8]) -> NamedTempFile {
     file
 }
 
-fn spec_version_request() -> Value {
-    serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": "1",
-        "method": "starknet_specVersion"
-    })
-}
-
 async fn start_test_tls_server() -> (SocketAddr, ServerHandle, Vec<u8>) {
-    let methods = MockProvingRpc::from_expected_json().into_rpc();
-    let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
-
     // Goes through `start_server` rather than `tls::start_tls_server` directly, so the
     // `TransportMode::Https` dispatch arm is covered too.
     let transport =
         TransportMode::Https { tls_cert_file: test_cert_path(), tls_key_file: test_key_path() };
     let (local_addr, handle) = start_server(
-        addr,
+        loopback_addr(),
         &transport,
-        methods.into(),
-        10,              // max_connections
-        5 * 1024 * 1024, // max_request_body_size
-        None,            // cors_layer
-        None,            // ohttp_layer
+        mock_rpc_module().into(),
+        TEST_MAX_CONNECTIONS,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+        None, // cors_layer
+        None, // ohttp_layer
     )
     .await
     .expect("Failed to start TLS server");
@@ -86,7 +76,7 @@ async fn test_https_spec_version_succeeds() {
     // server listens on `127.0.0.1`. The fixture cert's SAN covers `IP:127.0.0.1`.
     let response = client
         .post(format!("https://{addr}"))
-        .json(&spec_version_request())
+        .json(&jsonrpc_request("starknet_specVersion", Value::Null))
         .send()
         .await
         .expect("HTTPS request failed");
@@ -107,7 +97,7 @@ async fn test_http_to_tls_server_fails() {
     // bound address, not `localhost`, which may resolve to `::1`.
     let result = reqwest::Client::new()
         .post(format!("http://{addr}"))
-        .json(&spec_version_request())
+        .json(&jsonrpc_request("starknet_specVersion", Value::Null))
         .send()
         .await;
     assert!(result.is_err(), "Expected HTTP to TLS server to fail, got: {result:?}");
@@ -169,9 +159,8 @@ fn test_load_tls_acceptor_failure(
     #[case] key: PathMode,
     #[case] expected_error_substring: &str,
 ) {
-    // `PathMode::MismatchedKey` reaches rustls' `ServerConfig` builder, which requires a
-    // process-level crypto provider. nextest runs each test in a fresh process, so install the
-    // provider here even though the other cases error out before reaching it.
+    // Only the mismatched-key case reaches rustls' `ServerConfig` builder; the others error out
+    // earlier, so this failure test still needs the crypto provider installed.
     ensure_crypto_provider();
 
     let (cert_path, _cert_tempfile) =
@@ -189,8 +178,6 @@ fn test_load_tls_acceptor_failure(
 
 #[test]
 fn test_load_tls_acceptor_succeeds_for_valid_files() {
-    // `load_tls_acceptor` builds a rustls `ServerConfig`, which requires a process-level crypto
-    // provider. nextest runs each test in a fresh process, so install the provider here.
     ensure_crypto_provider();
     load_tls_acceptor(&test_cert_path(), &test_key_path()).unwrap();
 }

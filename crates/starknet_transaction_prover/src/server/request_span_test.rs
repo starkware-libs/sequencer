@@ -6,9 +6,9 @@ use tower::{Layer, ServiceExt};
 use tower_ohttp::Decapsulated;
 use tracing_test::traced_test;
 
-use crate::server::middleware_test_utils::{echo_request_id_service, read_body_and_headers};
 use crate::server::request_log::{RequestId, RequestLogLayer, REQUEST_ID_HEADER};
 use crate::server::request_span::RequestSpanLayer;
+use crate::server::test_utils::{echo_request_id_service, read_body_and_headers};
 
 #[tokio::test]
 async fn plaintext_reuses_inbound_request_id() {

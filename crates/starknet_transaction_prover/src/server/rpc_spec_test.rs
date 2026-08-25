@@ -30,6 +30,7 @@ use crate::server::errors::ServiceErrorCode;
 use crate::server::mock_rpc::MockProvingRpc;
 use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::rpc_impl::{ProvingRpcServerImpl, SPEC_VERSION};
+use crate::server::test_utils::mock_rpc_module;
 
 const SPEC_VERSION_METHOD: &str = "starknet_specVersion";
 const PROVE_TRANSACTION_METHOD: &str = "starknet_proveTransaction";
@@ -131,11 +132,6 @@ fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
         std::time::Duration::from_secs(30),
     );
     rpc_impl.into_rpc()
-}
-
-#[fixture]
-fn mock_rpc_module() -> RpcModule<MockProvingRpc> {
-    MockProvingRpc::from_expected_json().into_rpc()
 }
 
 /// Compiles a JSON Schema from a `$ref` path within the spec document.
@@ -371,9 +367,9 @@ fn test_spec_version_matches_spec() {
 /// For each method:
 /// 1. Validates request params (both named and positional) are accepted by the module.
 /// 2. Calls the mock RPC to obtain the response, then validates it against the spec schema.
-#[rstest]
 #[tokio::test]
-async fn test_spec_matches_rpc_module(mock_rpc_module: RpcModule<MockProvingRpc>) {
+async fn test_spec_matches_rpc_module() {
+    let mock_rpc_module = mock_rpc_module();
     let test_cases = build_method_test_cases(&mock_rpc_module);
 
     for MethodTestCase { method_name, method_index, sample_params } in &test_cases {
