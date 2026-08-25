@@ -580,13 +580,6 @@ where
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
 
-                let commitment_infos_updates =
-                    vec![CommitmentInfosUpdate::Write(CommitmentInfosWrite {
-                        block_number: height,
-                        keys_digest: digest,
-                        commitment_infos: state_commitment_infos.clone(),
-                    })];
-
                 info!(
                     "For block number {height}, writing filled forest and \
                      {commitment_facts_count} commitment facts to storage with metadata: \
@@ -594,6 +587,17 @@ where
                     commitment_facts_count = state_commitment_infos.n_commitment_facts(),
                     deleted_nodes_count = deleted_nodes.len(),
                 );
+                // Compress before moving `state_commitment_infos` into the write below:
+                // `compress` only needs a reference, so computing it first avoids cloning the
+                // whole commitment-facts structure just to satisfy the owned `commitment_infos`
+                // field.
+                let compressed_state_commitment_infos = state_commitment_infos.compress()?;
+                let commitment_infos_updates =
+                    vec![CommitmentInfosUpdate::Write(CommitmentInfosWrite {
+                        block_number: height,
+                        keys_digest: digest,
+                        commitment_infos: state_commitment_infos,
+                    })];
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
                     .forest_storage
@@ -615,7 +619,7 @@ where
                 self.update_offset(next_offset);
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
+                    state_commitment_infos: compressed_state_commitment_infos,
                 })
             }
         }
