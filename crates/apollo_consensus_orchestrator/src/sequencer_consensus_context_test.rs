@@ -61,7 +61,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use tracing_test::traced_test;
 
 use crate::cende::{
@@ -1030,7 +1034,10 @@ async fn collect_recent_state_commitment_infos_sends_empty_objects_when_configur
     let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
     let expected: Vec<_> = (98..=100)
         .map(|height| StateCommitmentInfosAndNumber {
-            state_commitment_infos: CompressedStateCommitmentInfos(Vec::new()),
+            state_commitment_infos: CompressedStateCommitmentInfos {
+                version: STATE_COMMITMENT_INFOS_VERSION,
+                payload: CompressedPayload(Vec::new()),
+            },
             block_number: BlockNumber(height),
         })
         .collect();
@@ -1038,7 +1045,10 @@ async fn collect_recent_state_commitment_infos_sends_empty_objects_when_configur
 }
 
 fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
-    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION,
+        payload: CompressedPayload(b"compressed-state-commitment-infos".to_vec()),
+    }
 }
 
 /// Returns the block numbers `collect_recent_state_commitment_infos` sends for `height` when the

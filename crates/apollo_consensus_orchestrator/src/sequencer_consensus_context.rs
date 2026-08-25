@@ -71,7 +71,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -774,7 +778,10 @@ impl SequencerConsensusContext {
         }
         let has_state_commitment_infos =
             self.deps.batcher.has_state_commitment_infos(block_number).await?;
-        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos(Vec::new())))
+        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos {
+            version: STATE_COMMITMENT_INFOS_VERSION,
+            payload: CompressedPayload(Vec::new()),
+        }))
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored
