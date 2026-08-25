@@ -531,6 +531,7 @@ auto_impl_get_test_instance! {
         V0_14_2 = 25,
         V0_14_3 = 26,
         V0_14_4 = 27,
+        V0_14_5 = 28,
     }
 
     pub struct Calldata(pub Arc<Vec<Felt>>);

@@ -40,6 +40,7 @@ define_versioned_constants!(
     (V0_14_2, "../resources/orchestrator_versioned_constants_0_14_2.json"),
     (V0_14_3, "../resources/orchestrator_versioned_constants_0_14_3.json"),
     (V0_14_4, "../resources/orchestrator_versioned_constants_0_14_4.json"),
+    (V0_14_5, "../resources/orchestrator_versioned_constants_0_14_5.json"),
 );
 
 /// Error type for the Consensus' versioned constants.
