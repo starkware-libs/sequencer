@@ -587,16 +587,15 @@ where
                     commitment_facts_count = state_commitment_infos.n_commitment_facts(),
                     deleted_nodes_count = deleted_nodes.len(),
                 );
-                // Compress before moving `state_commitment_infos` into the write below:
-                // `compress` only needs a reference, so computing it first avoids cloning the
-                // whole commitment-facts structure just to satisfy the owned `commitment_infos`
-                // field.
+                // Compress once and reuse the (small) compressed bytes for both the DB write and
+                // the RPC response, rather than compressing the commitment facts a second time
+                // inside the write path.
                 let compressed_state_commitment_infos = state_commitment_infos.compress()?;
                 let commitment_infos_updates =
                     vec![CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                         block_number: height,
                         keys_digest: digest,
-                        commitment_infos: state_commitment_infos,
+                        commitment_infos: compressed_state_commitment_infos.clone(),
                     })];
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self

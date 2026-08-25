@@ -431,7 +431,7 @@ impl<S: Storage> IndexDb<S> {
     fn append_commitment_infos_update(
         operations: &mut DbOperationMap,
         commitment_infos_update: CommitmentInfosUpdate,
-    ) -> SerializationResult<()> {
+    ) {
         match commitment_infos_update {
             CommitmentInfosUpdate::Delete(block_number) => {
                 operations.insert(
@@ -453,7 +453,6 @@ impl<S: Storage> IndexDb<S> {
                 keys_digest,
                 commitment_infos,
             }) => {
-                let encoded = DbValue(commitment_infos.compress()?.0);
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
                         block_number,
@@ -465,11 +464,10 @@ impl<S: Storage> IndexDb<S> {
                         &PATRICIA_PATHS_PREFIX,
                         DbBlockNumber(block_number),
                     )),
-                    DbOperation::Set(encoded),
+                    DbOperation::Set(DbValue(commitment_infos.0)),
                 );
             }
         }
-        Ok(())
     }
 }
 
@@ -485,7 +483,7 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
         let mut operations = DbOperationMap::new();
         Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
         for commitment_infos_update in commitment_infos_updates {
-            Self::append_commitment_infos_update(&mut operations, commitment_infos_update)?;
+            Self::append_commitment_infos_update(&mut operations, commitment_infos_update);
         }
         Ok(self.write_updates(operations).await)
     }
