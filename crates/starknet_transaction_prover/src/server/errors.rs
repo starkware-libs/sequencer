@@ -20,6 +20,10 @@ use crate::errors::{
     VirtualSnosProverError,
 };
 
+#[cfg(test)]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 /// Every JSON-RPC error the proving service itself defines, one variant per error documented in
 /// the proving-api OpenRPC spec. Each error's code and canonical message live only here; the
 /// constructor functions below are thin wrappers. The service can also return the standard
