@@ -4,6 +4,7 @@ use apollo_committer::metrics::{
     AVERAGE_WRITE_RATE,
     BLOCKS_COMMITTED,
     COMMITTER_BLOCK_COMMIT_LATENCY,
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -30,6 +31,15 @@ fn get_offset_panel() -> Panel {
         "Committer Offset",
         "The next block number to commit",
         COMMITTER_OFFSET.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+}
+
+fn get_commitment_infos_lower_bound_panel() -> Panel {
+    Panel::new(
+        "Commitment Infos Lower Bound",
+        "The lowest block number whose commitment infos are stored",
+        COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
 }
@@ -220,6 +230,7 @@ pub(crate) fn get_committer_row() -> Row {
         "Committer",
         vec![
             get_offset_panel(),
+            get_commitment_infos_lower_bound_panel(),
             get_total_block_duration_panel(),
             get_block_commit_latency_panel(),
             get_total_block_duration_per_modification_panel(),
