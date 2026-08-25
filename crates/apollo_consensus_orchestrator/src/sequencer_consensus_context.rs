@@ -17,7 +17,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
-use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError, BatcherClientResult};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -71,6 +71,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -733,7 +734,7 @@ impl SequencerConsensusContext {
                 break;
             }
             let block_number = BlockNumber(block_height);
-            match self.deps.batcher.get_state_commitment_infos(block_number).await {
+            match self.state_commitment_infos_to_send(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
                 // In the empty-cende-recorder case, the earliest heights in the window may
@@ -759,6 +760,21 @@ impl SequencerConsensusContext {
             }
         }
         Ok(recent_state_commitment_infos)
+    }
+
+    /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
+    /// `None` if the batcher has none. With `send_empty_state_commitment_infos_only` on, an empty
+    /// object stands in for the stored one, which is not read.
+    async fn state_commitment_infos_to_send(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
+        if !self.config.static_config.send_empty_state_commitment_infos_only {
+            return self.deps.batcher.get_state_commitment_infos(block_number).await;
+        }
+        let has_state_commitment_infos =
+            self.deps.batcher.has_state_commitment_infos(block_number).await?;
+        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos(Vec::new())))
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored
