@@ -27,6 +27,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
 };
 use starknet_committer::db::forest_trait::forest_trait_witnesses::ForestReaderWithWitnesses;
+use starknet_committer::db::forest_trait::ForestMetadataType;
 use starknet_committer::db::serde_db_utils::accessed_keys_digest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -48,7 +49,7 @@ use starknet_patricia::patricia_merkle_tree::storage_proof_verification::verify_
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 
-use crate::committer::committer_test::{new_test_committer, ApolloTestCommitter};
+use crate::committer::committer_test::{get_state_diff, new_test_committer, ApolloTestCommitter};
 
 const ACCESSED_STORAGE_VALUE_1: u128 = 100;
 const ACCESSED_STORAGE_VALUE_2: u128 = 200;
@@ -315,6 +316,72 @@ async fn assert_witnesses_and_digest_absent(
     assert!(committer.forest_storage.read_commitment_infos(height).await.unwrap().is_none());
 }
 
+async fn assert_witnesses_and_digest_stored(
+    committer: &mut ApolloTestCommitter,
+    height: BlockNumber,
+) {
+    assert!(committer.load_witnesses_digest(height).await.unwrap().is_some());
+    assert!(committer.forest_storage.read_commitment_infos(height).await.unwrap().is_some());
+}
+
+/// Commits `height` via [`crate::committer::Committer::read_paths_and_commit_block`] with a
+/// height-distinct state diff and no accessed keys.
+async fn read_paths_and_commit_block_without_accessed_keys(
+    committer: &mut ApolloTestCommitter,
+    height: u64,
+) {
+    let state_diff = get_state_diff(height + 1);
+    let state_diff_commitment = Some(calculate_state_diff_hash(&state_diff));
+    committer
+        .read_paths_and_commit_block(read_paths_and_commit_block_request(
+            state_diff,
+            state_diff_commitment,
+            height,
+            AccessedKeys::default(),
+        ))
+        .await
+        .unwrap();
+}
+
+/// Commits `height` via [`crate::committer::Committer::commit_block`] with the same state diff as
+/// [`read_paths_and_commit_block_without_accessed_keys`], storing no commitment infos.
+async fn commit_block_without_commitment_infos(committer: &mut ApolloTestCommitter, height: u64) {
+    let state_diff = get_state_diff(height + 1);
+    let state_diff_commitment = Some(calculate_state_diff_hash(&state_diff));
+    committer
+        .commit_block(CommitBlockRequest {
+            state_diff,
+            state_diff_commitment,
+            height: BlockNumber(height),
+        })
+        .await
+        .unwrap();
+}
+
+/// Reverts `height`, committed by either helper above, by emptying its class leaf.
+async fn revert_test_block(committer: &mut ApolloTestCommitter, height: u64) {
+    let reversed_state_diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash((height + 1).into()) => CompiledClassHash(0_u64.into()),
+        },
+        ..Default::default()
+    };
+    committer
+        .revert_block(RevertBlockRequest { reversed_state_diff, height: BlockNumber(height) })
+        .await
+        .unwrap();
+}
+
+async fn stored_commitment_infos_lower_bound(
+    committer: &mut ApolloTestCommitter,
+) -> Option<BlockNumber> {
+    ApolloTestCommitter::load_block_number_metadata_or_panic(
+        &mut committer.forest_storage,
+        ForestMetadataType::CommitmentInfosLowerBound,
+    )
+    .await
+}
+
 /// Flow overview:
 /// 1. Commit block 0 via [crate::committer::Committer::read_paths_and_commit_block], requesting
 ///    witnesses for [`ACCESSED_KEYS`].
@@ -568,4 +635,133 @@ async fn test_bottom_of_new_edge_which_was_not_bottom_of_an_old_edge_is_present(
             .contains_key(&node_e_hash),
         "missing bottom of a new edge node in a proof",
     );
+}
+
+/// Commits blocks with witnesses under a retention window of 2, verifying that on every commit
+/// exceeding the window, commitment infos below `offset - 2` are pruned and the lower bound
+/// advances.
+#[tokio::test]
+async fn prune_commitment_infos() {
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+
+    for height in 0..4 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+        assert_witnesses_and_digest_stored(&mut committer, BlockNumber(height)).await;
+    }
+
+    // Committing height 3 advanced the offset to 4, pruning heights below 4 - 2.
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+    for height in 0..2 {
+        assert_witnesses_and_digest_absent(&mut committer, BlockNumber(height)).await;
+    }
+    for height in 2..4 {
+        assert_witnesses_and_digest_stored(&mut committer, BlockNumber(height)).await;
+    }
+
+    assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(2)));
+}
+
+/// Commits blocks 0..4 with witnesses under a retention window of 2, then keeps committing via
+/// [`crate::committer::Committer::commit_block`], verifying that the plain commit path prunes the
+/// stored commitment infos and advances the lower bound as well, including past heights that
+/// stored no commitment infos.
+#[tokio::test]
+async fn prune_commitment_infos_via_commit_block() {
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+
+    for height in 0..4 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+
+    for height in 4..6 {
+        commit_block_without_commitment_infos(&mut committer, height).await;
+    }
+    // Committing height 5 advanced the offset to 6, pruning heights below 6 - 2.
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(4));
+    for height in 0..4 {
+        assert_witnesses_and_digest_absent(&mut committer, BlockNumber(height)).await;
+    }
+    assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(4)));
+
+    // Heights 4, 5 stored no commitment infos; pruning them advances the lower bound regardless.
+    for height in 6..8 {
+        commit_block_without_commitment_infos(&mut committer, height).await;
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(6));
+    assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(6)));
+}
+
+/// Verifies that the lower bound is persisted before any pruning occurs, so that a restart does
+/// not default it to the advanced offset and skip the already-stored heights.
+#[tokio::test]
+async fn commitment_infos_lower_bound_persisted_before_pruning() {
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config.retention_blocks = 100;
+
+    for height in 0..3 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(0));
+    assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(0)));
+}
+
+/// Commits blocks 0..4 under a retention window of 2 (pruning heights 0, 1), reverts down to
+/// offset 1, and verifies the lower bound is lowered to the new offset so that re-committed heights
+/// are pruned.
+#[tokio::test]
+async fn revert_below_commitment_infos_lower_bound() {
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+
+    for height in 0..4 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+
+    for height in (1..4).rev() {
+        revert_test_block(&mut committer, height).await;
+    }
+    assert_eq!(committer.offset, BlockNumber(1));
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(1));
+    assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(1)));
+
+    // Re-committing up to offset 4 prunes height 1, which would have been skipped had the lower
+    // bound stayed at 2.
+    for height in 1..4 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+    assert_witnesses_and_digest_absent(&mut committer, BlockNumber(1)).await;
+    for height in 2..4 {
+        assert_witnesses_and_digest_stored(&mut committer, BlockNumber(height)).await;
+    }
+}
+
+/// Verifies that at most `max_deletions_per_commit` heights are pruned per commit, even when more
+/// heights are below the retention window.
+#[tokio::test]
+async fn prune_commitment_infos_deletions_cap() {
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config.retention_blocks = 100;
+    committer.config.commitment_infos_pruning_config.max_deletions_per_commit = 1;
+
+    for height in 0..4 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(0));
+
+    // Heights 0..3 drop below the retention window, but only one height is pruned per commit.
+    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    read_paths_and_commit_block_without_accessed_keys(&mut committer, 4).await;
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(1));
+    assert_witnesses_and_digest_absent(&mut committer, BlockNumber(0)).await;
+    assert_witnesses_and_digest_stored(&mut committer, BlockNumber(1)).await;
+
+    read_paths_and_commit_block_without_accessed_keys(&mut committer, 5).await;
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+    assert_witnesses_and_digest_absent(&mut committer, BlockNumber(1)).await;
+    assert_witnesses_and_digest_stored(&mut committer, BlockNumber(2)).await;
 }

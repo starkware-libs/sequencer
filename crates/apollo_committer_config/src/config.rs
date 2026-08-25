@@ -28,6 +28,7 @@ pub const DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT: u64 = 100;
 pub struct CommitmentInfosPruningConfig {
     /// The commitment infos of the `retention_blocks` highest committed heights are kept in
     /// storage; those of lower heights are pruned when committing a block.
+    #[validate(range(min = 10))]
     pub retention_blocks: u64,
     /// At most this many heights are pruned per commit.
     pub max_deletions_per_commit: u64,
@@ -74,6 +75,7 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub commit_duration_warn_threshold_millis: Duration,
+    #[validate(nested)]
     pub commitment_infos_pruning_config: CommitmentInfosPruningConfig,
 }
 
