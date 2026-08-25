@@ -2071,7 +2071,7 @@ impl BatcherStorageWriter for StorageWriter {
              hash: {block_hash:?}, compressed commitment infos byte length: {:?}.",
             state_commitment_infos
                 .as_ref()
-                .map(|state_commitment_infos| state_commitment_infos.0.len())
+                .map(|state_commitment_infos| state_commitment_infos.payload.len())
         );
         let mut txn = self
             .begin_rw_txn()?

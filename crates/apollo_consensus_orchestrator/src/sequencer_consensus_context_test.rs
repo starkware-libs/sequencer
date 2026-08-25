@@ -61,7 +61,10 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use tracing_test::traced_test;
 
 use crate::cende::{
@@ -1003,7 +1006,10 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
-    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION,
+        payload: b"compressed-state-commitment-infos".to_vec(),
+    }
 }
 
 /// Returns the block numbers `collect_recent_state_commitment_infos` sends for `height` when the

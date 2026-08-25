@@ -19,7 +19,10 @@ use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
+use apollo_storage::state_commitment_infos::{
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -298,7 +301,10 @@ impl Default for MockClients {
             Box::pin(async {
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root: GlobalRoot::default(),
-                    state_commitment_infos: CompressedStateCommitmentInfos(Vec::new()),
+                    state_commitment_infos: CompressedStateCommitmentInfos {
+                        version: STATE_COMMITMENT_INFOS_VERSION,
+                        payload: Vec::new(),
+                    },
                 })
             })
         });

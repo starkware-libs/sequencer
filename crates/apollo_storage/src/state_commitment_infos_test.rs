@@ -4,11 +4,15 @@ use crate::state_commitment_infos::{
     CompressedStateCommitmentInfos,
     StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
+    STATE_COMMITMENT_INFOS_VERSION,
 };
 use crate::test_utils::get_test_storage;
 
 fn dummy_state_commitment_infos() -> CompressedStateCommitmentInfos {
-    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION + 1,
+        payload: b"compressed-state-commitment-infos".to_vec(),
+    }
 }
 
 #[test]

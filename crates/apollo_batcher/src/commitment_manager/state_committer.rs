@@ -143,7 +143,7 @@ async fn perform_read_paths_and_commit_block_task(
         committer_client.read_paths_and_commit_block(request).await?;
     debug!(
         "Committer returned compressed state commitment infos for height {height}: {} bytes",
-        state_commitment_infos.0.len(),
+        state_commitment_infos.payload.len(),
     );
     Ok(CommitterTaskOutput::ReadPathsAndCommitBlock(CommitmentTaskOutput {
         response: CommitBlockResponse { global_root },

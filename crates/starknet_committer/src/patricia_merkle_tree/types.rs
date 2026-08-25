@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
@@ -102,47 +102,88 @@ pub enum StateCommitmentInfosCodecError {
     Bincode(#[from] bincode::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("Compressed state commitment infos bytes are missing the version byte.")]
+    MissingVersionByte,
+    #[error(
+        "Unsupported state commitment infos version {0}; newest supported is \
+         {STATE_COMMITMENT_INFOS_VERSION}."
+    )]
+    UnsupportedVersion(u8),
 }
 
 impl From<StateCommitmentInfosCodecError> for SerializationError {
     fn from(error: StateCommitmentInfosCodecError) -> Self {
         match error {
-            StateCommitmentInfosCodecError::Bincode(error) => {
+            StateCommitmentInfosCodecError::Io(error) => SerializationError::IOSerialize(error),
+            error @ (StateCommitmentInfosCodecError::Bincode(_)
+            | StateCommitmentInfosCodecError::MissingVersionByte
+            | StateCommitmentInfosCodecError::UnsupportedVersion(_)) => {
                 SerializationError::IOSerialize(std::io::Error::other(error))
             }
-            StateCommitmentInfosCodecError::Io(error) => SerializationError::IOSerialize(error),
         }
     }
 }
 
-/// The compressed form of [`StateCommitmentInfos`]. Serializes as a base64 string.
-#[derive(Clone, Debug, PartialEq)]
-pub struct CompressedStateCommitmentInfos(pub Vec<u8>);
+/// Version written by [`StateCommitmentInfos::compress`]; a bump signals a change in the bincode
+/// payload's encoding.
+pub const STATE_COMMITMENT_INFOS_VERSION: u8 = 0;
 
-impl Serialize for CompressedStateCommitmentInfos {
-    // Base64 keeps the compressed payload intact as raw bytes while remaining a plain JSON
-    // string, avoiding the per-byte overhead of a JSON byte array.
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&base64::encode(&self.0))
+/// The compressed form of [`StateCommitmentInfos`]: the encoding version, uncompressed, next to
+/// the zstd frame of the bincode payload. Serializes as `{"version": N, "payload": "<base64>"}`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompressedStateCommitmentInfos {
+    pub version: u8,
+    #[serde(with = "base64_payload")]
+    pub payload: Vec<u8>,
+}
+
+// Base64 keeps the compressed payload intact as raw bytes while remaining a plain JSON string,
+// avoiding the per-byte overhead of a JSON byte array.
+mod base64_payload {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(payload: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&base64::encode(payload))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        base64::decode(String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
     }
 }
 
-impl<'de> Deserialize<'de> for CompressedStateCommitmentInfos {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let base64_payload = String::deserialize(deserializer)?;
-        base64::decode(&base64_payload).map(Self).map_err(serde::de::Error::custom)
-    }
-}
 impl CompressedStateCommitmentInfos {
-    /// Reverses [`StateCommitmentInfos::compress`]: zstd-decompresses then bincode-deserializes.
+    /// Reverses [`StateCommitmentInfos::compress`]: checks the version, zstd-decompresses, then
+    /// bincode-deserializes.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
-        let bincode_payload = zstd::decode_all(self.0.as_slice())?;
+        if self.version != STATE_COMMITMENT_INFOS_VERSION {
+            return Err(StateCommitmentInfosCodecError::UnsupportedVersion(self.version));
+        }
+        let bincode_payload = zstd::decode_all(self.payload.as_slice())?;
         Ok(bincode::deserialize(&bincode_payload)?)
+    }
+
+    /// Flat byte form for key-value storage: `[version: u8][payload]`.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(1 + self.payload.len());
+        bytes.push(self.version);
+        bytes.extend_from_slice(&self.payload);
+        bytes
+    }
+
+    /// Reverses [`Self::to_bytes`].
+    pub fn from_bytes(mut bytes: Vec<u8>) -> Result<Self, StateCommitmentInfosCodecError> {
+        if bytes.is_empty() {
+            return Err(StateCommitmentInfosCodecError::MissingVersionByte);
+        }
+        let payload = bytes.split_off(1);
+        Ok(Self { version: bytes[0], payload })
     }
 }
 
 impl StateCommitmentInfos {
-    /// Bincode-serializes and zstd-compresses the commitment infos.
+    /// Bincode-serializes and zstd-compresses the commitment infos, prefixed by
+    /// [`STATE_COMMITMENT_INFOS_VERSION`].
     ///
     /// Compression is one-shot rather than streamed so that the zstd frame header carries the
     /// decompressed size, letting consumers allocate the output buffer without reading the frame.
@@ -154,10 +195,10 @@ impl StateCommitmentInfos {
         &self,
     ) -> Result<CompressedStateCommitmentInfos, StateCommitmentInfosCodecError> {
         let bincode_payload = bincode::serialize(self)?;
-        Ok(CompressedStateCommitmentInfos(zstd::bulk::compress(
-            &bincode_payload,
-            zstd::DEFAULT_COMPRESSION_LEVEL,
-        )?))
+        Ok(CompressedStateCommitmentInfos {
+            version: STATE_COMMITMENT_INFOS_VERSION,
+            payload: zstd::bulk::compress(&bincode_payload, zstd::DEFAULT_COMPRESSION_LEVEL)?,
+        })
     }
 
     /// Builds the commitment infos directly from the pre- and post-commit state roots and the
