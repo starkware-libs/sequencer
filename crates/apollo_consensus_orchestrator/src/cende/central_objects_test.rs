@@ -142,7 +142,11 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
-use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -754,9 +758,12 @@ fn recent_state_commitment_infos() -> Vec<StateCommitmentInfosAndNumber> {
     [BlockNumber(1), BlockNumber(2)]
         .into_iter()
         .map(|block_number| StateCommitmentInfosAndNumber {
-            state_commitment_infos: CompressedStateCommitmentInfos(
-                format!("compressed-state-commitment-infos-{block_number}").into_bytes(),
-            ),
+            state_commitment_infos: CompressedStateCommitmentInfos {
+                version: STATE_COMMITMENT_INFOS_VERSION,
+                payload: CompressedPayload(
+                    format!("compressed-state-commitment-infos-{block_number}").into_bytes(),
+                ),
+            },
             block_number,
         })
         .collect()

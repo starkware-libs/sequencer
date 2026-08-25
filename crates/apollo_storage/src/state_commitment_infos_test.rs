@@ -1,14 +1,20 @@
 use starknet_api::block::BlockNumber;
 
 use crate::state_commitment_infos::{
+    CompressedPayload,
     CompressedStateCommitmentInfos,
     StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
+    STATE_COMMITMENT_INFOS_VERSION,
 };
 use crate::test_utils::get_test_storage;
 
+/// Non-default version, so the round-trip proves the field is stored rather than assumed.
 fn dummy_state_commitment_infos() -> CompressedStateCommitmentInfos {
-    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION + 1,
+        payload: CompressedPayload(b"compressed-state-commitment-infos".to_vec()),
+    }
 }
 
 #[test]
