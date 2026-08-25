@@ -1002,6 +1002,41 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
+// When `send_empty_state_commitment_infos_only` is enabled, the same heights are sent, each
+// carrying an empty object; the batcher is only asked whether it has the infos, never for their
+// content.
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_sends_empty_objects_when_configured() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| panic!("stored state commitment infos must not be read"));
+    deps.batcher
+        .expect_has_state_commitment_infos()
+        .returning(|block_number| Ok((90..=100).contains(&block_number.0)));
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(|| Ok(Some(BlockNumber(98))));
+
+    let context = deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig {
+            chain_id: CHAIN_ID,
+            send_empty_state_commitment_infos_only: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
+    let expected: Vec<_> = (98..=100)
+        .map(|height| StateCommitmentInfosAndNumber {
+            state_commitment_infos: CompressedStateCommitmentInfos(Vec::new()),
+            block_number: BlockNumber(height),
+        })
+        .collect();
+    assert_eq!(collected, expected);
+}
+
 fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
     CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
 }

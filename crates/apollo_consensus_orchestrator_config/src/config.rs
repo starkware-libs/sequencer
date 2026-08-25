@@ -180,6 +180,9 @@ pub struct ContextStaticConfig {
     /// When adding a synced block, fetch its accessed keys from the recorder so the node can build
     /// the state commitment infos locally.
     pub fetch_accessed_keys_from_centralized: bool,
+    /// For each height whose state commitment infos are sent to the cende recorder, send an empty
+    /// object instead of the one stored by the batcher.
+    pub send_empty_state_commitment_infos_only: bool,
 }
 
 impl SerializeConfig for ContextStaticConfig {
@@ -244,13 +247,22 @@ impl SerializeConfig for ContextStaticConfig {
             "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
             ParamPrivacyInput::Public,
         )]);
-        dump.extend([ser_param(
-            "fetch_accessed_keys_from_centralized",
-            &self.fetch_accessed_keys_from_centralized,
-            "Fetch accessed keys from the centralized recorder for synced blocks, enabling local \
-             state commitment infos construction.",
-            ParamPrivacyInput::Public,
-        )]);
+        dump.extend([
+            ser_param(
+                "fetch_accessed_keys_from_centralized",
+                &self.fetch_accessed_keys_from_centralized,
+                "Fetch accessed keys from the centralized recorder for synced blocks, enabling \
+                 local state commitment infos construction.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "send_empty_state_commitment_infos_only",
+                &self.send_empty_state_commitment_infos_only,
+                "For each height whose state commitment infos are sent to the cende recorder, \
+                 send an empty object instead of the one stored by the batcher.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump
     }
 }
@@ -268,6 +280,7 @@ impl Default for ContextStaticConfig {
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
             behavior_mode: BehaviorMode::default(),
             fetch_accessed_keys_from_centralized: false,
+            send_empty_state_commitment_infos_only: false,
         }
     }
 }
