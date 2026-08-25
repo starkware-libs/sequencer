@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
+    AccessedKeys,
     CommitBlockRequest,
     CommitBlockResponse,
     ReadPathsAndCommitBlockRequest,
@@ -498,6 +499,15 @@ where
             accessed_keys,
         }: ReadPathsAndCommitBlockRequest,
     ) -> CommitterResult<ReadPathsAndCommitBlockResponse> {
+        let accessed_keys = if self.config.serve_read_paths_as_commit_block {
+            info!(
+                "serve_read_paths_as_commit_block is on; treating the accessed keys of block \
+                 number {height} as an empty set."
+            );
+            AccessedKeys::default()
+        } else {
+            accessed_keys
+        };
         let mut leaves_request = LeavesRequest::from(&accessed_keys);
         info!(
             "read_paths_and_commit_block: height {height}, accessed keys len {}, state diff len {}",
