@@ -23,7 +23,11 @@ use tracing_test::traced_test;
 
 use super::Committer;
 use crate::committer::StorageConstructor;
-use crate::metrics::{register_metrics, COMMITTER_BLOCK_COMMIT_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    COMMITTER_BLOCK_COMMIT_LATENCY,
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
+};
 
 #[path = "request_paths_and_commit_block_tests.rs"]
 mod request_paths_and_commit_block_tests;
@@ -350,7 +354,7 @@ async fn no_warn_when_block_commit_within_duration_threshold() {
 async fn block_commit_latency_histogram_records_commit_duration() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    register_metrics(BlockNumber(0));
+    register_metrics(BlockNumber(0), BlockNumber(0));
 
     let mut committer = new_test_committer().await;
     committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
@@ -360,4 +364,24 @@ async fn block_commit_latency_histogram_records_commit_duration() {
         COMMITTER_BLOCK_COMMIT_LATENCY.parse_histogram_metric(&recorded_metrics).unwrap();
     assert_eq!(histogram_value.count, 1);
     assert!(histogram_value.sum > 0.0);
+}
+
+#[tokio::test]
+async fn commitment_infos_lower_bound_gauge_tracks_pruning() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics(BlockNumber(0), BlockNumber(0));
+
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    for height in 0..4 {
+        committer.commit_block(commit_block_request(1, Some(1), height)).await.unwrap();
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+
+    let recorded_metrics = recorder.handle().render();
+    assert_eq!(
+        COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.parse_numeric_metric::<u64>(&recorded_metrics),
+        Some(2)
+    );
 }
