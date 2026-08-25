@@ -2156,11 +2156,12 @@ async fn try_sync_forwards_accessed_keys_from_centralized() {
     assert!(context.try_sync(SYNC_HEIGHT).await);
 }
 
-// When `fetch_accessed_keys_from_centralized` is enabled, the block's accessed keys are required;
-// the data is expected to be ready at sync time, so a missing entry in the recorder is a bug.
+// When `fetch_accessed_keys_from_centralized` is enabled, the recorder may not yet have the
+// synced block's accessed-keys data (e.g. it lags behind state sync, or is unavailable). This is
+// data from a remote, network-reachable service, not a programmer invariant, so `try_sync` must
+// fail the attempt gracefully (allowing the caller to retry) instead of panicking the node.
 #[tokio::test]
-#[should_panic(expected = "The accessed-keys data for synced block 7 is expected to be ready.")]
-async fn try_sync_panics_when_recorder_has_no_accessed_keys() {
+async fn try_sync_fails_gracefully_when_recorder_has_no_accessed_keys() {
     const SYNC_HEIGHT: BlockNumber = BlockNumber(7);
 
     let (mut deps, _network) = create_test_and_network_deps();
@@ -2185,7 +2186,7 @@ async fn try_sync_panics_when_recorder_has_no_accessed_keys() {
         ..Default::default()
     });
 
-    context.try_sync(SYNC_HEIGHT).await;
+    assert!(!context.try_sync(SYNC_HEIGHT).await);
 }
 
 // With the opt-in disabled (the default), `try_sync` must not query the recorder and passes `None`
