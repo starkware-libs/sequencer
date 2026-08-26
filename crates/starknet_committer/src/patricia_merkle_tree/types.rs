@@ -11,7 +11,6 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
-use starknet_patricia_storage::errors::SerializationError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::block_committer::input::{try_node_index_into_contract_address, StarknetStorageValue};
@@ -109,19 +108,6 @@ pub enum StateCommitmentInfosCodecError {
          {STATE_COMMITMENT_INFOS_VERSION}."
     )]
     UnsupportedVersion(u8),
-}
-
-impl From<StateCommitmentInfosCodecError> for SerializationError {
-    fn from(error: StateCommitmentInfosCodecError) -> Self {
-        match error {
-            StateCommitmentInfosCodecError::Io(error) => SerializationError::IOSerialize(error),
-            error @ (StateCommitmentInfosCodecError::Bincode(_)
-            | StateCommitmentInfosCodecError::MissingVersionByte
-            | StateCommitmentInfosCodecError::UnsupportedVersion(_)) => {
-                SerializationError::IOSerialize(std::io::Error::other(error))
-            }
-        }
-    }
 }
 
 /// Version written by [`StateCommitmentInfos::compress`]; a bump signals a change in the bincode
