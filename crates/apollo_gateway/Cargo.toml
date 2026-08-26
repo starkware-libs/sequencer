@@ -45,8 +45,10 @@ blockifier_test_utils = { workspace = true, optional = true }
 clap.workspace = true
 google-cloud-storage.workspace = true
 mockall.workspace = true
-num-rational.workspace = true
 reqwest.workspace = true
+reqwest-middleware.workspace = true
+reqwest-retry.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
