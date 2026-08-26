@@ -12,7 +12,6 @@ on:
     types:
       - opened
       - reopened
-      - edited
       - synchronize
     paths:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
