@@ -5,7 +5,12 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::task::Poll;
 use std::time::Duration;
 
-use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig, BatcherStaticConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    BatcherStaticConfig,
+    StateCommitmentInfosPruningConfig,
+};
 use apollo_batcher_types::batcher_types::{
     CallContractInput,
     DecisionReachedInput,
@@ -19,6 +24,7 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
+    PruneStateCommitmentInfosInput,
     RevertBlockInput,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
@@ -44,6 +50,7 @@ use apollo_storage::accessed_keys::AccessedKeys;
 use apollo_storage::db::DbError;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
+use apollo_storage::state_commitment_infos::PrunedStateCommitmentInfosPointers;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
@@ -137,10 +144,12 @@ use crate::metrics::{
     REJECTED_VIEW_CALLS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
+    STATE_COMMITMENT_INFOS_LOWER_BOUND,
     SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
     get_number_of_items_in_channel_from_receiver,
+    mock_storage_reader,
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
@@ -160,6 +169,7 @@ use crate::test_utils::{
     INITIAL_HEIGHT,
     LATEST_BLOCK_IN_STORAGE,
     PROPOSAL_ID,
+    STATE_COMMITMENT_INFOS_LOWER_BOUND_HEIGHT,
     STREAMING_CHUNK_SIZE,
 };
 
@@ -558,7 +568,7 @@ fn mock_create_builder_for_validate_block(
 }
 
 fn mock_storage_reader_for_revert() -> MockBatcherStorageReader {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_reversed_state_diff().returning(|_| Ok(test_state_diff()));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root().returning(|_| Ok(Some(GlobalRoot::default())));
@@ -700,6 +710,29 @@ async fn metrics_registered() {
     let _batcher = create_batcher(MockDependencies::default()).await;
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
+    assert_eq!(
+        STATE_COMMITMENT_INFOS_LOWER_BOUND.parse_numeric_metric::<u64>(&metrics),
+        Some(STATE_COMMITMENT_INFOS_LOWER_BOUND_HEIGHT.0)
+    );
+}
+
+/// A storage with no state commitment infos retains none below its height, so the bound the
+/// metric reports is that height.
+#[tokio::test]
+async fn state_commitment_infos_lower_bound_metric_defaults_to_the_storage_height() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_state_commitment_infos_lower_bound().returning(|| Ok(None));
+    let _batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
+
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        STATE_COMMITMENT_INFOS_LOWER_BOUND.parse_numeric_metric::<u64>(&metrics),
+        Some(INITIAL_HEIGHT.0)
+    );
 }
 
 #[rstest]
@@ -793,7 +826,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[rstest]
 #[tokio::test]
 async fn consecutive_heights_success() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // batcher start
     storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader
@@ -1146,7 +1179,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 #[rstest]
 #[tokio::test]
 async fn get_height() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
@@ -1159,7 +1192,7 @@ async fn get_height() {
 #[rstest]
 #[tokio::test]
 async fn propose_block_without_retrospective_block_hash() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     let initial_block_height = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
     storage_reader.expect_state_diff_height().returning(move || Ok(initial_block_height));
     storage_reader.expect_global_root_height().returning(move || Ok(initial_block_height));
@@ -1356,7 +1389,7 @@ async fn add_sync_block(
 
     let mut mock_clients = MockClients::default();
 
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
@@ -1462,7 +1495,7 @@ async fn add_sync_block_mismatch_block_number() {
 #[rstest]
 #[tokio::test]
 async fn add_sync_block_missing_block_header_commitments() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
@@ -1488,7 +1521,7 @@ async fn add_sync_block_missing_block_header_commitments() {
 #[should_panic(expected = "is at least the first block configured to include a partial hash")]
 async fn add_sync_block_missing_block_header_commitments_for_new_block() {
     let block_number = FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.unchecked_next();
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
@@ -1515,7 +1548,7 @@ async fn add_sync_block_missing_block_header_commitments_for_new_block() {
 #[rstest]
 #[tokio::test]
 async fn add_sync_block_for_first_new_block() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader
         .expect_state_diff_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
@@ -1573,7 +1606,7 @@ async fn add_sync_block_for_first_new_block() {
 #[tokio::test]
 #[should_panic(expected = "does not match the configured parent block hash")]
 async fn add_sync_block_parent_hash_mismatch() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader
         .expect_state_diff_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
@@ -1604,7 +1637,7 @@ async fn add_sync_block_parent_hash_mismatch() {
 #[should_panic(expected = "is a new block but is older than the configured first block with \
                            partial block hash components")]
 async fn add_sync_block_with_partial_block_hash_but_older_than_configured_first_block() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader
         .expect_state_diff_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()));
@@ -1677,7 +1710,7 @@ async fn revert_block_mismatch_block_number() {
 
 #[tokio::test]
 async fn revert_block_empty_storage() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(|| Ok(BlockNumber(0)));
     storage_reader.expect_global_root_height().returning(|| Ok(BlockNumber(0)));
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
@@ -2793,7 +2826,7 @@ async fn call_contract_over_a_committed_zero_gas_price_succeeds() {
 /// from. The caller is told that, rather than being handed a bare internal error.
 #[tokio::test]
 async fn call_contract_without_stored_block_info_names_what_is_missing() {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_get_partial_block_hash_components().returning(|_| Ok(None));
@@ -2822,7 +2855,7 @@ async fn call_contract_without_stored_block_info_names_what_is_missing() {
 async fn block_info_reports_the_committed_data_availability_mode(
     #[case] l1_da_mode: L1DataAvailabilityMode,
 ) {
-    let mut storage_reader = MockBatcherStorageReader::new();
+    let mut storage_reader = mock_storage_reader();
     storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_get_partial_block_hash_components().returning(move |_| {
@@ -2839,4 +2872,191 @@ async fn block_info_reports_the_committed_data_availability_mode(
     let block_info = batcher.get_block_info(LAST_COMMITTED_HEIGHT).unwrap();
 
     assert_eq!(block_info.use_kzg_da, l1_da_mode.is_use_kzg_da());
+}
+
+const STATE_COMMITMENT_INFOS_RETENTION_BLOCKS: u64 = 10;
+const MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE: usize = 10;
+const PRUNED_STATE_COMMITMENT_INFOS_DATA_END_OFFSET: usize = 4096;
+/// The storage height the batcher reports in the state commitment infos pruning tests.
+const STATE_COMMITMENT_INFOS_PRUNING_STORAGE_HEIGHT: BlockNumber = BlockNumber(30);
+
+fn mock_dependencies_for_state_commitment_infos_pruning() -> MockDependencies {
+    let mut storage_reader = mock_storage_reader();
+    storage_reader
+        .expect_state_diff_height()
+        .returning(|| Ok(STATE_COMMITMENT_INFOS_PRUNING_STORAGE_HEIGHT));
+    storage_reader
+        .expect_global_root_height()
+        .returning(|| Ok(STATE_COMMITMENT_INFOS_PRUNING_STORAGE_HEIGHT));
+    let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    mock_dependencies.batcher_config.static_config.state_commitment_infos_pruning_config =
+        StateCommitmentInfosPruningConfig {
+            retention_blocks: STATE_COMMITMENT_INFOS_RETENTION_BLOCKS,
+            max_deletions_per_prune: MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE,
+        };
+    mock_dependencies
+}
+
+fn retention_window_start(height: BlockNumber) -> BlockNumber {
+    BlockNumber(height.0 - STATE_COMMITMENT_INFOS_RETENTION_BLOCKS)
+}
+
+/// Expects a prune up to `prune_below` that advances the lower bound to `new_lower_bound`,
+/// followed by releasing the space of the pruned infos.
+fn expect_prune_state_commitment_infos(
+    storage_writer: &mut MockBatcherStorageWriter,
+    prune_below: BlockNumber,
+    new_lower_bound: BlockNumber,
+) {
+    storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .with(eq(prune_below), eq(MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE))
+        .returning(move |_, _| {
+            Ok(Some(PrunedStateCommitmentInfosPointers {
+                new_lower_bound,
+                data_end_offset: PRUNED_STATE_COMMITMENT_INFOS_DATA_END_OFFSET,
+            }))
+        });
+    storage_writer
+        .expect_prune_state_commitment_infos_data()
+        .times(1)
+        .with(eq(PRUNED_STATE_COMMITMENT_INFOS_DATA_END_OFFSET))
+        .returning(|_| Ok(()));
+}
+
+fn prune_state_commitment_infos(batcher: &mut Batcher, height: BlockNumber) {
+    batcher.prune_state_commitment_infos(PruneStateCommitmentInfosInput { height }).unwrap();
+}
+
+#[tokio::test]
+async fn prune_state_commitment_infos_below_retention_window_and_release_space() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    let height = BlockNumber(20);
+    let prune_below = retention_window_start(height);
+    expect_prune_state_commitment_infos(
+        &mut mock_dependencies.storage_writer,
+        prune_below,
+        prune_below,
+    );
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    prune_state_commitment_infos(&mut batcher, height);
+}
+
+/// The requested height may be ahead of the heights this batcher stored, so the retention window
+/// is measured from its storage height instead.
+#[tokio::test]
+async fn prune_state_commitment_infos_below_the_storage_height_retention_window() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    let prune_below = retention_window_start(STATE_COMMITMENT_INFOS_PRUNING_STORAGE_HEIGHT);
+    expect_prune_state_commitment_infos(
+        &mut mock_dependencies.storage_writer,
+        prune_below,
+        prune_below,
+    );
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    prune_state_commitment_infos(
+        &mut batcher,
+        BlockNumber(STATE_COMMITMENT_INFOS_PRUNING_STORAGE_HEIGHT.0 + 100),
+    );
+}
+
+#[tokio::test]
+async fn prune_state_commitment_infos_releases_no_space_when_nothing_is_pruned() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    mock_dependencies
+        .storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .returning(|_, _| Ok(None));
+    // No expectation is set for punching a hole: the mock panics if it is called.
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    prune_state_commitment_infos(&mut batcher, BlockNumber(20));
+}
+
+#[tokio::test]
+async fn prune_state_commitment_infos_storage_failure_is_internal_error() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    mock_dependencies
+        .storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .returning(|_, _| {
+            Err(apollo_storage::StorageError::DBInconsistency { msg: String::new() })
+        });
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    let result = batcher
+        .prune_state_commitment_infos(PruneStateCommitmentInfosInput { height: BlockNumber(20) });
+    assert_eq!(result, Err(BatcherError::InternalError));
+}
+
+/// The pointers are deleted in their own transaction and the data they pointed at is released
+/// only afterwards, so a failure in between leaves the data of already-deleted pointers behind.
+/// The next prune releases the data of its own pointers and of those left behind, because
+/// releasing the data below an offset releases everything below it.
+#[tokio::test]
+async fn prune_state_commitment_infos_releases_the_data_of_previously_pruned_pointers() {
+    const FIRST_DATA_END_OFFSET: usize = 4096;
+    const SECOND_DATA_END_OFFSET: usize = 8192;
+    let height = BlockNumber(20);
+    let prune_below = retention_window_start(height);
+
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    let storage_writer = &mut mock_dependencies.storage_writer;
+    // The first prune deletes the pointers of the lowest stored heights...
+    storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .with(eq(prune_below), eq(MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE))
+        .returning(|_, _| {
+            Ok(Some(PrunedStateCommitmentInfosPointers {
+                new_lower_bound: BlockNumber(5),
+                data_end_offset: FIRST_DATA_END_OFFSET,
+            }))
+        });
+    // ... but releasing their data fails, so it is left with no pointer into it.
+    storage_writer
+        .expect_prune_state_commitment_infos_data()
+        .times(1)
+        .with(eq(FIRST_DATA_END_OFFSET))
+        .returning(|_| Err(StorageError::DBInconsistency { msg: String::new() }));
+    // The next prune deletes the pointers of the following heights...
+    storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .with(eq(prune_below), eq(MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE))
+        .returning(move |_, _| {
+            Ok(Some(PrunedStateCommitmentInfosPointers {
+                new_lower_bound: prune_below,
+                data_end_offset: SECOND_DATA_END_OFFSET,
+            }))
+        });
+    // ... and releases their data.
+    let released_up_to = Arc::new(Mutex::new(None));
+    let recorded_released_up_to = released_up_to.clone();
+    storage_writer.expect_prune_state_commitment_infos_data().times(1).returning(move |end| {
+        *recorded_released_up_to.lock().unwrap() = Some(end);
+        Ok(())
+    });
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    assert_eq!(
+        batcher.prune_state_commitment_infos(PruneStateCommitmentInfosInput { height }),
+        Err(BatcherError::InternalError)
+    );
+    prune_state_commitment_infos(&mut batcher, height);
+
+    let released_up_to =
+        released_up_to.lock().unwrap().expect("The pruned data should have been released.");
+    for pruned_data_end_offset in [FIRST_DATA_END_OFFSET, SECOND_DATA_END_OFFSET] {
+        assert!(
+            released_up_to >= pruned_data_end_offset,
+            "The data of the pointers pruned up to offset {pruned_data_end_offset} was not \
+             released; only the data below {released_up_to} was."
+        );
+    }
 }
