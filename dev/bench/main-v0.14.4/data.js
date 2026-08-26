@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787669639613,
+  "lastUpdate": 1787733739339,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -67,6 +67,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1447.4568641800001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "itamar@starkware.co",
+            "name": "itamar-starkware",
+            "username": "itamar-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "87131f62de7425183f8cfa23737520227721f444",
+          "message": "starknet_committer,apollo_storage,apollo_batcher: add version field to compressed commitment infos (#15031)",
+          "timestamp": "2026-08-26T08:21:50Z",
+          "tree_id": "5a2586d733988d1f39a134c402e827339696a89f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/87131f62de7425183f8cfa23737520227721f444"
+        },
+        "date": 1787733738670,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 890.93660213,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1414.84014438,
             "unit": "ms"
           }
         ]
