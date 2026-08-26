@@ -22,12 +22,6 @@ mod test;
 // in approximately 10 minutes.
 const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
 
-// Ceiling on the L2 gas price, as a multiple of the minimum gas price in force for the height.
-// TODO(asaf-sw): Move to versioned constants in 0.14.4.
-const MAX_GAS_PRICE_MULTIPLIER: u128 = 10;
-// A multiplier of 0 or 1 pins the L2 gas price at 0 or at the minimum.
-const _: () = assert!(MAX_GAS_PRICE_MULTIPLIER > 1);
-
 /// Fee market information for the next block.
 #[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize, PartialEq))]
 #[derive(Debug, Default, Serialize)]
@@ -59,11 +53,12 @@ pub fn get_min_gas_price_for_height(
         .unwrap_or(fallback_min_gas_price)
 }
 
-/// The ceiling on the L2 gas price: `MAX_GAS_PRICE_MULTIPLIER` times `min_gas_price`. Applies to
+/// The ceiling on the L2 gas price: `max_gas_price_multiplier` times `min_gas_price`. Applies to
 /// every block regardless of its `starknet_version`. Proposer and validator reach the ceiling
 /// through this function, so they cannot disagree on it.
 pub fn l2_gas_price_cap(min_gas_price: GasPrice) -> GasPrice {
-    GasPrice(min_gas_price.0.saturating_mul(MAX_GAS_PRICE_MULTIPLIER))
+    let max_gas_price_multiplier = VersionedConstants::latest_constants().max_gas_price_multiplier;
+    GasPrice(min_gas_price.0.saturating_mul(max_gas_price_multiplier))
 }
 
 /// The ceiling in force at `height`: the cap over the minimum configured for that height. The

@@ -47,7 +47,7 @@ pub(crate) fn get_l2_gas_price_at_minimum_alert() -> Alert {
 }
 
 /// Alert while the computed L2 gas price keeps running into the ceiling
-/// (`MAX_GAS_PRICE_MULTIPLIER` times the configured minimum): either the price itself is capped
+/// (`max_gas_price_multiplier` times the configured minimum): either the price itself is capped
 /// there, or the SNIP-35 floor alone has risen above it while the published price ramps up to
 /// match.
 ///
