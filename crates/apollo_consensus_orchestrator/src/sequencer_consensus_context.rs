@@ -15,6 +15,7 @@ use apollo_batcher_types::batcher_types::{
     DecisionReachedResponse,
     FinishedProposalInfo,
     ProposalId,
+    PruneStateCommitmentInfosInput,
     StartHeightInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError, BatcherClientResult};
@@ -655,6 +656,8 @@ impl SequencerConsensusContext {
         {
             error!("Failed to prepare blob for next height at height {height}: {e:?}");
         }
+
+        self.prune_state_commitment_infos(height).await;
     }
 
     pub fn get_config(&self) -> &ContextConfig {
@@ -764,6 +767,18 @@ impl SequencerConsensusContext {
             }
         }
         Ok(recent_state_commitment_infos)
+    }
+
+    /// Asks the batcher to prune the state commitment infos that fell out of its retention window.
+    async fn prune_state_commitment_infos(&self, height: BlockNumber) {
+        if let Err(e) = self
+            .deps
+            .batcher
+            .prune_state_commitment_infos(PruneStateCommitmentInfosInput { height })
+            .await
+        {
+            error!("Failed to prune state commitment infos at height {height}: {e:?}");
+        }
     }
 
     /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
