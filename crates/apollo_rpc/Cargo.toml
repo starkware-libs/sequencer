@@ -39,9 +39,7 @@ apollo_starknet_client = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
-cairo-lang-casm.workspace = true
 cairo-lang-starknet-classes.workspace = true
-camelpaste.workspace = true
 derive_more = { workspace = true, features = ["display"] }
 enum-iterator.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
@@ -56,7 +54,6 @@ prometheus-parse.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 reqwest.workspace = true
-starknet-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 strum = { workspace = true, features = ["derive"] }
 

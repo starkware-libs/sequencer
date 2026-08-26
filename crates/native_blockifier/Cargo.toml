@@ -47,7 +47,6 @@ thiserror.workspace = true
 [dev-dependencies]
 apollo_storage = { workspace = true, features = ["testing"] }
 blockifier = { workspace = true, features = ["native_blockifier", "testing"] }
-cached.workspace = true
 pretty_assertions.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tempfile.workspace = true

@@ -39,7 +39,6 @@ apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
-mockall.workspace = true
 mockito.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["test-util"] }

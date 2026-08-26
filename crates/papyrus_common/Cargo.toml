@@ -16,9 +16,6 @@ starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
 
 [dev-dependencies]
-apollo_test_utils.workspace = true
-assert_matches.workspace = true
-pretty_assertions.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 
 [lints]
