@@ -1,4 +1,6 @@
+use assert_matches::assert_matches;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
@@ -69,11 +71,48 @@ fn read_felt_array_accepts_real_empty_span() {
 fn read_felt_array_rejects_mixed_null_and_pointer_span() {
     let mut vm = VirtualMachine::new(false, false);
     let data_ptr = vm.add_memory_segment();
-    let span_ptr = vm.add_memory_segment();
-    vm.load_data(span_ptr, &[Felt::ZERO.into(), data_ptr.into()]).unwrap();
-    let mut span_ptr = span_ptr;
+    let (vm, mut span_ptr) = vm_with_span_in(vm, Felt::ZERO.into(), data_ptr.into());
+    let expected_address = span_ptr;
 
-    assert!(read_felt_array::<SyscallExecutorBaseError>(&vm, &mut span_ptr).is_err());
+    let error = read_felt_array::<SyscallExecutorBaseError>(&vm, &mut span_ptr).unwrap_err();
+
+    assert_matches!(
+        error,
+        SyscallExecutorBaseError::Memory(MemoryError::ExpectedRelocatable(address))
+            if *address == expected_address
+    );
+}
+
+#[test]
+fn read_felt_array_rejects_span_with_felt_end_pointer() {
+    // The reported address must be the end pointer's cell, not the span's base.
+    let mut vm = VirtualMachine::new(false, false);
+    let data_ptr = vm.add_memory_segment();
+    let (vm, mut span_ptr) = vm_with_span_in(vm, data_ptr.into(), Felt::ZERO.into());
+    let expected_address = (span_ptr + 1_usize).unwrap();
+
+    let error = read_felt_array::<SyscallExecutorBaseError>(&vm, &mut span_ptr).unwrap_err();
+
+    assert_matches!(
+        error,
+        SyscallExecutorBaseError::Memory(MemoryError::ExpectedRelocatable(address))
+            if *address == expected_address
+    );
+}
+
+#[test]
+fn read_felt_array_rejects_unwritten_span() {
+    let mut vm = VirtualMachine::new(false, false);
+    let mut span_ptr = vm.add_memory_segment();
+    let expected_address = span_ptr;
+
+    let error = read_felt_array::<SyscallExecutorBaseError>(&vm, &mut span_ptr).unwrap_err();
+
+    assert_matches!(
+        error,
+        SyscallExecutorBaseError::Memory(MemoryError::UnknownMemoryCell(address))
+            if *address == expected_address
+    );
 }
 
 #[test]
