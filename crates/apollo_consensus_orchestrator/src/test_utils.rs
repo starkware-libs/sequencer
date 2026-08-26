@@ -350,6 +350,8 @@ impl TestDeps {
         });
         self.batcher.expect_has_state_commitment_infos().returning(|_block_number| Ok(false));
         self.batcher.expect_get_state_commitment_infos().returning(|_block_number| Ok(None));
+        // Every decision prunes; tests that assert on the pruning override this.
+        self.batcher.expect_prune_state_commitment_infos().returning(|_input| Ok(()));
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {

@@ -10,6 +10,7 @@ use apollo_batcher_types::batcher_types::{
     FinishedProposalInfo,
     FinishedProposalInfoWithoutParent,
     ProposalCommitment as BatcherProposalCommitment,
+    PruneStateCommitmentInfosInput,
     SendTxsForProposalStatus,
 };
 use apollo_batcher_types::communication::{BatcherClientError, BatcherClientResult};
@@ -1006,6 +1007,35 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
+#[tokio::test]
+async fn decision_reached_prunes_old_state_commitment_infos() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(|| Ok(Some(HEIGHT_0)));
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| Ok(Some(default_state_commitment_infos())));
+    deps.batcher
+        .expect_prune_state_commitment_infos()
+        .times(1)
+        .withf(|input| *input == PruneStateCommitmentInfosInput { height: HEIGHT_0 })
+        .return_once(|_| Ok(()));
+
+    deps.setup_deps_for_build(SetupDepsArgs::default());
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
+
+    let mut context = deps.build_context();
+    let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
+    context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
+}
+
 // When `send_empty_state_commitment_infos_only` is enabled, the same heights are sent, each
 // carrying an empty object; the batcher is only asked whether it has the infos, never for their
 // content.
