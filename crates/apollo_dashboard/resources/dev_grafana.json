@@ -1390,6 +1390,15 @@
           "extra_params": {}
         },
         {
+          "title": "Commitment Infos Lower Bound",
+          "description": "The lowest block number whose commitment infos have not been deleted",
+          "type": "stat",
+          "exprs": [
+            "committer_commitment_infos_lower_bound{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Total Block Duration",
           "description": "Average total block duration over a 1m window",
           "type": "timeseries",

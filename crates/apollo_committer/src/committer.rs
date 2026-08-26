@@ -68,6 +68,7 @@ use crate::metrics::{
     AVERAGE_WRITE_RATE,
     BLOCKS_COMMITTED,
     COMMITTER_BLOCK_COMMIT_LATENCY,
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -192,6 +193,11 @@ where
         COMMITTER_OFFSET.set_lossy(offset.0);
     }
 
+    fn update_commitment_infos_lower_bound(&mut self, lower_bound: BlockNumber) {
+        self.commitment_infos_lower_bound = lower_bound;
+        COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.set_lossy(lower_bound.0);
+    }
+
     /// Commits a block to the forest.
     /// In the happy flow, the given height equals to the committer offset.
     pub async fn commit_block(
@@ -263,7 +269,7 @@ where
                     self.config.commit_duration_warn_threshold_millis,
                 );
                 self.update_offset(next_offset);
-                self.commitment_infos_lower_bound = new_lower_bound;
+                self.update_commitment_infos_lower_bound(new_lower_bound);
                 Ok(CommitBlockResponse { global_root })
             }
         }
@@ -447,7 +453,7 @@ where
             self.config.commit_duration_warn_threshold_millis,
         );
         self.update_offset(last_committed_block);
-        self.commitment_infos_lower_bound = commitment_infos_lower_bound;
+        self.update_commitment_infos_lower_bound(commitment_infos_lower_bound);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
 
@@ -680,7 +686,7 @@ where
                     self.config.commit_duration_warn_threshold_millis,
                 );
                 self.update_offset(next_offset);
-                self.commitment_infos_lower_bound = new_lower_bound;
+                self.update_commitment_infos_lower_bound(new_lower_bound);
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
                     state_commitment_infos: compressed_commitment_infos,
@@ -717,7 +723,7 @@ where
 impl ComponentStarter for ApolloCommitter {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
-        register_metrics(self.offset);
+        register_metrics(self.offset, self.commitment_infos_lower_bound);
     }
 }
 
