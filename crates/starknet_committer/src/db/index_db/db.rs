@@ -377,13 +377,15 @@ impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReader
 
         Ok(match self.get_from_storage(db_key).await? {
             None => None,
-            Some(DbValue(bytes)) => {
-                Some(CompressedStateCommitmentInfos(bytes).decompress().map_err(|e| {
-                    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
-                        DeserializationError::ValueError(Box::new(e)),
-                    ))
-                })?)
-            }
+            Some(DbValue(bytes)) => Some(
+                CompressedStateCommitmentInfos::from_bytes(bytes)
+                    .and_then(|compressed| compressed.decompress())
+                    .map_err(|e| {
+                        ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
+                            DeserializationError::ValueError(Box::new(e)),
+                        ))
+                    })?,
+            ),
         })
     }
 
@@ -453,7 +455,7 @@ impl<S: Storage> IndexDb<S> {
                 keys_digest,
                 commitment_infos,
             }) => {
-                let encoded = DbValue(commitment_infos.compress()?.0);
+                let encoded = DbValue(commitment_infos.compress()?.to_bytes());
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
                         block_number,

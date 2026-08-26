@@ -14,7 +14,11 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
+use apollo_storage::state_commitment_infos::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
@@ -69,7 +73,10 @@ fn mock_dependencies() -> MockDependencies {
         Box::pin(async {
             Ok(ReadPathsAndCommitBlockResponse {
                 global_root: GlobalRoot::default(),
-                state_commitment_infos: CompressedStateCommitmentInfos(Vec::new()),
+                state_commitment_infos: CompressedStateCommitmentInfos {
+                    version: STATE_COMMITMENT_INFOS_VERSION,
+                    payload: CompressedPayload(Vec::new()),
+                },
             })
         })
     });

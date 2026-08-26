@@ -27,14 +27,22 @@ class OsInputBuildError(RuntimeError):
     """Raised when the cende blob lacks a field required to assemble OsHints."""
 
 
-def decompress_state_commitment_infos(compressed: str) -> JsonObject:
+STATE_COMMITMENT_INFOS_VERSION = 0
+
+
+def decompress_state_commitment_infos(compressed: JsonObject) -> JsonObject:
     """
-    Reverse of the committer's `base64(zstd(serde_json(StateCommitmentInfos)))`
-    pipeline. The streaming decompressor is required: the Rust frame omits the
-    content size, which the one-shot `zstandard.decompress()` rejects.
+    Reverse of the committer's `{"version": N, "payload": base64(zstd(bincode(...)))}` form of
+    `CompressedStateCommitmentInfos`.
     """
+    version = compressed.get("version")
+    if version != STATE_COMMITMENT_INFOS_VERSION:
+        raise OsInputBuildError(
+            f"unsupported state_commitment_infos version {version}; "
+            f"expected {STATE_COMMITMENT_INFOS_VERSION}"
+        )
     try:
-        raw = base64.b64decode(compressed)
+        raw = base64.b64decode(compressed["payload"])
         decompressed = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
         return json.loads(decompressed)
     except (ValueError, zstandard.ZstdError) as exc:
