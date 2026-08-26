@@ -5,7 +5,12 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::task::Poll;
 use std::time::Duration;
 
-use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig, BatcherStaticConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    BatcherStaticConfig,
+    StateCommitmentInfosPruningConfig,
+};
 use apollo_batcher_types::batcher_types::{
     CallContractInput,
     DecisionReachedInput,
@@ -19,6 +24,7 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
+    PruneStateCommitmentInfosInput,
     RevertBlockInput,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
@@ -44,6 +50,7 @@ use apollo_storage::accessed_keys::AccessedKeys;
 use apollo_storage::db::DbError;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
+use apollo_storage::state_commitment_infos::PrunedStateCommitmentInfosPointers;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
@@ -2839,4 +2846,93 @@ async fn block_info_reports_the_committed_data_availability_mode(
     let block_info = batcher.get_block_info(LAST_COMMITTED_HEIGHT).unwrap();
 
     assert_eq!(block_info.use_kzg_da, l1_da_mode.is_use_kzg_da());
+}
+
+const STATE_COMMITMENT_INFOS_RETENTION_BLOCKS: usize = 10;
+const MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE: usize = 10;
+const PRUNED_STATE_COMMITMENT_INFOS_DATA_END_OFFSET: usize = 4096;
+
+fn mock_dependencies_for_state_commitment_infos_pruning() -> MockDependencies {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies.batcher_config.static_config.state_commitment_infos_pruning_config =
+        StateCommitmentInfosPruningConfig {
+            retention_blocks: STATE_COMMITMENT_INFOS_RETENTION_BLOCKS,
+            max_deletions_per_prune: MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE,
+        };
+    mock_dependencies
+}
+
+/// Expects a prune up to `prune_below` that advances the lower bound to `new_lower_bound`,
+/// followed by releasing the space of the pruned infos.
+fn expect_prune_state_commitment_infos(
+    storage_writer: &mut MockBatcherStorageWriter,
+    prune_below: BlockNumber,
+    new_lower_bound: BlockNumber,
+) {
+    storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .with(eq(prune_below), eq(MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE))
+        .returning(move |_, _| {
+            Ok(Some(PrunedStateCommitmentInfosPointers {
+                new_lower_bound,
+                data_end_offset: PRUNED_STATE_COMMITMENT_INFOS_DATA_END_OFFSET,
+            }))
+        });
+    storage_writer
+        .expect_prune_state_commitment_infos_data()
+        .times(1)
+        .with(eq(PRUNED_STATE_COMMITMENT_INFOS_DATA_END_OFFSET))
+        .returning(|_| Ok(()));
+}
+
+fn prune_state_commitment_infos(batcher: &mut Batcher, height: BlockNumber) {
+    batcher.prune_state_commitment_infos(PruneStateCommitmentInfosInput { height }).unwrap();
+}
+
+#[tokio::test]
+async fn prune_state_commitment_infos_below_retention_window_and_release_space() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    let height = BlockNumber(20);
+    let prune_below =
+        BlockNumber(height.0 - u64::try_from(STATE_COMMITMENT_INFOS_RETENTION_BLOCKS).unwrap());
+    expect_prune_state_commitment_infos(
+        &mut mock_dependencies.storage_writer,
+        prune_below,
+        prune_below,
+    );
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    prune_state_commitment_infos(&mut batcher, height);
+}
+
+#[tokio::test]
+async fn prune_state_commitment_infos_releases_no_space_when_nothing_is_pruned() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    mock_dependencies
+        .storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .returning(|_, _| Ok(None));
+    // No expectation is set for punching a hole: the mock panics if it is called.
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    prune_state_commitment_infos(&mut batcher, BlockNumber(20));
+}
+
+#[tokio::test]
+async fn prune_state_commitment_infos_storage_failure_is_internal_error() {
+    let mut mock_dependencies = mock_dependencies_for_state_commitment_infos_pruning();
+    mock_dependencies
+        .storage_writer
+        .expect_prune_state_commitment_infos_pointers()
+        .times(1)
+        .returning(|_, _| {
+            Err(apollo_storage::StorageError::DBInconsistency { msg: String::new() })
+        });
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    let result = batcher
+        .prune_state_commitment_infos(PruneStateCommitmentInfosInput { height: BlockNumber(20) });
+    assert_eq!(result, Err(BatcherError::InternalError));
 }

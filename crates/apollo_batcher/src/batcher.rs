@@ -27,6 +27,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
+    PruneStateCommitmentInfosInput,
     RevertBlockInput,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
@@ -66,6 +67,7 @@ use apollo_storage::partial_block_hash::{
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::state_commitment_infos::{
     CompressedStateCommitmentInfos,
+    PrunedStateCommitmentInfosPointers,
     StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
 };
@@ -162,6 +164,7 @@ use crate::metrics::{
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SIERRA_GAS_IN_LAST_BLOCK,
+    STATE_COMMITMENT_INFOS_LOWER_BOUND,
     SYNCED_TRANSACTIONS,
 };
 use crate::pre_confirmed_block_writer::{
@@ -1639,6 +1642,41 @@ impl Batcher {
         })
     }
 
+    /// Deletes the pointers to the state commitment infos of the heights that fell out of the
+    /// retention window, at most `max_deletions_per_prune` of them per call, then releases the
+    /// data they pointed at.
+    pub fn prune_state_commitment_infos(
+        &mut self,
+        input: PruneStateCommitmentInfosInput,
+    ) -> BatcherResult<()> {
+        let pruning_config = &self.config.static_config.state_commitment_infos_pruning_config;
+        let retention_blocks = u64::try_from(pruning_config.retention_blocks).expect("Fits in u64");
+        let prune_below = BlockNumber(input.height.0.saturating_sub(retention_blocks));
+        let pruned = self
+            .storage_writer
+            .prune_state_commitment_infos_pointers(
+                prune_below,
+                pruning_config.max_deletions_per_prune,
+            )
+            .map_err(|err| {
+                error!(
+                    "Failed to prune the state commitment infos pointers below {prune_below}: \
+                     {err}"
+                );
+                BatcherError::InternalError
+            })?;
+        let Some(PrunedStateCommitmentInfosPointers { new_lower_bound, data_end_offset }) = pruned
+        else {
+            return Ok(());
+        };
+        info!("Pruned the state commitment infos below {new_lower_bound}.");
+        STATE_COMMITMENT_INFOS_LOWER_BOUND.set_lossy(new_lower_bound.0);
+        self.storage_writer.prune_state_commitment_infos_data(data_end_offset).map_err(|err| {
+            error!("Failed to release the disk space of pruned state commitment infos: {err}");
+            BatcherError::InternalError
+        })
+    }
+
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -2023,6 +2061,17 @@ pub trait BatcherStorageWriter: Send + Sync {
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
+
+    /// Deletes the pointers to the state commitment infos of the lowest stored heights below
+    /// `prune_below`, at most `max_deletions` of them. Returns `None` if nothing was deleted.
+    fn prune_state_commitment_infos_pointers(
+        &mut self,
+        prune_below: BlockNumber,
+        max_deletions: usize,
+    ) -> StorageResult<Option<PrunedStateCommitmentInfosPointers>>;
+
+    /// Releases the disk space of the state commitment infos data file below `end`.
+    fn prune_state_commitment_infos_data(&self, end: usize) -> StorageResult<()>;
 }
 
 impl BatcherStorageWriter for StorageWriter {
@@ -2088,6 +2137,22 @@ impl BatcherStorageWriter for StorageWriter {
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()> {
         self.begin_rw_txn()?.set_block_hash(&height, block_hash)?.commit()
+    }
+
+    fn prune_state_commitment_infos_pointers(
+        &mut self,
+        prune_below: BlockNumber,
+        max_deletions: usize,
+    ) -> StorageResult<Option<PrunedStateCommitmentInfosPointers>> {
+        let (txn, pruned) = self
+            .begin_rw_txn()?
+            .prune_state_commitment_infos_pointers(prune_below, max_deletions)?;
+        txn.commit()?;
+        Ok(pruned)
+    }
+
+    fn prune_state_commitment_infos_data(&self, end: usize) -> StorageResult<()> {
+        StorageWriter::prune_state_commitment_infos_data(self, end)
     }
 }
 
