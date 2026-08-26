@@ -5,5 +5,5 @@
     "gas_target": 1040000000,
     "max_block_size": 5800000000,
     "min_gas_price": "0x1dcd65000",
-    "l1_gas_price_margin_percent": 10
+    "l1_gas_price_margin_percent": 500
 }

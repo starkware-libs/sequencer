@@ -1,1 +1,2 @@
 ~ /gas_target: 1040000000
+~ /l1_gas_price_margin_percent: 500
