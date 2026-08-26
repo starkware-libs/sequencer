@@ -140,7 +140,9 @@ jobs:
           context: .
           file: crates/starknet_transaction_prover/Dockerfile
           # Uses debug mode for faster compilation.
-          build-args: BUILD_MODE=debug
+          build-args: |
+            BUILD_MODE=debug
+            GIT_SHA=${{ github.sha }}
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
