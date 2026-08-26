@@ -2221,6 +2221,7 @@ dependencies = [
  "reqwest 0.12.24",
  "rstest",
  "starknet_api",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
