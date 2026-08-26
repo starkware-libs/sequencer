@@ -52,6 +52,9 @@ concurrency:
 jobs:
   # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
+    # An edit only matters where the PR title is read. github.event.changes names the
+    # field that changed, so a body-only edit skips instead of re-running the suite.
+    if: ${{ github.event.action != 'edited' || github.event.changes.title != null }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:

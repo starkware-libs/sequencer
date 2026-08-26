@@ -23,6 +23,9 @@ concurrency:
 
 jobs:
   commitlint:
+    # An edit only matters where the PR title is read. github.event.changes names the
+    # field that changed, so a body-only edit skips instead of re-running the suite.
+    if: ${{ github.event.action != 'edited' || github.event.changes.title != null }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -42,6 +45,9 @@ jobs:
   # This job is used to check if all checks have passed before merging the PR.
   # Uses starkware-libs/merge-gatekeeper as the implementation.
   merge-gatekeeper-new:
+    # An edit only matters where the PR title is read. github.event.changes names the
+    # field that changed, so a body-only edit skips instead of re-running the suite.
+    if: ${{ github.event.action != 'edited' || github.event.changes.title != null }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:

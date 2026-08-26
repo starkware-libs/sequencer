@@ -4,7 +4,6 @@ on:
     types:
       - opened
       - reopened
-      - edited
       - synchronize
     paths:
       - ".github/workflows/sequencer_cdk8s-test.yml"
