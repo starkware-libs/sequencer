@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787723246012,
+  "lastUpdate": 1787733870303,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7581,6 +7581,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1371.8216111400002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "595724e91a45addeeb5660a4c6dcdba98a3f910a",
+          "message": "workspace: drop unused dev- and build-dependencies (#15017)\n\n`cargo machete`, which CI already runs, only analyses `[dependencies]`. Verified\nempirically: an unused entry injected into `[dependencies]` is flagged, the same entry\nin `[dev-dependencies]` is not. So dev- and build-dependencies have never been checked,\nand 62 of them across 36 crates are unreferenced by any source file in their crate.\nThey cost test-build time and make manifests misleading about what a crate actually\nneeds.\n\nVerified by removal rather than by inspection: `cargo check --workspace --all-targets\n--keep-going` compiles clean, and `cargo machete` stays clean.\n\nThree classes of apparent unused dependency are deliberately kept, since each is\nreferenced somewhere a source scan cannot see:\n- named by a feature list, e.g. apollo_mempool's `testing = [\"blockifier/testing\"]`;\n- reached only through another crate's macro expansion -- starknet_api's `felt!` and\n  `nonce!` expand to `starknet_types_core` paths, so four crates need it without ever\n  mentioning it;\n- linked for side effects or providing only macros, such as tikv-jemallocator and paste.\n\nNote that `--all-targets` does not build feature-gated code, so a dev-dependency used\nonly under a `cfg(feature = ...)` test path would not have been caught here; CI's\nfeature matrix is the backstop.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-26T08:22:09Z",
+          "tree_id": "29dfba2b5ac1adfac6e221c566d2f7fca8377650",
+          "url": "https://github.com/starkware-libs/sequencer/commit/595724e91a45addeeb5660a4c6dcdba98a3f910a"
+        },
+        "date": 1787733869650,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 998.7404613,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1306.57794323,
             "unit": "ms"
           }
         ]
