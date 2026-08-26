@@ -1,0 +1,51 @@
+name: PR-Title
+
+# Kept on `edited` because the PR title is validated here and a title fix must take effect
+# without a push. GitHub fires `edited` for body and base changes too, so the work below is
+# gated on the title having actually changed. The job itself always runs and always reports,
+# rather than being skipped, so it can never replace a passing required check with a skip.
+on:
+  merge_group:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - edited
+      - synchronize
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Decide whether the title needs validating
+        id: gate
+        env:
+          VALIDATE: >-
+            ${{ github.event_name == 'pull_request'
+            && (github.event.action != 'edited' || github.event.changes.title != null)
+            && !(contains(github.event.pull_request.title, 'merge-main')
+            || contains(github.event.pull_request.title, 'merge main')) }}
+        run: echo "validate=${VALIDATE}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        if: steps.gate.outputs.validate == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Install commitlint
+        if: steps.gate.outputs.validate == 'true'
+        run: npm install --global @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate PR title with commitlint
+        if: steps.gate.outputs.validate == 'true'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$TITLE" | commitlint --verbose

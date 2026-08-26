@@ -24,12 +24,15 @@ concurrency:
   group: >
     ${{ github.workflow }}-
     ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}-${{ (github.event.action == 'edited' && !github.event.changes.base) && 'noop-edit' || 'run' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
+    # `edited` fires for title, body and base changes alike. Only a base change needs CI
+    # re-run; a title or body edit skips, which counts as success for required checks.
+    if: ${{ github.event.action != 'edited' || github.event.changes.base != null }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:

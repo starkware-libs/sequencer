@@ -18,30 +18,16 @@ concurrency:
   group: >
     ${{ github.workflow }}-
     ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}-${{ (github.event.action == 'edited' && !github.event.changes.base) && 'noop-edit' || 'run' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  commitlint:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-
-      - name: Install commitlint
-        run: npm install --global @commitlint/cli @commitlint/config-conventional
-
-      - name: Validate PR title with commitlint
-        if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
-        env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: echo "$TITLE" | commitlint --verbose
-
   # This job is used to check if all checks have passed before merging the PR.
   # Uses starkware-libs/merge-gatekeeper as the implementation.
   merge-gatekeeper-new:
+    # `edited` fires for title, body and base changes alike. Only a base change needs CI
+    # re-run; a title or body edit skips, which counts as success for required checks.
+    if: ${{ github.event.action != 'edited' || github.event.changes.base != null }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:

@@ -16,12 +16,15 @@ env:
 
 # Cancel existing CI runs on this same PR when new commits are pushed.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event.action == 'edited' && !github.event.changes.base) && 'noop-edit' || 'run' }}
   cancel-in-progress: true
 
 jobs:
   # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
+    # `edited` fires for title, body and base changes alike. Only a base change needs CI
+    # re-run; a title or body edit skips, which counts as success for required checks.
+    if: ${{ github.event.action != 'edited' || github.event.changes.base != null }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:
