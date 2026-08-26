@@ -13,6 +13,8 @@ on:
       - "deployments/anvil/**"
       - "deployments/dummy_eth2strk_oracle/**"
       - "deployments/dummy_recorder/**"
+      - "deployments/monitoring/**"
+      - "crates/apollo_dashboard/resources/dev_grafana_alerts.json"
 
 jobs:
   # https://graphite.com/docs/stacking-and-ci
@@ -27,6 +29,27 @@ jobs:
         uses: withgraphite/graphite-ci-action@v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
+  monitoring-tests:
+    runs-on: ubuntu-24.04
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 60
+    steps:
+      - name: Checkout sequencer
+        uses: actions/checkout@v6
+
+      - name: Setup python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install pip dependencies
+        run: python3 -m pip install pytest -r deployments/monitoring/src/requirements.txt
+
+      - name: Run monitoring builder tests
+        run: python3 -m pytest deployments/monitoring/test -v
 
   prepare:
     runs-on: ubuntu-24.04
