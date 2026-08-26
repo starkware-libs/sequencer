@@ -31,12 +31,13 @@ spec:
     spec:
       serviceAccountName: echonet
 
-      # Pin to an n4-standard-8: ScaleOps mutates `requests` under its cost
-      # policy and would pack us onto a node too small for the OS-runner
-      # workers; a nodeSelector survives that. The pool is tainted
-      # role=sequencer, hence the toleration.
+      # Pin to the dedicated sequencer pools: ScaleOps mutates `requests` under
+      # its cost policy and would pack us onto a node too small for the
+      # OS-runner workers; a nodeSelector survives that. The pools are tainted
+      # role=sequencer, hence the toleration. Select by role, not machine type
+      # — a single type strands us whenever that type is out of stock.
       nodeSelector:
-        node.kubernetes.io/instance-type: n4-standard-8
+        role: sequencer
       tolerations:
         - key: role
           operator: Equal
