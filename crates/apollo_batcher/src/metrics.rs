@@ -35,6 +35,7 @@ define_metrics!(
         MetricGauge { LAST_SYNCED_BLOCK_HEIGHT, "batcher_last_synced_block_height", "The height of the last block received by syncing" },
         MetricGauge { LAST_PROPOSED_BLOCK_HEIGHT, "batcher_last_proposed_block_height", "The height of the last block proposed by this sequencer" },
         MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", init = 0 },
+        MetricGauge { STATE_COMMITMENT_INFOS_LOWER_BOUND, "batcher_state_commitment_infos_lower_bound", "The lowest height whose state commitment infos may be stored in the batcher storage; lower heights were pruned." },
         // Proposals
         MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", init = 0 },
         MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", init = 0 },
@@ -154,6 +155,7 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
     LAST_SYNCED_BLOCK_HEIGHT.register();
     LAST_PROPOSED_BLOCK_HEIGHT.register();
     REVERTED_BLOCKS.register();
+    STATE_COMMITMENT_INFOS_LOWER_BOUND.register();
 
     PROPOSAL_STARTED.register();
     PROPOSAL_SUCCEEDED.register();
