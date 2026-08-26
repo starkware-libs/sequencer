@@ -34,3 +34,10 @@ ECHONET_SECRETS_FILENAME = "echonet_secrets.json"
 # Env overrides for paths (define once).
 ECHONET_ENV_KEYS_PATH = "ECHONET_KEYS_PATH"
 ECHONET_ENV_SECRETS_PATH = "ECHONET_SECRETS_PATH"
+
+# Env overrides for the 0.14.3-vs-0.14.4 fee comparison runs. Each run of the experiment sets
+# them on the echonet Deployment; unset, echonet behaves exactly as it does in normal operation.
+ECHONET_ENV_STARKNET_VERSION_OVERRIDE = "ECHONET_STARKNET_VERSION_OVERRIDE"
+ECHONET_ENV_FEE_CSV_RUN_LABEL = "ECHONET_FEE_CSV_RUN_LABEL"
+ECHONET_ENV_RESYNC_ENABLED = "ECHONET_RESYNC_ENABLED"
+ECHONET_ENV_OS_RUNNER_ENABLED = "ECHONET_OS_RUNNER_ENABLED"

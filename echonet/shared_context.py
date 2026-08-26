@@ -710,6 +710,14 @@ class SharedContext:
         with self._lock:
             return self._tx.currently_pending[tx_hash]
 
+    def get_sent_block_number_or_none(self, tx_hash: str) -> Optional[int]:
+        """
+        The source block of a forwarded transaction, or None for one this echonet never
+        forwarded — an L1 handler, or a transaction whose block predates the current run.
+        """
+        with self._lock:
+            return self._tx.currently_pending.get(tx_hash)
+
     def get_resync_evaluation_inputs(
         self,
     ) -> tuple[Dict[str, JsonObject], Dict[str, int], Dict[str, RevertErrorInfo], Optional[int]]:

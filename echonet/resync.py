@@ -4,7 +4,7 @@ import asyncio
 from typing import Callable, Dict, Optional
 
 from echonet import notifier, reports
-from echonet.echonet_types import JsonObject, ResyncTriggerPayload, RevertErrorInfo
+from echonet.echonet_types import CONFIG, JsonObject, ResyncTriggerPayload, RevertErrorInfo
 from echonet.logger import get_logger
 from echonet.sequencer_manager import SequencerManager
 from echonet.shared_context import shared
@@ -89,6 +89,14 @@ class ResyncPolicy:
             if pending_min_block is not None
             else failure_block_number
         )
+
+        if not CONFIG.resync.enabled:
+            logger.warning(
+                f"Resync is disabled; dropping trigger from {tx_hash_trigger} at block "
+                f"{failure_block_number} (would have reverted to "
+                f"{revert_target_block_number}): {reason_trigger}"
+            )
+            return None
 
         return {
             "tx_hash": tx_hash_trigger,

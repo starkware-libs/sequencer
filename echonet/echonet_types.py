@@ -9,8 +9,12 @@ from typing import Any, FrozenSet, Mapping, TypeAlias, TypedDict
 
 from echonet import helpers
 from echonet.constants import (
+    ECHONET_ENV_FEE_CSV_RUN_LABEL,
     ECHONET_ENV_KEYS_PATH,
+    ECHONET_ENV_OS_RUNNER_ENABLED,
+    ECHONET_ENV_RESYNC_ENABLED,
     ECHONET_ENV_SECRETS_PATH,
+    ECHONET_ENV_STARKNET_VERSION_OVERRIDE,
     ECHONET_KEYS_FILENAME,
     ECHONET_SECRETS_FILENAME,
     MAX_BLOCK_NUMBER,
@@ -143,6 +147,10 @@ class BlockRangeDefaults:
 class ResyncConfig:
     """Behavior of the resync revert-and-restore flow."""
 
+    # When False, resync triggers are logged and dropped instead of rewinding the run. Off for
+    # the fee comparison, whose 0.14.4 pass makes every block hash differ from mainnet by
+    # design; resyncing on that would restart the run and re-execute blocks already recorded.
+    enabled: bool = True
     # When True, the revert step rewinds only to `max(start_block, next_start_block -
     # revert_lookback_blocks)` instead of all the way back to the previous start block,
     # bounding how many blocks must be re-synced from the feeder gateway.
@@ -235,6 +243,25 @@ class NotificationsConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class FeeComparisonConfig:
+    """
+    Settings for the 0.14.3-vs-0.14.4 fee comparison runs, taken from the pod's environment.
+    Left at their defaults they change nothing, so a normal echonet deployment is unaffected.
+    """
+
+    # Starknet version reported on `/echonet/get_starknet_version`, which the sequencer's
+    # gateway pins its process-wide versioned constants to. Empty reports the replayed block's
+    # own version, i.e. whatever mainnet ran.
+    starknet_version_override: str = ""
+    # A non-empty label turns on the per-transaction fee CSV and names its file. Empty is off.
+    run_label: str = ""
+
+    @property
+    def fee_csv_enabled(self) -> bool:
+        return bool(self.run_label)
+
+
+@dataclass(frozen=True, slots=True)
 class EchonetConfig:
     feeder: FeederGatewayConfig
     sequencer: SequencerGatewayConfig
@@ -250,6 +277,7 @@ class EchonetConfig:
     l1: L1Config
     gcp_logs: GcpLogsConfig
     notifications: NotificationsConfig
+    fee_comparison: FeeComparisonConfig
 
     @classmethod
     def from_files(cls, keys_path: Path, secrets_path: Path) -> "EchonetConfig":
@@ -294,6 +322,7 @@ class EchonetConfig:
                 end_block=int(keys.get("end_block_default", MAX_BLOCK_NUMBER)),
             ),
             resync=ResyncConfig(
+                enabled=helpers.env_flag(ECHONET_ENV_RESYNC_ENABLED, default=True),
                 bounded_revert_enabled=bool(keys.get("resync_bounded_revert_enabled", False)),
                 revert_lookback_blocks=int(keys.get("resync_revert_lookback_blocks", 100)),
             ),
@@ -309,7 +338,9 @@ class EchonetConfig:
             ),
             severity=SeverityConfig(),
             paths=PathsConfig(),
-            os_runner=OsRunnerConfig(),
+            os_runner=OsRunnerConfig(
+                enabled=helpers.env_flag(ECHONET_ENV_OS_RUNNER_ENABLED, default=True),
+            ),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
             ),
@@ -323,6 +354,10 @@ class EchonetConfig:
             ),
             notifications=NotificationsConfig(
                 slack_webhook_url=slack_webhook_url,
+            ),
+            fee_comparison=FeeComparisonConfig(
+                starknet_version_override=helpers.env_text(ECHONET_ENV_STARKNET_VERSION_OVERRIDE),
+                run_label=helpers.env_text(ECHONET_ENV_FEE_CSV_RUN_LABEL),
             ),
         )
 

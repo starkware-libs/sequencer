@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, FrozenSet
@@ -36,3 +37,16 @@ def read_json_object(path: Path) -> dict[str, Any]:
     if not isinstance(obj, dict):
         raise ValueError(f"Expected JSON object in {path}")
     return obj
+
+
+def env_flag(name: str, default: bool) -> bool:
+    """Read a boolean environment variable. Unset or empty falls back to `default`."""
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def env_text(name: str, default: str = "") -> str:
+    """Read a string environment variable, trimmed. Unset or blank falls back to `default`."""
+    return os.environ.get(name, "").strip() or default

@@ -92,6 +92,19 @@ spec:
               value: "/data/blocks"
             - name: ECHONET_LOG_DIR
               value: "/data/echonet"
+            # 0.14.3-vs-0.14.4 fee comparison. Empty version override and no run label leave
+            # echonet behaving exactly as it does in normal operation; a run of the experiment
+            # sets the version it is pricing at, a label naming that run's CSV, and turns off
+            # both resync (divergence from mainnet is the point) and the OS runner (whose
+            # program is pinned to the version mainnet is on).
+            - name: ECHONET_STARKNET_VERSION_OVERRIDE
+              value: ""
+            - name: ECHONET_FEE_CSV_RUN_LABEL
+              value: ""
+            - name: ECHONET_RESYNC_ENABLED
+              value: "true"
+            - name: ECHONET_OS_RUNNER_ENABLED
+              value: "true"
           command: ["bash","-lc"]
           args:
             - >

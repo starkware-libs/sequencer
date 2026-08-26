@@ -17,6 +17,7 @@ import requests
 
 from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
+from echonet.fee_recorder import FeeRecorder, create_fee_recorder
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
 from echonet.l1_logic.l1_manager import L1Manager
@@ -49,6 +50,16 @@ def _os_run_error_text(exc: BaseException) -> str:
         else:
             parts.append(str(stderr_bytes))
     return "\n".join(parts)
+
+
+def _mainnet_receipts_by_tx_hash(mainnet_block: Optional[JsonObject]) -> dict[str, JsonObject]:
+    """Mainnet receipts of a forwarded block, keyed by tx hash. Empty if the block was evicted."""
+    if not mainnet_block:
+        return {}
+    return {
+        receipt["transaction_hash"]: receipt
+        for receipt in mainnet_block.get("transaction_receipts", [])
+    }
 
 
 def _static_file_b64(filename: str) -> str:
@@ -874,6 +885,10 @@ class EchoCenterService:
             feeder_client=self.feeder_client, block_number=CONFIG.blocks.start_block
         )
 
+        self._fee_recorder: Optional[FeeRecorder] = create_fee_recorder(
+            run_label=CONFIG.fee_comparison.run_label, log_dir=CONFIG.paths.log_dir
+        )
+
         self._chain = DeterministicChain(self.feeder_client, self.shared, self.logger)
         self._transformer = BlobTransformer(
             feeder_client=self.feeder_client,
@@ -933,6 +948,46 @@ class EchoCenterService:
             finally:
                 if input_path:
                     input_path.unlink(missing_ok=True)
+
+    def _record_fees(self, block_document: JsonObject) -> None:
+        """
+        Append the block's per-transaction fee rows. Recording is a diagnostic and block
+        production is not: letting this raise would turn the blob write into a 500, which stalls
+        consensus on the height it is re-proposing.
+        """
+        if self._fee_recorder is None:
+            return
+        try:
+            source_block_number_by_tx_hash: dict[str, int] = {}
+            mainnet_receipt_by_tx_hash: dict[str, JsonObject] = {}
+            mainnet_receipts_by_source_block: dict[int, dict[str, JsonObject]] = {}
+            for tx in block_document.get("transactions", []):
+                tx_hash = tx["transaction_hash"]
+                # L1 handlers are never forwarded, so they have no source block on record.
+                source_block_number = self.shared.get_sent_block_number_or_none(tx_hash)
+                if source_block_number is None:
+                    continue
+                source_block_number_by_tx_hash[tx_hash] = source_block_number
+                receipts_by_tx_hash = mainnet_receipts_by_source_block.get(source_block_number)
+                if receipts_by_tx_hash is None:
+                    receipts_by_tx_hash = _mainnet_receipts_by_tx_hash(
+                        self.shared.get_fgw_block(source_block_number)
+                    )
+                    mainnet_receipts_by_source_block[source_block_number] = receipts_by_tx_hash
+                mainnet_receipt = receipts_by_tx_hash.get(tx_hash)
+                if mainnet_receipt is not None:
+                    mainnet_receipt_by_tx_hash[tx_hash] = mainnet_receipt
+
+            self._fee_recorder.record_block(
+                block_document=block_document,
+                source_block_number_by_tx_hash=source_block_number_by_tx_hash,
+                mainnet_receipt_by_tx_hash=mainnet_receipt_by_tx_hash,
+            )
+        except Exception:
+            self.flask_logger.exception(
+                f"Failed to record fees for block {block_document.get('block_number')}; "
+                f"blob storage is unaffected"
+            )
 
     def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
         txs = stored_block.get("transactions", [])
@@ -1028,6 +1083,7 @@ class EchoCenterService:
         )
 
         self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
+        self._record_fees(to_store)
 
         self.shared.store_block(
             block_number,
@@ -1260,13 +1316,47 @@ class EchoCenterService:
         """
         GET /echonet/get_starknet_version
 
-        Returns the starknet_version string of the configured start block.
+        Returns the starknet_version string of the configured start block, or the configured
+        override. The sequencer's gateway pins its process-wide versioned constants to whatever
+        this reports, so overriding it is how a replay is priced at a version mainnet is not on.
         """
-        block = self.feeder_client.get_block(CONFIG.blocks.start_block)
+        version_override = CONFIG.fee_comparison.starknet_version_override
+        if version_override:
+            self.logger.info(f"Reporting overridden Starknet version: {version_override}")
+            starknet_version = version_override
+        else:
+            starknet_version = self.feeder_client.get_block(CONFIG.blocks.start_block)[
+                "starknet_version"
+            ]
         return flask.Response(
-            block["starknet_version"].encode("utf-8"),
+            starknet_version.encode("utf-8"),
             status=requests.codes.ok,
             headers=[["Content-Type", "text/plain; charset=utf-8"]],
+        )
+
+    def handle_fee_csv(self) -> flask.Response:
+        """
+        GET /echonet/fee_csv
+
+        Serves the per-transaction fee CSV of the current run, when one is being recorded.
+        """
+        if self._fee_recorder is None:
+            return self._json_response(
+                {"error": "Fee recording is off; no run label is configured."},
+                requests.codes.not_found,
+            )
+        csv_path = self._fee_recorder.csv_path
+        if not csv_path.exists():
+            return self._json_response(
+                {"error": f"No rows recorded yet at {csv_path}."}, requests.codes.not_found
+            )
+        return flask.Response(
+            csv_path.read_bytes(),
+            status=requests.codes.ok,
+            headers=[
+                ["Content-Type", "text/csv; charset=utf-8"],
+                ["Content-Disposition", f'attachment; filename="{csv_path.name}"'],
+            ],
         )
 
     def handle_get_block_metadata(self) -> flask.Response:
@@ -1517,6 +1607,11 @@ def get_block_metadata() -> flask.Response:
 @app.route("/echonet/get_starknet_version", methods=["GET"])
 def get_starknet_version() -> flask.Response:
     return service.handle_get_starknet_version()
+
+
+@app.route("/echonet/fee_csv", methods=["GET"])
+def fee_csv() -> flask.Response:
+    return service.handle_fee_csv()
 
 
 @app.route("/echonet/block_dump", methods=["GET"])
