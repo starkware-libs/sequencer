@@ -4,6 +4,7 @@ import argparse
 import collections
 import json
 import os
+import re
 import sys
 from typing import Optional
 
@@ -165,12 +166,18 @@ def update_alert_rule_group(
 def inject_expr_placeholders(expr: str, cluster: str, namespace: str) -> str:
     return expr.replace(
         const.ALERT_RULE_EXPRESSION_PLACEHOLDER,
-        '{{namespace="{0}", cluster="{1}"}}'.format(namespace, cluster),
+        'namespace="{0}", cluster="{1}"'.format(namespace, cluster),
     )
 
 
 def remove_expr_placeholder(expr: str) -> str:
-    return expr.replace(const.ALERT_RULE_EXPRESSION_PLACEHOLDER, "")
+    # The separator after the placeholder is consumed too, so a selector that carries further
+    # matchers stays valid PromQL.
+    return re.sub(
+        re.escape(const.ALERT_RULE_EXPRESSION_PLACEHOLDER) + r"(,\s*)?",
+        "",
+        expr,
+    )
 
 
 def _convert_numeric_strings_in_conditions(conditions: list[dict[str, any]]) -> None:
