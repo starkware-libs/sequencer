@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787733739339,
+  "lastUpdate": 1787740691721,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1414.84014438,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4b46b703cd47ddc41e40d3d803dde041c022d240",
+          "message": "apollo_committer,starknet_committer: compress commitment infos once and store the compressed payload (#15032)",
+          "timestamp": "2026-08-26T10:15:59Z",
+          "tree_id": "1630d10ea2e128adbade2de9219a9ee0b2ff2fe6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4b46b703cd47ddc41e40d3d803dde041c022d240"
+        },
+        "date": 1787740691065,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 933.06071405,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1412.61764182,
             "unit": "ms"
           }
         ]
