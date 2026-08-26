@@ -3,6 +3,7 @@ use std::io::{stdout, Stdout, Write};
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::command::create_shell_command;
@@ -11,11 +12,21 @@ use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::task;
+use tokio::time::sleep;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/apollo_node";
 const TEMP_LOGS_DIR: &str = "integration_test_temporary_logs";
+
+/// Number of times a node that fails to start is respawned before the run is failed.
+const MAX_NODE_STARTUP_ATTEMPTS: usize = 3;
+
+/// A node that exits within this window of being spawned is treated as having failed to start.
+/// Exiting later is a crash during the test, which stays fatal.
+const NODE_STARTUP_WINDOW: Duration = Duration::from_secs(30);
+
+const NODE_RESTART_BACKOFF: Duration = Duration::from_secs(2);
 
 /// Global synchronized stdout writer to prevent race conditions when multiple
 /// node processes write their annotated output concurrently.
@@ -67,19 +78,48 @@ impl NodeRunner {
     }
 }
 
+/// Runs the node, restarting it if it exits within `NODE_STARTUP_WINDOW` of being spawned.
+///
+/// A node that dies that early failed to start, and the cause is often transient: a port that
+/// passed the allocator's probe can be taken by another process before the node binds it, which
+/// surfaces as `Os { code: 98, kind: AddrInUse }` and otherwise fails the whole run. The retry
+/// covers any early exit rather than that error alone, since the cause is only visible in the
+/// child's own output. A node that keeps failing to start still fails the run, after
+/// `MAX_NODE_STARTUP_ATTEMPTS` attempts, and a crash later in the test stays fatal immediately.
 pub fn spawn_run_node(
     node_config_paths: Vec<PathBuf>,
     node_runner: NodeRunner,
 ) -> AbortOnDropHandle<()> {
     AbortOnDropHandle::new(task::spawn(async move {
-        info!("Running the node from its spawned task.");
-        // Obtain handles, as the processes and task are terminated when their handles are dropped.
-        let (mut node_handle, _pipe_task) =
-            spawn_node_child_process(node_config_paths, node_runner.clone()).await;
-        let exit_status = node_handle.
-            wait(). // Runs the node until completion, should be running indefinitely.
-            await; // Awaits the completion of the node.
-        panic!("Node {node_runner:?} stopped unexpectedly. Exit status: {exit_status:?}.");
+        let mut attempt = 1;
+        loop {
+            info!("Running the node from its spawned task.");
+            // Obtain handles, as the processes and task are terminated when their handles are
+            // dropped.
+            let (mut node_handle, _pipe_task) =
+                spawn_node_child_process(node_config_paths.clone(), node_runner.clone()).await;
+            let spawned_at = Instant::now();
+            let exit_status = node_handle.
+                wait(). // Runs the node until completion, should be running indefinitely.
+                await; // Awaits the completion of the node.
+            let uptime = spawned_at.elapsed();
+
+            if uptime >= NODE_STARTUP_WINDOW || attempt == MAX_NODE_STARTUP_ATTEMPTS {
+                panic!(
+                    "Node {node_runner:?} stopped unexpectedly after {uptime:?}, on startup \
+                     attempt {attempt}/{MAX_NODE_STARTUP_ATTEMPTS}. Exit status: {exit_status:?}."
+                );
+            }
+
+            warn!(
+                "Node {node_runner:?} exited after {uptime:?}, within the {NODE_STARTUP_WINDOW:?} \
+                 startup window, so it failed to start. Restarting, attempt \
+                 {next_attempt}/{MAX_NODE_STARTUP_ATTEMPTS}. Exit status: {exit_status:?}.",
+                next_attempt = attempt + 1
+            );
+            attempt += 1;
+            sleep(NODE_RESTART_BACKOFF).await;
+        }
     }))
 }
 
