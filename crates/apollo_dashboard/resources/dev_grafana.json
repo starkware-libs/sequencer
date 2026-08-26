@@ -1042,6 +1042,17 @@
           }
         },
         {
+          "title": "State Commitment Infos Lower Bound",
+          "description": "The lowest height whose state commitment infos may be stored in the batcher storage; lower heights were pruned.",
+          "type": "stat",
+          "exprs": [
+            "batcher_state_commitment_infos_lower_bound{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "log_query": "\"Pruned the state commitment infos below\""
+          }
+        },
+        {
           "title": "Average Block Time",
           "description": "Average block time (1m window)",
           "type": "timeseries",
