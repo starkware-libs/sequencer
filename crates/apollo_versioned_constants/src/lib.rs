@@ -5,6 +5,10 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "test.rs"]
+mod test;
+
 /// Versioned constants for the Consensus.
 #[derive(Clone, Debug, Deserialize)]
 pub struct VersionedConstants {
@@ -14,6 +18,12 @@ pub struct VersionedConstants {
     pub gas_price_max_change_denominator: u128,
     /// The minimum gas price in fri.
     pub min_gas_price: GasPrice,
+    /// Ceiling on the L2 gas price, as a multiple of the minimum gas price in force for the
+    /// height. Must be greater than one. Versions from 0.14.4 state it explicitly; a resource
+    /// that omits it inherits 10, the value that applied to every version before this constant
+    /// was versioned.
+    #[serde(default = "default_max_gas_price_multiplier")]
+    pub max_gas_price_multiplier: u128,
     /// The maximum block size in gas units.
     // NOTE: Must stay in sync with BouncerWeights receipt_l2_gas.
     // NOTE: When max_block_size is changed, update `gas_target` accordingly to maintain the ratio.
@@ -28,6 +38,10 @@ pub struct VersionedConstants {
     pub fee_proposal_window_size: u64,
     /// Maximum `fee_proposal` change per block in parts per thousand (e.g., `2` = 0.2%).
     pub fee_proposal_margin_ppt: u128,
+}
+
+fn default_max_gas_price_multiplier() -> u128 {
+    10
 }
 
 define_versioned_constants!(
