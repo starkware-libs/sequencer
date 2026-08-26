@@ -647,10 +647,13 @@ where
 
                 let (new_lower_bound, mut commitment_infos_updates) =
                     self.prune_commitment_infos(next_offset, &mut metadata);
+                // Compressed once and shared between the DB write and the response below, instead
+                // of bincode-serializing and zstd-compressing the same commitment infos twice.
+                let compressed_commitment_infos = state_commitment_infos.compress()?;
                 commitment_infos_updates.push(CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                     block_number: height,
                     keys_digest: digest,
-                    commitment_infos: state_commitment_infos.clone(),
+                    commitment_infos: compressed_commitment_infos.clone(),
                 }));
 
                 info!(
@@ -682,7 +685,7 @@ where
                 self.commitment_infos_lower_bound = new_lower_bound;
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
+                    state_commitment_infos: compressed_commitment_infos,
                 })
             }
         }

@@ -19,13 +19,19 @@ use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::patricia_merkle_tree::tree::SortedLeafIndices;
-use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
+use crate::patricia_merkle_tree::types::{
+    CompressedStateCommitmentInfos,
+    StarknetForestProofs,
+    StateCommitmentInfos,
+};
 
 /// The information required to write the OS-input commitment infos to the database.
 pub struct CommitmentInfosWrite {
     pub block_number: BlockNumber,
     pub keys_digest: [u8; 32],
-    pub commitment_infos: StateCommitmentInfos,
+    /// Compressed by the caller so that a value already compressed for another purpose (e.g. an
+    /// RPC response) isn't bincode-serialized and zstd-compressed a second time.
+    pub commitment_infos: CompressedStateCommitmentInfos,
 }
 
 /// Commitment-infos DB operation, which can be either delete or write.
