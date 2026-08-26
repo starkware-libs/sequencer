@@ -62,10 +62,19 @@ pub fn get_min_gas_price_for_height(
 /// The ceiling on the L2 gas price: `MAX_GAS_PRICE_MULTIPLIER` times `min_gas_price`. Applies to
 /// every block regardless of its `starknet_version`. Proposer and validator reach the ceiling
 /// through this function, so they cannot disagree on it.
-// [Temporary comment] Single caller on this lineage. The fee-proposal band clamp, which is its
-// second caller, is deferred to `main`.
 pub fn l2_gas_price_cap(min_gas_price: GasPrice) -> GasPrice {
     GasPrice(min_gas_price.0.saturating_mul(MAX_GAS_PRICE_MULTIPLIER))
+}
+
+/// The ceiling in force at `height`: the cap over the minimum configured for that height. The
+/// proposer's fee_proposal band and the validator's band compose it here, so they cannot disagree
+/// on it. `calculate_next_l2_gas_price_for_fin` composes `l2_gas_price_cap` directly, because it
+/// needs the height's minimum in its own right.
+pub fn l2_gas_price_cap_for_height(
+    height: BlockNumber,
+    min_l2_gas_price_per_height: &[PricePerHeight],
+) -> GasPrice {
+    l2_gas_price_cap(get_min_gas_price_for_height(height, min_l2_gas_price_per_height))
 }
 
 /// Compute the next L2 gas price (for the fin or for updating state). Respects override when set.
