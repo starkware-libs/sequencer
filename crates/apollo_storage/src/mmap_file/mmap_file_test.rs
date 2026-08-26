@@ -1,3 +1,4 @@
+use std::os::unix::fs::MetadataExt;
 use std::sync::Arc;
 
 use apollo_test_utils::get_rng;
@@ -301,4 +302,38 @@ fn location_in_file_serialization_order() {
     let mut serialized_256 = Vec::new();
     location_256.serialize_into(&mut serialized_256).unwrap();
     assert!(serialized_256 > serialized_1);
+}
+
+#[test]
+fn punch_hole_up_to() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().to_path_buf().join("test_punch_hole_up_to");
+    let (mut writer, reader) =
+        open_file::<NoVersionValueWrapper<Vec<u8>>>(get_mmap_file_test_config(), path.clone(), 0)
+            .unwrap();
+    let allocated_bytes =
+        || usize::try_from(std::fs::metadata(&path).unwrap().blocks() * 512).unwrap();
+    let data = vec![1; 32 * 1024];
+    let locations: Vec<_> = (0..3).map(|_| writer.append(&data)).collect();
+    writer.flush();
+    let before = allocated_bytes();
+
+    // Releases whole pages below `end` only.
+    writer.punch_hole_up_to(locations[2].offset()).unwrap();
+    let released = before - allocated_bytes();
+    let page_size = page_size::get();
+    assert!(released >= 2 * data.len() - page_size, "released only {released} bytes");
+    assert_eq!(reader.get(locations[2]).unwrap().unwrap(), data);
+
+    // Punching again, or below a page, changes nothing.
+    let after = allocated_bytes();
+    writer.punch_hole_up_to(locations[2].offset()).unwrap();
+    writer.punch_hole_up_to(page_size - 1).unwrap();
+    assert_eq!(allocated_bytes(), after);
+
+    // Appending afterwards is unaffected.
+    let location = writer.append(&data);
+    assert_eq!(reader.get(location).unwrap().unwrap(), data);
+
+    dir.close().unwrap();
 }

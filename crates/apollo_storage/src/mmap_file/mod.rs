@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
+#[cfg(target_os = "linux")]
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::result;
 use std::sync::{Arc, Mutex};
@@ -20,6 +22,8 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 #[cfg(test)]
 use apollo_test_utils::GetTestInstance;
 use memmap2::{MmapMut, MmapOptions};
+#[cfg(target_os = "linux")]
+use nix::fcntl::{fallocate, FallocateFlags};
 #[cfg(test)]
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -100,6 +104,11 @@ pub enum MMapFileError {
     /// Number conversion error.
     #[error(transparent)]
     TryFromInt(#[from] std::num::TryFromIntError),
+
+    /// Error from a system call.
+    #[cfg(target_os = "linux")]
+    #[error(transparent)]
+    Nix(#[from] nix::Error),
 }
 
 /// A trait for writing to a memory mapped file.
@@ -127,6 +136,11 @@ pub struct LocationInFile {
 }
 
 impl LocationInFile {
+    /// returns the offset of the object in the file.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
     /// returns the next offset in the file.
     pub fn next_offset(&self) -> usize {
         self.offset + self.len
@@ -218,6 +232,32 @@ unsafe impl<V: ValueSerde, Mode: TransactionKind> Send for FileHandler<V, Mode> 
 unsafe impl<V: ValueSerde, Mode: TransactionKind> Sync for FileHandler<V, Mode> {}
 
 impl<V: ValueSerde> FileHandler<V, RW> {
+    /// Releases the disk blocks of the file range `[0, end)`, rounded down to a whole page, so the
+    /// bytes read back as zeros. The file size and all offsets are unchanged; the caller must
+    /// ensure no live object resides in the range. Idempotent: re-releasing a released range is a
+    /// no-op. Only supported on Linux; elsewhere this does nothing.
+    pub(crate) fn punch_hole_up_to(&self, end: usize) -> MmapFileResult<()> {
+        let end = end - end % page_size::get();
+        if end == 0 {
+            return Ok(());
+        }
+        debug!("Punching a hole in the file range [0, {end}).");
+        #[cfg(target_os = "linux")]
+        {
+            let mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+            // `PUNCH_HOLE` deallocates the range's blocks, turning it into a hole that reads as
+            // zeros; `KEEP_SIZE`, which it must be paired with, leaves the file's size as is, so
+            // the offsets of the objects above the range stay valid.
+            fallocate(
+                mmap_file.file.as_raw_fd(),
+                FallocateFlags::FALLOC_FL_PUNCH_HOLE | FallocateFlags::FALLOC_FL_KEEP_SIZE,
+                0,
+                end.try_into()?,
+            )?;
+        }
+        Ok(())
+    }
+
     fn grow_file_if_needed(&mut self, offset: usize) {
         let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
         if mmap_file.size < offset + mmap_file.config.max_object_size {
