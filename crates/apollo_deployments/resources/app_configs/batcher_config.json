@@ -50,6 +50,8 @@
   "batcher_config.static_config.pre_confirmed_block_writer_config.channel_buffer_capacity": 1000,
   "batcher_config.static_config.pre_confirmed_block_writer_config.write_block_interval_millis": 50,
   "batcher_config.static_config.propose_l1_txs_every": 10,
+  "batcher_config.static_config.state_commitment_infos_pruning_config.max_deletions_per_prune": 10,
+  "batcher_config.static_config.state_commitment_infos_pruning_config.retention_blocks": 1000,
   "batcher_config.static_config.storage.db_config.enforce_file_exists": false,
   "batcher_config.static_config.storage.db_config.growth_step": 67108864,
   "batcher_config.static_config.storage.db_config.max_readers": 8192,
