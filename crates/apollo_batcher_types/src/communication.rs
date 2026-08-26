@@ -33,6 +33,7 @@ use crate::batcher_types::{
     GetProposalContentResponse,
     ProposalId,
     ProposeBlockInput,
+    PruneStateCommitmentInfosInput,
     RevertBlockInput,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
@@ -67,6 +68,12 @@ pub trait BatcherClient: Send + Sync {
         &self,
         block_number: BlockNumber,
     ) -> BatcherClientResult<bool>;
+    /// Deletes stored state commitment infos that fell out of the retention window, freeing their
+    /// disk space.
+    async fn prune_state_commitment_infos(
+        &self,
+        input: PruneStateCommitmentInfosInput,
+    ) -> BatcherClientResult<()>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -131,6 +138,7 @@ pub enum BatcherRequest {
     GetBlockHash(BlockNumber),
     GetStateCommitmentInfos(BlockNumber),
     HasStateCommitmentInfos(BlockNumber),
+    PruneStateCommitmentInfos(PruneStateCommitmentInfosInput),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -159,6 +167,7 @@ pub enum BatcherResponse {
     GetBlockHash(BatcherResult<BlockHash>),
     GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
     HasStateCommitmentInfos(BatcherResult<bool>),
+    PruneStateCommitmentInfos(BatcherResult<()>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -239,6 +248,22 @@ where
             request,
             BatcherResponse,
             HasStateCommitmentInfos,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn prune_state_commitment_infos(
+        &self,
+        input: PruneStateCommitmentInfosInput,
+    ) -> BatcherClientResult<()> {
+        let request = BatcherRequest::PruneStateCommitmentInfos(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            PruneStateCommitmentInfos,
             BatcherClientError,
             BatcherError,
             Direct

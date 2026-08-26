@@ -71,6 +71,8 @@ pub const EXECUTION_INFO_LEN: usize = 10;
 pub const DUMMY_FINAL_N_EXECUTED_TXS: usize = 12;
 
 pub(crate) const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
+/// Below [`INITIAL_HEIGHT`], so that seeding the lower bound metric from it is observable.
+pub(crate) const STATE_COMMITMENT_INFOS_LOWER_BOUND_HEIGHT: BlockNumber = BlockNumber(1);
 pub(crate) const FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH: BlockNumber =
     INITIAL_HEIGHT.prev().unwrap();
 pub(crate) const DUMMY_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0xdeadbeef"));
@@ -322,9 +324,19 @@ impl Default for MockClients {
     }
 }
 
+/// A storage reader mock with the expectations every batcher needs on startup; a test adds the
+/// ones its own flow reads.
+pub(crate) fn mock_storage_reader() -> MockBatcherStorageReader {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader
+        .expect_state_commitment_infos_lower_bound()
+        .returning(|| Ok(Some(STATE_COMMITMENT_INFOS_LOWER_BOUND_HEIGHT)));
+    storage_reader
+}
+
 impl Default for MockDependencies {
     fn default() -> Self {
-        let mut storage_reader = MockBatcherStorageReader::new();
+        let mut storage_reader = mock_storage_reader();
         storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
