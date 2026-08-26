@@ -7,6 +7,8 @@ memory and caps its on-disk archive, so a thousand-block run would have lost its
 the time it finished. Every row carries both what echonet charged and what mainnet charged for
 the same transaction, so a single run's file already holds a comparison and the run at the other
 version only has to disagree with it in the places the versioned constants changed.
+
+See docs/echonet_fee_comparison.md for how to run a comparison and how to read the result.
 """
 
 from __future__ import annotations

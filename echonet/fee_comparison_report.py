@@ -20,6 +20,9 @@ sending account and the contracts its calldata calls into:
     {"extended": ["0x1234..."], "games": ["0xabcd...", "0xbeef..."]}
 
 Transactions matching no category are reported as `other`.
+
+See docs/echonet_fee_comparison.md for the full procedure, the replay artifacts to expect, and
+why the per-transaction distribution matters more than the fee-weighted total.
 """
 
 from __future__ import annotations
