@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787586620421,
+  "lastUpdate": 1787723246012,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7547,6 +7547,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1440.32238545,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b9e7255e61902036630aeb55eb2f87fecb6c5bcb",
+          "message": "release: add v0.14.5 SN version to enum and drop the superseded cende blob test (#15030)\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-26T05:26:56Z",
+          "tree_id": "e1c9e17170ae7f65d3ec45159af98c89dbf458d8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b9e7255e61902036630aeb55eb2f87fecb6c5bcb"
+        },
+        "date": 1787723245291,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 897.51708852,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1371.8216111400002,
             "unit": "ms"
           }
         ]
