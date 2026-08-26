@@ -1291,7 +1291,7 @@ impl NetworkManager {
                 }
                 Err(bind_error) => panic!(
                     "Error while binding to {listen_address} after {LISTEN_BIND_MAX_ATTEMPTS} \
-                     attempts: {bind_error}"
+                     attempts: {bind_error:?}"
                 ),
             }
         }
