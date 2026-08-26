@@ -340,6 +340,17 @@ there was never a status.
 The logging layer never reads request bodies. Transaction calldata is private user data and stays
 out of the logs.
 
+### Panics
+
+A global panic hook catches every panic and logs one `error`-level event with `event="panic"`. The
+event carries the panic location, the payload, and a forced backtrace. Only static string literals
+reach the log verbatim. A payload built at runtime can hold request or transaction data, so the
+hook replaces it with a placeholder.
+
+The hook only logs. It does not call `process::abort()` and does not change unwinding behavior, so
+the tokio runtime still contains a panic raised inside a request task and the process keeps
+serving.
+
 ## Limitations
 
 - Invoke V3 only — Declare and DeployAccount transactions are not supported.
