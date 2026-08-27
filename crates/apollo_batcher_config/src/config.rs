@@ -32,6 +32,8 @@ use url::Url;
 use validator::{Validate, ValidationError};
 
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
+pub const DEFAULT_STATE_COMMITMENT_INFOS_RETENTION_BLOCKS: u64 = 1000;
+pub const DEFAULT_MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE: usize = 100;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
 /// Configuration for the block builder component of the batcher.
@@ -192,6 +194,47 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
     }
 }
 
+/// Configuration of pruning old state commitment infos from the batcher storage.
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct StateCommitmentInfosPruningConfig {
+    /// The state commitment infos of the `retention_blocks` heights below the current height are
+    /// kept; those of lower heights are pruned.
+    #[validate(range(min = 10))]
+    pub retention_blocks: u64,
+    /// At most this many heights are pruned per prune request.
+    #[validate(range(min = 2))]
+    pub max_deletions_per_prune: usize,
+}
+
+impl SerializeConfig for StateCommitmentInfosPruningConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "retention_blocks",
+                &self.retention_blocks,
+                "The state commitment infos of this many heights below the current height are \
+                 kept in storage; those of lower heights are pruned.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_deletions_per_prune",
+                &self.max_deletions_per_prune,
+                "At most this many heights' state commitment infos are pruned per prune request.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for StateCommitmentInfosPruningConfig {
+    fn default() -> Self {
+        Self {
+            retention_blocks: DEFAULT_STATE_COMMITMENT_INFOS_RETENTION_BLOCKS,
+            max_deletions_per_prune: DEFAULT_MAX_STATE_COMMITMENT_INFOS_DELETIONS_PER_PRUNE,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherStaticConfig {
     #[validate(nested)]
@@ -203,6 +246,8 @@ pub struct BatcherStaticConfig {
     #[validate(nested)]
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub commitment_manager_config: CommitmentManagerConfig,
+    #[validate(nested)]
+    pub state_commitment_infos_pruning_config: StateCommitmentInfosPruningConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
@@ -262,6 +307,10 @@ impl SerializeConfig for BatcherStaticConfig {
             "commitment_manager_config",
         ));
         dump.append(&mut prepend_sub_config_name(
+            self.state_commitment_infos_pruning_config.dump(),
+            "state_commitment_infos_pruning_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
             self.pre_confirmed_cende_config.dump(),
             "pre_confirmed_cende_config",
         ));
@@ -303,6 +352,7 @@ impl Default for BatcherStaticConfig {
             pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig::default(),
             commitment_manager_config: CommitmentManagerConfig::default(),
+            state_commitment_infos_pruning_config: StateCommitmentInfosPruningConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
