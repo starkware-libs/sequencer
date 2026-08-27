@@ -18,7 +18,7 @@
       "name": "batched_transactions_stuck",
       "title": "Batched Transactions Stuck",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck-sampling_window_secs-expression$$$s]) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -44,7 +44,7 @@
       "name": "batched_transactions_stuck_long_time",
       "title": "Batched Transactions Stuck Long Time",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck_long_time-sampling_window_secs-expression$$$s]) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck_long_time-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -720,7 +720,7 @@
       "name": "consensus_p2p_not_enough_peers_for_quorum",
       "title": "Consensus P2P Not Enough Peers For Quorum",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s]) or vector(1)",
+      "expr": "(min(max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s]))) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -746,7 +746,7 @@
       "name": "consensus_p2p_not_enough_peers_for_quorum_long_time",
       "title": "Consensus P2P Not Enough Peers For Quorum Long Time",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s]) or vector(1)",
+      "expr": "(min(max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s]))) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -772,7 +772,7 @@
       "name": "consensus_p2p_peer_down",
       "title": "Consensus p2p peer down",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) or vector(2)",
+      "expr": "(min(max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]))) or vector(2)",
       "conditions": [
         {
           "evaluator": {
@@ -1708,7 +1708,7 @@
       "name": "mempool_p2p_peer_down",
       "title": "Mempool p2p peer down",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(max_over_time(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) or vector(2)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((min(max_over_time(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(2)",
       "conditions": [
         {
           "evaluator": {
@@ -1994,7 +1994,7 @@
       "name": "preconfirmed_block_not_written",
       "title": "Preconfirmed block not written",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -2228,7 +2228,7 @@
       "name": "state_sync_stuck",
       "title": "State Sync Stuck",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s]) or vector(1)",
+      "expr": "(sum(increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s]))) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -2254,7 +2254,7 @@
       "name": "state_sync_stuck_long_time",
       "title": "State Sync Stuck Long Time",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s]) or vector(1)",
+      "expr": "(sum(increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s]))) or vector(1)",
       "conditions": [
         {
           "evaluator": {

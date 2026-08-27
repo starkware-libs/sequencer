@@ -79,11 +79,7 @@ pub(crate) fn get_consensus_p2p_peer_down() -> Alert {
         ALERT_NAME,
         "Consensus p2p peer down",
         EvaluationRate::Default,
-        // The no-data fallback must stay >= the alert threshold below.
-        format!(
-            "max_over_time({}[2m]) or vector(2)",
-            CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
-        ),
+        format!("min(max_over_time({}[2m]))", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
@@ -94,6 +90,7 @@ pub(crate) fn get_consensus_p2p_peer_down() -> Alert {
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::Applicable,
     )
+    .with_no_data_fallback(2.0)
 }
 
 pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
