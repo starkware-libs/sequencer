@@ -1212,11 +1212,6 @@ impl FileHandlers<RW> {
         self.clone().state_commitment_infos.append(state_commitment_infos)
     }
 
-    // Releases the disk blocks of the state commitment infos file below `end`.
-    fn punch_state_commitment_infos_hole_up_to(&self, end: usize) -> StorageResult<()> {
-        Ok(self.state_commitment_infos.punch_hole_up_to(end)?)
-    }
-
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
