@@ -71,7 +71,7 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
 fn get_batched_transactions_stuck(title: &'static str) -> Alert {
     let name = title.to_lowercase().replace(' ', "_");
     let expr_template_string =
-        format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
+        format!("changes({}[{{}}s]) or vector(1)", BATCHED_TRANSACTIONS.get_name_with_filter());
     Alert::new(
         &name,
         title,
@@ -104,7 +104,7 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
         title,
         EvaluationRate::Default,
         format!(
-            "max_over_time({}[{}s])",
+            "max_over_time({}[{}s]) or vector(1)",
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter(),
             duration.as_secs()
         ),

@@ -29,7 +29,11 @@ pub(crate) fn get_mempool_p2p_peer_down() -> Alert {
         ALERT_NAME,
         "Mempool p2p peer down",
         EvaluationRate::Default,
-        format!("max_over_time({}[2m])", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()),
+        // The no-data fallback must stay >= the alert threshold below.
+        format!(
+            "max_over_time({}[2m]) or vector(2)",
+            MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators

@@ -19,7 +19,7 @@ pub(crate) fn get_preconfirmed_block_not_written() -> Alert {
         ALERT_NAME,
         "Preconfirmed block not written",
         EvaluationRate::Default,
-        format!("increase({}[2m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
+        format!("increase({}[2m]) or vector(1)", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),

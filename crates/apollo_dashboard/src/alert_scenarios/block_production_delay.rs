@@ -79,7 +79,11 @@ pub(crate) fn get_consensus_p2p_peer_down() -> Alert {
         ALERT_NAME,
         "Consensus p2p peer down",
         EvaluationRate::Default,
-        format!("max_over_time({}[2m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
+        // The no-data fallback must stay >= the alert threshold below.
+        format!(
+            "max_over_time({}[2m]) or vector(2)",
+            CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
