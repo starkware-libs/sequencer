@@ -133,6 +133,9 @@ use crate::validate_proposal::{
 /// Maximum number of commitment infos backfilled to the cende recorder per blob.
 const MAX_COMMITMENT_INFOS_BACKFILL: usize = 10;
 
+/// First Starknet version whose blocks have state commitment infos.
+const FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS: StarknetVersion = StarknetVersion::V0_14_4;
+
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
 type ProposalContent =
@@ -741,19 +744,23 @@ impl SequencerConsensusContext {
             match self.state_commitment_infos_to_send(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
-                // In the empty-cende-recorder case, the earliest heights in the window may
-                // predate the batcher's stored commitment infos; skip that leading gap. Once at
-                // least one has been collected a None marks the end of commitment infos, so
-                // break.
-                Ok(None) if cende_recorder_is_empty && recent_state_commitment_infos.is_empty() => {
-                    debug!(
-                        "The cende recorder has no commitment infos offset and the batcher has no \
-                         state commitment infos for block {block_number} to send to it; skipping."
-                    );
-                    continue;
+                Ok(None) => {
+                    // Only an empty cende recorder's fallback window can reach back before
+                    // FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS; a block that old has no
+                    // commitment infos to miss.
+                    if cende_recorder_is_empty
+                        && self.predates_state_commitment_infos(block_number).await
+                    {
+                        debug!(
+                            "Block {block_number} predates \
+                             {FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS}; skipping its state \
+                             commitment infos."
+                        );
+                        continue;
+                    }
+                    // We passed the latest block with state commitment infos.
+                    break;
                 }
-                // We passed the latest block with state commitment infos.
-                Ok(None) => break,
                 Err(err) => {
                     error!(
                         "Failed to get state commitment infos from batcher for block \
@@ -764,6 +771,24 @@ impl SequencerConsensusContext {
             }
         }
         Ok(recent_state_commitment_infos)
+    }
+
+    /// Returns whether `block_number` predates `FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS`, read
+    /// from its header once the block reaches state sync.
+    async fn predates_state_commitment_infos(&self, block_number: BlockNumber) -> bool {
+        match self.deps.state_sync_client.get_block(block_number).await {
+            Ok(sync_block) => {
+                sync_block.block_header_without_hash.starknet_version
+                    < FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to get the Starknet version of block {block_number} from state sync: \
+                     {err:?}"
+                );
+                false
+            }
+        }
     }
 
     /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
