@@ -651,10 +651,9 @@ impl SequencerConsensusContext {
                 block_hash_commitments: block_header_commitments,
             });
 
-        // Pruning touches only storage the cende blob preparation never reads (it works off the
-        // `recent_state_commitment_infos` already collected above), so the two independent
-        // batcher/cende requests run concurrently instead of adding their latencies on this
-        // per-height critical path.
+        // Pruning touches only batcher storage that blob preparation never reads, so the two are
+        // safe to run concurrently instead of adding their latencies on this per-height critical
+        // path.
         let (prepare_blob_result, ()) =
             tokio::join!(prepare_blob_future, self.prune_state_commitment_infos(height));
         if let Err(e) = prepare_blob_result {
