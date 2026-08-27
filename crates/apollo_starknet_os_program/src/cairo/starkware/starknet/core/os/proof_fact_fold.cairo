@@ -6,6 +6,60 @@ from starkware.cairo.common.registers import get_label_location
 const BLAKE2S_DIGEST_N_WORDS = 8;
 const PROOF_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
 
+struct ProofFactsReference {
+    proof_facts_size: felt,
+    proof_facts: felt*,
+}
+
+func record_proof_facts_reference{proof_facts_references: ProofFactsReference*}(
+    proof_facts_size: felt, proof_facts: felt*
+) {
+    if (proof_facts_size == 0) {
+        return ();
+    }
+    assert [proof_facts_references] = ProofFactsReference(
+        proof_facts_size=proof_facts_size, proof_facts=proof_facts
+    );
+    let proof_facts_references = &proof_facts_references[1];
+    return ();
+}
+
+func single_processed_proof_output{range_check_ptr}(
+    proof_facts_references_start: ProofFactsReference*,
+    proof_facts_references_end: ProofFactsReference*,
+) -> (
+    n_proof_facts_transactions: felt,
+    processed_proof_output_low: felt,
+    processed_proof_output_high: felt,
+) {
+    alloc_locals;
+    local n_proof_facts_transactions = (proof_facts_references_end - proof_facts_references_start) /
+        ProofFactsReference.SIZE;
+    if (n_proof_facts_transactions == 0) {
+        return (
+            n_proof_facts_transactions=0,
+            processed_proof_output_low=0,
+            processed_proof_output_high=0,
+        );
+    }
+    assert n_proof_facts_transactions = 1;
+    // The single transaction's proof fills both of the multiverifier's verifier slots.
+    let (output_digest) = compute_processed_proof_output_digest(
+        first_proof_facts_size=proof_facts_references_start.proof_facts_size,
+        first_proof_facts=proof_facts_references_start.proof_facts,
+        second_proof_facts_size=proof_facts_references_start.proof_facts_size,
+        second_proof_facts=proof_facts_references_start.proof_facts,
+    );
+    let (processed_proof_output_low, processed_proof_output_high) = pack_output_digest(
+        output_digest=output_digest
+    );
+    return (
+        n_proof_facts_transactions=1,
+        processed_proof_output_low=processed_proof_output_low,
+        processed_proof_output_high=processed_proof_output_high,
+    );
+}
+
 // Computes the output digest of a processed proof covering two verified proofs: the blake2s
 // digest of the two proofs' entries in the multiverifier output. A single transaction's proof
 // fills both of the multiverifier's verifier slots, so its callers pass the same proof facts
@@ -19,9 +73,7 @@ func compute_processed_proof_output_digest{range_check_ptr}(
     alloc_locals;
     let (local preimage: felt*) = alloc();
     write_proof_entry(
-        proof_entry=preimage,
-        proof_facts_size=first_proof_facts_size,
-        proof_facts=first_proof_facts,
+        proof_entry=preimage, proof_facts_size=first_proof_facts_size, proof_facts=first_proof_facts
     );
     write_proof_entry(
         proof_entry=preimage + PROOF_ENTRY_N_WORDS,

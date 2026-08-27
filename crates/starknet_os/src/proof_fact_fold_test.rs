@@ -11,6 +11,7 @@ use super::{
     compute_leaf_output_digest,
     compute_processed_proof_output_digest,
     compute_verification_digest,
+    pack_output_digest,
     Blake2sDigestWords,
     BLAKE2S_DIGEST_N_WORDS,
     LEAF_VERIFIER_CIRCUIT_HASH,
@@ -22,6 +23,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     PointerArg,
+    ValueArg,
 };
 
 fn entrypoint_runner_config() -> EntryPointRunnerConfig {
@@ -229,4 +231,31 @@ fn test_cairo_circuit_hashes_match_rust() {
         ),
         MULTIVERIFIER_CIRCUIT_HASH
     );
+}
+
+#[test]
+fn test_cairo_pack_output_digest_matches_rust() {
+    let proof_facts = synthetic_proof_facts(0);
+    let output_digest = compute_processed_proof_output_digest(&proof_facts, &proof_facts);
+    let (expected_low, expected_high) = pack_output_digest(&output_digest);
+    let expected_return_values = vec![EndpointArg::from(Felt::ZERO), EndpointArg::from(Felt::ZERO)];
+    let (_, packed_return_values, _) = initialize_and_run_cairo_0_entry_point(
+        &entrypoint_runner_config(),
+        PROOF_FACT_FOLD_BYTES,
+        "pack_output_digest",
+        &[felt_array_arg(&output_digest.map(Felt::from))],
+        &[],
+        &expected_return_values,
+        HashMap::new(),
+        None,
+    )
+    .unwrap_or_else(|error| panic!("Failed to run pack_output_digest: {error:?}"));
+    let [
+        EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_low))),
+        EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_high))),
+    ] = packed_return_values.as_slice()
+    else {
+        panic!("Expected pack_output_digest to return two felts.");
+    };
+    assert_eq!((*cairo_low, *cairo_high), (expected_low, expected_high));
 }

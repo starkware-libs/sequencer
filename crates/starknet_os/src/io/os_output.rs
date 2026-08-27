@@ -257,6 +257,12 @@ impl TryFromOutputIter for OutputIterParsedData {
         let starknet_os_config_hash = wrap_missing(output_iter.next(), "starknet_os_config_hash")?;
         let use_kzg_da = wrap_missing_as_bool(output_iter.next(), "use_kzg_da")?;
         let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
+        let processed_proof_output_low =
+            wrap_missing(output_iter.next(), "processed_proof_output_low")?;
+        let processed_proof_output_high =
+            wrap_missing(output_iter.next(), "processed_proof_output_high")?;
+        let n_proof_facts_transactions =
+            wrap_missing_as(output_iter.next(), "n_proof_facts_transactions")?;
 
         let kzg_commitment_info = if use_kzg_da {
             Some(OsKzgCommitmentInfo::try_from_output_iter(output_iter, private_keys)?)
@@ -300,6 +306,9 @@ impl TryFromOutputIter for OutputIterParsedData {
                 new_block_hash,
                 os_program_hash,
                 starknet_os_config_hash,
+                processed_proof_output_low,
+                processed_proof_output_high,
+                n_proof_facts_transactions,
                 messages_to_l1,
                 messages_to_l2,
             },
@@ -328,6 +337,9 @@ pub struct CommonOsOutput {
     pub os_program_hash: StarkHash,
     // The hash of the OS config.
     pub starknet_os_config_hash: StarkHash,
+    pub processed_proof_output_low: StarkHash,
+    pub processed_proof_output_high: StarkHash,
+    pub n_proof_facts_transactions: usize,
     // Messages from L2 to L1.
     pub messages_to_l1: Vec<MessageToL1>,
     // Messages from L1 to L2.

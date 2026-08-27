@@ -73,6 +73,7 @@ use starknet_os::io::os_output_types::{
     TryFromOutputIter,
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
+use starknet_os::proof_fact_fold::{compute_processed_proof_output_digest, pack_output_digest};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_transaction_prover::running::committer_utils::{
@@ -158,6 +159,9 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
     pub(crate) committed_state_diff: StateDiff,
+    pub(crate) processed_proof_output_low: Felt,
+    pub(crate) processed_proof_output_high: Felt,
+    pub(crate) n_proof_facts_transactions: usize,
 }
 
 impl OsTestExpectedValues {
@@ -191,6 +195,9 @@ impl OsTestExpectedValues {
                 first_block.block_info.starknet_version,
             )
             .unwrap();
+        let (processed_proof_output_low, processed_proof_output_high, n_proof_facts_transactions) =
+            expected_processed_proof_output(&os_hints.os_input.os_block_inputs);
+
         Self {
             previous_global_root,
             new_global_root,
@@ -205,7 +212,35 @@ impl OsTestExpectedValues {
             messages_to_l1,
             messages_to_l2,
             committed_state_diff,
+            processed_proof_output_low,
+            processed_proof_output_high,
+            n_proof_facts_transactions,
         }
+    }
+}
+
+fn expected_processed_proof_output(os_block_inputs: &[OsBlockInput]) -> (Felt, Felt, usize) {
+    let contributing_proof_facts: Vec<_> = os_block_inputs
+        .iter()
+        .flat_map(|block_input| &block_input.transactions)
+        .filter_map(|transaction| match transaction {
+            ExecutableTransaction::Account(AccountTransaction::Invoke(invoke_transaction)) => {
+                let proof_facts = invoke_transaction.proof_facts();
+                (!proof_facts.0.is_empty()).then_some(proof_facts)
+            }
+            _ => None,
+        })
+        .collect();
+    match contributing_proof_facts.as_slice() {
+        [] => (Felt::ZERO, Felt::ZERO, 0),
+        [proof_facts] => {
+            // The single transaction's proof fills both of the multiverifier's verifier slots.
+            let output_digest =
+                compute_processed_proof_output_digest(&proof_facts.0, &proof_facts.0);
+            let (output_low, output_high) = pack_output_digest(&output_digest);
+            (output_low, output_high, 1)
+        }
+        _ => panic!("At most one transaction with proof facts is supported."),
     }
 }
 
@@ -323,6 +358,19 @@ impl<S: FlowTestState> OsTestOutput<S> {
         // Flags.
         assert_eq!(os_output.use_kzg_da(), self.expected_values.use_kzg_da);
         assert_eq!(os_output.full_output(), self.expected_values.full_output);
+
+        assert_eq!(
+            os_output.common_os_output.processed_proof_output_low,
+            self.expected_values.processed_proof_output_low
+        );
+        assert_eq!(
+            os_output.common_os_output.processed_proof_output_high,
+            self.expected_values.processed_proof_output_high
+        );
+        assert_eq!(
+            os_output.common_os_output.n_proof_facts_transactions,
+            self.expected_values.n_proof_facts_transactions
+        );
 
         // KZG commitment.
         if os_output.use_kzg_da() {

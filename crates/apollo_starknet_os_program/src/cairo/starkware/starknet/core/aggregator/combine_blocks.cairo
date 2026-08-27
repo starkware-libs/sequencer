@@ -89,6 +89,9 @@ func combine_blocks{range_check_ptr}(
             starknet_os_config_hash=first.header.starknet_os_config_hash,
             use_kzg_da=use_kzg_da,
             full_output=full_output,
+            processed_proof_output_low=0,
+            processed_proof_output_high=0,
+            n_proof_facts_transactions=0,
         ),
         squashed_os_state_update=first.squashed_os_state_update,
         initial_carried_outputs=initial_carried_outputs,
@@ -97,6 +100,13 @@ func combine_blocks{range_check_ptr}(
 
     let res = combine_blocks_inner(aggregated=aggregated, n=n - 1, os_outputs=&os_outputs[1]);
     local res_state_update: SquashedOsStateUpdate = [res.squashed_os_state_update];
+
+    let (
+        local n_proof_facts_transactions,
+        local processed_proof_output_low,
+        local processed_proof_output_high,
+    ) = combine_proof_facts_folds(n=n, os_outputs=os_outputs);
+    local res_header: OsOutputHeader* = res.header;
 
     %{ SetStateUpdatePointersToNone %}
 
@@ -117,7 +127,20 @@ func combine_blocks{range_check_ptr}(
     );
 
     tempvar squashed_res = new OsOutput(
-        header=res.header,
+        header=new OsOutputHeader(
+            state_update_output=res_header.state_update_output,
+            prev_block_number=res_header.prev_block_number,
+            new_block_number=res_header.new_block_number,
+            prev_block_hash=res_header.prev_block_hash,
+            new_block_hash=res_header.new_block_hash,
+            os_program_hash=res_header.os_program_hash,
+            starknet_os_config_hash=res_header.starknet_os_config_hash,
+            use_kzg_da=res_header.use_kzg_da,
+            full_output=res_header.full_output,
+            processed_proof_output_low=processed_proof_output_low,
+            processed_proof_output_high=processed_proof_output_high,
+            n_proof_facts_transactions=n_proof_facts_transactions,
+        ),
         squashed_os_state_update=new SquashedOsStateUpdate(
             contract_state_changes=squashed_contract_state_dict,
             n_contract_state_changes=n_contract_state_changes,
@@ -146,7 +169,7 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     // Check the size of `OsOutput` and `OsOutputHeader` to ensure that if new fields are added
     // they are handled by the aggregator.
     static_assert OsOutput.SIZE == 4;
-    static_assert OsOutputHeader.SIZE == 9;
+    static_assert OsOutputHeader.SIZE == 12;
 
     // Validate fields of the inner OS output of a single task.
     assert current_header.use_kzg_da = 0;
@@ -192,6 +215,9 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
             starknet_os_config_hash=aggregated_header.starknet_os_config_hash,
             use_kzg_da=aggregated_header.use_kzg_da,
             full_output=aggregated_header.full_output,
+            processed_proof_output_low=0,
+            processed_proof_output_high=0,
+            n_proof_facts_transactions=0,
         ),
         squashed_os_state_update=new SquashedOsStateUpdate(
             contract_state_changes=aggregated_update.contract_state_changes,
@@ -206,4 +232,36 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     );
 
     return combine_blocks_inner(aggregated=new_aggregated, n=n - 1, os_outputs=&os_outputs[1]);
+}
+
+func combine_proof_facts_folds(n: felt, os_outputs: OsOutput*) -> (
+    n_proof_facts_transactions: felt, root_output_low: felt, root_output_high: felt
+) {
+    alloc_locals;
+    let (
+        local n_proof_facts_transactions, local root_output_low, local root_output_high
+    ) = sum_block_proof_facts_outputs(n=n, os_outputs=os_outputs);
+    assert n_proof_facts_transactions * (n_proof_facts_transactions - 1) = 0;
+    return (
+        n_proof_facts_transactions=n_proof_facts_transactions,
+        root_output_low=root_output_low,
+        root_output_high=root_output_high,
+    );
+}
+
+func sum_block_proof_facts_outputs(n: felt, os_outputs: OsOutput*) -> (
+    n_proof_facts_transactions: felt, root_output_low: felt, root_output_high: felt
+) {
+    if (n == 0) {
+        return (n_proof_facts_transactions=0, root_output_low=0, root_output_high=0);
+    }
+    let (
+        rest_n_transactions, rest_root_output_low, rest_root_output_high
+    ) = sum_block_proof_facts_outputs(n=n - 1, os_outputs=&os_outputs[1]);
+    let header = os_outputs[0].header;
+    return (
+        n_proof_facts_transactions=rest_n_transactions + header.n_proof_facts_transactions,
+        root_output_low=rest_root_output_low + header.processed_proof_output_low,
+        root_output_high=rest_root_output_high + header.processed_proof_output_high,
+    );
 }

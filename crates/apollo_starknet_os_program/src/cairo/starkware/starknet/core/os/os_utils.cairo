@@ -122,6 +122,9 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
     block_context: BlockContext*,
     state_update_output: CommitmentUpdate*,
     os_global_context: OsGlobalContext*,
+    n_proof_facts_transactions: felt,
+    processed_proof_output_low: felt,
+    processed_proof_output_high: felt,
 ) -> OsOutputHeader* {
     // Calculate the block hash based on the block info and state root.
     // NOTE: both the previous block hash and previous state root are guessed, and the OS
@@ -145,6 +148,9 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
         use_kzg_da=FALSE,
         full_output=TRUE,
+        processed_proof_output_low=processed_proof_output_low,
+        processed_proof_output_high=processed_proof_output_high,
+        n_proof_facts_transactions=n_proof_facts_transactions,
     );
     return os_output_header;
 }

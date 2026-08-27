@@ -3241,40 +3241,39 @@ async fn test_get_block_hash_current_block_number() {
 #[rstest]
 #[tokio::test]
 async fn test_proof_facts_versions_and_program_hashes() {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
-        test_contract,
-        default_test_contract_constructor_calldata(),
-    )])
-    .await;
-    let config_hash = test_builder.compute_virtual_os_config_hash();
     let os_versioned_constants = &VersionedConstants::latest_constants().os_constants;
     let allowed_program_hashes = os_versioned_constants.allowed_virtual_os_program_hashes.clone();
     let allowed_proof_versions = os_versioned_constants.allowed_proof_versions.clone();
-    let calldata = create_calldata(test_contract_address, "empty_function", &[]);
     let reference_program_hash =
         *allowed_program_hashes.first().expect("expected at least one allowed program hash");
-    let reference_proof_version = allowed_proof_versions
+    let reference_proof_version = *allowed_proof_versions
         .first()
         .expect("allowed_proof_versions must have at least one variant");
 
-    // Cover every allowed program hash (with a fixed proof version).
-    for program_hash in &allowed_program_hashes {
-        let mut proof_facts =
-            ProofFacts::custom_proof_facts_for_testing(*program_hash, config_hash);
-        Arc::make_mut(&mut proof_facts.0)[0] = *reference_proof_version;
-        test_builder
-            .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
+    // Cover every allowed program hash (with a fixed proof version) and every proof version
+    // (with a fixed program hash). Each variant gets its own OS run, since an OS run supports
+    // at most one transaction with proof facts.
+    let proof_facts_variants = allowed_program_hashes
+        .iter()
+        .map(|program_hash| (*program_hash, reference_proof_version))
+        .chain(
+            allowed_proof_versions
+                .iter()
+                .map(|proof_version| (reference_program_hash, *proof_version)),
+        );
+    for (program_hash, proof_version) in proof_facts_variants {
+        let test_contract =
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+        let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+            test_contract,
+            default_test_contract_constructor_calldata(),
+        )])
+        .await;
+        let config_hash = test_builder.compute_virtual_os_config_hash();
+        let mut proof_facts = ProofFacts::custom_proof_facts_for_testing(program_hash, config_hash);
+        Arc::make_mut(&mut proof_facts.0)[0] = proof_version;
+        let calldata = create_calldata(test_contract_address, "empty_function", &[]);
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata, proof_facts });
+        test_builder.build_and_run().await.perform_default_validations();
     }
-
-    // Cover every proof version (with a fixed program hash).
-    for proof_version in &allowed_proof_versions {
-        let mut proof_facts =
-            ProofFacts::custom_proof_facts_for_testing(reference_program_hash, config_hash);
-        Arc::make_mut(&mut proof_facts.0)[0] = *proof_version;
-        test_builder
-            .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
-    }
-
-    test_builder.build_and_run().await.perform_default_validations();
 }

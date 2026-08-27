@@ -69,3 +69,12 @@ pub fn compute_verification_digest(
         &[MULTIVERIFIER_CIRCUIT_HASH.as_slice(), processed_proof_output_digest.as_slice()].concat(),
     )
 }
+
+pub fn pack_output_digest(output_digest: &Blake2sDigestWords) -> (Felt, Felt) {
+    let pack_half = |words: &[u32]| {
+        words.iter().rev().fold(Felt::ZERO, |packed_half, word| {
+            packed_half * Felt::from(1u64 << 32) + Felt::from(*word)
+        })
+    };
+    (pack_half(&output_digest[..4]), pack_half(&output_digest[4..]))
+}

@@ -8,6 +8,7 @@ from starkware.starknet.core.os.execution.transaction_impls import (
     execute_l1_handler_transaction,
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
+from starkware.starknet.core.os.proof_fact_fold import ProofFactsReference
 
 // Inner function for execute_transactions.
 // Arguments:
@@ -26,6 +27,7 @@ func execute_transactions_inner{
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
+    proof_facts_references: ProofFactsReference*,
 }(block_context: BlockContext*, n_txs) {
     %{ LogRemainingTxs %}
     if (n_txs == 0) {
