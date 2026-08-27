@@ -337,3 +337,61 @@ fn punch_hole_up_to() {
 
     dir.close().unwrap();
 }
+
+#[test]
+fn punch_hole_up_to_frees_the_disk_space() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().to_path_buf().join("test_punch_hole_up_to_frees_the_disk_space");
+    let (mut writer, reader) =
+        open_file::<NoVersionValueWrapper<Vec<u8>>>(get_mmap_file_test_config(), path, 0).unwrap();
+    let allocated_bytes = || {
+        let mmap_file = reader.mmap_file.lock().expect("Lock should not be poisoned");
+        // `blocks` is counted in 512-byte units, regardless of the file system's block size.
+        usize::try_from(mmap_file.file.metadata().unwrap().blocks() * 512).unwrap()
+    };
+
+    // Writing 64 * 8KB = 512KB through the file, punching all of it but the last object, must
+    // leave the file holding no more than that object and the file system's slack.
+    const STORAGE_BUDGET: usize = 1 << 18; // 256KB.
+    const ROUNDS: usize = 64;
+    let data = vec![1; 8 * 1024];
+
+    for round in 0..ROUNDS {
+        let location = writer.append(&data);
+        writer.flush();
+        writer.punch_hole_up_to(location.offset()).unwrap();
+        let allocated = allocated_bytes();
+        assert!(allocated <= STORAGE_BUDGET, "round {round}: {allocated} bytes are allocated");
+        assert_eq!(reader.get(location).unwrap().unwrap(), data);
+    }
+
+    dir.close().unwrap();
+}
+
+#[test]
+fn punch_hole_up_to_preserves_locations_above_it() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().to_path_buf().join("test_punch_hole_up_to_preserves_locations");
+    let (mut writer, reader) =
+        open_file::<NoVersionValueWrapper<Vec<u8>>>(get_mmap_file_test_config(), path, 0).unwrap();
+    let page_size = page_size::get();
+
+    // Sized so that the first object fills the first page exactly and the second one is the only
+    // object on the second page.
+    let length_prefix_size =
+        NoVersionValueWrapper::serialize(&vec![0u8; page_size]).unwrap().len() - page_size;
+    let first_data = vec![1; page_size - length_prefix_size];
+    let second_data = vec![2; page_size / 2];
+    let first_location = writer.append(&first_data);
+    assert_eq!(first_location.next_offset(), page_size);
+    let second_location = writer.append(&second_data);
+    writer.flush();
+
+    writer.punch_hole_up_to(second_location.offset()).unwrap();
+
+    assert_eq!(reader.get(second_location).unwrap().unwrap(), second_data);
+    // The punched page reads as zeros, so the first object no longer deserializes.
+    assert_eq!(reader.get(first_location).unwrap(), None);
+
+    dir.close().unwrap();
+}
