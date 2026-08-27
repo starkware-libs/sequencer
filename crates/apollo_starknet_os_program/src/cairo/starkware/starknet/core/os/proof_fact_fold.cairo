@@ -4,7 +4,7 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode, encode_felt252s_to_u32s
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_not_zero, unsigned_div_rem
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_label_location
 
@@ -16,6 +16,47 @@ const FOLD_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
 struct ProofFactsReference {
     proof_facts_size: felt,
     proof_facts: felt*,
+}
+
+// Records a reference to an executed transaction's proof facts, to be folded at the end
+// of the block; no-op for a transaction with empty proof facts.
+func record_proof_facts_reference{proof_facts_references: ProofFactsReference*}(
+    proof_facts_size: felt, proof_facts: felt*
+) {
+    if (proof_facts_size == 0) {
+        return ();
+    }
+    assert [proof_facts_references] = ProofFactsReference(
+        proof_facts_size=proof_facts_size, proof_facts=proof_facts
+    );
+    let proof_facts_references = &proof_facts_references[1];
+    return ();
+}
+
+// Folds the proof-fact references recorded during a block's execution (the segment
+// [proof_facts_references_start, proof_facts_references_end)) into the block's packed
+// root output digest. Returns zeros for a block with no contributing transactions -
+// such a block has no fold-tree node and must be skipped by any higher-level fold.
+func fold_recorded_proof_facts{range_check_ptr}(
+    proof_facts_references_start: ProofFactsReference*,
+    proof_facts_references_end: ProofFactsReference*,
+) -> (n_proof_facts_transactions: felt, root_output_low: felt, root_output_high: felt) {
+    alloc_locals;
+    local n_proof_facts_transactions = (proof_facts_references_end - proof_facts_references_start) /
+        ProofFactsReference.SIZE;
+    if (n_proof_facts_transactions == 0) {
+        return (n_proof_facts_transactions=0, root_output_low=0, root_output_high=0);
+    }
+    let (root_entry) = fold_block_proof_facts(
+        n_transactions=n_proof_facts_transactions,
+        proof_facts_references=proof_facts_references_start,
+    );
+    let (root_output_low, root_output_high) = pack_output_digest(entry=root_entry);
+    return (
+        n_proof_facts_transactions=n_proof_facts_transactions,
+        root_output_low=root_output_low,
+        root_output_high=root_output_high,
+    );
 }
 
 // Folds the proof facts of a block's privacy transactions into the block's root entry:
@@ -34,6 +75,47 @@ func fold_block_proof_facts{range_check_ptr}(
         leaf_entries=leaf_entries,
     );
     return fold_entries_to_root(n_entries=n_transactions, entries=leaf_entries);
+}
+
+// Folds `n_entries` consecutive block-root entries (each a multiverifier node produced
+// by `fold_block_proof_facts`) into a single entry, for combining blocks. Unlike a
+// block's own fold, a single entry is returned unchanged - it is a carried subtree root,
+// not self-folded; self-folding happens only at a block's leaf layer.
+// Precondition: `n_entries` is at least 1.
+func fold_block_root_entries{range_check_ptr}(n_entries: felt, entries: felt*) -> (
+    root_entry: felt*
+) {
+    if (n_entries == 1) {
+        return (root_entry=entries);
+    }
+    return fold_layers_to_root(n_entries=n_entries, entries=entries);
+}
+
+// Packs an entry's output digest (eight u32 words) into the (low, high) pair used in the
+// OS output: the same Uint256 composition `encode_felt252_data_and_calc_blake2s` uses -
+// low and high are the little-endian word compositions of words 0-3 and 4-7.
+// Assumption: each word is in [0, 2^32) (as blake opcode outputs are).
+func pack_output_digest(entry: felt*) -> (low: felt, high: felt) {
+    let output_digest = entry + BLAKE2S_DIGEST_N_WORDS;
+    return (
+        low=output_digest[0] + output_digest[1] * (2 ** 32) + output_digest[2] * (2 ** 64) +
+        output_digest[3] * (2 ** 96),
+        high=output_digest[4] + output_digest[5] * (2 ** 32) + output_digest[6] * (2 ** 64) +
+        output_digest[7] * (2 ** 96),
+    );
+}
+
+// The inverse of `pack_output_digest`: returns a block-root entry - the multiverifier
+// circuit hash followed by the unpacked output digest words - range-checking that `low`
+// and `high` are under 2^128 and every unpacked word is a u32.
+func unpack_block_root_entry{range_check_ptr}(low: felt, high: felt) -> (entry: felt*) {
+    alloc_locals;
+    let (local entry: felt*) = alloc();
+    let (multiverifier_circuit_hash) = get_multiverifier_circuit_hash();
+    memcpy(dst=entry, src=multiverifier_circuit_hash, len=BLAKE2S_DIGEST_N_WORDS);
+    unpack_digest_half(packed_half=low, digest_words_out=entry + BLAKE2S_DIGEST_N_WORDS);
+    unpack_digest_half(packed_half=high, digest_words_out=entry + BLAKE2S_DIGEST_N_WORDS + 4);
+    return (entry=entry);
 }
 
 // The digest the circuit verifier outputs for the proof whose facts fold to `entry`:
@@ -125,6 +207,23 @@ func build_leaf_entries{range_check_ptr}(
         proof_facts_references=&proof_facts_references[1],
         leaf_entries=leaf_entries + FOLD_ENTRY_N_WORDS,
     );
+}
+
+// Unpacks a 128-bit packed digest half into four little-endian u32 words written to
+// `digest_words_out`, range-checking that `packed_half` is under 2^128 and every word is
+// a u32 (`unsigned_div_rem` range-checks the remainders; the final quotient is checked
+// explicitly, which also bounds `packed_half`).
+func unpack_digest_half{range_check_ptr}(packed_half: felt, digest_words_out: felt*) {
+    let (words_1_to_3_packed, word_0) = unsigned_div_rem(packed_half, 2 ** 32);
+    let (words_2_to_3_packed, word_1) = unsigned_div_rem(words_1_to_3_packed, 2 ** 32);
+    let (word_3, word_2) = unsigned_div_rem(words_2_to_3_packed, 2 ** 32);
+    assert [range_check_ptr] = word_3 + 2 ** 128 - 2 ** 32;
+    let range_check_ptr = range_check_ptr + 1;
+    assert digest_words_out[0] = word_0;
+    assert digest_words_out[1] = word_1;
+    assert digest_words_out[2] = word_2;
+    assert digest_words_out[3] = word_3;
+    return ();
 }
 
 // Folds `n_entries` consecutive entries at `entries` into the single root entry. A

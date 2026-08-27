@@ -118,10 +118,15 @@ func migrate_classes_to_v2_casm_hash{
 }
 
 // Returns the OS output header of the given block.
+// `n_proof_facts_transactions` and the packed `proof_facts_root_output_low/high` are the
+// block's proof-fact fold results (see proof_fact_fold.cairo).
 func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
     block_context: BlockContext*,
     state_update_output: CommitmentUpdate*,
     os_global_context: OsGlobalContext*,
+    n_proof_facts_transactions: felt,
+    proof_facts_root_output_low: felt,
+    proof_facts_root_output_high: felt,
 ) -> OsOutputHeader* {
     // Calculate the block hash based on the block info and state root.
     // NOTE: both the previous block hash and previous state root are guessed, and the OS
@@ -145,6 +150,9 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
         use_kzg_da=FALSE,
         full_output=TRUE,
+        proof_facts_root_output_low=proof_facts_root_output_low,
+        proof_facts_root_output_high=proof_facts_root_output_high,
+        n_proof_facts_transactions=n_proof_facts_transactions,
     );
     return os_output_header;
 }

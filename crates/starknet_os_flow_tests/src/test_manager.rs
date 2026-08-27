@@ -73,6 +73,12 @@ use starknet_os::io::os_output_types::{
     TryFromOutputIter,
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
+use starknet_os::proof_fact_fold::{
+    fold_block_proof_facts,
+    fold_block_root_entries,
+    pack_output_digest,
+    FoldEntry,
+};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_transaction_prover::running::committer_utils::{
@@ -158,6 +164,9 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
     pub(crate) committed_state_diff: StateDiff,
+    pub(crate) proof_facts_root_output_low: Felt,
+    pub(crate) proof_facts_root_output_high: Felt,
+    pub(crate) n_proof_facts_transactions: usize,
 }
 
 impl OsTestExpectedValues {
@@ -191,6 +200,9 @@ impl OsTestExpectedValues {
                 first_block.block_info.starknet_version,
             )
             .unwrap();
+        let (proof_facts_root_output_low, proof_facts_root_output_high, n_proof_facts_transactions) =
+            expected_proof_facts_fold(&os_hints.os_input.os_block_inputs);
+
         Self {
             previous_global_root,
             new_global_root,
@@ -205,8 +217,48 @@ impl OsTestExpectedValues {
             messages_to_l1,
             messages_to_l2,
             committed_state_diff,
+            proof_facts_root_output_low,
+            proof_facts_root_output_high,
+            n_proof_facts_transactions,
         }
     }
+}
+
+/// The expected proof-fact fold values of the combined OS output: each block's non-empty
+/// invoke proof facts fold to the block's root entry (in execution order), and the
+/// contributing blocks' root entries fold to the combined root - mirroring the OS's
+/// per-block fold and `combine_blocks`. Returns (root_output_low, root_output_high,
+/// n_proof_facts_transactions); zeros when no transaction contributed.
+fn expected_proof_facts_fold(os_block_inputs: &[OsBlockInput]) -> (Felt, Felt, usize) {
+    let mut block_root_entries: Vec<FoldEntry> = Vec::new();
+    let mut n_proof_facts_transactions = 0;
+    for block_input in os_block_inputs {
+        let block_proof_facts: Vec<_> = block_input
+            .transactions
+            .iter()
+            .filter_map(|transaction| match transaction {
+                ExecutableTransaction::Account(AccountTransaction::Invoke(invoke_transaction)) => {
+                    let proof_facts = invoke_transaction.proof_facts();
+                    (!proof_facts.0.is_empty()).then_some(proof_facts)
+                }
+                _ => None,
+            })
+            .collect();
+        if block_proof_facts.is_empty() {
+            continue;
+        }
+        n_proof_facts_transactions += block_proof_facts.len();
+        let proof_facts_references: Vec<&[Felt]> =
+            block_proof_facts.iter().map(|proof_facts| proof_facts.0.as_slice()).collect();
+        block_root_entries.push(fold_block_proof_facts(&proof_facts_references));
+    }
+    if block_root_entries.is_empty() {
+        return (Felt::ZERO, Felt::ZERO, 0);
+    }
+    let combined_root_entry = fold_block_root_entries(block_root_entries);
+    let (root_output_low, root_output_high) =
+        pack_output_digest(&combined_root_entry.output_digest);
+    (root_output_low, root_output_high, n_proof_facts_transactions)
 }
 
 pub(crate) struct OsTestOutput<S: StateReader> {
@@ -323,6 +375,20 @@ impl<S: FlowTestState> OsTestOutput<S> {
         // Flags.
         assert_eq!(os_output.use_kzg_da(), self.expected_values.use_kzg_da);
         assert_eq!(os_output.full_output(), self.expected_values.full_output);
+
+        // Proof-fact fold.
+        assert_eq!(
+            os_output.common_os_output.proof_facts_root_output_low,
+            self.expected_values.proof_facts_root_output_low
+        );
+        assert_eq!(
+            os_output.common_os_output.proof_facts_root_output_high,
+            self.expected_values.proof_facts_root_output_high
+        );
+        assert_eq!(
+            os_output.common_os_output.n_proof_facts_transactions,
+            self.expected_values.n_proof_facts_transactions
+        );
 
         // KZG commitment.
         if os_output.use_kzg_da() {

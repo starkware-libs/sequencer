@@ -52,7 +52,13 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
     block_context: BlockContext*,
     state_update_output: CommitmentUpdate*,
     os_global_context: OsGlobalContext*,
+    n_proof_facts_transactions: felt,
+    proof_facts_root_output_low: felt,
+    proof_facts_root_output_high: felt,
 ) -> OsOutputHeader* {
+    // The virtual OS rejects proof facts (see execution_constraints__virtual.cairo), so
+    // no transaction can contribute to the proof-fact fold.
+    assert n_proof_facts_transactions = 0;
     // Calculate the previous block hash based on the block info and the **initial** state root.
     let (_prev_prev_block_hash, prev_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
         block_info=block_context.block_info_for_execute, state_root=state_update_output.initial_root
@@ -68,6 +74,9 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
         use_kzg_da=FALSE,
         full_output=TRUE,
+        proof_facts_root_output_low=0,
+        proof_facts_root_output_high=0,
+        n_proof_facts_transactions=0,
     );
     return os_output_header;
 }
