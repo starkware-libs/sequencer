@@ -27,7 +27,6 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
-    PruneStateCommitmentInfosInput,
     RevertBlockInput,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
@@ -67,7 +66,6 @@ use apollo_storage::partial_block_hash::{
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::state_commitment_infos::{
     CompressedStateCommitmentInfos,
-    PrunedStateCommitmentInfosPointers,
     StateCommitmentInfosStorageReader,
     StateCommitmentInfosStorageWriter,
 };
@@ -164,7 +162,6 @@ use crate::metrics::{
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SIERRA_GAS_IN_LAST_BLOCK,
-    STATE_COMMITMENT_INFOS_LOWER_BOUND,
     SYNCED_TRANSACTIONS,
 };
 use crate::pre_confirmed_block_writer::{
@@ -1642,43 +1639,6 @@ impl Batcher {
         })
     }
 
-    /// Deletes the pointers to the state commitment infos of the heights that fell out of the
-    /// retention window, at most `max_deletions_per_prune` of them per call, then releases the
-    /// data they pointed at.
-    pub fn prune_state_commitment_infos(
-        &mut self,
-        input: PruneStateCommitmentInfosInput,
-    ) -> BatcherResult<()> {
-        let pruning_config = &self.config.static_config.state_commitment_infos_pruning_config;
-        let retention_blocks = pruning_config.retention_blocks;
-        let max_deletions_per_prune = pruning_config.max_deletions_per_prune;
-        // The requested height may be ahead of this batcher's storage, whose infos are the ones
-        // being pruned. Taking the lower of the two.
-        let height = input.height.min(self.get_height_from_storage()?);
-        let prune_below = BlockNumber(height.0.saturating_sub(retention_blocks));
-        let pruned = self
-            .storage_writer
-            .prune_state_commitment_infos_pointers(prune_below, max_deletions_per_prune)
-            .map_err(|err| {
-                error!(
-                    "Failed to prune the state commitment infos pointers below {prune_below}: \
-                     {err}"
-                );
-                BatcherError::InternalError
-            })?;
-        let Some(PrunedStateCommitmentInfosPointers { new_lower_bound, data_end_offset }) = pruned
-        else {
-            return Ok(());
-        };
-        self.storage_writer.prune_state_commitment_infos_data(data_end_offset).map_err(|err| {
-            error!("Failed to release the disk space of pruned state commitment infos: {err}");
-            BatcherError::InternalError
-        })?;
-        info!("Pruned the state commitment infos below {new_lower_bound}.");
-        STATE_COMMITMENT_INFOS_LOWER_BOUND.set_lossy(new_lower_bound.0);
-        Ok(())
-    }
-
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -1902,9 +1862,6 @@ pub trait BatcherStorageReader: Send + Sync {
     /// Returns whether the state commitment infos for the given height are stored.
     fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool>;
 
-    /// Returns the lowest height whose state commitment infos are stored, or `None` if none are.
-    fn state_commitment_infos_lower_bound(&self) -> StorageResult<Option<BlockNumber>>;
-
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -2012,10 +1969,6 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.has_state_commitment_infos(height)
     }
 
-    fn state_commitment_infos_lower_bound(&self) -> StorageResult<Option<BlockNumber>> {
-        self.begin_ro_txn()?.state_commitment_infos_lower_bound()
-    }
-
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -2070,17 +2023,6 @@ pub trait BatcherStorageWriter: Send + Sync {
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
-
-    /// Deletes the pointers to the state commitment infos of the lowest stored heights below
-    /// `prune_below`, at most `max_deletions` of them. Returns `None` if nothing was deleted.
-    fn prune_state_commitment_infos_pointers(
-        &mut self,
-        prune_below: BlockNumber,
-        max_deletions: usize,
-    ) -> StorageResult<Option<PrunedStateCommitmentInfosPointers>>;
-
-    /// Releases the disk space of the state commitment infos data file below `end`.
-    fn prune_state_commitment_infos_data(&self, end: usize) -> StorageResult<()>;
 }
 
 impl BatcherStorageWriter for StorageWriter {
@@ -2146,22 +2088,6 @@ impl BatcherStorageWriter for StorageWriter {
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()> {
         self.begin_rw_txn()?.set_block_hash(&height, block_hash)?.commit()
-    }
-
-    fn prune_state_commitment_infos_pointers(
-        &mut self,
-        prune_below: BlockNumber,
-        max_deletions: usize,
-    ) -> StorageResult<Option<PrunedStateCommitmentInfosPointers>> {
-        let (txn, pruned) = self
-            .begin_rw_txn()?
-            .prune_state_commitment_infos_pointers(prune_below, max_deletions)?;
-        txn.commit()?;
-        Ok(pruned)
-    }
-
-    fn prune_state_commitment_infos_data(&self, end: usize) -> StorageResult<()> {
-        StorageWriter::prune_state_commitment_infos_data(self, end)
     }
 }
 
@@ -2240,17 +2166,7 @@ impl ComponentStarter for Batcher {
             .global_root_height()
             .expect("Failed to get global roots height from storage during batcher creation.");
 
-        // With no infos stored, none are retained below the storage height, so that is the bound.
-        let state_commitment_infos_lower_bound = self
-            .storage_reader
-            .state_commitment_infos_lower_bound()
-            .expect(
-                "Failed to get the state commitment infos lower bound from storage during batcher \
-                 creation.",
-            )
-            .unwrap_or(storage_height);
-
-        register_metrics(storage_height, global_root_height, state_commitment_infos_lower_bound);
+        register_metrics(storage_height, global_root_height);
 
         self.commitment_manager
             .add_missing_commitment_tasks(

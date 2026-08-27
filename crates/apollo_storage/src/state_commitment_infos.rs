@@ -57,10 +57,6 @@ pub trait StateCommitmentInfosStorageReader<Mode: TransactionKind> {
     /// Returns whether the compressed commitment infos for the given block are stored, without
     /// reading the stored blob.
     fn has_state_commitment_infos(&self, block_number: BlockNumber) -> StorageResult<bool>;
-
-    /// Returns the lowest block whose commitment infos are stored, which is where pruning
-    /// resumes, or `None` if no infos are stored at all.
-    fn state_commitment_infos_lower_bound(&self) -> StorageResult<Option<BlockNumber>>;
 }
 
 /// Interface for writing the OS-input commitment infos to storage.
@@ -105,12 +101,6 @@ impl<T: StorageTransaction> StateCommitmentInfosStorageReader<<T as StorageTrans
 
     fn has_state_commitment_infos(&self, block_number: BlockNumber) -> StorageResult<bool> {
         Ok(self.state_commitment_infos_location(block_number)?.is_some())
-    }
-
-    fn state_commitment_infos_lower_bound(&self) -> StorageResult<Option<BlockNumber>> {
-        let table = self.open_table(&self.tables().state_commitment_infos)?;
-        let mut cursor = table.cursor(self.txn())?;
-        Ok(cursor.lower_bound(&BlockNumber(0))?.map(|(block_number, _location)| block_number))
     }
 }
 

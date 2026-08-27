@@ -147,30 +147,6 @@ fn prune_state_commitment_infos_pointers_advances_lower_bound() {
     assert_eq!(stored_heights(&reader, 1..=6), Vec::<u64>::new());
 }
 
-fn state_commitment_infos_lower_bound(reader: &StorageReader) -> Option<BlockNumber> {
-    reader.begin_ro_txn().unwrap().state_commitment_infos_lower_bound().unwrap()
-}
-
-#[test]
-fn state_commitment_infos_lower_bound_is_the_lowest_stored_height() {
-    let (reader, mut writer) = get_test_storage().0;
-
-    // Nothing is stored yet, so there is no bound to report.
-    assert_eq!(state_commitment_infos_lower_bound(&reader), None);
-
-    store_state_commitment_infos(&mut writer, 3..=6, &dummy_state_commitment_infos());
-    assert_eq!(state_commitment_infos_lower_bound(&reader), Some(BlockNumber(3)));
-
-    // Pruning advances the bound to the lowest surviving height, which is what it reports.
-    let pruned = prune_state_commitment_infos_pointers(&mut writer, 5, 10).unwrap();
-    assert_eq!(pruned.new_lower_bound, BlockNumber(5));
-    assert_eq!(state_commitment_infos_lower_bound(&reader), Some(pruned.new_lower_bound));
-
-    // Pruning the rest leaves no bound again.
-    prune_state_commitment_infos_pointers(&mut writer, 100, 10).unwrap();
-    assert_eq!(state_commitment_infos_lower_bound(&reader), None);
-}
-
 fn allocated_bytes(path: &Path) -> usize {
     usize::try_from(std::fs::metadata(path).unwrap().blocks() * 512).unwrap()
 }

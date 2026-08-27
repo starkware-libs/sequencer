@@ -194,12 +194,6 @@ pub struct RevertBlockInput {
     pub height: BlockNumber,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PruneStateCommitmentInfosInput {
-    /// The height that was just decided; the retention window is measured back from it.
-    pub height: BlockNumber,
-}
-
 /// Input for executing a view (read-only) entry point on a contract against the latest committed
 /// batcher state.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
