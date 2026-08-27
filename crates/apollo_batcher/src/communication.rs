@@ -27,12 +27,12 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             }
             BatcherRequest::GetStateCommitmentInfos(block_number) => {
                 BatcherResponse::GetStateCommitmentInfos(
-                    self.get_state_commitment_infos(block_number),
+                    self.get_state_commitment_infos(block_number).await,
                 )
             }
             BatcherRequest::HasStateCommitmentInfos(block_number) => {
                 BatcherResponse::HasStateCommitmentInfos(
-                    self.has_state_commitment_infos(block_number),
+                    self.has_state_commitment_infos(block_number).await,
                 )
             }
             BatcherRequest::GetCurrentHeight => {

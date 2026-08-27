@@ -302,17 +302,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
 
             // Add commitment infos to cache.
-            if let Some(state_commitment_infos) = state_commitment_infos.clone() {
+            if let Some(state_commitment_infos) = state_commitment_infos {
                 self.recent_state_commitment_infos_cache.put(height, state_commitment_infos);
             }
 
             // Write the block hash and global root to storage.
-            storage_writer.set_global_root_and_block_hash(
-                height,
-                global_root,
-                block_hash,
-                state_commitment_infos,
-            )?;
+            storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
             GLOBAL_ROOT_HEIGHT.increment(1);
         }
 
