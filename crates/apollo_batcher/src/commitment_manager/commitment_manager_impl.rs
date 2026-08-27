@@ -14,7 +14,6 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
 use apollo_storage::accessed_keys::AccessedKeys as StorageAccessedKeys;
-use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use lru::LruCache;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
@@ -23,6 +22,7 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration};

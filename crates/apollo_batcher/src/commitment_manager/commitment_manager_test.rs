@@ -14,11 +14,6 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::{
-    CompressedPayload,
-    CompressedStateCommitmentInfos,
-    STATE_COMMITMENT_INFOS_VERSION,
-};
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
@@ -26,6 +21,11 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};

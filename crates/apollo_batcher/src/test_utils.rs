@@ -19,11 +19,6 @@ use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::{
-    CompressedPayload,
-    CompressedStateCommitmentInfos,
-    STATE_COMMITMENT_INFOS_VERSION,
-};
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -42,6 +37,11 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
