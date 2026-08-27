@@ -618,10 +618,8 @@ impl SequencerConsensusContext {
                 Vec::new()
             });
 
-        if let Err(e) = self
-            .deps
-            .cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters {
+        let prepare_blob_future =
+            self.deps.cende_ambassador.prepare_blob_for_next_height(BlobParameters {
                 block_info: cende_block_info,
                 starknet_version: init.starknet_version,
                 state_diff,
@@ -651,13 +649,17 @@ impl SequencerConsensusContext {
                 recent_state_commitment_infos,
                 initial_reads: central_objects.initial_reads,
                 block_hash_commitments: block_header_commitments,
-            })
-            .await
-        {
+            });
+
+        // Pruning touches only storage the cende blob preparation never reads (it works off the
+        // `recent_state_commitment_infos` already collected above), so the two independent
+        // batcher/cende requests run concurrently instead of adding their latencies on this
+        // per-height critical path.
+        let (prepare_blob_result, ()) =
+            tokio::join!(prepare_blob_future, self.prune_state_commitment_infos(height));
+        if let Err(e) = prepare_blob_result {
             error!("Failed to prepare blob for next height at height {height}: {e:?}");
         }
-
-        self.prune_state_commitment_infos(height).await;
     }
 
     pub fn get_config(&self) -> &ContextConfig {
