@@ -8,6 +8,10 @@ use apollo_committer_types::committer_types::{
     AccessedKeys,
     CommitBlockRequest,
     CommitBlockResponse,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
+    HasStateCommitmentInfosRequest,
+    HasStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -55,6 +59,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
@@ -693,6 +698,37 @@ where
                 })
             }
         }
+    }
+
+    pub async fn get_state_commitment_infos(
+        &mut self,
+        GetStateCommitmentInfosRequest { height }: GetStateCommitmentInfosRequest,
+    ) -> CommitterResult<GetStateCommitmentInfosResponse> {
+        Ok(GetStateCommitmentInfosResponse {
+            state_commitment_infos: self.read_compressed_commitment_infos(height).await?,
+        })
+    }
+
+    pub async fn has_state_commitment_infos(
+        &mut self,
+        HasStateCommitmentInfosRequest { height }: HasStateCommitmentInfosRequest,
+    ) -> CommitterResult<HasStateCommitmentInfosResponse> {
+        Ok(HasStateCommitmentInfosResponse {
+            has_state_commitment_infos: self
+                .read_compressed_commitment_infos(height)
+                .await?
+                .is_some(),
+        })
+    }
+
+    async fn read_compressed_commitment_infos(
+        &mut self,
+        height: BlockNumber,
+    ) -> CommitterResult<Option<CompressedStateCommitmentInfos>> {
+        self.forest_storage
+            .read_compressed_commitment_infos(height)
+            .await
+            .map_err(|error| self.map_internal_error_at_height(height, error))
     }
 
     async fn load_witnesses_digest(

@@ -76,6 +76,7 @@ use crate::patricia_merkle_tree::types::{
     CompressedStateCommitmentInfos,
     StarknetForestProofs,
     StateCommitmentInfos,
+    StateCommitmentInfosCodecError,
 };
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
@@ -369,24 +370,27 @@ fn singleton_metadata_key(prefix: &[u8; 32]) -> Vec<u8> {
 impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReaderWithWitnesses
     for IndexDb<S>
 {
+    async fn read_compressed_commitment_infos(
+        &mut self,
+        height: BlockNumber,
+    ) -> ForestResult<Option<CompressedStateCommitmentInfos>> {
+        Ok(match self.get_from_storage(commitment_infos_db_key(height)).await? {
+            None => None,
+            Some(DbValue(bytes)) => Some(
+                CompressedStateCommitmentInfos::from_bytes(bytes)
+                    .map_err(commitment_infos_codec_error)?,
+            ),
+        })
+    }
+
     async fn read_commitment_infos(
         &mut self,
         height: BlockNumber,
     ) -> ForestResult<Option<StateCommitmentInfos>> {
-        let db_key = DbKey(block_number_based_key(&PATRICIA_PATHS_PREFIX, DbBlockNumber(height)));
-
-        Ok(match self.get_from_storage(db_key).await? {
-            None => None,
-            Some(DbValue(bytes)) => Some(
-                CompressedStateCommitmentInfos::from_bytes(bytes)
-                    .and_then(|compressed| compressed.decompress())
-                    .map_err(|e| {
-                        ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
-                            DeserializationError::ValueError(Box::new(e)),
-                        ))
-                    })?,
-            ),
-        })
+        self.read_compressed_commitment_infos(height)
+            .await?
+            .map(|compressed| compressed.decompress().map_err(commitment_infos_codec_error))
+            .transpose()
     }
 
     async fn fetch_patricia_witnesses(
@@ -442,13 +446,7 @@ impl<S: Storage> IndexDb<S> {
                     ))),
                     DbOperation::Delete,
                 );
-                operations.insert(
-                    DbKey(block_number_based_key(
-                        &PATRICIA_PATHS_PREFIX,
-                        DbBlockNumber(block_number),
-                    )),
-                    DbOperation::Delete,
-                );
+                operations.insert(commitment_infos_db_key(block_number), DbOperation::Delete);
             }
             CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                 block_number,
@@ -462,10 +460,7 @@ impl<S: Storage> IndexDb<S> {
                     DbOperation::Set(DbValue(keys_digest.to_vec())),
                 );
                 operations.insert(
-                    DbKey(block_number_based_key(
-                        &PATRICIA_PATHS_PREFIX,
-                        DbBlockNumber(block_number),
-                    )),
+                    commitment_infos_db_key(block_number),
                     DbOperation::Set(DbValue(commitment_infos.to_bytes())),
                 );
             }
@@ -489,6 +484,16 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
         }
         Ok(self.write_updates(operations).await)
     }
+}
+
+fn commitment_infos_db_key(block_number: BlockNumber) -> DbKey {
+    DbKey(block_number_based_key(&PATRICIA_PATHS_PREFIX, DbBlockNumber(block_number)))
+}
+
+fn commitment_infos_codec_error(error: StateCommitmentInfosCodecError) -> ForestError {
+    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
+        DeserializationError::ValueError(Box::new(error)),
+    ))
 }
 
 fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>

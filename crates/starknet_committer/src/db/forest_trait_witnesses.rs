@@ -46,6 +46,13 @@ pub enum CommitmentInfosUpdate {
 pub trait ForestReaderWithWitnesses:
     ForestReader<InitialReadContext: EmptyInitialReadContext> + Send
 {
+    /// Returns the infos as stored, skipping the decompress/re-compress round trip for callers
+    /// that only forward them on.
+    async fn read_compressed_commitment_infos(
+        &mut self,
+        height: BlockNumber,
+    ) -> ForestResult<Option<CompressedStateCommitmentInfos>>;
+
     async fn read_commitment_infos(
         &mut self,
         height: BlockNumber,

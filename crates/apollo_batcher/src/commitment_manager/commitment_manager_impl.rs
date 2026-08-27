@@ -573,6 +573,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.increment(task_duration);
                     COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.increment(1);
                 }
+                // Served directly by the batcher, so no task timer is ever started for it.
+                CommitterRequestLabelValue::GetStateCommitmentInfos
+                | CommitterRequestLabelValue::HasStateCommitmentInfos => {}
             }
         }
     }

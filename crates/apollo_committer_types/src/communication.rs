@@ -18,6 +18,10 @@ use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use crate::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
+    HasStateCommitmentInfosRequest,
+    HasStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -52,6 +56,18 @@ pub trait CommitterClient: Send + Sync {
         &self,
         input: ReadPathsAndCommitBlockRequest,
     ) -> CommitterClientResult<ReadPathsAndCommitBlockResponse>;
+
+    /// Reads the state commitment infos the committer stored for an already-committed block.
+    async fn get_state_commitment_infos(
+        &self,
+        input: GetStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<GetStateCommitmentInfosResponse>;
+
+    /// Reports whether the state commitment infos of a block are still stored.
+    async fn has_state_commitment_infos(
+        &self,
+        input: HasStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<HasStateCommitmentInfosResponse>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -64,6 +80,8 @@ pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
     RevertBlock(RevertBlockRequest),
     ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
+    GetStateCommitmentInfos(GetStateCommitmentInfosRequest),
+    HasStateCommitmentInfos(HasStateCommitmentInfosRequest),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);
@@ -75,6 +93,8 @@ pub enum CommitterResponse {
     CommitBlock(CommitterResult<CommitBlockResponse>),
     RevertBlock(CommitterResult<RevertBlockResponse>),
     ReadPathsAndCommitBlock(CommitterResult<ReadPathsAndCommitBlockResponse>),
+    GetStateCommitmentInfos(CommitterResult<GetStateCommitmentInfosResponse>),
+    HasStateCommitmentInfos(CommitterResult<HasStateCommitmentInfosResponse>),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterResponse);
@@ -131,6 +151,38 @@ where
             request,
             CommitterResponse,
             ReadPathsAndCommitBlock,
+            CommitterClientError,
+            CommitterError,
+            Direct
+        )
+    }
+
+    async fn get_state_commitment_infos(
+        &self,
+        input: GetStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<GetStateCommitmentInfosResponse> {
+        let request = CommitterRequest::GetStateCommitmentInfos(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            CommitterResponse,
+            GetStateCommitmentInfos,
+            CommitterClientError,
+            CommitterError,
+            Direct
+        )
+    }
+
+    async fn has_state_commitment_infos(
+        &self,
+        input: HasStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<HasStateCommitmentInfosResponse> {
+        let request = CommitterRequest::HasStateCommitmentInfos(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            CommitterResponse,
+            HasStateCommitmentInfos,
             CommitterClientError,
             CommitterError,
             Direct

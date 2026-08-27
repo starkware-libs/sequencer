@@ -31,6 +31,16 @@ where
                     self.read_paths_and_commit_block(req).await,
                 )
             }
+            CommitterRequest::GetStateCommitmentInfos(req) => {
+                CommitterResponse::GetStateCommitmentInfos(
+                    self.get_state_commitment_infos(req).await,
+                )
+            }
+            CommitterRequest::HasStateCommitmentInfos(req) => {
+                CommitterResponse::HasStateCommitmentInfos(
+                    self.has_state_commitment_infos(req).await,
+                )
+            }
         }
     }
 }
