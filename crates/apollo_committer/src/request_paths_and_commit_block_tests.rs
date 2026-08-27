@@ -49,7 +49,12 @@ use starknet_patricia::patricia_merkle_tree::storage_proof_verification::verify_
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 
-use crate::committer::committer_test::{get_state_diff, new_test_committer, ApolloTestCommitter};
+use crate::committer::committer_test::{
+    get_state_diff,
+    new_test_committer,
+    pruning_config,
+    ApolloTestCommitter,
+};
 
 const ACCESSED_STORAGE_VALUE_1: u128 = 100;
 const ACCESSED_STORAGE_VALUE_2: u128 = 200;
@@ -686,7 +691,7 @@ async fn test_bottom_of_new_edge_which_was_not_bottom_of_an_old_edge_is_present(
 #[tokio::test]
 async fn prune_commitment_infos() {
     let mut committer = new_test_committer().await;
-    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    pruning_config(&mut committer).retention_blocks = 2;
 
     for height in 0..4 {
         read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
@@ -712,7 +717,7 @@ async fn prune_commitment_infos() {
 #[tokio::test]
 async fn prune_commitment_infos_via_commit_block() {
     let mut committer = new_test_committer().await;
-    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    pruning_config(&mut committer).retention_blocks = 2;
 
     for height in 0..4 {
         read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
@@ -742,7 +747,7 @@ async fn prune_commitment_infos_via_commit_block() {
 #[tokio::test]
 async fn commitment_infos_lower_bound_persisted_before_pruning() {
     let mut committer = new_test_committer().await;
-    committer.config.commitment_infos_pruning_config.retention_blocks = 100;
+    pruning_config(&mut committer).retention_blocks = 100;
 
     for height in 0..3 {
         read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
@@ -757,7 +762,7 @@ async fn commitment_infos_lower_bound_persisted_before_pruning() {
 #[tokio::test]
 async fn revert_below_commitment_infos_lower_bound() {
     let mut committer = new_test_committer().await;
-    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    pruning_config(&mut committer).retention_blocks = 2;
 
     for height in 0..4 {
         read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
@@ -788,8 +793,8 @@ async fn revert_below_commitment_infos_lower_bound() {
 #[tokio::test]
 async fn prune_commitment_infos_deletions_cap() {
     let mut committer = new_test_committer().await;
-    committer.config.commitment_infos_pruning_config.retention_blocks = 100;
-    committer.config.commitment_infos_pruning_config.max_deletions_per_commit = 1;
+    pruning_config(&mut committer).retention_blocks = 100;
+    pruning_config(&mut committer).max_deletions_per_commit = 1;
 
     for height in 0..4 {
         read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
@@ -797,7 +802,7 @@ async fn prune_commitment_infos_deletions_cap() {
     assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(0));
 
     // Heights 0..3 drop below the retention window, but only one height is pruned per commit.
-    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    pruning_config(&mut committer).retention_blocks = 2;
     read_paths_and_commit_block_without_accessed_keys(&mut committer, 4).await;
     assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(1));
     assert_witnesses_and_digest_absent(&mut committer, BlockNumber(0)).await;
@@ -807,4 +812,22 @@ async fn prune_commitment_infos_deletions_cap() {
     assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
     assert_witnesses_and_digest_absent(&mut committer, BlockNumber(1)).await;
     assert_witnesses_and_digest_stored(&mut committer, BlockNumber(2)).await;
+}
+
+/// Verifies that with no pruning config, commitment infos of all heights are kept, while the lower
+/// bound is still persisted.
+#[tokio::test]
+async fn no_pruning_without_a_pruning_config() {
+    let mut committer = new_test_committer().await;
+    committer.config.commitment_infos_pruning_config = None;
+
+    for height in 0..4 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(0));
+    for height in 0..4 {
+        assert_witnesses_and_digest_stored(&mut committer, BlockNumber(height)).await;
+    }
+    assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(0)));
 }

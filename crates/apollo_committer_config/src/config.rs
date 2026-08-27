@@ -6,7 +6,12 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     serialize_duration_as_milliseconds,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
@@ -78,8 +83,9 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub commit_duration_warn_threshold_millis: Duration,
+    /// If None, no commitment infos are pruned.
     #[validate(nested)]
-    pub commitment_infos_pruning_config: CommitmentInfosPruningConfig,
+    pub commitment_infos_pruning_config: Option<CommitmentInfosPruningConfig>,
 }
 
 impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
@@ -112,8 +118,8 @@ impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.extend(prepend_sub_config_name(
-            self.commitment_infos_pruning_config.dump(),
+        dump.extend(ser_optional_sub_config(
+            &self.commitment_infos_pruning_config,
             "commitment_infos_pruning_config",
         ));
         dump.extend(prepend_sub_config_name(self.reader_config.dump(), "reader_config"));
@@ -133,7 +139,7 @@ impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
             verify_state_diff_hash: true,
             serve_read_paths_as_commit_block: false,
             commit_duration_warn_threshold_millis: DEFAULT_COMMIT_DURATION_WARN_THRESHOLD,
-            commitment_infos_pruning_config: CommitmentInfosPruningConfig::default(),
+            commitment_infos_pruning_config: None,
         }
     }
 }
