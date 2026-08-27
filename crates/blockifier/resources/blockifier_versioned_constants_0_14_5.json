@@ -127,7 +127,7 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
-            "0x53f6c9fcfd31d27279ff7d7e422b44623550a732b59fe193354a7316a96daa1",
+            "0x5610d923412b4fed2256e9cce81be2588c0e9e239c8752f39a5053d96484521",
             "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324"
         ],
         "allowed_proof_versions": [
@@ -536,7 +536,7 @@
             },
             "InvokeFunction": {
                 "constant": {
-                    "n_steps": 4779,
+                    "n_steps": 4794,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 110,
