@@ -32,7 +32,6 @@ integer-encoding.workspace = true
 libmdbx = { workspace = true, features = ["lifetimed-bytes"] }
 memmap2.workspace = true
 metrics.workspace = true
-nix.workspace = true
 num-bigint.workspace = true
 page_size.workspace = true
 parity-scale-codec.workspace = true
@@ -60,6 +59,7 @@ camelpaste.workspace = true
 futures.workspace = true
 insta = { workspace = true, features = ["yaml"] }
 metrics-exporter-prometheus.workspace = true
+nix.workspace = true
 num-traits.workspace = true
 paste.workspace = true
 pretty_assertions.workspace = true

@@ -17,7 +17,6 @@ use apollo_batcher::metrics::{
     RECEIPT_COMMITMENT_LATENCY,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
-    STATE_COMMITMENT_INFOS_LOWER_BOUND,
     STATE_DIFF_COMMITMENT_LATENCY,
     STATE_DIFF_LENGTH,
     TX_COMMITMENT_COUNT,
@@ -109,17 +108,6 @@ fn get_panel_global_root_height() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("Committing block at height")
-}
-
-fn get_panel_state_commitment_infos_lower_bound() -> Panel {
-    Panel::new(
-        "State Commitment Infos Lower Bound",
-        "The lowest height whose state commitment infos may be stored in the batcher storage; \
-         lower heights were pruned.",
-        STATE_COMMITMENT_INFOS_LOWER_BOUND.get_name_with_filter().to_string(),
-        PanelType::Stat,
-    )
-    .with_log_query("Pruned the state commitment infos below")
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
@@ -307,7 +295,6 @@ pub(crate) fn get_batcher_row() -> Row {
         vec![
             get_panel_building_height(),
             get_panel_global_root_height(),
-            get_panel_state_commitment_infos_lower_bound(),
             get_panel_consensus_block_time_avg(),
             get_panel_batched_transactions_rate(),
             get_panel_proposer_deferred_txs(),

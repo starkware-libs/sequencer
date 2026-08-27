@@ -354,16 +354,6 @@
     "privacy": "Public",
     "value": 1
   },
-  "batcher_config.static_config.state_commitment_infos_pruning_config.max_deletions_per_prune": {
-    "description": "At most this many heights' state commitment infos are pruned per prune request.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "batcher_config.static_config.state_commitment_infos_pruning_config.retention_blocks": {
-    "description": "The state commitment infos of this many heights below the current height are kept in storage; those of lower heights are pruned.",
-    "privacy": "Public",
-    "value": 1000
-  },
   "batcher_config.static_config.storage.batch_config.batch_size": {
     "description": "Number of logical commits before actual MDBX commit.",
     "privacy": "Public",
