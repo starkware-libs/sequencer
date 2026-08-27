@@ -35,6 +35,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
                     self.has_state_commitment_infos(block_number),
                 )
             }
+            BatcherRequest::PruneStateCommitmentInfos(input) => {
+                BatcherResponse::PruneStateCommitmentInfos(self.prune_state_commitment_infos(input))
+            }
             BatcherRequest::GetCurrentHeight => {
                 BatcherResponse::GetCurrentHeight(self.get_height().await)
             }
