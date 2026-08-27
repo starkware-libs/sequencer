@@ -311,6 +311,9 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
             Felt::ZERO,
             // full_output.
             Felt::from(full_output),
+            Felt::ZERO,
+            Felt::ZERO,
+            Felt::ZERO,
             // Messages to L1.
             MSG_TO_L1_0.len().into(),
         ],
@@ -403,6 +406,9 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
             Felt::from(false),
             // full_output.
             Felt::from(full_output),
+            Felt::ZERO,
+            Felt::ZERO,
+            Felt::ZERO,
             // Messages to L1.
             MSG_TO_L1_1.len().into(),
         ],
@@ -609,6 +615,9 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
             Felt::from(use_kzg_da),
             // full_output.
             Felt::from(full_output),
+            Felt::ZERO,
+            Felt::ZERO,
+            Felt::ZERO,
         ],
         // KZG info.
         if use_kzg_da { combined_kzg_info(&da) } else { vec![] },

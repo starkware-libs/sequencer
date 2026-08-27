@@ -1,1 +1,2 @@
-
+~ /os_constants/allowed_virtual_os_program_hashes/0: "0x24a6118cea1a20bc0c7bf757801be3d7270fbc914efd0a533d38056fef28b81"
+~ /os_resources/execute_txs_inner/InvokeFunction/constant/n_steps: 4793

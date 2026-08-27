@@ -46,6 +46,9 @@ struct OsOutputHeader {
     use_kzg_da: felt,
     // Indicates whether previous state values are included in the state update information.
     full_output: felt,
+    processed_proof_output_low: felt,
+    processed_proof_output_high: felt,
+    n_proof_facts_transactions: felt,
 }
 
 // An L2 to L1 message header, the message payload is concatenated to the end of the header.
@@ -168,6 +171,9 @@ func serialize_output_header{output_ptr: felt*}(os_output_header: OsOutputHeader
     serialize_word(os_output_header.starknet_os_config_hash);
     serialize_word(os_output_header.use_kzg_da);
     serialize_word(os_output_header.full_output);
+    serialize_word(os_output_header.processed_proof_output_low);
+    serialize_word(os_output_header.processed_proof_output_high);
+    serialize_word(os_output_header.n_proof_facts_transactions);
 
     return ();
 }

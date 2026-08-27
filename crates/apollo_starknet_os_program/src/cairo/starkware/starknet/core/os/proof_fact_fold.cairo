@@ -6,6 +6,61 @@ from starkware.starknet.core.os.virtual_os_output import ProofHeader
 const BLAKE2S_DIGEST_N_WORDS = 8;
 const PROOF_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
 
+struct ProofFactsReference {
+    proof_facts_size: felt,
+    proof_facts: felt*,
+}
+
+func record_proof_facts_reference{proof_facts_references: ProofFactsReference*}(
+    proof_facts_size: felt, proof_facts: felt*
+) {
+    if (proof_facts_size == 0) {
+        return ();
+    }
+    assert [proof_facts_references] = ProofFactsReference(
+        proof_facts_size=proof_facts_size, proof_facts=proof_facts
+    );
+    let proof_facts_references = &proof_facts_references[1];
+    return ();
+}
+
+func single_processed_proof_output{range_check_ptr}(
+    proof_facts_references_start: ProofFactsReference*,
+    proof_facts_references_end: ProofFactsReference*,
+) -> (
+    n_proof_facts_transactions: felt,
+    processed_proof_output_low: felt,
+    processed_proof_output_high: felt,
+) {
+    alloc_locals;
+    local n_proof_facts_transactions = (proof_facts_references_end - proof_facts_references_start) /
+        ProofFactsReference.SIZE;
+    if (n_proof_facts_transactions == 0) {
+        return (
+            n_proof_facts_transactions=0,
+            processed_proof_output_low=0,
+            processed_proof_output_high=0,
+        );
+    }
+    assert n_proof_facts_transactions = 1;
+    let (leaf_digest) = compute_leaf_output_digest(
+        proof_facts_size=proof_facts_references_start.proof_facts_size,
+        proof_facts=proof_facts_references_start.proof_facts,
+    );
+    // The single transaction's proof fills both of the multiverifier's verifier slots.
+    let (output_digest) = combine_leaf_digests(
+        left_leaf_digest=leaf_digest, right_leaf_digest=leaf_digest
+    );
+    let (processed_proof_output_low, processed_proof_output_high) = pack_output_digest(
+        output_digest=output_digest
+    );
+    return (
+        n_proof_facts_transactions=1,
+        processed_proof_output_low=processed_proof_output_low,
+        processed_proof_output_high=processed_proof_output_high,
+    );
+}
+
 // Computes a transaction's leaf output digest: the blake2s digest of its proof facts, starting at
 // the program hash, encoded as u32s. The preimage drops the proof version and variant markers.
 // Assumption: `proof_facts_size` is at least `ProofHeader.SIZE`.
