@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::{CommitmentInfosPruningConfig, CommitterConfig};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     RevertBlockRequest,
@@ -43,6 +43,11 @@ impl StorageConstructor for ApolloTestStorage {
 
 async fn new_test_committer() -> ApolloTestCommitter {
     Committer::new(CommitterConfig { verify_state_diff_hash: false, ..Default::default() }).await
+}
+
+/// Enables pruning with the default config, for tests that tune it.
+fn pruning_config(committer: &mut ApolloTestCommitter) -> &mut CommitmentInfosPruningConfig {
+    committer.config.commitment_infos_pruning_config.get_or_insert_default()
 }
 
 fn get_state_diff(state_diff_info: u64) -> ThinStateDiff {
@@ -373,7 +378,7 @@ async fn commitment_infos_lower_bound_gauge_tracks_pruning() {
     register_metrics(BlockNumber(0), BlockNumber(0));
 
     let mut committer = new_test_committer().await;
-    committer.config.commitment_infos_pruning_config.retention_blocks = 2;
+    pruning_config(&mut committer).retention_blocks = 2;
     for height in 0..4 {
         committer.commit_block(commit_block_request(1, Some(1), height)).await.unwrap();
     }

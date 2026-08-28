@@ -1,5 +1,6 @@
 {
     "committer_config.commit_duration_warn_threshold_millis": 3000,
+    "committer_config.commitment_infos_pruning_config.#is_none": true,
     "committer_config.commitment_infos_pruning_config.max_deletions_per_commit": 100,
     "committer_config.commitment_infos_pruning_config.retention_blocks": 1000,
     "committer_config.db_path": "/data/committer",

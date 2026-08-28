@@ -559,6 +559,11 @@
     "privacy": "Public",
     "value": 3000
   },
+  "committer_config.commitment_infos_pruning_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "committer_config.commitment_infos_pruning_config.max_deletions_per_commit": {
     "description": "At most this many heights' commitment infos are pruned per commit.",
     "privacy": "Public",

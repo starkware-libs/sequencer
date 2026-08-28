@@ -534,16 +534,24 @@ where
 
     /// Prunes the commitment infos that fall out of the retention window when the commitment
     /// offset advances to `next_offset`: heights below `next_offset - retention_blocks`, starting
-    /// from the current lower bound and capped at `max_deletions_per_commit` heights. Records the
-    /// new lower bound in `metadata` on every commit, so that a restart before the first pruning
-    /// does not default the lower bound to the advanced offset, and returns it along with the
-    /// deletions of the pruned heights, to be written atomically with the block.
+    /// from the current lower bound and capped at `max_deletions_per_commit` heights. With no
+    /// pruning config, nothing is pruned. Records the new lower bound in `metadata` on every
+    /// commit, so that a restart before the first pruning does not default the lower bound to the
+    /// advanced offset, and returns it along with the deletions of the pruned heights, to be
+    /// written atomically with the block.
     fn prune_commitment_infos(
         &self,
         next_offset: BlockNumber,
         metadata: &mut HashMap<ForestMetadataType, DbValue>,
     ) -> (BlockNumber, Vec<CommitmentInfosUpdate>) {
-        let pruning_config = &self.config.commitment_infos_pruning_config;
+        let Some(pruning_config) = &self.config.commitment_infos_pruning_config else {
+            let lower_bound = self.commitment_infos_lower_bound;
+            metadata.insert(
+                ForestMetadataType::CommitmentInfosLowerBound,
+                db_block_number_value(lower_bound),
+            );
+            return (lower_bound, vec![]);
+        };
         let lower_bound = self.commitment_infos_lower_bound.0;
         let retention_start = next_offset.0.saturating_sub(pruning_config.retention_blocks);
         let heights_to_prune = lower_bound
