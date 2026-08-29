@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 use std::task::{Context, Poll};
 
-use libp2p::core::{ConnectedPoint, Endpoint};
-use libp2p::swarm::behaviour::ConnectionEstablished;
-use libp2p::swarm::{ConnectionId, FromSwarm, NetworkBehaviour, ToSwarm};
+use libp2p::core::Endpoint;
+use libp2p::swarm::{ConnectionId, NetworkBehaviour, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
 
 use super::peer_whitelist::Behaviour;
@@ -134,23 +133,4 @@ fn expect_all_events_are_close_connections(behaviour: &mut Behaviour) -> Vec<Pee
         disconnected.push(peer_id);
     }
     disconnected
-}
-
-#[allow(dead_code)]
-fn simulate_connection_established(
-    behaviour: &mut Behaviour,
-    peer_id: PeerId,
-    connection_id: usize,
-) {
-    let address = Multiaddr::empty();
-    behaviour.on_swarm_event(FromSwarm::ConnectionEstablished(ConnectionEstablished {
-        peer_id,
-        connection_id: ConnectionId::new_unchecked(connection_id),
-        endpoint: &ConnectedPoint::Listener {
-            local_addr: address.clone(),
-            send_back_addr: address,
-        },
-        failed_addresses: &[],
-        other_established: 0,
-    }));
 }
