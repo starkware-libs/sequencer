@@ -408,7 +408,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus Block Number Stuck",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -434,7 +434,7 @@
       "name": "consensus_block_number_stuck_long_time",
       "title": "Consensus Block Number Stuck Long Time",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck_long_time-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck_long_time-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -1058,7 +1058,7 @@
       "name": "gateway_add_tx_idle_p2p_rpc",
       "title": "Gateway add_tx idle (p2p+rpc)",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -1318,7 +1318,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$http_server_no_successful_transactions-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$http_server_no_successful_transactions-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -1630,7 +1630,7 @@
       "name": "mempool_add_tx_idle_p2p_rpc",
       "title": "Mempool add_tx idle (p2p+rpc)",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$mempool_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$mempool_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {

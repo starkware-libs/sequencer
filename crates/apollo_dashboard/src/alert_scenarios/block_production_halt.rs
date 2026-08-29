@@ -30,15 +30,10 @@ fn get_consensus_block_number_stuck(
     alert_severity: impl Into<SeverityValueOrPlaceholder>,
 ) -> Alert {
     let name = title.to_lowercase().replace(' ', "_");
-    // Fall back to `vector(1)`, not `vector(0)`, when the metric has no samples: an absent/late
-    // series (e.g. transient query-time gaps for a remote-region node) must not read as a halt.
     // A real halt keeps the gauge present, so `increase` yields a present `0` and still fires;
     // a dead pod is caught by the `pod_state_not_ready` / `pod_state_crashloopbackoff` alerts.
-    // The fallback must stay `>=` the stuck threshold (`< 1`).
-    let expr_template_string = format!(
-        "sum(increase({}[{{}}s])) or vector(1)",
-        CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
-    );
+    let expr_template_string =
+        format!("sum(increase({}[{{}}s]))", CONSENSUS_BLOCK_NUMBER.get_name_with_filter());
     Alert::new(
         &name,
         title,
@@ -52,6 +47,7 @@ fn get_consensus_block_number_stuck(
         alert_severity,
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
