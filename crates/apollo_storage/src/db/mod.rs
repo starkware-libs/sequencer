@@ -285,6 +285,22 @@ impl DbReader {
 type DbReadTransaction<'env> = DbTransaction<'env, RO>;
 
 impl DbWriter {
+    /// Drops the table if it exists and returns whether it did. Meant for tables removed from the
+    /// schema, which a storage created by an older version still holds.
+    pub(crate) fn drop_table_if_exists(&mut self, name: &str) -> DbResult<bool> {
+        let txn = self.env.begin_rw_txn()?;
+        let table = match txn.open_table(Some(name)) {
+            Ok(table) => table,
+            Err(libmdbx::Error::NotFound) => return Ok(false),
+            Err(err) => return Err(err.into()),
+        };
+        // Safety: the handle was opened in this transaction and is the only one referring to the
+        // table.
+        unsafe { txn.drop_table(table)? };
+        txn.commit()?;
+        Ok(true)
+    }
+
     /// Creates a persistent write transaction that can be stored in structs without lifetime
     /// constraints.
     ///
