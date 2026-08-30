@@ -14,6 +14,7 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
 use apollo_storage::accessed_keys::AccessedKeys as StorageAccessedKeys;
+use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use lru::LruCache;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
@@ -50,6 +51,7 @@ use crate::metrics::{
 // TODO(Amos): Add this to config.
 const TASK_SEND_RETRY_DELAY: Duration = Duration::from_millis(100);
 const N_RECENT_BLOCK_HASHES: NonZeroUsize = NonZeroUsize::new(30).unwrap();
+const N_RECENT_STATE_COMMITMENT_INFOS: NonZeroUsize = NonZeroUsize::new(20).unwrap();
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
@@ -65,6 +67,8 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) state_committer: S,
     pub(crate) task_timer: TaskTimer,
     pub(crate) recent_block_hashes_cache: LruCache<BlockNumber, BlockHash>,
+    pub(crate) recent_state_commitment_infos_cache:
+        LruCache<BlockNumber, CompressedStateCommitmentInfos>,
 }
 
 impl<S: StateCommitterTrait> CommitmentManager<S> {
@@ -236,6 +240,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     commitment_results.push(read_path_and_commit_task_result)
                 }
                 CommitterTaskOutput::Revert(revert_task_result) => {
+                    let height = revert_task_result.height;
+                    self.recent_block_hashes_cache.pop(&height);
+                    self.recent_state_commitment_infos_cache.pop(&height);
                     return (commitment_results, revert_task_result);
                 }
             }
@@ -292,19 +299,22 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
             }
 
-            // Add block hash to cache.
-            if let Some(block_hash) = block_hash {
-                self.recent_block_hashes_cache.put(height, block_hash);
-            }
-
             // Write the block hash and global root to storage.
             storage_writer.set_global_root_and_block_hash(
                 height,
                 global_root,
                 block_hash,
-                state_commitment_infos,
+                state_commitment_infos.clone(),
             )?;
             GLOBAL_ROOT_HEIGHT.increment(1);
+
+            // Add block hash and commitments to cache.
+            if let Some(block_hash) = block_hash {
+                self.recent_block_hashes_cache.put(height, block_hash);
+            }
+            if let Some(state_commitment_infos) = state_commitment_infos {
+                self.recent_state_commitment_infos_cache.put(height, state_commitment_infos);
+            }
         }
 
         Ok(())
@@ -373,6 +383,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             state_committer,
             task_timer,
             recent_block_hashes_cache: LruCache::new(N_RECENT_BLOCK_HASHES),
+            recent_state_commitment_infos_cache: LruCache::new(N_RECENT_STATE_COMMITMENT_INFOS),
         }
     }
 
@@ -487,9 +498,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 actual: height,
             });
         }
-
-        // Remove the reverted block hash from the cache.
-        self.recent_block_hashes_cache.pop(&height);
 
         let revert_task_input =
             CommitterTaskInput::Revert(RevertBlockRequest { height, reversed_state_diff });
