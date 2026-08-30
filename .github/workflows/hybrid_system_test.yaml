@@ -286,9 +286,7 @@ jobs:
           echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
 
       - name: Install Anvil
-        uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
-        with:
-          version: v1.5.1
+        uses: ./.github/actions/install_anvil
 
       - name: Restore executable permissions
         run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
