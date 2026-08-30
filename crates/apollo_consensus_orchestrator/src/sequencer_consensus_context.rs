@@ -605,12 +605,17 @@ impl SequencerConsensusContext {
             .prev()
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
-        let recent_state_commitment_infos =
-            self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
-                // `finalize_decision` must not fail, so continue with an empty vector.
-                error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
-                Vec::new()
-            });
+        // Independent lookups, keyed only by `height`; run them concurrently rather than one
+        // after the other.
+        let (recent_state_commitment_infos, recent_block_hashes) = tokio::join!(
+            self.collect_recent_state_commitment_infos(height),
+            self.collect_recent_block_hashes(height),
+        );
+        let recent_state_commitment_infos = recent_state_commitment_infos.unwrap_or_else(|e| {
+            // `finalize_decision` must not fail, so continue with an empty vector.
+            error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
+            Vec::new()
+        });
 
         if let Err(e) = self
             .deps
@@ -641,7 +646,7 @@ impl SequencerConsensusContext {
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
-                recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                recent_block_hashes,
                 recent_state_commitment_infos,
                 initial_reads: central_objects.initial_reads,
                 block_hash_commitments: block_header_commitments,
@@ -684,15 +689,23 @@ impl SequencerConsensusContext {
     /// Collects the recent block hashes from the batcher.
     /// Returns computed block hashes in range [height - N_BLOCK_HASHES_BACK_IN_BLOB, height].
     async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
+        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        // The window is small and fixed in size, so fetching every height concurrently instead
+        // of one round trip at a time is safe and avoids serializing their latency.
+        let block_hash_results = futures::future::join_all(
+            (lowest_height..=height.0)
+                .map(|block_height| self.deps.batcher.get_block_hash(BlockNumber(block_height))),
+        )
+        .await;
+
         let mut recent_block_hashes = Vec::with_capacity(
             usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
                 .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
                 + 1,
         );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        for height in lowest_height..=height.0 {
-            let block_number = BlockNumber(height);
-            match self.deps.batcher.get_block_hash(block_number).await {
+        for (block_height, result) in (lowest_height..=height.0).zip(block_hash_results) {
+            let block_number = BlockNumber(block_height);
+            match result {
                 Ok(block_hash) => {
                     recent_block_hashes
                         .push(BlockHashAndNumber { number: block_number, hash: block_hash });
@@ -726,14 +739,35 @@ impl SequencerConsensusContext {
                 // size.
                 None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
             };
+        // The empty-cende-recorder fallback window is already bounded by
+        // N_BLOCK_HASHES_BACK_IN_BLOB; otherwise bound the fetched range by the backfill cap so
+        // a lagging cende recorder can't trigger an unbounded number of round trips.
+        let highest_fetched_height = if cende_recorder_is_empty {
+            height.0
+        } else {
+            let max_backfill_offset = u64::try_from(MAX_COMMITMENT_INFOS_BACKFILL - 1)
+                .expect("MAX_COMMITMENT_INFOS_BACKFILL should fit in u64.");
+            height.0.min(lowest_height.saturating_add(max_backfill_offset))
+        };
+        // The heights are independent lookups; fetch them concurrently instead of one round trip
+        // at a time, then apply the contiguity and backfill-cap logic in height order below.
+        let state_commitment_infos_results = futures::future::join_all(
+            (lowest_height..=highest_fetched_height).map(|block_height| {
+                self.deps.batcher.get_state_commitment_infos(BlockNumber(block_height))
+            }),
+        )
+        .await;
+
         let mut recent_state_commitment_infos = Vec::with_capacity(MAX_COMMITMENT_INFOS_BACKFILL);
-        for block_height in lowest_height..=height.0 {
+        for (block_height, result) in
+            (lowest_height..=highest_fetched_height).zip(state_commitment_infos_results)
+        {
             // Stop at the cap, so sending commitment infos won't stall block production.
             if recent_state_commitment_infos.len() >= MAX_COMMITMENT_INFOS_BACKFILL {
                 break;
             }
             let block_number = BlockNumber(block_height);
-            match self.deps.batcher.get_state_commitment_infos(block_number).await {
+            match result {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
                 // In the empty-cende-recorder case, the earliest heights in the window may
