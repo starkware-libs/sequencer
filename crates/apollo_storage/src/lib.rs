@@ -135,6 +135,7 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{
     Key,
     NoVersionValueWrapper,
+    StorageSerde,
     ValueSerde,
     VersionWrapper,
     VersionZeroWrapper,
@@ -242,6 +243,7 @@ fn open_storage_internal(
     }
 
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
+    remove_legacy_state_commitment_infos(&mut db_writer, &storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
         block_signatures: db_writer.create_simple_table("block_signatures")?,
@@ -1292,6 +1294,42 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("AccessedKeys at location {location:?} not found."),
         })
     }
+}
+
+/// The serialized `OffsetKind` discriminant of the removed state commitment infos file.
+const LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND: [u8; 1] = [7];
+
+// TODO(yoavGrs): Remove once all environments have been upgraded past the state commitment infos
+// removal.
+/// Removes the state commitment infos table, file and file offset that a storage created before
+/// they moved to the committer still holds.
+fn remove_legacy_state_commitment_infos(
+    db_writer: &mut DbWriter,
+    db_config: &DbConfig,
+) -> StorageResult<()> {
+    if db_writer.drop_table_if_exists("state_commitment_infos")? {
+        info!("Dropped the legacy state_commitment_infos table.");
+    }
+    assert!(
+        OffsetKind::deserialize_from(&mut LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND.as_slice())
+            .is_none(),
+        "The legacy state commitment infos offset kind is taken by a current OffsetKind variant."
+    );
+    let file_offsets =
+        db_writer.create_simple_table::<[u8; 1], NoVersionValueWrapper<usize>>("file_offsets")?;
+    let txn = db_writer.begin_persistent_rw_txn()?;
+    let markers_table = txn.txn().open_table(&file_offsets)?;
+    if markers_table.get(txn.txn(), &LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND)?.is_some() {
+        markers_table.delete(txn.txn(), &LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND)?;
+        txn.commit()?;
+        info!("Removed the legacy state commitment infos file offset.");
+    }
+    let file_path = db_config.path().join("state_commitment_infos.dat");
+    if file_path.exists() {
+        fs::remove_file(&file_path)?;
+        info!("Removed the legacy state commitment infos file {}.", file_path.display());
+    }
+    Ok(())
 }
 
 fn open_storage_files(
