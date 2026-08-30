@@ -585,15 +585,9 @@ async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
         INITIAL_HEIGHT,
     )
     .await;
-    commitment_manager.recent_block_hashes_cache.put(height, BlockHash::default());
-    commitment_manager
-        .recent_state_commitment_infos_cache
-        .put(height, test_state_commitment_infos(height));
     let (commitment_results, revert_result) = commitment_manager.wait_for_revert_result().await;
     assert_eq!(commitment_results.len(), 2);
     assert_eq!(revert_result.height, height);
-    assert!(!commitment_manager.recent_block_hashes_cache.contains(&height));
-    assert!(!commitment_manager.recent_state_commitment_infos_cache.contains(&height));
 }
 
 #[rstest]

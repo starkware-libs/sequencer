@@ -192,6 +192,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
+    /// Evicts the reverted height from the caches. Must run after the commitment results that were
+    /// pending when the revert was requested are written, since they may include the reverted
+    /// height itself.
+    pub(crate) fn evict_reverted_height(&mut self, height: BlockNumber) {
+        self.recent_block_hashes_cache.pop(&height);
+        self.recent_state_commitment_infos_cache.pop(&height);
+    }
+
     /// Fetches all ready commitment results from the state committer. Panics if any task is a
     /// revert.
     pub(crate) fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
@@ -240,9 +248,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     commitment_results.push(read_path_and_commit_task_result)
                 }
                 CommitterTaskOutput::Revert(revert_task_result) => {
-                    let height = revert_task_result.height;
-                    self.recent_block_hashes_cache.pop(&height);
-                    self.recent_state_commitment_infos_cache.pop(&height);
                     return (commitment_results, revert_task_result);
                 }
             }
