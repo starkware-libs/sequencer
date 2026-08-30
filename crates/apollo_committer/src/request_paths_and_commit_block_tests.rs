@@ -307,10 +307,13 @@ async fn assert_witnesses_and_digest_present(
         committer.load_witnesses_digest(height).await.unwrap(),
         Some(*EXPECTED_ACCESSED_KEYS_DIGEST),
     );
-    assert_eq!(
-        committer.forest_storage.read_commitment_infos(height).await.unwrap().as_ref(),
-        Some(expected_commitment_infos),
-    );
+    let stored_commitment_infos = committer
+        .forest_storage
+        .read_compressed_commitment_infos(height)
+        .await
+        .unwrap()
+        .expect("commitment infos should be stored");
+    assert_eq!(stored_commitment_infos.decompress().unwrap(), *expected_commitment_infos);
 }
 
 async fn assert_witnesses_and_digest_absent(
@@ -318,7 +321,9 @@ async fn assert_witnesses_and_digest_absent(
     height: BlockNumber,
 ) {
     assert!(committer.load_witnesses_digest(height).await.unwrap().is_none());
-    assert!(committer.forest_storage.read_commitment_infos(height).await.unwrap().is_none());
+    assert!(
+        committer.forest_storage.read_compressed_commitment_infos(height).await.unwrap().is_none()
+    );
 }
 
 async fn assert_witnesses_and_digest_stored(
@@ -326,7 +331,9 @@ async fn assert_witnesses_and_digest_stored(
     height: BlockNumber,
 ) {
     assert!(committer.load_witnesses_digest(height).await.unwrap().is_some());
-    assert!(committer.forest_storage.read_commitment_infos(height).await.unwrap().is_some());
+    assert!(
+        committer.forest_storage.read_compressed_commitment_infos(height).await.unwrap().is_some()
+    );
 }
 
 /// Commits `height` via [`crate::committer::Committer::read_paths_and_commit_block`] with a

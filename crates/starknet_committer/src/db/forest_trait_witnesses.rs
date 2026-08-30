@@ -19,11 +19,7 @@ use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::patricia_merkle_tree::tree::SortedLeafIndices;
-use crate::patricia_merkle_tree::types::{
-    CompressedStateCommitmentInfos,
-    StarknetForestProofs,
-    StateCommitmentInfos,
-};
+use crate::patricia_merkle_tree::types::{CompressedStateCommitmentInfos, StarknetForestProofs};
 
 /// The information required to write the OS-input commitment infos to the database. The payload
 /// is stored as given, so the caller compresses it (once) before handing it over.
@@ -41,15 +37,17 @@ pub enum CommitmentInfosUpdate {
     Delete(BlockNumber),
 }
 
-/// Reads the committed OS-input commitment infos ([`StateCommitmentInfos`]) for a block height.
+/// Reads the committed OS-input commitment infos for a block height.
 #[async_trait]
 pub trait ForestReaderWithWitnesses:
     ForestReader<InitialReadContext: EmptyInitialReadContext> + Send
 {
-    async fn read_commitment_infos(
+    /// Returns the infos as stored; callers that only forward them skip the decompress/re-compress
+    /// round trip.
+    async fn read_compressed_commitment_infos(
         &mut self,
         height: BlockNumber,
-    ) -> ForestResult<Option<StateCommitmentInfos>>;
+    ) -> ForestResult<Option<CompressedStateCommitmentInfos>>;
 
     /// Fetches Patricia witness paths for OS input, optionally staging serialized trie node KVs on
     /// an in-memory overlay so reads match post-commit state before the forest is persisted.

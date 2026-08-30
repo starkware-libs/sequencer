@@ -75,7 +75,6 @@ use crate::patricia_merkle_tree::types::{
     CompiledClassHash,
     CompressedStateCommitmentInfos,
     StarknetForestProofs,
-    StateCommitmentInfos,
 };
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
@@ -369,23 +368,21 @@ fn singleton_metadata_key(prefix: &[u8; 32]) -> Vec<u8> {
 impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReaderWithWitnesses
     for IndexDb<S>
 {
-    async fn read_commitment_infos(
+    async fn read_compressed_commitment_infos(
         &mut self,
         height: BlockNumber,
-    ) -> ForestResult<Option<StateCommitmentInfos>> {
+    ) -> ForestResult<Option<CompressedStateCommitmentInfos>> {
         let db_key = DbKey(block_number_based_key(&PATRICIA_PATHS_PREFIX, DbBlockNumber(height)));
 
         Ok(match self.get_from_storage(db_key).await? {
             None => None,
-            Some(DbValue(bytes)) => Some(
-                CompressedStateCommitmentInfos::from_bytes(bytes)
-                    .and_then(|compressed| compressed.decompress())
-                    .map_err(|e| {
-                        ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
-                            DeserializationError::ValueError(Box::new(e)),
-                        ))
-                    })?,
-            ),
+            Some(DbValue(bytes)) => {
+                Some(CompressedStateCommitmentInfos::from_bytes(bytes).map_err(|e| {
+                    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(
+                        DeserializationError::ValueError(Box::new(e)),
+                    ))
+                })?)
+            }
         })
     }
 
