@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788080398984,
+  "lastUpdate": 1788082741641,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -203,6 +203,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1316.6301643499999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "01360393c6b431cdc1d57480aee6c983afa59248",
+          "message": "apollo_committer,starknet_committer: forward stored compressed commitment infos on historical replay (#15070)",
+          "timestamp": "2026-08-30T09:24:18Z",
+          "tree_id": "ac853e59b67db308fe8e8a5d375ccc549302551e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/01360393c6b431cdc1d57480aee6c983afa59248"
+        },
+        "date": 1788082741005,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 901.778741,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1277.15059816,
             "unit": "ms"
           }
         ]
