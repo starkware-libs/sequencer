@@ -1639,9 +1639,26 @@ async fn revert_block() {
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| ());
 
-    let storage_reader = mock_storage_reader_for_revert();
-    let mock_dependencies =
+    // The commit of the reverted height is still pending when the revert is requested, so its
+    // result is written, and cached, before the storage is reverted.
+    storage_writer.expect_set_global_root_and_block_hash().times(1).returning(|_, _, _, _| Ok(()));
+    let mut storage_reader = mock_storage_reader_for_revert();
+    storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(LATEST_BLOCK_IN_STORAGE))
+        .returning(|_| {
+            Ok((
+                Some(BlockHash::default()),
+                Some(PartialBlockHashComponents {
+                    block_number: LATEST_BLOCK_IN_STORAGE,
+                    ..Default::default()
+                }),
+            ))
+        });
+    let mut mock_dependencies =
         MockDependencies { storage_reader, storage_writer, ..Default::default() };
+    // The pending commit's block hash is irrelevant here; don't compare it to the configured one.
+    mock_dependencies.batcher_config.static_config.first_block_with_partial_block_hash = None;
 
     let committer_offset = mock_dependencies.clients.committer_client.get_offset();
 
@@ -1650,16 +1667,27 @@ async fn revert_block() {
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
+    let pending_commit =
+        CommitterTaskInput::ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest {
+            commit: CommitBlockRequest {
+                height: LATEST_BLOCK_IN_STORAGE,
+                state_diff: ThinStateDiff::default(),
+                state_diff_commitment: None,
+            },
+            accessed_keys: Default::default(),
+        });
+    batcher.commitment_manager.tasks_sender.send(pending_commit).await.unwrap();
+
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
-
-    batcher
-        .commitment_manager
-        .recent_state_commitment_infos_cache
-        .put(LATEST_BLOCK_IN_STORAGE, test_state_commitment_infos());
-
     assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
     assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
+
+    // The reverted height is evicted from both caches even though its commit result was cached
+    // during the revert.
+    assert!(
+        !batcher.commitment_manager.recent_block_hashes_cache.contains(&LATEST_BLOCK_IN_STORAGE)
+    );
     assert!(
         !batcher
             .commitment_manager
