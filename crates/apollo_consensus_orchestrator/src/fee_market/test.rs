@@ -13,7 +13,6 @@ use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
     l2_gas_price_cap,
-    MAX_GAS_PRICE_MULTIPLIER,
     MIN_GAS_PRICE_INCREASE_DENOMINATOR,
 };
 use crate::metrics::{CONSENSUS_L2_GAS_PRICE_CLAMPED, LABEL_L2_GAS_PRICE_CLAMP_BOUND};
@@ -244,7 +243,10 @@ fn test_price_constants_match_the_shipped_values() {
     // Tests that leave `min_l2_gas_price_per_height` empty get this fallback as their minimum, and
     // `TEST_MAX_L2_GAS_PRICE` as the ceiling it implies.
     assert_eq!(TEST_MIN_L2_GAS_PRICE, VERSIONED_CONSTANTS.min_gas_price);
-    assert_eq!(TEST_MAX_L2_GAS_PRICE.0, TEST_MIN_L2_GAS_PRICE.0 * MAX_GAS_PRICE_MULTIPLIER);
+    assert_eq!(
+        TEST_MAX_L2_GAS_PRICE.0,
+        TEST_MIN_L2_GAS_PRICE.0 * VERSIONED_CONSTANTS.max_gas_price_multiplier
+    );
 }
 
 #[test]
