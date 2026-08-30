@@ -393,9 +393,7 @@ async fn test_add_task_wait_for_full_channel(mut mock_dependencies: MockDependen
         let set_global_root_expectation =
             mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
         set_global_root_expectation.times(expected_n_calls);
-        set_global_root_expectation
-            .withf(move |h, _, _, _| *h == height)
-            .returning(|_, _, _, _| Ok(()));
+        set_global_root_expectation.withf(move |h, _, _| *h == height).returning(|_, _, _| Ok(()));
     }
 
     let (mut commitment_manager, storage_reader, mut storage_writer) =
