@@ -12,9 +12,9 @@ use apollo_committer_types::committer_types::{
     RevertBlockResponse,
 };
 use apollo_committer_types::communication::CommitterRequestLabelValue;
-use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tracing::warn;
 
 /// Input for commitment tasks.
