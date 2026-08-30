@@ -67,11 +67,6 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::state_commitment_infos::{
-    CompressedStateCommitmentInfos,
-    StateCommitmentInfosStorageReader,
-    StateCommitmentInfosStorageWriter,
-};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
     DynamicConfigProvider,
@@ -127,6 +122,7 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
@@ -1626,33 +1622,20 @@ impl Batcher {
         Ok(block_hash)
     }
 
+    /// Serves the state commitment infos of recently committed heights from memory. `None` means
+    /// the height is not cached: not committed yet, committed without accessed keys, or older than
+    /// the cache window.
     pub fn get_state_commitment_infos(
         &mut self,
         block_number: BlockNumber,
     ) -> BatcherResult<Option<CompressedStateCommitmentInfos>> {
         self.get_commitment_results_and_write_to_storage()?;
-        if let Some(state_commitment_infos) =
-            self.commitment_manager.recent_state_commitment_infos_cache.get(&block_number)
-        {
-            return Ok(Some(state_commitment_infos.clone()));
-        }
-
-        self.storage_reader.get_state_commitment_infos(block_number).map_err(|err| {
-            error!("Failed to get state commitment infos from storage: {err}");
-            BatcherError::InternalError
-        })
+        Ok(self.commitment_manager.recent_state_commitment_infos_cache.get(&block_number).cloned())
     }
 
     pub fn has_state_commitment_infos(&mut self, block_number: BlockNumber) -> BatcherResult<bool> {
         self.get_commitment_results_and_write_to_storage()?;
-        if self.commitment_manager.recent_state_commitment_infos_cache.contains(&block_number) {
-            return Ok(true);
-        }
-
-        self.storage_reader.has_state_commitment_infos(block_number).map_err(|err| {
-            error!("Failed to check state commitment infos existence in storage: {err}");
-            BatcherError::InternalError
-        })
+        Ok(self.commitment_manager.recent_state_commitment_infos_cache.contains(&block_number))
     }
 
     /// Warms the state commitment infos cache from the committer with the heights in
@@ -1901,14 +1884,6 @@ pub trait BatcherStorageReader: Send + Sync {
 
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
-
-    /// Returns whether the state commitment infos for the given height are stored.
-    fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool>;
-
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -2005,17 +1980,6 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.get_block_hash(&height)
     }
 
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<CompressedStateCommitmentInfos>> {
-        self.begin_ro_txn()?.get_state_commitment_infos(height)
-    }
-
-    fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool> {
-        self.begin_ro_txn()?.has_state_commitment_infos(height)
-    }
-
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -2056,17 +2020,14 @@ pub trait BatcherStorageWriter: Send + Sync {
 
     fn revert_block(&mut self, height: BlockNumber);
 
-    /// Sets the global root and block hash (unless it's None) for the given height, and persists
-    /// the commitment infos (when present) in the same transaction.
+    /// Sets the global root and block hash (unless it's None) for the given height.
     /// Increments the block hash marker by 1.
     /// Block hash is optional because for old blocks, the block hash was set separately.
-    /// Commitment infos are optional for blocks that doesn't come from decision_reached flow.
     fn set_global_root_and_block_hash(
         &mut self,
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        state_commitment_infos: Option<CompressedStateCommitmentInfos>,
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
@@ -2111,14 +2072,10 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        state_commitment_infos: Option<CompressedStateCommitmentInfos>,
     ) -> StorageResult<()> {
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
-             hash: {block_hash:?}, compressed commitment infos byte length: {:?}.",
-            state_commitment_infos
-                .as_ref()
-                .map(|state_commitment_infos| state_commitment_infos.payload.0.len())
+             hash: {block_hash:?}."
         );
         let mut txn = self
             .begin_rw_txn()?
@@ -2126,9 +2083,6 @@ impl BatcherStorageWriter for StorageWriter {
             .checked_increment_global_root_marker(height)?;
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
-        }
-        if let Some(state_commitment_infos) = state_commitment_infos {
-            txn = txn.append_state_commitment_infos(height, &state_commitment_infos)?;
         }
         txn.commit()
     }

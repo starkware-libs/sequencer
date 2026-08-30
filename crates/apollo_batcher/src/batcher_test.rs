@@ -2017,8 +2017,8 @@ async fn get_block_hash_after_reading_commitment_results() {
         mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
     set_global_root_expectation.times(1);
     set_global_root_expectation
-        .with(eq(INITIAL_HEIGHT), eq(global_root), always(), always())
-        .returning(|_, _, _, _| Ok(()));
+        .with(eq(INITIAL_HEIGHT), eq(global_root), always())
+        .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -2059,7 +2059,7 @@ async fn get_state_commitment_infos_after_reading_commitment_results() {
         .storage_writer
         .expect_set_global_root_and_block_hash()
         .times(1)
-        .returning(|_, _, _, _| Ok(()));
+        .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
