@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787740691721,
+  "lastUpdate": 1788071283760,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1412.61764182,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4e8046138c4f3ef721ede1dd87cb12f8ee078c61",
+          "message": "apollo_versioned_constants,apollo_consensus_orchestrator: version the L2 gas price multiplier (#15051)\n\nMAX_GAS_PRICE_MULTIPLIER was a private constant in fee_market, so the ceiling it\nsets could not move with the Starknet version. It becomes\nVersionedConstants::max_gas_price_multiplier, stated explicitly by every\nversion's resource as 10, which is the value it already had.\n\nPricing is unchanged: the 0.14.0 through 0.14.4 resources all carry the same 10\nthey compiled in before. The compile-time assert that the multiplier is above\none becomes max_gas_price_multiplier_is_above_one_in_every_version, a test that\nchecks the invariant for every version.\n\nMerging forward to main: main carries\norchestrator_versioned_constants_0_14_5.json, which this branch cannot touch,\nsince that file does not exist on the main-v0.14.4 lineage. The merge must add\n\"max_gas_price_multiplier\": 10 to it. Nothing conflicts textually, but the step\nis mandatory: without the key, serde_json::from_str on that resource fails and\nthe first VersionedConstants::latest_constants() call panics, since V0_14_5 is\nLATEST on main. Two tests on main catch the omission:\nmax_gas_price_multiplier_is_above_one_in_every_version, which deserializes every\nversion's resource, and test_vc_diffs_regression, which diffs the raw JSON of\nconsecutive versions, so a 0_14_5 without the key turns the empty\n0.14.4_0.14.5.txt into \"- /max_gas_price_multiplier\".\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-30T06:07:07Z",
+          "tree_id": "b5fcd20dc2e58b0c14349870a14f7f3980a98820",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4e8046138c4f3ef721ede1dd87cb12f8ee078c61"
+        },
+        "date": 1788071283151,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 835.35711259,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1281.36917251,
             "unit": "ms"
           }
         ]
