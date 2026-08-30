@@ -88,6 +88,48 @@ async fn test_mget_preserves_key_order(#[case] max_read_tasks: usize) {
     }
 }
 
+/// Keys of mixed lengths share one flattened chunk buffer, so a value must still come back for the
+/// key it was requested with, whatever the neighboring keys' lengths are.
+#[rstest]
+#[case::split_across_tasks(32)]
+#[case::single_task(1)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_mget_varying_key_lengths(#[case] max_read_tasks: usize) {
+    let temp_dir = TempDir::new().unwrap();
+    let mut storage = RocksDbStorage::new(
+        temp_dir.path(),
+        RocksDbStorageConfig {
+            max_read_tasks: NonZeroUsize::new(max_read_tasks).unwrap(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // Key lengths cycle over 1..=7 bytes so that every chunk mixes lengths, plus one empty key to
+    // cover a zero-length span. Repeating the index as the key's bytes keeps the keys distinct.
+    const N_KEYS: u8 = 200;
+    let key_of = |index: u8| {
+        if index == 0 { DbKey(Vec::new()) } else { DbKey(vec![index; usize::from(index) % 7 + 1]) }
+    };
+    let value_of = |index: u8| DbValue(vec![index; 3]);
+    // Only even keys exist; a span read from the wrong offset shows up as a misplaced `None`.
+    for index in (0..N_KEYS).step_by(2) {
+        storage.set(key_of(index), value_of(index)).await.unwrap();
+    }
+
+    let keys: Vec<DbKey> = (0..N_KEYS).map(key_of).collect();
+    let borrowed_keys: Vec<&DbKey> = keys.iter().collect();
+    let values = ImmutableReadOnlyStorage::mget(&storage, &borrowed_keys).await.unwrap();
+
+    assert_eq!(values.len(), keys.len());
+    for (index, value) in values.iter().enumerate() {
+        let index = u8::try_from(index).unwrap();
+        // The single empty key (index 0) is even, so it is expected to be present.
+        let expected = if index % 2 == 0 { Some(value_of(index)) } else { None };
+        assert_eq!(*value, expected, "wrong value at index {index}");
+    }
+}
+
 /// An empty batch must not reach `chunks`, which panics on a zero chunk size. Reachable in
 /// production: `CachedStorage::mget` forwards an empty miss list when every key was cached.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
