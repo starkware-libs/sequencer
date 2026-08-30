@@ -14,11 +14,6 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::{
-    CompressedPayload,
-    CompressedStateCommitmentInfos,
-    STATE_COMMITMENT_INFOS_VERSION,
-};
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
@@ -37,6 +32,7 @@ use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{
     get_number_of_items_in_channel_from_receiver,
     get_number_of_items_in_channel_from_sender,
+    test_state_commitment_infos,
     test_state_diff,
     wait_for_condition,
     wait_for_n_items,
@@ -69,14 +65,11 @@ fn mock_dependencies() -> MockDependencies {
     committer_client.expect_revert_block().returning(|_| {
         Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
     });
-    committer_client.expect_read_paths_and_commit_block().returning(|_| {
-        Box::pin(async {
+    committer_client.expect_read_paths_and_commit_block().returning(|request| {
+        Box::pin(async move {
             Ok(ReadPathsAndCommitBlockResponse {
                 global_root: GlobalRoot::default(),
-                state_commitment_infos: CompressedStateCommitmentInfos {
-                    version: STATE_COMMITMENT_INFOS_VERSION,
-                    payload: CompressedPayload(Vec::new()),
-                },
+                state_commitment_infos: test_state_commitment_infos(request.commit.height),
             })
         })
     });
@@ -592,9 +585,15 @@ async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
         INITIAL_HEIGHT,
     )
     .await;
+    commitment_manager.recent_block_hashes_cache.put(height, BlockHash::default());
+    commitment_manager
+        .recent_state_commitment_infos_cache
+        .put(height, test_state_commitment_infos(height));
     let (commitment_results, revert_result) = commitment_manager.wait_for_revert_result().await;
     assert_eq!(commitment_results.len(), 2);
     assert_eq!(revert_result.height, height);
+    assert!(!commitment_manager.recent_block_hashes_cache.contains(&height));
+    assert!(!commitment_manager.recent_state_commitment_infos_cache.contains(&height));
 }
 
 #[rstest]
