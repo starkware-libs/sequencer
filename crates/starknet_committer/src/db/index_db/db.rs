@@ -450,7 +450,7 @@ impl<S: Storage> IndexDb<S> {
             CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                 block_number,
                 keys_digest,
-                commitment_infos,
+                commitment_infos_bytes,
             }) => {
                 operations.insert(
                     Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
@@ -463,7 +463,7 @@ impl<S: Storage> IndexDb<S> {
                         &PATRICIA_PATHS_PREFIX,
                         DbBlockNumber(block_number),
                     )),
-                    DbOperation::Set(DbValue(commitment_infos.to_bytes())),
+                    DbOperation::Set(DbValue(commitment_infos_bytes)),
                 );
             }
         }

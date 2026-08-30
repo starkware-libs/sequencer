@@ -662,7 +662,7 @@ where
                 commitment_infos_updates.push(CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                     block_number: height,
                     keys_digest: digest,
-                    commitment_infos: compressed_commitment_infos.clone(),
+                    commitment_infos_bytes: compressed_commitment_infos.to_bytes(),
                 }));
 
                 info!(

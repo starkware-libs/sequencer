@@ -21,12 +21,15 @@ use crate::forest::forest_errors::ForestResult;
 use crate::patricia_merkle_tree::tree::SortedLeafIndices;
 use crate::patricia_merkle_tree::types::{CompressedStateCommitmentInfos, StarknetForestProofs};
 
-/// The information required to write the OS-input commitment infos to the database. The payload
-/// is stored as given, so the caller compresses it (once) before handing it over.
+/// The information required to write the OS-input commitment infos to the database.
+/// `commitment_infos_bytes` must be [`CompressedStateCommitmentInfos::to_bytes`] output; readers
+/// parse it back via [`CompressedStateCommitmentInfos::from_bytes`]. Pre-serialized so the caller
+/// can keep its own owned [`CompressedStateCommitmentInfos`] (e.g. to return to its own caller)
+/// without cloning the payload just to satisfy this struct.
 pub struct CommitmentInfosWrite {
     pub block_number: BlockNumber,
     pub keys_digest: [u8; 32],
-    pub commitment_infos: CompressedStateCommitmentInfos,
+    pub commitment_infos_bytes: Vec<u8>,
 }
 
 /// Commitment-infos DB operation, which can be either delete or write.
