@@ -573,6 +573,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.increment(task_duration);
                     COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.increment(1);
                 }
+                // The time measurement of this request is ignored.
+                CommitterRequestLabelValue::GetStateCommitmentInfos => {}
             }
         }
     }

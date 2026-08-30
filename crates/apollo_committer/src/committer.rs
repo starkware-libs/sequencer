@@ -8,6 +8,8 @@ use apollo_committer_types::committer_types::{
     AccessedKeys,
     CommitBlockRequest,
     CommitBlockResponse,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -705,6 +707,32 @@ where
                 })
             }
         }
+    }
+
+    /// Reads the stored state commitment infos of `height`. `None` when the height is not committed
+    /// yet, or its infos were never stored or already pruned.
+    pub async fn get_state_commitment_infos(
+        &mut self,
+        GetStateCommitmentInfosRequest { height }: GetStateCommitmentInfosRequest,
+    ) -> CommitterResult<GetStateCommitmentInfosResponse> {
+        if height >= self.offset {
+            info!(
+                "Height {height} is not committed yet (committer offset: {}), it has no state \
+                 commitment infos.",
+                self.offset
+            );
+            return Ok(GetStateCommitmentInfosResponse { state_commitment_infos: None });
+        }
+        let state_commitment_infos = self
+            .forest_storage
+            .read_compressed_commitment_infos(height)
+            .await
+            .map_err(|error| self.map_internal_error_at_height(height, error))?;
+        match &state_commitment_infos {
+            Some(_) => info!("Read the state commitment infos of height {height}."),
+            None => info!("No state commitment infos are stored for height {height}."),
+        }
+        Ok(GetStateCommitmentInfosResponse { state_commitment_infos })
     }
 
     async fn load_witnesses_digest(

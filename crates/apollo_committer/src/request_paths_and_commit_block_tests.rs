@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 use apollo_committer_types::committer_types::{
     AccessedKeys,
     CommitBlockRequest,
+    GetStateCommitmentInfosRequest,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -36,6 +37,7 @@ use starknet_committer::patricia_merkle_tree::types::{
     class_hash_into_node_index,
     CommitmentInfo,
     CompiledClassHash as CommitterCompiledClassHash,
+    CompressedStateCommitmentInfos,
     StateCommitmentInfos,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -740,6 +742,42 @@ async fn prune_commitment_infos() {
     }
 
     assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(2)));
+}
+
+async fn get_state_commitment_infos(
+    committer: &mut ApolloTestCommitter,
+    height: u64,
+) -> Option<CompressedStateCommitmentInfos> {
+    committer
+        .get_state_commitment_infos(GetStateCommitmentInfosRequest { height: BlockNumber(height) })
+        .await
+        .unwrap()
+        .state_commitment_infos
+}
+
+/// Commits blocks 0, 1 and 2 with commitment infos and block 3 without, then reads the infos of
+/// single heights: stored heights return their infos, heights that stored none or are not
+/// committed yet return `None`.
+#[tokio::test]
+async fn get_state_commitment_infos_per_height() {
+    let mut committer = new_test_committer().await;
+    for height in 0..3 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    commit_block_without_commitment_infos(&mut committer, 3).await;
+
+    for height in 0..3 {
+        let stored_infos = committer
+            .forest_storage
+            .read_compressed_commitment_infos(BlockNumber(height))
+            .await
+            .unwrap();
+        assert!(stored_infos.is_some());
+        assert_eq!(get_state_commitment_infos(&mut committer, height).await, stored_infos);
+    }
+    assert_eq!(get_state_commitment_infos(&mut committer, 3).await, None);
+    assert_eq!(get_state_commitment_infos(&mut committer, 4).await, None);
+    assert_eq!(get_state_commitment_infos(&mut committer, 10).await, None);
 }
 
 /// Commits blocks 0..4 with witnesses under a retention window of 2, then keeps committing via
