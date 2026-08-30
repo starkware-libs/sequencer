@@ -27,7 +27,15 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_committer_types::committer_types::{CommitBlockRequest, ReadPathsAndCommitBlockRequest};
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    GetStateCommitmentInfosResponse,
+    ReadPathsAndCommitBlockRequest,
+    StateCommitmentInfosAtHeight,
+};
+use apollo_committer_types::communication::MockCommitterClient;
+use apollo_committer_types::errors::CommitterClientError;
+use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -2073,6 +2081,69 @@ async fn get_state_commitment_infos_after_reading_commitment_results() {
         Ok(Some(test_state_commitment_infos()))
     );
     assert_eq!(batcher.has_state_commitment_infos(INITIAL_HEIGHT), Ok(true));
+}
+
+fn mock_dependencies_with_committer_client(
+    committer_client: MockCommitterClient,
+) -> MockDependencies {
+    MockDependencies {
+        clients: MockClients {
+            committer_client: MockCommitterClientWithOffset::new(
+                committer_client,
+                Some(INITIAL_HEIGHT),
+            ),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn start_loads_recent_state_commitment_infos() {
+    let mut committer_client = MockCommitterClient::new();
+    committer_client
+        .expect_get_state_commitment_infos()
+        .withf(|request| {
+            request.start_height
+                == BlockNumber(INITIAL_HEIGHT.0.saturating_sub(constants::STORED_BLOCK_HASH_BUFFER))
+                && request.end_height == INITIAL_HEIGHT
+        })
+        .times(1)
+        .returning(|_| {
+            Box::pin(async {
+                Ok(GetStateCommitmentInfosResponse {
+                    state_commitment_infos: vec![StateCommitmentInfosAtHeight {
+                        height: LATEST_BLOCK_IN_STORAGE,
+                        state_commitment_infos: test_state_commitment_infos(),
+                    }],
+                })
+            })
+        });
+
+    let mut batcher =
+        create_batcher(mock_dependencies_with_committer_client(committer_client)).await;
+
+    assert_eq!(
+        batcher.get_state_commitment_infos(LATEST_BLOCK_IN_STORAGE),
+        Ok(Some(test_state_commitment_infos()))
+    );
+    assert_eq!(batcher.commitment_manager.recent_state_commitment_infos_cache.len(), 1);
+}
+
+#[tokio::test]
+async fn start_tolerates_state_commitment_infos_load_failure() {
+    let mut committer_client = MockCommitterClient::new();
+    committer_client.expect_get_state_commitment_infos().times(1).returning(|_| {
+        Box::pin(async {
+            Err(CommitterClientError::ClientError(ClientError::CommunicationFailure(
+                "committer is down".to_string(),
+            )))
+        })
+    });
+
+    let batcher = create_batcher(mock_dependencies_with_committer_client(committer_client)).await;
+
+    assert!(batcher.commitment_manager.recent_state_commitment_infos_cache.is_empty());
 }
 
 #[tokio::test]
