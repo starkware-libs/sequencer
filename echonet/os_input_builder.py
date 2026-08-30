@@ -26,9 +26,10 @@ class OsInputBuildError(RuntimeError):
     """Raised when the cende blob lacks a field required to assemble OsHints."""
 
 
-<<<<<<< HEAD
 # Felts are length-prefixed and minimally encoded, so a longer length means the layout drifted.
 MAX_FELT_BYTE_LENGTH = 32
+
+STATE_COMMITMENT_INFOS_VERSION = 0
 
 
 class _BincodeReader:
@@ -84,27 +85,11 @@ def _read_commitment_info(reader: _BincodeReader) -> JsonObject:
     }
 
 
-def decompress_state_commitment_infos(compressed: str) -> JsonObject:
-||||||| 74587f8aa5
-def decompress_state_commitment_infos(compressed: str) -> JsonObject:
-=======
-STATE_COMMITMENT_INFOS_VERSION = 0
-
-
 def decompress_state_commitment_infos(compressed: JsonObject) -> JsonObject:
->>>>>>> origin/main-v0.14.4
     """
-<<<<<<< HEAD
-    Reverse of the committer's `base64(zstd(bincode(StateCommitmentInfos)))` pipeline; see
-    `StateCommitmentInfos::compress` in starknet_committer's `patricia_merkle_tree/types.rs`.
-||||||| 74587f8aa5
-    Reverse of the committer's `base64(zstd(serde_json(StateCommitmentInfos)))`
-    pipeline. The streaming decompressor is required: the Rust frame omits the
-    content size, which the one-shot `zstandard.decompress()` rejects.
-=======
-    Reverse of the committer's `{"version": N, "payload": base64(zstd(bincode(...)))}` form of
-    `CompressedStateCommitmentInfos`.
->>>>>>> origin/main-v0.14.4
+    Reverse of the committer's `{"version": N, "payload": base64(zstd(bincode(...)))}` form
+    of `CompressedStateCommitmentInfos`; see `StateCommitmentInfos::compress` in
+    starknet_committer's `patricia_merkle_tree/types.rs`.
     """
     version = compressed.get("version")
     if version != STATE_COMMITMENT_INFOS_VERSION:
@@ -113,18 +98,8 @@ def decompress_state_commitment_infos(compressed: JsonObject) -> JsonObject:
             f"expected {STATE_COMMITMENT_INFOS_VERSION}"
         )
     try:
-<<<<<<< HEAD
-        raw = base64.b64decode(compressed)
-        payload = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
-||||||| 74587f8aa5
-        raw = base64.b64decode(compressed)
-        decompressed = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
-        return json.loads(decompressed)
-=======
         raw = base64.b64decode(compressed["payload"])
-        decompressed = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
-        return json.loads(decompressed)
->>>>>>> origin/main-v0.14.4
+        payload = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
     except (ValueError, zstandard.ZstdError) as exc:
         raise OsInputBuildError(f"failed to decompress state_commitment_infos: {exc}") from exc
 
