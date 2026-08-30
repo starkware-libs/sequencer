@@ -615,14 +615,11 @@ where
                 }
                 let state_commitment_infos = self
                     .forest_storage
-                    .read_commitment_infos(height)
+                    .read_compressed_commitment_infos(height)
                     .await
                     .map_err(|error| self.map_internal_error_at_height(height, error))?
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse {
-                    global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
-                })
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
