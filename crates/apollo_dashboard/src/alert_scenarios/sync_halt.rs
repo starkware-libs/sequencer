@@ -47,7 +47,7 @@ fn get_state_sync_stuck(
         alert_name,
         EvaluationRate::Default,
         format!(
-            "increase({}[{}s])",
+            "sum(increase({}[{}s]))",
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
             duration.as_secs()
         ), // Alert is triggered when the class manager marker is not updated for {duration}s
@@ -56,6 +56,7 @@ fn get_state_sync_stuck(
         alert_severity,
         ObserverApplicability::Applicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 pub(crate) fn get_state_sync_stuck_vec() -> Vec<Alert> {

@@ -30,13 +30,9 @@ fn build_idle_alert(
     metric_name_with_filter: &str,
     alert_severity: AlertSeverity,
 ) -> Alert {
-    // Fall back to `vector(1)`, not `vector(0)`, when the metric has no samples: a transient
-    // scrape/ingestion gap makes `increase` return empty, and `or vector(0)` would turn that into a
-    // hard `0` that trips `< 0.1` and false-pages even while tx ingestion is healthy. A real idle
-    // keeps the counter present, so `increase` yields a present `0` and still fires; a dead pod is
-    // caught by the `pod_state_*` alerts. The fallback must stay `>=` the idle threshold (`< 0.1`).
-    let expr_template_string =
-        format!("sum(increase({}[{{}}s])) or vector(1)", metric_name_with_filter);
+    // A real idle keeps the counter present, so `increase` yields a present `0` and still fires;
+    // a dead pod is caught by the `pod_state_*` alerts.
+    let expr_template_string = format!("sum(increase({}[{{}}s]))", metric_name_with_filter);
     Alert::new(
         alert_name,
         alert_title,
@@ -50,6 +46,7 @@ fn build_idle_alert(
         alert_severity,
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 pub(crate) fn get_http_server_no_successful_transactions() -> Alert {

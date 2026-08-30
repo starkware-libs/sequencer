@@ -30,15 +30,10 @@ fn get_consensus_block_number_stuck(
     alert_severity: impl Into<SeverityValueOrPlaceholder>,
 ) -> Alert {
     let name = title.to_lowercase().replace(' ', "_");
-    // Fall back to `vector(1)`, not `vector(0)`, when the metric has no samples: an absent/late
-    // series (e.g. transient query-time gaps for a remote-region node) must not read as a halt.
     // A real halt keeps the gauge present, so `increase` yields a present `0` and still fires;
     // a dead pod is caught by the `pod_state_not_ready` / `pod_state_crashloopbackoff` alerts.
-    // The fallback must stay `>=` the stuck threshold (`< 1`).
-    let expr_template_string = format!(
-        "sum(increase({}[{{}}s])) or vector(1)",
-        CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
-    );
+    let expr_template_string =
+        format!("sum(increase({}[{{}}s]))", CONSENSUS_BLOCK_NUMBER.get_name_with_filter());
     Alert::new(
         &name,
         title,
@@ -52,6 +47,7 @@ fn get_consensus_block_number_stuck(
         alert_severity,
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
@@ -71,7 +67,7 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
 fn get_batched_transactions_stuck(title: &'static str) -> Alert {
     let name = title.to_lowercase().replace(' ', "_");
     let expr_template_string =
-        format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
+        format!("sum(changes({}[{{}}s]))", BATCHED_TRANSACTIONS.get_name_with_filter());
     Alert::new(
         &name,
         title,
@@ -85,6 +81,7 @@ fn get_batched_transactions_stuck(title: &'static str) -> Alert {
         SeverityValueOrPlaceholder::Placeholder(name.clone()),
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 pub(crate) fn get_batched_transactions_stuck_vec() -> Vec<Alert> {
@@ -104,7 +101,7 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
         title,
         EvaluationRate::Default,
         format!(
-            "max_over_time({}[{}s])",
+            "min(max_over_time({}[{}s]))",
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter(),
             duration.as_secs()
         ),
@@ -119,6 +116,7 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
         alert_severity,
         ObserverApplicability::Applicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> {
