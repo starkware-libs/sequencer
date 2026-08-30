@@ -17,7 +17,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
-use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError, BatcherClientResult};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -71,6 +71,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -96,6 +101,7 @@ use crate::dynamic_gas_price::{
 use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
+    l2_gas_price_cap_for_height,
     FeeMarketInfo,
     NextL2GasPrice,
 };
@@ -107,6 +113,7 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     SNIP35_FEE_ACTUAL_FRI,
     SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
     SNIP35_FEE_TARGET_ATTO_USD,
     SNIP35_FEE_TARGET_FRI,
 };
@@ -127,6 +134,9 @@ use crate::validate_proposal::{
 
 /// Maximum number of commitment infos backfilled to the cende recorder per blob.
 const MAX_COMMITMENT_INFOS_BACKFILL: usize = 10;
+
+/// First Starknet version whose blocks have state commitment infos.
+const FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS: StarknetVersion = StarknetVersion::V0_14_4;
 
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
@@ -475,10 +485,13 @@ impl SequencerConsensusContext {
     }
 
     /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
-    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
-    /// validator derives the same fallback so both sides agree.
+    /// `fee_actual`, capped at the L2 gas price ceiling for `height`. When `fee_actual` is `None`
+    /// (window incomplete), freeze at `l2_gas_price`, uncapped: the validator skips the band check
+    /// without `fee_actual`, so both sides agree on the fallback, and the price users pay is capped
+    /// in `calculate_next_l2_gas_price_for_fin`.
     async fn compute_proposer_fee_proposal(
         &self,
+        height: BlockNumber,
         fee_actual: Option<GasPrice>,
         timestamp: u64,
         target_atto_usd_per_l2_gas: u128,
@@ -492,14 +505,64 @@ impl SequencerConsensusContext {
         SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
 
         let fee_target = self.resolve_fee_target(timestamp, target_atto_usd_per_l2_gas).await;
+        let max_l2_gas_price = l2_gas_price_cap_for_height(
+            height,
+            &self.config.dynamic_config.min_l2_gas_price_per_height,
+        );
+        // `resolve_fee_target` returns the operator pin when `override_l2_gas_price_fri` is set;
+        // a pin above the ceiling is deliberate, not oracle drift.
+        let fee_target_is_from_oracle =
+            self.config.dynamic_config.override_l2_gas_price_fri.is_none();
+        let oracle_target_above_maximum =
+            fee_target.filter(|target| fee_target_is_from_oracle && *target > max_l2_gas_price);
+        if let Some(oracle_target) = oracle_target_above_maximum {
+            warn!(
+                "Oracle-derived fee_target {} exceeds the L2 gas price maximum {}, capping the \
+                 fee_proposal band at the maximum",
+                oracle_target.0, max_l2_gas_price.0
+            );
+            SNIP35_FEE_TARGET_ABOVE_MAXIMUM.increment(1);
+        }
 
         let proposal = compute_fee_proposal(
             fee_target,
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
+            max_l2_gas_price,
         );
         SNIP35_FEE_PROPOSAL_FRI.set_lossy(proposal.0);
         proposal
+    }
+
+    /// The values a proposal for `height` is validated against, all derived from this node's own
+    /// state and config, never from the proposal. Both validation paths, the current round and a
+    /// proposal dequeued on a round change, build it here so they judge the same proposal alike.
+    fn proposal_init_validation(&self, height: BlockNumber) -> ProposalInitValidation {
+        ProposalInitValidation {
+            height,
+            block_timestamp_window_seconds: self
+                .config
+                .static_config
+                .block_timestamp_window_seconds,
+            previous_proposal_init: self.previous_proposal_init.clone(),
+            l1_da_mode: self.l1_da_mode,
+            l2_gas_price_fri: self
+                .config
+                .dynamic_config
+                .override_l2_gas_price_fri
+                .map(GasPrice)
+                .unwrap_or(self.l2_gas_price),
+            starknet_version: StarknetVersion::LATEST,
+            fee_actual: compute_fee_actual(
+                &self.fee_proposals_window,
+                height,
+                VersionedConstants::latest_constants().fee_proposal_window_size,
+            ),
+            max_l2_gas_price: l2_gas_price_cap_for_height(
+                height,
+                &self.config.dynamic_config.min_l2_gas_price_per_height,
+            ),
+        }
     }
 
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
@@ -733,22 +796,32 @@ impl SequencerConsensusContext {
                 break;
             }
             let block_number = BlockNumber(block_height);
-            match self.deps.batcher.get_state_commitment_infos(block_number).await {
+            match self.state_commitment_infos_to_send(block_number).await {
                 Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
                     .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
-                // In the empty-cende-recorder case, the earliest heights in the window may
-                // predate the batcher's stored commitment infos; skip that leading gap. Once at
-                // least one has been collected a None marks the end of commitment infos, so
-                // break.
-                Ok(None) if cende_recorder_is_empty && recent_state_commitment_infos.is_empty() => {
-                    debug!(
-                        "The cende recorder has no commitment infos offset and the batcher has no \
-                         state commitment infos for block {block_number} to send to it; skipping."
-                    );
-                    continue;
+                Ok(None) => {
+                    // Only an empty cende recorder's fallback window can reach back before
+                    // FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS; a block that old has no
+                    // commitment infos to miss.
+                    if cende_recorder_is_empty
+                        && self.predates_state_commitment_infos(block_number).await
+                    {
+                        debug!(
+                            "Block {block_number} predates \
+                             {FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS}; skipping its state \
+                             commitment infos."
+                        );
+                        continue;
+                    }
+                    // Break, rather than continue, in both cases that reach here:
+                    // - Normal production: the cende recorder is not empty, so this is the first
+                    //   block past the latest one with state commitment infos.
+                    // - The cende recorder is empty and, by the condition above, the block is not
+                    //   pre-0.14.4; it is the system's first block with state commitment infos,
+                    //   left for the next blob. Continuing would send a later height's commitment
+                    //   infos and leave a gap here.
+                    break;
                 }
-                // We passed the latest block with state commitment infos.
-                Ok(None) => break,
                 Err(err) => {
                     error!(
                         "Failed to get state commitment infos from batcher for block \
@@ -759,6 +832,42 @@ impl SequencerConsensusContext {
             }
         }
         Ok(recent_state_commitment_infos)
+    }
+
+    /// Returns whether `block_number` predates `FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS`, read
+    /// from its header once the block reaches state sync.
+    async fn predates_state_commitment_infos(&self, block_number: BlockNumber) -> bool {
+        match self.deps.state_sync_client.get_block(block_number).await {
+            Ok(sync_block) => {
+                sync_block.block_header_without_hash.starknet_version
+                    < FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to get the Starknet version of block {block_number} from state sync: \
+                     {err:?}"
+                );
+                false
+            }
+        }
+    }
+
+    /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
+    /// `None` if the batcher has none. With `send_empty_state_commitment_infos_only` on, an empty
+    /// object stands in for the stored one, which is not read.
+    async fn state_commitment_infos_to_send(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
+        if !self.config.static_config.send_empty_state_commitment_infos_only {
+            return self.deps.batcher.get_state_commitment_infos(block_number).await;
+        }
+        let has_state_commitment_infos =
+            self.deps.batcher.has_state_commitment_infos(block_number).await?;
+        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos {
+            version: STATE_COMMITMENT_INFOS_VERSION,
+            payload: CompressedPayload(Vec::new()),
+        }))
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored
@@ -850,6 +959,7 @@ impl ConsensusContext for SequencerConsensusContext {
         );
         let fee_proposal = self
             .compute_proposer_fee_proposal(
+                build_param.height,
                 fee_actual,
                 self.deps.clock.unix_now(),
                 self.config.dynamic_config.snip35_target_atto_usd_per_l2_gas,
@@ -941,27 +1051,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
-                let proposal_init_validation = ProposalInitValidation {
-                    height: init.height,
-                    block_timestamp_window_seconds: self
-                        .config
-                        .static_config
-                        .block_timestamp_window_seconds,
-                    previous_proposal_init: self.previous_proposal_init.clone(),
-                    l1_da_mode: self.l1_da_mode,
-                    l2_gas_price_fri: self
-                        .config
-                        .dynamic_config
-                        .override_l2_gas_price_fri
-                        .map(GasPrice)
-                        .unwrap_or(self.l2_gas_price),
-                    starknet_version: StarknetVersion::LATEST,
-                    fee_actual: compute_fee_actual(
-                        &self.fee_proposals_window,
-                        init.height,
-                        VersionedConstants::latest_constants().fee_proposal_window_size,
-                    ),
-                };
+                let proposal_init_validation = self.proposal_init_validation(init.height);
                 self.validate_current_round_proposal(
                     init,
                     proposal_init_validation,
@@ -1270,27 +1360,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let Some(((init, timeout, content), fin_sender)) = to_process else {
             return Ok(());
         };
-        let proposal_init_validation = ProposalInitValidation {
-            height: init.height,
-            block_timestamp_window_seconds: self
-                .config
-                .static_config
-                .block_timestamp_window_seconds,
-            previous_proposal_init: self.previous_proposal_init.clone(),
-            l1_da_mode: self.l1_da_mode,
-            l2_gas_price_fri: self
-                .config
-                .dynamic_config
-                .override_l2_gas_price_fri
-                .map(GasPrice)
-                .unwrap_or(self.l2_gas_price),
-            starknet_version: StarknetVersion::LATEST,
-            fee_actual: compute_fee_actual(
-                &self.fee_proposals_window,
-                init.height,
-                VersionedConstants::latest_constants().fee_proposal_window_size,
-            ),
-        };
+        let proposal_init_validation = self.proposal_init_validation(init.height);
         self.validate_current_round_proposal(
             init,
             proposal_init_validation,

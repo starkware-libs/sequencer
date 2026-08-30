@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
+    AccessedKeys,
     CommitBlockRequest,
     CommitBlockResponse,
     ReadPathsAndCommitBlockRequest,
@@ -67,6 +68,7 @@ use crate::metrics::{
     AVERAGE_WRITE_RATE,
     BLOCKS_COMMITTED,
     COMMITTER_BLOCK_COMMIT_LATENCY,
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -115,6 +117,10 @@ enum CommitBlockHeightPlan {
     CommitTip { state_diff_commitment: StateDiffCommitment },
 }
 
+fn db_block_number_value(block_number: BlockNumber) -> DbValue {
+    DbValue(DbBlockNumber(block_number).serialize().to_vec())
+}
+
 fn commit_tip_metadata_bundle(
     height: BlockNumber,
     global_root: GlobalRoot,
@@ -123,10 +129,7 @@ fn commit_tip_metadata_bundle(
     let next_offset = height.unchecked_next();
     (
         HashMap::from([
-            (
-                ForestMetadataType::CommitmentOffset,
-                DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
-            ),
+            (ForestMetadataType::CommitmentOffset, db_block_number_value(next_offset)),
             (
                 ForestMetadataType::StateRoot(DbBlockNumber(height)),
                 serialize_felt_no_packing(global_root.0),
@@ -151,6 +154,8 @@ where
     config: CommitterConfig<S::Config>,
     /// The next block number to commit.
     offset: BlockNumber,
+    /// The lowest height whose commitment infos are stored; infos of lower heights were pruned.
+    commitment_infos_lower_bound: BlockNumber,
 }
 
 impl<S, ForestDB> Committer<S, ForestDB>
@@ -162,14 +167,35 @@ where
     pub async fn new(config: CommitterConfig<S::Config>) -> Self {
         let storage = S::create_storage(config.db_path.clone(), config.storage_config.clone());
         let mut forest_storage = ForestDB::new(storage);
-        let offset = Self::load_offset_or_panic(&mut forest_storage).await;
-        info!("Initializing committer with offset: {offset}");
-        Self { forest_storage, config, offset }
+        let offset = Self::load_block_number_metadata_or_panic(
+            &mut forest_storage,
+            ForestMetadataType::CommitmentOffset,
+        )
+        .await
+        .unwrap_or_default();
+        // An absent lower bound means the storage predates lower bound tracking; commitment infos
+        // below the current offset are left untouched.
+        let commitment_infos_lower_bound = Self::load_block_number_metadata_or_panic(
+            &mut forest_storage,
+            ForestMetadataType::CommitmentInfosLowerBound,
+        )
+        .await
+        .unwrap_or(offset);
+        info!(
+            "Initializing committer with offset: {offset}, commitment infos lower bound: \
+             {commitment_infos_lower_bound}"
+        );
+        Self { forest_storage, config, offset, commitment_infos_lower_bound }
     }
 
     fn update_offset(&mut self, offset: BlockNumber) {
         self.offset = offset;
         COMMITTER_OFFSET.set_lossy(offset.0);
+    }
+
+    fn update_commitment_infos_lower_bound(&mut self, lower_bound: BlockNumber) {
+        self.commitment_infos_lower_bound = lower_bound;
+        COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.set_lossy(lower_bound.0);
     }
 
     /// Commits a block to the forest.
@@ -216,8 +242,10 @@ where
                 block_measurements.start_measurement(Action::EndToEnd);
                 let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
                     self.commit_state_diff(state_diff, &mut block_measurements).await?;
-                let (metadata, next_offset) =
+                let (mut metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
+                let (new_lower_bound, commitment_infos_updates) =
+                    self.prune_commitment_infos(next_offset, &mut metadata);
                 debug!(
                     "Writing filled forest for block number {height} to storage, deleting {} nodes",
                     deleted_nodes.len()
@@ -225,7 +253,12 @@ where
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
                     .forest_storage
-                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
+                    .write_with_metadata_and_commitment_infos(
+                        &filled_forest,
+                        metadata,
+                        deleted_nodes,
+                        commitment_infos_updates,
+                    )
                     .await
                     .map_err(|err| self.map_internal_error(err))?;
                 block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
@@ -236,6 +269,7 @@ where
                     self.config.commit_duration_warn_threshold_millis,
                 );
                 self.update_offset(next_offset);
+                self.update_commitment_infos_lower_bound(new_lower_bound);
                 Ok(CommitBlockResponse { global_root })
             }
         }
@@ -384,11 +418,18 @@ where
             }
         }
 
+        // Reverting below the lower bound re-opens those heights for commitment infos; lower the
+        // bound so that re-committed heights get pruned.
+        let commitment_infos_lower_bound =
+            self.commitment_infos_lower_bound.min(last_committed_block);
         // Ignore entries with block number key equals to or higher than the offset.
-        let metadata = HashMap::from([(
-            ForestMetadataType::CommitmentOffset,
-            DbValue(DbBlockNumber(last_committed_block).serialize().to_vec()),
-        )]);
+        let metadata = HashMap::from([
+            (ForestMetadataType::CommitmentOffset, db_block_number_value(last_committed_block)),
+            (
+                ForestMetadataType::CommitmentInfosLowerBound,
+                db_block_number_value(commitment_infos_lower_bound),
+            ),
+        ]);
         info!(
             "For block number {height}, writing filled forest and updating the commitment offset \
              to {last_committed_block}"
@@ -400,7 +441,7 @@ where
                 &filled_forest,
                 metadata,
                 deleted_nodes,
-                CommitmentInfosUpdate::Delete(height),
+                vec![CommitmentInfosUpdate::Delete(height)],
             )
             .await
             .map_err(|err| self.map_internal_error(err))?;
@@ -412,6 +453,7 @@ where
             self.config.commit_duration_warn_threshold_millis,
         );
         self.update_offset(last_committed_block);
+        self.update_commitment_infos_lower_bound(commitment_infos_lower_bound);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
 
@@ -431,21 +473,22 @@ where
         Ok(GlobalRoot(deserialize_felt_no_packing(&db_value)))
     }
 
-    async fn load_offset_or_panic(forest_storage: &mut ForestDB) -> BlockNumber {
-        let db_offset = forest_storage
-            .read_metadata(ForestMetadataType::CommitmentOffset)
+    /// Loads a block number metadata entry, or `None` if it is absent.
+    async fn load_block_number_metadata_or_panic(
+        forest_storage: &mut ForestDB,
+        metadata_type: ForestMetadataType,
+    ) -> Option<BlockNumber> {
+        let db_value = forest_storage
+            .read_metadata(metadata_type.clone())
             .await
-            .expect("Failed to read commitment offset");
+            .unwrap_or_else(|error| panic!("Failed to read {metadata_type:?}: {error:?}"));
 
-        db_offset
-            .map(|value| {
-                let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
-                    panic!("Failed to deserialize commitment offset from {value:?}")
-                });
-                DbBlockNumber::deserialize(array_value)
-            })
-            .unwrap_or_default()
-            .0
+        db_value.map(|value| {
+            let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
+                panic!("Failed to deserialize {metadata_type:?} from {value:?}")
+            });
+            DbBlockNumber::deserialize(array_value).0
+        })
     }
 
     // Reads metadata from the storage, returns an error if it is not found.
@@ -489,6 +532,50 @@ where
         CommitterError::Internal { height, message: error_message }
     }
 
+    /// Prunes the commitment infos that fall out of the retention window when the commitment
+    /// offset advances to `next_offset`: heights below `next_offset - retention_blocks`, starting
+    /// from the current lower bound and capped at `max_deletions_per_commit` heights. With no
+    /// pruning config, nothing is pruned. Records the new lower bound in `metadata` on every
+    /// commit, so that a restart before the first pruning does not default the lower bound to the
+    /// advanced offset, and returns it along with the deletions of the pruned heights, to be
+    /// written atomically with the block.
+    fn prune_commitment_infos(
+        &self,
+        next_offset: BlockNumber,
+        metadata: &mut HashMap<ForestMetadataType, DbValue>,
+    ) -> (BlockNumber, Vec<CommitmentInfosUpdate>) {
+        let Some(pruning_config) = &self.config.commitment_infos_pruning_config else {
+            let lower_bound = self.commitment_infos_lower_bound;
+            metadata.insert(
+                ForestMetadataType::CommitmentInfosLowerBound,
+                db_block_number_value(lower_bound),
+            );
+            return (lower_bound, vec![]);
+        };
+        let lower_bound = self.commitment_infos_lower_bound.0;
+        let retention_start = next_offset.0.saturating_sub(pruning_config.retention_blocks);
+        let heights_to_prune = lower_bound
+            ..retention_start.clamp(
+                lower_bound,
+                lower_bound.saturating_add(pruning_config.max_deletions_per_commit),
+            );
+        let new_lower_bound = BlockNumber(heights_to_prune.end);
+        metadata.insert(
+            ForestMetadataType::CommitmentInfosLowerBound,
+            db_block_number_value(new_lower_bound),
+        );
+        if !heights_to_prune.is_empty() {
+            info!(
+                "Pruning commitment infos of heights [{}, {})",
+                heights_to_prune.start, heights_to_prune.end
+            );
+        }
+        let deletions = heights_to_prune
+            .map(|height| CommitmentInfosUpdate::Delete(BlockNumber(height)))
+            .collect();
+        (new_lower_bound, deletions)
+    }
+
     /// Commits the next block and returns merged Patricia witness facts for OS input, persisting
     /// digest + payload for idempotent replay.
     pub async fn read_paths_and_commit_block(
@@ -498,6 +585,15 @@ where
             accessed_keys,
         }: ReadPathsAndCommitBlockRequest,
     ) -> CommitterResult<ReadPathsAndCommitBlockResponse> {
+        let accessed_keys = if self.config.serve_read_paths_as_commit_block {
+            info!(
+                "serve_read_paths_as_commit_block is on; treating the accessed keys of block \
+                 number {height} as an empty set."
+            );
+            AccessedKeys::default()
+        } else {
+            accessed_keys
+        };
         let mut leaves_request = LeavesRequest::from(&accessed_keys);
         info!(
             "read_paths_and_commit_block: height {height}, accessed keys len {}, state diff len {}",
@@ -519,14 +615,11 @@ where
                 }
                 let state_commitment_infos = self
                     .forest_storage
-                    .read_commitment_infos(height)
+                    .read_compressed_commitment_infos(height)
                     .await
                     .map_err(|error| self.map_internal_error_at_height(height, error))?
                     .ok_or(CommitterError::MissingPatriciaPaths { height })?;
-                Ok(ReadPathsAndCommitBlockResponse {
-                    global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
-                })
+                Ok(ReadPathsAndCommitBlockResponse { global_root, state_commitment_infos })
             }
             // Flow overview:
             // 1. Fetch patricia paths for the accessed keys.
@@ -560,8 +653,17 @@ where
                 .await
                 .map_err(|err| self.map_internal_error(err))?;
 
-                let (metadata, next_offset) =
+                let (mut metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
+
+                let compressed_commitment_infos = state_commitment_infos.compress()?;
+                let (new_lower_bound, mut commitment_infos_updates) =
+                    self.prune_commitment_infos(next_offset, &mut metadata);
+                commitment_infos_updates.push(CommitmentInfosUpdate::Write(CommitmentInfosWrite {
+                    block_number: height,
+                    keys_digest: digest,
+                    commitment_infos: compressed_commitment_infos.clone(),
+                }));
 
                 info!(
                     "For block number {height}, writing filled forest and \
@@ -577,11 +679,7 @@ where
                         &filled_forest,
                         metadata,
                         deleted_nodes,
-                        CommitmentInfosUpdate::Write(CommitmentInfosWrite {
-                            block_number: height,
-                            keys_digest: digest,
-                            commitment_infos: state_commitment_infos.clone(),
-                        }),
+                        commitment_infos_updates,
                     )
                     .await
                     .map_err(|e: SerializationError| self.map_internal_error(e))?;
@@ -593,9 +691,10 @@ where
                     self.config.commit_duration_warn_threshold_millis,
                 );
                 self.update_offset(next_offset);
+                self.update_commitment_infos_lower_bound(new_lower_bound);
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
-                    state_commitment_infos: state_commitment_infos.compress()?,
+                    state_commitment_infos: compressed_commitment_infos,
                 })
             }
         }
@@ -629,7 +728,7 @@ where
 impl ComponentStarter for ApolloCommitter {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
-        register_metrics(self.offset);
+        register_metrics(self.offset, self.commitment_infos_lower_bound);
     }
 }
 

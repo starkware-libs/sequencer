@@ -28,7 +28,8 @@ Expected response:
 The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is the
 `proving-api/starknet_proving_api_openrpc.json` document in
 [starknet-specs](https://github.com/starkware-libs/starknet-specs), pinned to the revision recorded
-in `resources/starknet_specs_rev.txt`.
+in `resources/starknet_specs_rev.txt`. The service also serves one HTTP-only endpoint,
+`GET /health`, described under [Observability](#observability).
 
 ### `starknet_specVersion`
 
@@ -162,7 +163,9 @@ and environment variables override values from the config file.
 | `CHAIN_ID` | `--chain-id` | `SN_MAIN` | Target Starknet network. Determines fee token addresses and versioned constants. Accepts `SN_MAIN`, `SN_SEPOLIA`, or a custom chain ID string. |
 | `PROVER_PORT` | `--port` | `3000` | TCP port the JSON-RPC server listens on. Must be >=1. |
 | `PROVER_IP` | `--ip` | `0.0.0.0` | IP address to bind. Use `127.0.0.1` to restrict to localhost, `0.0.0.0` for all interfaces. |
-| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max parallel proving requests. Additional requests receive error `-32005`. Bound by available CPU/memory. Must be >=1. |
+| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max proving requests running in parallel (worker slots). Extra requests wait in the queue (see `MAX_QUEUED_REQUESTS`) and get error `-32005` only once that queue is full. Bound by available CPU/memory. Must be >=1. |
+| `MAX_QUEUED_REQUESTS` | `--max-queued-requests` | `8` | How many requests may wait FIFO for a worker slot beyond `MAX_CONCURRENT_REQUESTS`. Once the queue is full the server rejects further requests with `-32005`. Set `0` to reject as soon as every worker is busy. |
+| `QUEUE_WAIT_TIMEOUT_MILLIS` | `--queue-wait-timeout-millis` | `30000` | How long a queued request waits for a worker slot before the server rejects it with `-32005`. Without this cap, a stuck worker could hold a waiting client's connection open forever. |
 | `MAX_CONNECTIONS` | `--max-connections` | `10` | Max simultaneous TCP connections accepted by the server. Must be >=1. |
 | `SKIP_FEE_FIELD_VALIDATION` | `--skip-fee-field-validation` | `false` | When `true`, allows non-zero gas prices and tip in requests. By default the service rejects them because proving is client-side and no fees are charged. |
 | `STRK_FEE_TOKEN_ADDRESS` | `--strk-fee-token-address` | _(auto per chain)_ | Override the STRK fee token contract address (hex). Only needed for custom networks that share a standard chain ID but use a different fee token. |
@@ -172,6 +175,7 @@ and environment variables override values from the config file.
 | `MAX_REQUEST_BODY_SIZE` | `--max-request-body-size` | `5242880` (5 MiB) | Maximum size of an incoming JSON-RPC request body in bytes. Requests exceeding this limit are rejected before parsing. |
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
+| `LOG_FORMAT` | `--log-format` | `text` | Log output format. Accepts `text` or `json`. Use `json` in production so log aggregators (e.g. Datadog) parse the fields directly. |
 
 ### TLS / HTTPS
 
@@ -204,6 +208,8 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `ip` | `PROVER_IP` | string |
 | `port` | `PROVER_PORT` | integer |
 | `max_concurrent_requests` | `MAX_CONCURRENT_REQUESTS` | integer |
+| `max_queued_requests` | `MAX_QUEUED_REQUESTS` | integer |
+| `queue_wait_timeout_millis` | `QUEUE_WAIT_TIMEOUT_MILLIS` | integer |
 | `max_connections` | `MAX_CONNECTIONS` | integer |
 | `validate_zero_fee_fields` | inverse of `SKIP_FEE_FIELD_VALIDATION` | bool |
 | `strk_fee_token_address` | `STRK_FEE_TOKEN_ADDRESS` | hex string or null |
@@ -228,18 +234,29 @@ docker run --rm -p 3000:3000 \
 
 ### Logging
 
-The service uses the `RUST_LOG` environment variable (via `tracing-subscriber`).
+`RUST_LOG` sets verbosity, through `tracing-subscriber`. `LOG_FORMAT` picks text or JSON output.
 
 ```bash
-# Default — service logs at debug, noisy proving libraries at warn:
+# Default: service at debug, noisy proving libraries at warn, text format
 docker run ... <IMAGE>
 
-# Verbose — all crates at debug:
+# Verbose: all crates at debug
 docker run -e RUST_LOG=debug ... <IMAGE>
 
-# Quiet — warnings and errors only:
+# Quiet: warnings and errors only
 docker run -e RUST_LOG=warn ... <IMAGE>
+
+# Production: JSON output so log aggregators parse the fields directly
+docker run -e LOG_FORMAT=json ... <IMAGE>
 ```
+
+`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`,
+and `span` keys. The `text` format may include ANSI colour codes. `json` never does, so use
+`--log-format json` in containers and in production. A URL can carry credentials in its userinfo
+component, so the service redacts every logged URL down to `scheme://host[:port]`. That covers
+`rpc_node_url` in the startup logs and in its CLI-override message, and `blocking_check_url` in its
+CLI-override message. The startup logs say only whether the blocking check is enabled, never its
+URL.
 
 ## Compression
 
@@ -258,6 +275,81 @@ curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}' | zstd -d
 ```
+
+## Observability
+
+Besides the JSON-RPC API, the service answers a `GET /health` probe and writes one structured log
+line per request, each carrying a request id.
+
+### `/health`
+
+`GET /health` returns the current health of the service.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `200 OK` | `{"status":"ok"}` | Service is accepting requests. |
+
+The endpoint is deliberately unauthenticated, so load balancers, orchestrators, and uptime checks
+can call it. The router answers probes before CORS, compression, and JSON-RPC parsing run.
+
+### Request IDs
+
+Every HTTP request carries a `request_id`. The service reuses the inbound `x-request-id` header
+when it holds a short, printable-ASCII token (max 128 bytes), and otherwise generates a UUID v4.
+It echoes that id back in the same response header, so a caller who hit a failure can quote one id
+when reporting it. Every request except a `GET /health` probe is logged with its id. Probes still
+get the header echo but no log line, because at normal probe intervals they would drown out real
+traffic.
+
+The service drops hostile header values (whitespace, non-printable bytes, oversized values) and
+generates a fresh id instead. That blocks header smuggling and stops a caller from blowing up the
+size of a log field.
+
+**OHTTP traffic uses two ids on purpose.** The id above belongs to the *outer envelope*, and the
+service echoes it on the response. The *decapsulated inner request* gets its own freshly generated
+id, which reaches the content-level logs and never a response header. Any id the client put inside
+the envelope is discarded. The logs give you no way to join the two ids. That is the point, not a
+logging bug.
+
+### Per-request log line
+
+Each HTTP request produces a single structured log line at `info` level with
+`event="http_request"`:
+
+```json
+{
+  "timestamp": "...",
+  "level": "INFO",
+  "target": "starknet_transaction_prover::server::request_log",
+  "fields": {
+    "event": "http_request",
+    "request_id": "a1b2c3d4...",
+    "method": "POST",
+    "path": "/",
+    "status": 200,
+    "latency_ms": 1247,
+    "message": "HTTP request handled."
+  }
+}
+```
+
+If the tower stack fails before producing a response, the service logs the same
+`event="http_request"` line at `warn` with `outcome="service_error"` and no `status` field, because
+there was never a status.
+
+The logging layer never reads request bodies. Transaction calldata is private user data and stays
+out of the logs.
+
+### Panics
+
+A global panic hook catches every panic and logs one `error`-level event with `event="panic"`. The
+event carries the panic location, the payload, and a forced backtrace. Only static string literals
+reach the log verbatim. A payload built at runtime can hold request or transaction data, so the
+hook replaces it with a placeholder.
+
+The hook only logs. It does not call `process::abort()` and does not change unwinding behavior, so
+the tokio runtime still contains a panic raised inside a request task and the process keeps
+serving.
 
 ## Limitations
 

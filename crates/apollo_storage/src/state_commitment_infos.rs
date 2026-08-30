@@ -3,7 +3,11 @@
 //! Persists the already-compressed `CompressedStateCommitmentInfos` the committer produces.
 
 use starknet_api::block::BlockNumber;
-pub use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+pub use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 
 #[cfg(test)]
 #[path = "state_commitment_infos_test.rs"]
@@ -15,14 +19,17 @@ use crate::db::{TransactionKind, RW};
 use crate::mmap_file::LocationInFile;
 use crate::{OffsetKind, StorageResult, StorageTransaction};
 
-// Stores the raw compressed bytes.
 impl StorageSerde for CompressedStateCommitmentInfos {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        self.0.serialize_into(res)
+        self.version.serialize_into(res)?;
+        self.payload.0.serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
-        Some(Self(Vec::<u8>::deserialize_from(bytes)?))
+        Some(Self {
+            version: u8::deserialize_from(bytes)?,
+            payload: CompressedPayload(Vec::<u8>::deserialize_from(bytes)?),
+        })
     }
 }
 

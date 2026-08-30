@@ -29,7 +29,10 @@ pub(crate) fn get_mempool_p2p_peer_down() -> Alert {
         ALERT_NAME,
         "Mempool p2p peer down",
         EvaluationRate::Default,
-        format!("max_over_time({}[2m])", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()),
+        format!(
+            "min(max_over_time({}[2m]))",
+            MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
@@ -40,6 +43,7 @@ pub(crate) fn get_mempool_p2p_peer_down() -> Alert {
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(2.0)
 }
 
 /// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 15 seconds
