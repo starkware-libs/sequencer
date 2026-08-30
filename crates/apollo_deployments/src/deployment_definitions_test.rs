@@ -1,20 +1,90 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::env;
 use std::fs::File;
 
+use apollo_config::{SerializedContent, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::config_utils::private_parameters;
-use serde_json::{to_value, Map, Value};
+use apollo_node_config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_SCHEMA_PATH,
+    POINTER_TARGET_VALUE,
+};
+use serde_json::{json, to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
-use crate::service::NodeType;
+use crate::service::{NodeType, KEYS_TO_BE_REPLACED};
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
+
+/// `KEYS_TO_BE_REPLACED` are the config params whose real value is injected by the deployment
+/// infra at deploy time (e.g. pod-specific ports and multiaddrs), not by the checked-in app
+/// configs. The checked-in app config files therefore hold placeholder values at these keys, some
+/// of which (e.g. boolean "#is_none" flags stored as "") do not even match the schema's required
+/// type; loading a config file fails immediately on such a mismatch, before any later file can
+/// override it. Strip these keys out of a component config file's content before loading it, and
+/// stand in with the config schema's own (correctly-typed) default value instead, the same way the
+/// checked-in secrets-for-testing file stands in for the real (never-checked-in) secrets.
+fn without_deployment_injected_keys(component_config: Map<String, Value>) -> Map<String, Value> {
+    component_config.into_iter().filter(|(key, _)| !KEYS_TO_BE_REPLACED.contains(key)).collect()
+}
+
+/// A handful of `KEYS_TO_BE_REPLACED` entries are themselves the target of one of
+/// `apollo_node_config`'s `CONFIG_POINTERS`: a value shared verbatim across multiple config paths,
+/// whose schema default is the sentinel `POINTER_TARGET_VALUE` rather than a real value (it must
+/// always come from a deployment-provided config file). That sentinel string does not deserialize
+/// into every field's real type, e.g. a `ContractAddress` requires a "0x"-prefixed hex string and a
+/// `Url` requires a parseable URL. Supply a well-typed dummy for exactly the keys known to need
+/// one.
+fn sentinel_value_overrides() -> HashMap<&'static str, Value> {
+    HashMap::from([
+        ("eth_fee_token_address", json!("0x1")),
+        ("strk_fee_token_address", json!("0x2")),
+        ("validator_id", json!("0x3")),
+        ("recorder_url", json!("https://recorder.arbitrary.test")),
+        ("starknet_url", json!("https://starknet.arbitrary.test")),
+    ])
+}
+
+fn deployment_injected_value_overrides() -> Map<String, Value> {
+    let schema_file_path = resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap();
+    let config_schema: Map<String, Value> =
+        serde_json::from_reader(File::open(schema_file_path).unwrap()).unwrap();
+    let sentinel_overrides = sentinel_value_overrides();
+
+    let mut overrides = Map::new();
+    for key in KEYS_TO_BE_REPLACED.iter() {
+        let stored_param = config_schema
+            .get(*key)
+            .unwrap_or_else(|| panic!("Key '{key}' in KEYS_TO_BE_REPLACED is not in the schema."));
+        let serialized_param = serde_json::from_value::<SerializedParam>(stored_param.clone())
+            .unwrap_or_else(|error| panic!("Key '{key}' is not a valid SerializedParam: {error}"));
+        let SerializedContent::DefaultValue(schema_value) = serialized_param.content else {
+            panic!("Key '{key}' in KEYS_TO_BE_REPLACED is a pointer target, not a direct value.");
+        };
+
+        let value = match sentinel_overrides.get(key) {
+            Some(sentinel_override) => {
+                assert_eq!(
+                    schema_value,
+                    json!(POINTER_TARGET_VALUE),
+                    "Key '{key}' has a hardcoded test override on the assumption that its schema \
+                     default is the pointer-target sentinel; that no longer holds, so the \
+                     override is likely stale."
+                );
+                sentinel_override.clone()
+            }
+            None => schema_value,
+        };
+        overrides.insert(key.to_string(), value);
+    }
+    overrides
+}
 
 /// Test that the deployment file is up to date.
 #[test]
@@ -41,8 +111,99 @@ fn replacer_config_entries_are_in_config() {
     }
 }
 
-// TODO(Tsabary): consider adding a test that loads a config and validates it; the challenge will be
-// to replace the values in a meaningful manner. Consider using the system test yaml files for that.
+/// Test that every service of every node type composes into a loadable, valid
+/// `SequencerNodeConfig`. This catches the case where a config parameter is added to the schema but
+/// is missing from the deployment app configs, which would otherwise only surface as a crash loop
+/// at node boot.
+///
+/// Validation runs via `validate_node_config_without_urls`, not the full `validate_node_config`:
+/// the latter resolves component URLs over DNS, and the non-deployed component config always uses
+/// the placeholder hostname `remote_service` for remote components, which does not resolve outside
+/// a real deployment.
+#[test]
+fn services_load_a_valid_node_config() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let secrets_file_path = resolve_project_relative_path(SECRETS_FOR_TESTING_ENV_PATH)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    let deployment_injected_overrides_file = NamedTempFile::new().unwrap();
+    let deployment_injected_overrides_file_path =
+        deployment_injected_overrides_file.path().to_str().unwrap().to_string();
+    serialize_to_file(
+        &Value::Object(deployment_injected_value_overrides()),
+        &deployment_injected_overrides_file_path,
+    );
+
+    for node_type in NodeType::iter() {
+        let service_component_configs = node_type.service_component_configs(None);
+
+        for node_service in node_type.all_service_names() {
+            let component_config = service_component_configs
+                .get(&node_service)
+                .expect("Missing component config for node service.");
+
+            // `dump_component_configs_with` writes this same content through
+            // `insert_replacer_annotations`, which replaces real values with placeholder strings
+            // that cannot be deserialized. Write the pre-annotation value to a temp file instead,
+            // so the loaded config reflects the real deployment values.
+            let service_config_file = NamedTempFile::new().unwrap();
+            let service_config_file_path = service_config_file.path().to_str().unwrap().to_string();
+            serialize_to_file(component_config, &service_config_file_path);
+
+            // Filtered copies of the real component config files, with the deployment-injected
+            // keys stripped out (see `without_deployment_injected_keys`). Kept alive until the
+            // config load below completes, since it reads from these paths on disk.
+            let mut filtered_component_config_files: Vec<NamedTempFile> = Vec::new();
+            let mut application_config_files: Vec<String> = Vec::new();
+            for component in node_service.get_components_in_service() {
+                for component_config_file_path in component.get_component_config_file_paths() {
+                    let component_config: Map<String, Value> =
+                        serde_json::from_reader(File::open(&component_config_file_path).unwrap())
+                            .unwrap();
+
+                    let filtered_component_config_file = NamedTempFile::new().unwrap();
+                    let filtered_component_config_file_path =
+                        filtered_component_config_file.path().to_str().unwrap().to_string();
+                    serialize_to_file(
+                        &Value::Object(without_deployment_injected_keys(component_config)),
+                        &filtered_component_config_file_path,
+                    );
+
+                    application_config_files.push(filtered_component_config_file_path);
+                    filtered_component_config_files.push(filtered_component_config_file);
+                }
+            }
+            application_config_files.push(service_config_file_path);
+            application_config_files.push(secrets_file_path.clone());
+            application_config_files.push(deployment_injected_overrides_file_path.clone());
+
+            let args = vec![
+                "deployment_config_test".to_string(),
+                "--config_file".to_string(),
+                application_config_files.join(","),
+            ];
+
+            let node_config = match SequencerNodeConfig::load_and_process(args) {
+                Ok(node_config) => node_config,
+                Err(error) => panic!(
+                    "Service {node_service:?} of node type {node_type} does not load a valid \
+                     SequencerNodeConfig: {error}"
+                ),
+            };
+            if let Err(error) = node_config.validate_node_config_without_urls() {
+                panic!(
+                    "Service {node_service:?} of node type {node_type} does not pass \
+                     validate_node_config_without_urls: {error}"
+                );
+            }
+        }
+    }
+}
 
 // Test that each there are no duplicate config entries.
 #[test]
