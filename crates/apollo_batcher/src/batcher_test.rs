@@ -27,7 +27,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_committer_types::committer_types::CommitBlockRequest;
+use apollo_committer_types::committer_types::{CommitBlockRequest, ReadPathsAndCommitBlockRequest};
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -144,6 +144,7 @@ use crate::test_utils::{
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
+    test_state_commitment_infos,
     test_state_diff,
     test_txs,
     verify_indexed_execution_infos,
@@ -1651,9 +1652,20 @@ async fn revert_block() {
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
 
+    batcher
+        .commitment_manager
+        .recent_state_commitment_infos_cache
+        .put(LATEST_BLOCK_IN_STORAGE, test_state_commitment_infos());
+
     assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
     assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
+    assert!(
+        !batcher
+            .commitment_manager
+            .recent_state_commitment_infos_cache
+            .contains(&LATEST_BLOCK_IN_STORAGE)
+    );
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
@@ -2017,6 +2029,50 @@ async fn get_block_hash_after_reading_commitment_results() {
         get_number_of_items_in_channel_from_receiver(&batcher.commitment_manager.results_receiver),
         0
     );
+}
+
+#[tokio::test]
+async fn get_state_commitment_infos_after_reading_commitment_results() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| {
+            Ok((
+                Some(BlockHash::default()),
+                Some(PartialBlockHashComponents {
+                    block_number: INITIAL_HEIGHT,
+                    ..Default::default()
+                }),
+            ))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .returning(|_, _, _, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    let task = CommitterTaskInput::ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest {
+        commit: CommitBlockRequest {
+            height: INITIAL_HEIGHT,
+            state_diff: ThinStateDiff::default(),
+            state_diff_commitment: None,
+        },
+        accessed_keys: Default::default(),
+    });
+    batcher.commitment_manager.tasks_sender.send(task).await.unwrap();
+    wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
+
+    // The mock storage reader has no state commitment infos expectations, so both answers come
+    // from the cache.
+    assert_eq!(
+        batcher.get_state_commitment_infos(INITIAL_HEIGHT),
+        Ok(Some(test_state_commitment_infos()))
+    );
+    assert_eq!(batcher.has_state_commitment_infos(INITIAL_HEIGHT), Ok(true));
 }
 
 #[tokio::test]
