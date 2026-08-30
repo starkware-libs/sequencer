@@ -15,6 +15,29 @@ pub(crate) fn get_test_env() -> ((DbReader, DbWriter), TempDir) {
 }
 
 #[test]
+fn drop_table_if_exists() {
+    let ((reader, mut writer), _temp_dir) = get_test_env();
+    let table_id =
+        writer.create_simple_table::<[u8; 3], NoVersionValueWrapper<[u8; 5]>>("legacy").unwrap();
+    // Scoped so that no table handle is open when the table is dropped.
+    {
+        let rtxn = reader.begin_ro_txn().unwrap();
+        let table = rtxn.open_table(&table_id).unwrap();
+        let wtxn = writer.begin_persistent_rw_txn().unwrap();
+        table.insert(wtxn.txn(), b"key", b"data0").unwrap();
+        wtxn.commit().unwrap();
+    }
+
+    assert!(writer.drop_table_if_exists("legacy").unwrap());
+    // The table is gone, not merely emptied.
+    assert!(matches!(
+        reader.begin_ro_txn().unwrap().open_table(&table_id),
+        Err(DbError::Inner(libmdbx::Error::NotFound))
+    ));
+    assert!(!writer.drop_table_if_exists("legacy").unwrap());
+}
+
+#[test]
 fn open_env_scenario() {
     get_test_env();
 }

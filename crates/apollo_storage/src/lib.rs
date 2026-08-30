@@ -242,6 +242,7 @@ fn open_storage_internal(
     }
 
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
+    remove_legacy_state_commitment_infos(&mut db_writer, &storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
         block_signatures: db_writer.create_simple_table("block_signatures")?,
@@ -1293,6 +1294,23 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("AccessedKeys at location {location:?} not found."),
         })
     }
+}
+
+/// Removes the state commitment infos table and file that a storage created before they moved to
+/// the committer still holds.
+fn remove_legacy_state_commitment_infos(
+    db_writer: &mut DbWriter,
+    db_config: &DbConfig,
+) -> StorageResult<()> {
+    if db_writer.drop_table_if_exists("state_commitment_infos")? {
+        info!("Dropped the legacy state_commitment_infos table.");
+    }
+    let file_path = db_config.path().join("state_commitment_infos.dat");
+    if file_path.exists() {
+        fs::remove_file(&file_path)?;
+        info!("Removed the legacy state commitment infos file {}.", file_path.display());
+    }
+    Ok(())
 }
 
 fn open_storage_files(

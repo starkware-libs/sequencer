@@ -2,15 +2,17 @@
 
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-use std::thread;
 use std::time::Duration;
+use std::{fs, thread};
 
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
 use starknet_api::felt;
 use tempfile::tempdir;
 
+use crate::db::open_env;
+use crate::db::serialization::NoVersionValueWrapper;
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
-use crate::test_utils::get_test_config_with_path;
+use crate::test_utils::{get_test_config, get_test_config_with_path};
 use crate::{open_storage, BatchConfig, StorageConfig, StorageError, StorageReader, StorageScope};
 
 /// Check that storage reader can access storage
@@ -1415,4 +1417,27 @@ fn test_set_batch_size_to_one_flushes_pending_batch() {
             "Pending batch header {block_number} must survive the batch_size=1 transition"
         );
     }
+}
+
+/// A storage created before the state commitment infos moved to the committer still holds their
+/// table and file; opening it removes both.
+#[test]
+fn open_storage_removes_legacy_state_commitment_infos() {
+    let (config, _temp_dir) = get_test_config(None);
+    let legacy_file_path = config.db_config.path().join("state_commitment_infos.dat");
+    {
+        let (_reader, mut writer) = open_env(&config.db_config).unwrap();
+        writer
+            .create_simple_table::<[u8; 3], NoVersionValueWrapper<[u8; 5]>>(
+                "state_commitment_infos",
+            )
+            .unwrap();
+    }
+    fs::write(&legacy_file_path, b"legacy").unwrap();
+
+    drop(open_storage(config.clone()).unwrap());
+
+    assert!(!legacy_file_path.exists());
+    let (_reader, mut writer) = open_env(&config.db_config).unwrap();
+    assert!(!writer.drop_table_if_exists("state_commitment_infos").unwrap());
 }
