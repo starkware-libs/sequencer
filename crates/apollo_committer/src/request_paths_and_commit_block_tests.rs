@@ -4,6 +4,8 @@ use std::sync::LazyLock;
 use apollo_committer_types::committer_types::{
     AccessedKeys,
     CommitBlockRequest,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -715,6 +717,49 @@ async fn prune_commitment_infos() {
     }
 
     assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(2)));
+}
+
+fn heights_of(response: &GetStateCommitmentInfosResponse) -> Vec<u64> {
+    response.state_commitment_infos.iter().map(|infos| infos.height.0).collect()
+}
+
+async fn get_state_commitment_infos(
+    committer: &mut ApolloTestCommitter,
+    start_height: u64,
+    end_height: u64,
+) -> GetStateCommitmentInfosResponse {
+    committer
+        .get_state_commitment_infos(GetStateCommitmentInfosRequest {
+            start_height: BlockNumber(start_height),
+            end_height: BlockNumber(end_height),
+        })
+        .await
+        .unwrap()
+}
+
+/// Commits blocks 0, 1 and 2 with commitment infos and block 3 without, then reads ranges of
+/// infos: the range is half-open, clamped to the committed heights, and skips heights that stored
+/// none.
+#[tokio::test]
+async fn get_state_commitment_infos_ranges() {
+    let mut committer = new_test_committer().await;
+    for height in 0..3 {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    commit_block_without_commitment_infos(&mut committer, 3).await;
+
+    assert_eq!(heights_of(&get_state_commitment_infos(&mut committer, 1, 3).await), vec![1, 2]);
+    assert!(heights_of(&get_state_commitment_infos(&mut committer, 2, 2).await).is_empty());
+    assert!(heights_of(&get_state_commitment_infos(&mut committer, 3, 10).await).is_empty());
+
+    let response = get_state_commitment_infos(&mut committer, 0, 10).await;
+    assert_eq!(heights_of(&response), vec![0, 1, 2]);
+    let stored_infos_of_height_0 =
+        committer.forest_storage.read_compressed_commitment_infos(BlockNumber(0)).await.unwrap();
+    assert_eq!(
+        Some(&response.state_commitment_infos[0].state_commitment_infos),
+        stored_infos_of_height_0.as_ref()
+    );
 }
 
 /// Commits blocks 0..4 with witnesses under a retention window of 2, then keeps committing via
