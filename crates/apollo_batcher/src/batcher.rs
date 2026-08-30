@@ -1557,6 +1557,7 @@ impl Batcher {
                 &mut self.storage_writer,
             )
             .expect("Failed to write commitment results to storage.");
+        self.commitment_manager.evict_reverted_height(height);
 
         info!("Revert task result: {revert_task_result:?}");
         self.validate_revert_task_result(revert_task_result, height).await;
