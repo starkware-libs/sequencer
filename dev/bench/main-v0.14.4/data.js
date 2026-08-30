@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788071283760,
+  "lastUpdate": 1788080398984,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1281.36917251,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d512231a47c2074e54e7320fa99ff9c3480a829",
+          "message": "starknet_api: add proof facts version V2 (#15013)\n\nAdds the PROOF_VERSION_V2 marker ('PROOF2', 0x50524f4f4632) and\nProofVersion::V2, so proof facts carrying it parse and round-trip.\n\nPurely additive: no protocol version allows V2 yet (allowed_proof_versions\nis unchanged), the OS still asserts V1, and the proof verifier rejects V2\nup front to keep its match exhaustive. Both placeholder spots carry a\nTODO(Einat) pointing at what to change once the OS and the V2 circuit are\nwired up, which the rest of the stack does.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-30T08:31:18Z",
+          "tree_id": "52de1faecb0795554576e08cb078b9412302b557",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7d512231a47c2074e54e7320fa99ff9c3480a829"
+        },
+        "date": 1788080398298,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 811.4074406,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1316.6301643499999,
             "unit": "ms"
           }
         ]
