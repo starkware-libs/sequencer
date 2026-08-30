@@ -138,9 +138,12 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
     let proof_bytes = proof.0.to_vec();
 
     match proof_version {
+        // TODO(Einat): Once privacy-circuit-verify exposes the V2 circuit, move V2 to its own arm
+        // that dispatches to it, and reject V1 here instead.
         // V0 proofs are no longer verifiable: the v0 circuit was removed. V0 proof facts are only
         // tolerated by the blockifier (gated per protocol version) for replaying historical blocks.
-        ProofVersion::V0 => {
+        // V2 is defined but not verifiable yet: the v2 circuit is not wired up.
+        ProofVersion::V0 | ProofVersion::V2 => {
             return Err(VerifyProofError::InvalidProofVersion { actual: proof_version_felt });
         }
         ProofVersion::V1 => {
