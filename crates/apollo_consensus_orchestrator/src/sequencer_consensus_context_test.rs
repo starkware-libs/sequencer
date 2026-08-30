@@ -38,6 +38,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_state_sync_types::communication::StateSyncClientError;
+use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::MockClock;
 use apollo_versioned_constants::VersionedConstants;
@@ -50,8 +52,10 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
+    BlockHeaderWithoutHash,
     BlockNumber,
     GasPrice,
+    StarknetVersion,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
     WEI_PER_ETH,
@@ -61,7 +65,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use tracing_test::traced_test;
 
 use crate::cende::{
@@ -77,6 +85,7 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     CONSENSUS_L2_GAS_PRICE_CLAMPED,
     LABEL_L2_GAS_PRICE_CLAMP_BOUND,
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM,
 };
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
@@ -93,6 +102,7 @@ use crate::test_utils::{
     INTERNAL_TX_BATCH,
     PARTIAL_BLOCK_HASH,
     TEST_MAX_L2_GAS_PRICE,
+    TEST_MIN_L2_GAS_PRICE,
     TIMEOUT,
     TX_BATCH,
 };
@@ -1002,21 +1012,81 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
+// When `send_empty_state_commitment_infos_only` is enabled, the same heights are sent, each
+// carrying an empty object; the batcher is only asked whether it has the infos, never for their
+// content.
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_sends_empty_objects_when_configured() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| panic!("stored state commitment infos must not be read"));
+    deps.batcher
+        .expect_has_state_commitment_infos()
+        .returning(|block_number| Ok((90..=100).contains(&block_number.0)));
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(|| Ok(Some(BlockNumber(98))));
+
+    let context = deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig {
+            chain_id: CHAIN_ID,
+            send_empty_state_commitment_infos_only: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
+    let expected: Vec<_> = (98..=100)
+        .map(|height| StateCommitmentInfosAndNumber {
+            state_commitment_infos: CompressedStateCommitmentInfos {
+                version: STATE_COMMITMENT_INFOS_VERSION,
+                payload: CompressedPayload(Vec::new()),
+            },
+            block_number: BlockNumber(height),
+        })
+        .collect();
+    assert_eq!(collected, expected);
+}
+
 fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
-    CompressedStateCommitmentInfos(b"compressed-state-commitment-infos".to_vec())
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION,
+        payload: CompressedPayload(b"compressed-state-commitment-infos".to_vec()),
+    }
+}
+
+fn sync_block_with_version(starknet_version: StarknetVersion) -> SyncBlock {
+    SyncBlock {
+        block_header_without_hash: BlockHeaderWithoutHash {
+            starknet_version,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
 }
 
 /// Returns the block numbers `collect_recent_state_commitment_infos` sends for `height` when the
-/// cende recorder reports `offset` and the batcher only has stored commitment infos for heights
-/// in `committed_heights` (reporting `None` for the rest).
+/// cende recorder reports `offset`, the batcher only has stored commitment infos for heights in
+/// `committed_heights` (reporting `None` for the rest), and the chain upgraded to the first
+/// version with state commitment infos at `first_upgraded_height`.
 async fn collected_heights_for(
     height: BlockNumber,
     cende_offset: Option<BlockNumber>,
     committed_heights: Vec<u64>,
+    first_upgraded_height: u64,
 ) -> Vec<u64> {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.batcher.expect_get_state_commitment_infos().returning(move |block_number| {
         Ok(committed_heights.contains(&block_number.0).then(default_state_commitment_infos))
+    });
+    deps.state_sync_client.expect_get_block().returning(move |block_number| {
+        Ok(sync_block_with_version(if block_number.0 < first_upgraded_height {
+            StarknetVersion::V0_14_3
+        } else {
+            StarknetVersion::V0_14_4
+        }))
     });
     deps.cende_ambassador
         .expect_commitment_infos_height_offset()
@@ -1035,26 +1105,76 @@ async fn collected_heights_for(
 
 // `height` is fixed at 100; each case sets the cende recorder's reported offset (its next
 // produced block), the heights the batcher has stored commitment infos for (a `None` from the
-// batcher marks a gap in the stored witnesses), and the block numbers we expect to send.
+// batcher marks a gap in the stored witnesses), the first height whose Starknet version has
+// state commitment infos, and the block numbers we expect to send.
 #[rstest]
-#[case::delta_above_cende_recorder(Some(BlockNumber(98)), (90..=100).collect(), vec![98, 99, 100])]
-#[case::single_new_block(Some(BlockNumber(100)), (90..=100).collect(), vec![100])]
-#[case::fallback_window_when_cende_recorder_empty(None, (90..=100).collect(), (90..=99).collect())]
-#[case::nothing_when_cende_recorder_caught_up(Some(BlockNumber(101)), (90..=100).collect(), vec![])]
-#[case::empty_cende_recorder_skips_leading_gap(None, (93..=100).collect(), (93..=100).collect())]
-#[case::empty_cende_recorder_stops_at_trailing_gap(None, (90..=95).collect(), (90..=95).collect())]
-#[case::non_empty_cende_recorder_breaks_on_first_gap(Some(BlockNumber(90)), (93..=100).collect(), vec![])]
-#[case::empty_cende_recorder_stops_at_middle_gap(None, (93..=95).chain(98..=100).collect(), (93..=95).collect())]
-#[case::non_empty_cende_recorder_stops_at_middle_gap(Some(BlockNumber(90)), (90..=92).chain(95..=100).collect(), (90..=92).collect())]
+#[case::delta_above_cende_recorder(Some(BlockNumber(98)), (90..=100).collect(), 0, vec![98, 99, 100])]
+#[case::single_new_block(Some(BlockNumber(100)), (90..=100).collect(), 0, vec![100])]
+#[case::fallback_window_when_cende_recorder_empty(None, (90..=100).collect(), 0, (90..=99).collect())]
+#[case::nothing_when_cende_recorder_caught_up(Some(BlockNumber(101)), (90..=100).collect(), 0, vec![])]
+#[case::empty_cende_recorder_stops_at_trailing_gap(None, (90..=95).collect(), 0, (90..=95).collect())]
+#[case::non_empty_cende_recorder_stops_at_middle_gap(Some(BlockNumber(90)), (90..=92).chain(95..=100).collect(), 0, (90..=92).collect())]
+// Only the fallback window of an empty cende recorder can reach blocks below the upgrade height;
+// those have no commitment infos by design and are skipped wherever they appear in it. A recorder
+// that reported an offset has already stored commitment infos, so a missing object there is a real
+// gap and the version is never consulted.
+#[case::empty_cende_recorder_skips_pre_upgrade_blocks(None, (93..=100).collect(), 93, (93..=100).collect())]
+#[case::non_empty_cende_recorder_breaks_on_first_gap(Some(BlockNumber(90)), (93..=100).collect(), 93, vec![])]
+#[case::all_blocks_predate_the_upgrade(None, vec![], 200, vec![])]
+// A block at or above the upgrade height whose commitment infos are missing ends the collection,
+// even while the leading pre-upgrade blocks were skipped.
+#[case::breaks_on_the_first_missing_upgraded_block(None, (94..=100).collect(), 93, vec![])]
+#[case::breaks_on_a_gap_above_the_upgrade_height(None, (93..=95).chain(98..=100).collect(), 93, (93..=95).collect())]
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_sends_expected_delta(
     #[case] cende_offset: Option<BlockNumber>,
     #[case] committed_heights: Vec<u64>,
+    #[case] first_upgraded_height: u64,
     #[case] expected: Vec<u64>,
 ) {
     let height = BlockNumber(100);
-    let heights = collected_heights_for(height, cende_offset, committed_heights).await;
+    let heights =
+        collected_heights_for(height, cende_offset, committed_heights, first_upgraded_height).await;
     assert_eq!(heights, expected);
+}
+
+// A cende recorder that reported an offset has already stored commitment infos, so no block in
+// that window can predate the upgrade; the version must not be queried at all there.
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_skips_the_version_query_when_the_recorder_is_not_empty()
+ {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher.expect_get_state_commitment_infos().returning(|_| Ok(None));
+    deps.state_sync_client.expect_get_block().never();
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(|| Ok(Some(BlockNumber(90))));
+
+    let context = deps.build_context();
+    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
+    assert!(collected.is_empty(), "expected the gap at height 90 to end the collection");
+}
+
+// An unreadable Starknet version must not be taken as "predates the upgrade", or a real gap would
+// be skipped and every remaining height re-sent on every block.
+#[tokio::test]
+async fn collect_recent_state_commitment_infos_stops_when_the_block_version_is_unknown() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|block_number| Ok((block_number.0 >= 95).then(default_state_commitment_infos)));
+    deps.state_sync_client.expect_get_block().returning(|block_number| {
+        Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(block_number)))
+    });
+    deps.cende_ambassador.expect_commitment_infos_height_offset().times(1).return_once(|| Ok(None));
+
+    let context = deps.build_context();
+    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
+    assert!(
+        collected.is_empty(),
+        "expected the collection to stop at height 90, got {collected:?}"
+    );
 }
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() {
@@ -2055,9 +2175,84 @@ async fn test_compute_proposer_fee_proposal(
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
-    let proposal =
-        context.compute_proposer_fee_proposal(fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS).await;
+    let proposal = context
+        .compute_proposer_fee_proposal(BlockNumber(0), fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS)
+        .await;
     assert_eq!(proposal, expected_fee_proposal);
+}
+
+#[tokio::test]
+async fn test_oracle_target_above_the_ceiling_caps_the_band_and_counts() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    // A rate of 1 atto-USD per STRK drives the oracle-derived target far above the ceiling.
+    // Registered before `setup_default_expectations` so the catch-all default does not shadow it.
+    deps.l1_gas_price_provider.expect_get_strk_to_usd_rate().returning(|_| Ok(1));
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            Some(TEST_MAX_L2_GAS_PRICE),
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    // The margin band's upper edge before capping is 80_160_000_000.
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.assert_eq(&recorder.handle().render(), 1);
+}
+
+#[tokio::test]
+async fn test_operator_override_above_the_ceiling_is_not_oracle_drift() {
+    // The pin is excluded from `snip35_fee_target_above_maximum`.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.register();
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: TEST_MIN_L2_GAS_PRICE.0 }];
+    context.config.dynamic_config.override_l2_gas_price_fri = Some(TEST_MAX_L2_GAS_PRICE.0 * 2);
+
+    let proposal = context
+        .compute_proposer_fee_proposal(
+            BlockNumber(0),
+            Some(TEST_MAX_L2_GAS_PRICE),
+            0,
+            TARGET_ATTO_USD_PER_L2_GAS,
+        )
+        .await;
+
+    // The ceiling still caps the published proposal; only the attribution changes.
+    assert_eq!(proposal, TEST_MAX_L2_GAS_PRICE);
+    SNIP35_FEE_TARGET_ABOVE_MAXIMUM.assert_eq(&recorder.handle().render(), 0);
+}
+
+#[tokio::test]
+async fn test_partial_window_freezes_at_an_uncapped_l2_gas_price() {
+    // Pins the deliberate exclusion of the `fee_actual == None` path from the cap: the validator
+    // skips the band check without `fee_actual`, so this is not coverage of the cap itself.
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    let above_the_ceiling = GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 2);
+    context.l2_gas_price = above_the_ceiling;
+
+    let proposal = context
+        .compute_proposer_fee_proposal(BlockNumber(0), None, 0, TARGET_ATTO_USD_PER_L2_GAS)
+        .await;
+
+    assert_eq!(proposal, above_the_ceiling);
 }
 
 #[tokio::test]
@@ -2083,6 +2278,10 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
     }
     deps.setup_default_expectations();
     let mut context = deps.build_context();
+    // Mainnet's configured minimum puts the cap at 150 gwei; the 8 gwei fallback would cap below
+    // this scenario's targets.
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 0, price: 15_000_000_000 }];
 
     // Bootstrap the window with 75 gwei (the $0.04 target).
     let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
@@ -2097,7 +2296,7 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
             let proposal = context
-                .compute_proposer_fee_proposal(Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
+                .compute_proposer_fee_proposal(h, Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
                 .await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;

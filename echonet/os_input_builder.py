@@ -29,6 +29,8 @@ class OsInputBuildError(RuntimeError):
 # Felts are length-prefixed and minimally encoded, so a longer length means the layout drifted.
 MAX_FELT_BYTE_LENGTH = 32
 
+STATE_COMMITMENT_INFOS_VERSION = 0
+
 
 class _BincodeReader:
     """Reads the committer's bincode form: u64 little-endian lengths, big-endian felts."""
@@ -83,13 +85,20 @@ def _read_commitment_info(reader: _BincodeReader) -> JsonObject:
     }
 
 
-def decompress_state_commitment_infos(compressed: str) -> JsonObject:
+def decompress_state_commitment_infos(compressed: JsonObject) -> JsonObject:
     """
-    Reverse of the committer's `base64(zstd(bincode(StateCommitmentInfos)))` pipeline; see
-    `StateCommitmentInfos::compress` in starknet_committer's `patricia_merkle_tree/types.rs`.
+    Reverse of the committer's `{"version": N, "payload": base64(zstd(bincode(...)))}` form
+    of `CompressedStateCommitmentInfos`; see `StateCommitmentInfos::compress` in
+    starknet_committer's `patricia_merkle_tree/types.rs`.
     """
+    version = compressed.get("version")
+    if version != STATE_COMMITMENT_INFOS_VERSION:
+        raise OsInputBuildError(
+            f"unsupported state_commitment_infos version {version}; "
+            f"expected {STATE_COMMITMENT_INFOS_VERSION}"
+        )
     try:
-        raw = base64.b64decode(compressed)
+        raw = base64.b64decode(compressed["payload"])
         payload = zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)).read()
     except (ValueError, zstandard.ZstdError) as exc:
         raise OsInputBuildError(f"failed to decompress state_commitment_infos: {exc}") from exc

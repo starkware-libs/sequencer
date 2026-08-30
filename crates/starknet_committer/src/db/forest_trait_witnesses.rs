@@ -19,13 +19,14 @@ use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::patricia_merkle_tree::tree::SortedLeafIndices;
-use crate::patricia_merkle_tree::types::{StarknetForestProofs, StateCommitmentInfos};
+use crate::patricia_merkle_tree::types::{CompressedStateCommitmentInfos, StarknetForestProofs};
 
-/// The information required to write the OS-input commitment infos to the database.
+/// The information required to write the OS-input commitment infos to the database. The payload
+/// is stored as given, so the caller compresses it (once) before handing it over.
 pub struct CommitmentInfosWrite {
     pub block_number: BlockNumber,
     pub keys_digest: [u8; 32],
-    pub commitment_infos: StateCommitmentInfos,
+    pub commitment_infos: CompressedStateCommitmentInfos,
 }
 
 /// Commitment-infos DB operation, which can be either delete or write.
@@ -36,15 +37,17 @@ pub enum CommitmentInfosUpdate {
     Delete(BlockNumber),
 }
 
-/// Reads the committed OS-input commitment infos ([`StateCommitmentInfos`]) for a block height.
+/// Reads the committed OS-input commitment infos for a block height.
 #[async_trait]
 pub trait ForestReaderWithWitnesses:
     ForestReader<InitialReadContext: EmptyInitialReadContext> + Send
 {
-    async fn read_commitment_infos(
+    /// Returns the infos as stored; callers that only forward them skip the decompress/re-compress
+    /// round trip.
+    async fn read_compressed_commitment_infos(
         &mut self,
         height: BlockNumber,
-    ) -> ForestResult<Option<StateCommitmentInfos>>;
+    ) -> ForestResult<Option<CompressedStateCommitmentInfos>>;
 
     /// Fetches Patricia witness paths for OS input, optionally staging serialized trie node KVs on
     /// an in-memory overlay so reads match post-commit state before the forest is persisted.
@@ -59,8 +62,8 @@ pub trait ForestReaderWithWitnesses:
     ) -> TraversalResult<StarknetForestProofs>;
 }
 
-/// Writes forest + metadata + deleted nodes, and applies [`CommitmentInfosUpdate`] in the same
-/// batch.
+/// Writes forest + metadata + deleted nodes, and applies the [`CommitmentInfosUpdate`]s in the
+/// same batch.
 #[async_trait]
 pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send {
     async fn write_with_metadata_and_commitment_infos(
@@ -68,7 +71,7 @@ pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send 
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
-        commitment_infos_update: CommitmentInfosUpdate,
+        commitment_infos_updates: Vec<CommitmentInfosUpdate>,
     ) -> SerializationResult<usize>;
 }
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::{CommitmentInfosPruningConfig, CommitterConfig};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     RevertBlockRequest,
@@ -16,13 +16,18 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::db::forest_trait::ForestMetadataType;
 use starknet_committer::db::index_db::db::IndexDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing_test::traced_test;
 
 use super::Committer;
 use crate::committer::StorageConstructor;
-use crate::metrics::{register_metrics, COMMITTER_BLOCK_COMMIT_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    COMMITTER_BLOCK_COMMIT_LATENCY,
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
+};
 
 #[path = "request_paths_and_commit_block_tests.rs"]
 mod request_paths_and_commit_block_tests;
@@ -38,6 +43,11 @@ impl StorageConstructor for ApolloTestStorage {
 
 async fn new_test_committer() -> ApolloTestCommitter {
     Committer::new(CommitterConfig { verify_state_diff_hash: false, ..Default::default() }).await
+}
+
+/// Enables pruning with the default config, for tests that tune it.
+fn pruning_config(committer: &mut ApolloTestCommitter) -> &mut CommitmentInfosPruningConfig {
+    committer.config.commitment_infos_pruning_config.get_or_insert_default()
 }
 
 fn get_state_diff(state_diff_info: u64) -> ThinStateDiff {
@@ -159,8 +169,12 @@ async fn committer_offset() {
     committer.commit_block(commit_block_request(2, Some(4), 1)).await.unwrap_err();
     assert_eq!(committer.offset, BlockNumber(2));
 
-    let offset = ApolloTestCommitter::load_offset_or_panic(&mut committer.forest_storage).await;
-    assert_eq!(offset, BlockNumber(2));
+    let offset = ApolloTestCommitter::load_block_number_metadata_or_panic(
+        &mut committer.forest_storage,
+        ForestMetadataType::CommitmentOffset,
+    )
+    .await;
+    assert_eq!(offset, Some(BlockNumber(2)));
 }
 
 #[tokio::test]
@@ -345,7 +359,7 @@ async fn no_warn_when_block_commit_within_duration_threshold() {
 async fn block_commit_latency_histogram_records_commit_duration() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    register_metrics(BlockNumber(0));
+    register_metrics(BlockNumber(0), BlockNumber(0));
 
     let mut committer = new_test_committer().await;
     committer.commit_block(commit_block_request(1, Some(1), 0)).await.unwrap();
@@ -355,4 +369,24 @@ async fn block_commit_latency_histogram_records_commit_duration() {
         COMMITTER_BLOCK_COMMIT_LATENCY.parse_histogram_metric(&recorded_metrics).unwrap();
     assert_eq!(histogram_value.count, 1);
     assert!(histogram_value.sum > 0.0);
+}
+
+#[tokio::test]
+async fn commitment_infos_lower_bound_gauge_tracks_pruning() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics(BlockNumber(0), BlockNumber(0));
+
+    let mut committer = new_test_committer().await;
+    pruning_config(&mut committer).retention_blocks = 2;
+    for height in 0..4 {
+        committer.commit_block(commit_block_request(1, Some(1), height)).await.unwrap();
+    }
+    assert_eq!(committer.commitment_infos_lower_bound, BlockNumber(2));
+
+    let recorded_metrics = recorder.handle().render();
+    assert_eq!(
+        COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.parse_numeric_metric::<u64>(&recorded_metrics),
+        Some(2)
+    );
 }

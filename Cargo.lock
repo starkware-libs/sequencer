@@ -2866,6 +2866,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "starknet_api",
+ "strum",
  "thiserror 1.0.69",
 ]
 

@@ -43,8 +43,6 @@ define_metrics!(
         MetricGauge { SNIP35_FEE_PROPOSAL_FRI, "snip35_fee_proposal_fri", "The fee_proposal this node published in the latest block, in Fri" },
         MetricGauge { SNIP35_FEE_TARGET_FRI, "snip35_fee_target_fri", "The fee_target computed from the STRK/USD oracle, in Fri" },
         MetricGauge { SNIP35_FEE_TARGET_ATTO_USD, "snip35_fee_target_atto_usd", "Configured target USD cost per L2 gas unit, in atto-USD" },
-        // [Temporary comment] The increment site arrives with the fee-proposal band clamp, which
-        // is deferred to `main`, so this counter stays at zero on this lineage.
         MetricCounter { SNIP35_FEE_TARGET_ABOVE_MAXIMUM, "snip35_fee_target_above_maximum", "Number of blocks whose oracle-derived fee_target exceeded the L2 gas price maximum. Excludes targets from the override_l2_gas_price_fri operator pin", init = 0 },
     }
 );

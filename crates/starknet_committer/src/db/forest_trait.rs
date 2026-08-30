@@ -36,6 +36,8 @@ pub mod forest_trait_witnesses;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, Serialize)]
 pub enum ForestMetadataType {
     CommitmentOffset,
+    /// The lowest height whose commitment infos are stored; infos of lower heights were pruned.
+    CommitmentInfosLowerBound,
     StateDiffHash(DbBlockNumber),
     StateRoot(DbBlockNumber),
     /// BLAKE2s digest of the canonical accessed-keys set for the block.

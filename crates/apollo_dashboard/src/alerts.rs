@@ -295,6 +295,21 @@ impl Alert {
         }
     }
 
+    /// Keeps the rule defined when its series are absent, so a scrape gap leaves the alert in
+    /// `Normal` instead of raising a notifying `DatasourceNoData`. The fallback is appended after
+    /// the observer guard, which would otherwise erase it once `is_observer` goes stale in the
+    /// same gap. `value` must be `>=` the alert threshold, or the rule fires permanently. The
+    /// expression must aggregate away its labels, or `or` cannot suppress the fallback while data
+    /// is present.
+    pub(crate) fn with_no_data_fallback(mut self, value: f64) -> Self {
+        self.expr = ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
+            "({}) or vector({})",
+            self.expr.to_alert_promql(),
+            value
+        ));
+        self
+    }
+
     pub(crate) fn get_placeholder_names(&self) -> &HashSet<String> {
         &self.placeholder_names
     }

@@ -18,6 +18,11 @@ define_metrics!(
             "committer_offset",
             "The next block number to commit"
         },
+        MetricGauge {
+            COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
+            "committer_commitment_infos_lower_bound",
+            "The lowest block number whose commitment infos have not been deleted"
+        },
         MetricCounter {
             BLOCKS_COMMITTED,
             "blocks_committed",
@@ -105,9 +110,11 @@ define_metrics!(
     },
 );
 
-pub fn register_metrics(offset: BlockNumber) {
+pub fn register_metrics(offset: BlockNumber, commitment_infos_lower_bound: BlockNumber) {
     COMMITTER_OFFSET.register();
     COMMITTER_OFFSET.set_lossy(offset.0);
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.register();
+    COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.set_lossy(commitment_infos_lower_bound.0);
     BLOCKS_COMMITTED.register();
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();

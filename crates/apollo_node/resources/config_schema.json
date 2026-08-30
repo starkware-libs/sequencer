@@ -559,6 +559,21 @@
     "privacy": "Public",
     "value": 3000
   },
+  "committer_config.commitment_infos_pruning_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "committer_config.commitment_infos_pruning_config.max_deletions_per_commit": {
+    "description": "At most this many heights' commitment infos are pruned per commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "committer_config.commitment_infos_pruning_config.retention_blocks": {
+    "description": "The commitment infos of this many highest committed heights are kept in storage; those of lower heights are pruned when committing a block.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "committer_config.db_path": {
     "description": "Path to the committer storage directory.",
     "privacy": "Public",
@@ -571,6 +586,11 @@
   },
   "committer_config.reader_config.warn_on_trivial_modifications": {
     "description": "Whether to warn on trivial state update.",
+    "privacy": "Public",
+    "value": false
+  },
+  "committer_config.serve_read_paths_as_commit_block": {
+    "description": "If true, read_paths_and_commit_block requests are served as commit_block requests, treating the accessed keys as an empty set.",
     "privacy": "Public",
     "value": false
   },
@@ -2843,6 +2863,11 @@
     "description": "The interval between retrospective block hash retries.",
     "privacy": "Public",
     "value": 500
+  },
+  "consensus_manager_config.context_config.static_config.send_empty_state_commitment_infos_only": {
+    "description": "For each height whose state commitment infos are sent to the cende recorder, send an empty object instead of the one stored by the batcher.",
+    "privacy": "Public",
+    "value": false
   },
   "consensus_manager_config.context_config.static_config.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",

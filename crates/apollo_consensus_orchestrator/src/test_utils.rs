@@ -103,6 +103,9 @@ pub(crate) const DEFAULT_STRK_TO_USD_RATE: u128 = 300_000_000_000_000_000;
 pub(crate) const TEST_MIN_L2_GAS_PRICE: GasPrice = GasPrice(8_000_000_000);
 pub(crate) const TEST_MAX_L2_GAS_PRICE: GasPrice = GasPrice(80_000_000_000);
 
+// A ceiling no band can reach, for cases where the cap is not under test.
+pub(crate) const INERT_MAX_L2_GAS_PRICE: GasPrice = GasPrice(u128::MAX);
+
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
 
