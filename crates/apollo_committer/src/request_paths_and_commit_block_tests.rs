@@ -498,6 +498,31 @@ async fn serve_read_paths_as_commit_block_ignores_accessed_keys() {
     );
 }
 
+/// Verifies that turning `serve_read_paths_as_commit_block` on between a block's commit and its
+/// replay (the incident kill-switch scenario) skips digest validation and serves the stored
+/// witnesses.
+#[tokio::test]
+async fn flag_turned_on_before_replay_serves_stored_witnesses() {
+    let mut committer = new_test_committer().await;
+    let height = 0;
+    let state_diff = BLOCK_0_STATE_DIFF.clone();
+    let request = read_paths_and_commit_block_request(
+        state_diff.clone(),
+        Some(calculate_state_diff_hash(&state_diff)),
+        height,
+        ACCESSED_KEYS.clone(),
+    );
+    let response = committer.read_paths_and_commit_block(request.clone()).await.unwrap();
+
+    committer.config.serve_read_paths_as_commit_block = true;
+    let replay_response = committer.read_paths_and_commit_block(request).await.unwrap();
+    assert_eq!(response.global_root, replay_response.global_root);
+    assert_eq!(
+        decompress_response_commitment_infos(&response),
+        decompress_response_commitment_infos(&replay_response),
+    );
+}
+
 /// Flow overview:
 /// 1. Commit block 0 via [crate::committer::Committer::commit_block] (no witnesses fetched).
 /// 2. Commit block 1 via [crate::committer::Committer::read_paths_and_commit_block], requesting
