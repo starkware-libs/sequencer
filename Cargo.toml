@@ -336,8 +336,8 @@ patricia_root_cli.path = "crates/patricia_root_cli"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
-privacy-circuit-verify-v1 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
+privacy-circuit-verify-v2 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving", rev = "2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving", rev = "2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"

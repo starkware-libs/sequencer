@@ -1,3 +1,4 @@
+~ /os_constants/allowed_proof_versions/0: "0x50524f4f4632"
 + /os_constants/allowed_virtual_os_program_hashes/1: "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
