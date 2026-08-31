@@ -1,5 +1,9 @@
 use apollo_committer::metrics::COMMITTER_BLOCK_COMMIT_LATENCY;
-use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
+use apollo_consensus::metrics::{
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_ROUND_ABOVE_ZERO,
+};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 use apollo_infra_utils::template::Template;
@@ -106,27 +110,35 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
     )
 }
 
-/// Roughly 3x the committer's baseline commit latency.
-const COMMIT_LATENCY_ALERT_THRESHOLD_SECS: f64 = 9.0;
+/// Fraction of the block time the commit latency may reach before alerting.
+const COMMIT_LATENCY_TO_BLOCK_TIME_RATIO_THRESHOLD: f64 = 0.8;
 
-/// Denominator floor so an idle window (no commits) yields 0, not a divide-by-zero.
-const MIN_COMMIT_RATE_DENOMINATOR: f64 = 0.0000001;
+const UTILIZATION_AVERAGING_WINDOW: &str = "30s:10s";
+
+const SYNCED_HEIGHTS_WINDOW: &str = "5m";
+
+/// Sync-learned heights within [`SYNCED_HEIGHTS_WINDOW`] that still count as normal operation.
+const SYNCED_HEIGHTS_TOLERANCE: f64 = 5.0;
 
 pub(crate) fn get_committer_block_commit_latency_too_high() -> Alert {
     Alert::new(
         "committer_block_commit_latency_too_high",
-        "Committer block commit latency too high",
+        "Committer block commit latency too high relative to block time",
         EvaluationRate::Default,
-        // 2m average commit latency, so a regression is caught before lag accumulates.
+        // The fraction of committer block producing time in a minute. Zeroed while the node
+        // catches up via sync.
         format!(
-            "(sum(rate({}[2m])) or vector(0)) / clamp_min(sum(rate({}[2m])) or vector(0), {})",
+            "avg_over_time((max(rate({}[1m])) or vector(0))[{}]) * ((max(increase({}[{}])) or \
+             vector(0)) < bool {})",
             COMMITTER_BLOCK_COMMIT_LATENCY.get_name_sum_with_filter(),
-            COMMITTER_BLOCK_COMMIT_LATENCY.get_name_count_with_filter(),
-            MIN_COMMIT_RATE_DENOMINATOR,
+            UTILIZATION_AVERAGING_WINDOW,
+            CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter(),
+            SYNCED_HEIGHTS_WINDOW,
+            SYNCED_HEIGHTS_TOLERANCE,
         ),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
-            COMMIT_LATENCY_ALERT_THRESHOLD_SECS,
+            COMMIT_LATENCY_TO_BLOCK_TIME_RATIO_THRESHOLD,
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
