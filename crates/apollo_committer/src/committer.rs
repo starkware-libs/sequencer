@@ -539,11 +539,11 @@ where
     /// commit, so that a restart before the first pruning does not default the lower bound to the
     /// advanced offset, and returns it along with the deletions of the pruned heights, to be
     /// written atomically with the block.
-    fn prune_commitment_infos(
+    fn prune_commitment_infos<'a>(
         &self,
         next_offset: BlockNumber,
         metadata: &mut HashMap<ForestMetadataType, DbValue>,
-    ) -> (BlockNumber, Vec<CommitmentInfosUpdate>) {
+    ) -> (BlockNumber, Vec<CommitmentInfosUpdate<'a>>) {
         let Some(pruning_config) = &self.config.commitment_infos_pruning_config else {
             let lower_bound = self.commitment_infos_lower_bound;
             metadata.insert(
@@ -662,7 +662,7 @@ where
                 commitment_infos_updates.push(CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                     block_number: height,
                     keys_digest: digest,
-                    commitment_infos: compressed_commitment_infos.clone(),
+                    commitment_infos: &compressed_commitment_infos,
                 }));
 
                 info!(
