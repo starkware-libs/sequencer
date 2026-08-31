@@ -76,6 +76,12 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub verify_state_diff_hash: bool,
     /// If true, `read_paths_and_commit_block` requests are served as `commit_block` requests,
     /// treating the accessed keys as an empty set.
+    ///
+    /// Turning this on is safe at any point: historical replay skips accessed-keys digest
+    /// validation while it is on. Turning it off must only be done when the committer is aligned
+    /// with the batcher, so that no block committed while the flag was on gets replayed.
+    /// Consider reverting the committer over these blocks so they are recommitted with full
+    /// witnesses.
     pub serve_read_paths_as_commit_block: bool,
     /// Commit durations above this threshold (in milliseconds) are logged at WARN level.
     #[serde(
