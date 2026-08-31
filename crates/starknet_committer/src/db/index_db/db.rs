@@ -429,7 +429,7 @@ impl<S: Storage> IndexDb<S> {
     /// Appends the DB operations of a single commitment-infos update to `operations`.
     fn append_commitment_infos_update(
         operations: &mut DbOperationMap,
-        commitment_infos_update: CommitmentInfosUpdate,
+        commitment_infos_update: CommitmentInfosUpdate<'_>,
     ) {
         match commitment_infos_update {
             CommitmentInfosUpdate::Delete(block_number) => {
@@ -477,7 +477,7 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
-        commitment_infos_updates: Vec<CommitmentInfosUpdate>,
+        commitment_infos_updates: Vec<CommitmentInfosUpdate<'_>>,
     ) -> SerializationResult<usize> {
         let mut operations = DbOperationMap::new();
         Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
