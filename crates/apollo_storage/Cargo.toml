@@ -41,7 +41,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
-starknet_committer.workspace = true
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
