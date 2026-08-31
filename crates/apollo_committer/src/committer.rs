@@ -605,13 +605,19 @@ where
 
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
             CommitBlockHeightPlan::Historical { global_root } => {
-                let stored_digest = self.load_witnesses_digest(height).await?;
-                if stored_digest != Some(digest) {
-                    return Err(CommitterError::AccessedKeysDigestMismatch {
-                        height,
-                        stored: stored_digest,
-                        expected: digest,
-                    });
+                // With `serve_read_paths_as_commit_block` on, the request's accessed keys are
+                // discarded, so the digest computed here cannot match one stored while the flag
+                // was off. Skip validation so that turning the flag on mid-incident does not
+                // stall replay; see the flag's doc for the constraints on turning it off.
+                if !self.config.serve_read_paths_as_commit_block {
+                    let stored_digest = self.load_witnesses_digest(height).await?;
+                    if stored_digest != Some(digest) {
+                        return Err(CommitterError::AccessedKeysDigestMismatch {
+                            height,
+                            stored: stored_digest,
+                            expected: digest,
+                        });
+                    }
                 }
                 let state_commitment_infos = self
                     .forest_storage
