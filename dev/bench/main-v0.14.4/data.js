@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788082741641,
+  "lastUpdate": 1788168337611,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -237,6 +237,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1277.15059816,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "532f51d1fd18a88c34aac1b58f1b2b0421ec9f15",
+          "message": "apollo_committer,starknet_committer: avoid cloning compressed commitment infos on every block commit (#15077)",
+          "timestamp": "2026-08-31T08:42:52Z",
+          "tree_id": "52fd36b6fecc546f7f674af219eb7644e05da9a6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/532f51d1fd18a88c34aac1b58f1b2b0421ec9f15"
+        },
+        "date": 1788168336890,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 940.07315016,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1414.38605476,
             "unit": "ms"
           }
         ]
