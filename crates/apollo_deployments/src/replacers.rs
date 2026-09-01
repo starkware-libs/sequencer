@@ -18,13 +18,14 @@ where
         };
 
         if should_replace {
-            map.insert(key.clone(), Value::String(format_key(key.clone())));
+            map.insert(key.clone(), Value::String(replacer_annotation(&key)));
         }
     }
 
     json
 }
 
-fn format_key(key: String) -> String {
-    Template::new(REPLACER_FORMAT).format(&[&key]).to_uppercase().replace('.', "-").replace('#', "")
+/// The placeholder an application config carries for a param each environment supplies itself.
+pub(crate) fn replacer_annotation(key: &str) -> String {
+    Template::new(REPLACER_FORMAT).format(&[key]).to_uppercase().replace('.', "-").replace('#', "")
 }

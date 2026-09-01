@@ -2,16 +2,21 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::env;
 use std::fs::File;
 
-use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_config::{CONFIG_FILE_ARG, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::config_utils::private_parameters;
-use apollo_node_config::node_config::CONFIG_SCHEMA_PATH;
+use apollo_node_config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_SCHEMA_PATH,
+    POINTER_TARGET_VALUE,
+};
 use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
+use crate::replacers::replacer_annotation;
 use crate::service::{NodeService, NodeType};
 use crate::test_utils::SecretsConfigOverride;
 
@@ -156,6 +161,54 @@ fn all_config_params_are_set_in_service_configs() {
     }
 }
 
+/// Test that each service's application configs load through the same entry point its pod uses.
+/// Values an environment supplies at deploy time are stubbed here: a replacer placeholder takes
+/// the schema default, and a pointer target takes a well-formed dummy of its own kind.
+#[test]
+fn all_service_configs_load() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let config_schema: Map<String, Value> = serde_json::from_reader(
+        File::open(resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap()).unwrap(),
+    )
+    .unwrap();
+
+    let secrets_file = NamedTempFile::new().unwrap();
+    let secrets_file_path = secrets_file.path().to_str().unwrap();
+    serialize_to_file(&to_value(SecretsConfigOverride::default()).unwrap(), secrets_file_path);
+
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let mut set_params = Map::new();
+            for application_config_file in &application_config_files(&node_service) {
+                for (param_path, value) in config_file_params(application_config_file) {
+                    let value = deploy_time_value(&param_path, value, &config_schema);
+                    set_params.insert(param_path, value);
+                }
+            }
+
+            let merged_config_file = NamedTempFile::new().unwrap();
+            let merged_config_file_path = merged_config_file.path().to_str().unwrap();
+            serialize_to_file(&Value::Object(set_params), merged_config_file_path);
+
+            let args = vec![
+                "apollo_node".to_owned(),
+                CONFIG_FILE_ARG.to_owned(),
+                merged_config_file_path.to_owned(),
+                CONFIG_FILE_ARG.to_owned(),
+                secrets_file_path.to_owned(),
+            ];
+            SequencerNodeConfig::load_and_process(args).unwrap_or_else(|error| {
+                panic!(
+                    "Service {node_service:?} of node type {node_type} failed to load its \
+                     application configs: {error:?}"
+                )
+            });
+        }
+    }
+}
+
 /// Test that the private values in the apollo node config schema match the secrets config override
 /// schema.
 #[test]
@@ -246,4 +299,24 @@ fn application_config_files(node_service: &NodeService) -> Vec<String> {
 
 fn config_file_params(application_config_file: &str) -> Map<String, Value> {
     serde_json::from_reader(File::open(application_config_file).unwrap()).unwrap()
+}
+
+/// The value an environment supplies at deploy time in place of the placeholder the application
+/// configs carry.
+fn deploy_time_value(param_path: &str, value: Value, config_schema: &Map<String, Value>) -> Value {
+    let value = if value == Value::String(replacer_annotation(param_path)) {
+        config_schema.get(param_path).and_then(|param| param.get("value")).cloned().unwrap_or(value)
+    } else {
+        value
+    };
+
+    if value != Value::String(POINTER_TARGET_VALUE.to_owned()) {
+        return value;
+    }
+    match param_path {
+        "chain_id" => Value::String("SN_MAIN".to_owned()),
+        "recorder_url" | "starknet_url" => Value::String("http://localhost/".to_owned()),
+        // Every remaining pointer target is a contract address.
+        _ => Value::String("0x1".to_owned()),
+    }
 }
