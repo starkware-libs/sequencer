@@ -127,7 +127,7 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
-            "0x53f6c9fcfd31d27279ff7d7e422b44623550a732b59fe193354a7316a96daa1",
+            "0xfedbf2b6504b9217026ba2bf9b2a33e8e28ed38e5b0f84eef59075b02174b8",
             "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324"
         ],
         "allowed_proof_versions": [
@@ -503,7 +503,7 @@
         },
         "execute_txs_inner": {
             "Declare": {
-                "n_steps": 3938,
+                "n_steps": 3946,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 92,
@@ -513,7 +513,7 @@
             },
             "DeployAccount": {
                 "constant": {
-                    "n_steps": 4989,
+                    "n_steps": 5017,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 113,
@@ -535,7 +535,7 @@
             },
             "InvokeFunction": {
                 "constant": {
-                    "n_steps": 4779,
+                    "n_steps": 4787,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 110,
