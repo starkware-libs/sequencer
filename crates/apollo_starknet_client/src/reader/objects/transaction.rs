@@ -371,7 +371,7 @@ impl From<DeployTransaction> for starknet_api::transaction::DeployTransaction {
 
 /// Feeder Gateway format for deploy account transactions (see [`Transaction`]).
 ///
-/// Supports multiple transaction versions (V1/V3) through optional fields.
+/// Supports multiple transaction versions (V1/V3/V4) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -416,6 +416,9 @@ impl TryFrom<IntermediateDeployAccountTransaction>
         if deploy_account_tx.version == TransactionVersion::THREE {
             return Ok(Self::V3(deploy_account_tx.try_into()?));
         }
+        if deploy_account_tx.version == TransactionVersion::FOUR {
+            return Ok(Self::V4(deploy_account_tx.try_into()?));
+        }
         Err(ReaderClientError::BadTransaction {
             tx_hash: deploy_account_tx.transaction_hash,
             msg: format!("DeployAccount version {:?} is not supported.", deploy_account_tx.version),
@@ -453,46 +456,88 @@ impl TryFrom<IntermediateDeployAccountTransaction>
     fn try_from(
         deploy_account_tx: IntermediateDeployAccountTransaction,
     ) -> Result<Self, ReaderClientError> {
+        deploy_account_v3_shaped_fields(deploy_account_tx)
+    }
+}
+
+/// V4 has the same field set as V3; only the version felt and the address derivation differ.
+impl TryFrom<IntermediateDeployAccountTransaction>
+    for starknet_api::transaction::DeployAccountTransactionV4
+{
+    type Error = ReaderClientError;
+
+    fn try_from(
+        deploy_account_tx: IntermediateDeployAccountTransaction,
+    ) -> Result<Self, ReaderClientError> {
+        let starknet_api::transaction::DeployAccountTransactionV3 {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            class_hash,
+            contract_address_salt,
+            constructor_calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+        } = deploy_account_v3_shaped_fields(deploy_account_tx)?;
         Ok(Self {
-            resource_bounds: deploy_account_tx.resource_bounds.ok_or(
-                ReaderClientError::BadTransaction {
-                    tx_hash: deploy_account_tx.transaction_hash,
-                    msg: "DeployAccount V3 must contain resource_bounds field.".to_string(),
-                },
-            )?,
-            tip: deploy_account_tx.tip.ok_or(ReaderClientError::BadTransaction {
-                tx_hash: deploy_account_tx.transaction_hash,
-                msg: "DeployAccount V3 must contain tip field.".to_string(),
-            })?,
-            signature: deploy_account_tx.signature,
-            nonce: deploy_account_tx.nonce,
-            class_hash: deploy_account_tx.class_hash,
-            contract_address_salt: deploy_account_tx.contract_address_salt,
-            constructor_calldata: deploy_account_tx.constructor_calldata,
-            nonce_data_availability_mode: deploy_account_tx
-                .nonce_data_availability_mode
-                .ok_or(ReaderClientError::BadTransaction {
-                    tx_hash: deploy_account_tx.transaction_hash,
-                    msg: "DeployAccount V3 must contain nonce_data_availability_mode field."
-                        .to_string(),
-                })?
-                .into(),
-            fee_data_availability_mode: deploy_account_tx
-                .fee_data_availability_mode
-                .ok_or(ReaderClientError::BadTransaction {
-                    tx_hash: deploy_account_tx.transaction_hash,
-                    msg: "DeployAccount V3 must contain fee_data_availability_mode field."
-                        .to_string(),
-                })?
-                .into(),
-            paymaster_data: deploy_account_tx.paymaster_data.ok_or(
-                ReaderClientError::BadTransaction {
-                    tx_hash: deploy_account_tx.transaction_hash,
-                    msg: "DeployAccount V3 must contain paymaster_data field.".to_string(),
-                },
-            )?,
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            class_hash,
+            contract_address_salt,
+            constructor_calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
         })
     }
+}
+
+fn deploy_account_v3_shaped_fields(
+    deploy_account_tx: IntermediateDeployAccountTransaction,
+) -> Result<starknet_api::transaction::DeployAccountTransactionV3, ReaderClientError> {
+    Ok(starknet_api::transaction::DeployAccountTransactionV3 {
+        resource_bounds: deploy_account_tx.resource_bounds.ok_or(
+            ReaderClientError::BadTransaction {
+                tx_hash: deploy_account_tx.transaction_hash,
+                msg: "DeployAccount V3/V4 must contain resource_bounds field.".to_string(),
+            },
+        )?,
+        tip: deploy_account_tx.tip.ok_or(ReaderClientError::BadTransaction {
+            tx_hash: deploy_account_tx.transaction_hash,
+            msg: "DeployAccount V3/V4 must contain tip field.".to_string(),
+        })?,
+        signature: deploy_account_tx.signature,
+        nonce: deploy_account_tx.nonce,
+        class_hash: deploy_account_tx.class_hash,
+        contract_address_salt: deploy_account_tx.contract_address_salt,
+        constructor_calldata: deploy_account_tx.constructor_calldata,
+        nonce_data_availability_mode: deploy_account_tx
+            .nonce_data_availability_mode
+            .ok_or(ReaderClientError::BadTransaction {
+                tx_hash: deploy_account_tx.transaction_hash,
+                msg: "DeployAccount V3/V4 must contain nonce_data_availability_mode field."
+                    .to_string(),
+            })?
+            .into(),
+        fee_data_availability_mode: deploy_account_tx
+            .fee_data_availability_mode
+            .ok_or(ReaderClientError::BadTransaction {
+                tx_hash: deploy_account_tx.transaction_hash,
+                msg: "DeployAccount V3/V4 must contain fee_data_availability_mode field."
+                    .to_string(),
+            })?
+            .into(),
+        paymaster_data: deploy_account_tx.paymaster_data.ok_or(
+            ReaderClientError::BadTransaction {
+                tx_hash: deploy_account_tx.transaction_hash,
+                msg: "DeployAccount V3/V4 must contain paymaster_data field.".to_string(),
+            },
+        )?,
+    })
 }
 
 /// Feeder Gateway format for invoke transactions (see [`Transaction`]).
