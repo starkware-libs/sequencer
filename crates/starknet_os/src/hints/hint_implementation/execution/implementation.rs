@@ -129,6 +129,13 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
     let constructor_calldata = match &deploy_account_tx.tx {
         DeployAccountTransaction::V1(v1_tx) => &v1_tx.constructor_calldata,
         DeployAccountTransaction::V3(v3_tx) => &v3_tx.constructor_calldata,
+        // TODO(Ron): support v4 in the OS (Blake2 address derivation) before enabling v4
+        // ingestion at the gateway.
+        DeployAccountTransaction::V4(_) => {
+            return Err(OsHintError::AssertionFailed {
+                message: "Deploy account v4 is not yet supported by the OS.".to_string(),
+            });
+        }
     };
     ctx.insert_value(Ids::ConstructorCalldataSize, constructor_calldata.0.len())?;
     let constructor_calldata_base = ctx.vm.add_memory_segment();

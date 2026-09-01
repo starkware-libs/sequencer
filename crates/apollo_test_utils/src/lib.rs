@@ -108,6 +108,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcDeployAccountTransactionV4,
     RpcInvokeTransaction,
     RpcInvokeTransactionV3,
     RpcTransaction,
@@ -146,6 +147,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionOutput,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
+    DeployAccountTransactionV4,
     DeployTransaction,
     DeployTransactionOutput,
     Event,
@@ -608,6 +610,7 @@ auto_impl_get_test_instance! {
     pub enum DeployAccountTransaction {
         V1(DeployAccountTransactionV1) = 0,
         V3(DeployAccountTransactionV3) = 1,
+        V4(DeployAccountTransactionV4) = 2,
     }
     pub struct DeployAccountTransactionOutput {
         pub actual_fee: Fee,
@@ -626,6 +629,18 @@ auto_impl_get_test_instance! {
         pub constructor_calldata: Calldata,
     }
     pub struct DeployAccountTransactionV3 {
+        pub resource_bounds: ValidResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub contract_address_salt: ContractAddressSalt,
+        pub constructor_calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+    }
+    pub struct DeployAccountTransactionV4 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
@@ -863,8 +878,21 @@ auto_impl_get_test_instance! {
     }
     pub enum RpcDeployAccountTransaction {
         V3(RpcDeployAccountTransactionV3) = 0,
+        V4(RpcDeployAccountTransactionV4) = 1,
     }
     pub struct RpcDeployAccountTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub contract_address_salt: ContractAddressSalt,
+        pub constructor_calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+    }
+    pub struct RpcDeployAccountTransactionV4 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
