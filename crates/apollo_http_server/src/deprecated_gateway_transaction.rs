@@ -10,6 +10,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcDeployAccountTransactionV4,
     RpcInvokeTransaction,
     RpcInvokeTransactionV3,
     RpcTransaction,
@@ -63,6 +64,11 @@ impl DeprecatedGatewayTransactionV3 {
             ) => RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
                 deprecated_deploy_account_tx.into(),
             )),
+            DeprecatedGatewayTransactionV3::DeployAccount(
+                DeprecatedGatewayDeployAccountTransaction::V4(deprecated_deploy_account_tx),
+            ) => RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(
+                deprecated_deploy_account_tx.into(),
+            )),
             DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
                 deprecated_invoke_tx,
             )) => RpcTransaction::Invoke(RpcInvokeTransaction::V3(deprecated_invoke_tx.into())),
@@ -84,10 +90,10 @@ impl From<RpcTransaction> for DeprecatedGatewayTransactionV3 {
                     DeprecatedGatewayDeployAccountTransaction::V3(deploy_account_tx.into()),
                 )
             }
-            // TODO(Ron): add a V4 variant to the deprecated gateway dialect when v4 ingestion is
-            // enabled.
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(_)) => {
-                panic!("Deploy account v4 is not supported by the deprecated gateway dialect.")
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V4(deploy_account_tx)) => {
+                DeprecatedGatewayTransactionV3::DeployAccount(
+                    DeprecatedGatewayDeployAccountTransaction::V4(deploy_account_tx.into()),
+                )
             }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
                 DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
@@ -167,6 +173,8 @@ impl From<RpcInvokeTransactionV3> for DeprecatedGatewayInvokeTransactionV3 {
 pub enum DeprecatedGatewayDeployAccountTransaction {
     #[serde(rename = "0x3")]
     V3(DeprecatedGatewayDeployAccountTransactionV3),
+    #[serde(rename = "0x4")]
+    V4(DeprecatedGatewayDeployAccountTransactionV4),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -203,6 +211,57 @@ impl From<DeprecatedGatewayDeployAccountTransactionV3> for RpcDeployAccountTrans
 #[cfg(any(feature = "testing", test))]
 impl From<RpcDeployAccountTransactionV3> for DeprecatedGatewayDeployAccountTransactionV3 {
     fn from(value: RpcDeployAccountTransactionV3) -> Self {
+        Self {
+            signature: value.signature,
+            nonce: value.nonce,
+            class_hash: value.class_hash,
+            contract_address_salt: value.contract_address_salt,
+            constructor_calldata: value.constructor_calldata,
+            resource_bounds: value.resource_bounds.into(),
+            tip: value.tip,
+            paymaster_data: value.paymaster_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        }
+    }
+}
+
+/// A v4 deploy account transaction in the legacy gateway dialect: the fields of v3, with the
+/// contract address derived using Blake2 instead of Pedersen.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct DeprecatedGatewayDeployAccountTransactionV4 {
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub constructor_calldata: Calldata,
+    pub resource_bounds: DeprecatedGatewayAllResourceBounds,
+    pub tip: Tip,
+    pub paymaster_data: PaymasterData,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl From<DeprecatedGatewayDeployAccountTransactionV4> for RpcDeployAccountTransactionV4 {
+    fn from(deprecated_deploy_account_tx: DeprecatedGatewayDeployAccountTransactionV4) -> Self {
+        RpcDeployAccountTransactionV4 {
+            signature: deprecated_deploy_account_tx.signature,
+            nonce: deprecated_deploy_account_tx.nonce,
+            class_hash: deprecated_deploy_account_tx.class_hash,
+            contract_address_salt: deprecated_deploy_account_tx.contract_address_salt,
+            constructor_calldata: deprecated_deploy_account_tx.constructor_calldata,
+            resource_bounds: deprecated_deploy_account_tx.resource_bounds.into(),
+            tip: deprecated_deploy_account_tx.tip,
+            paymaster_data: deprecated_deploy_account_tx.paymaster_data,
+            nonce_data_availability_mode: deprecated_deploy_account_tx.nonce_data_availability_mode,
+            fee_data_availability_mode: deprecated_deploy_account_tx.fee_data_availability_mode,
+        }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl From<RpcDeployAccountTransactionV4> for DeprecatedGatewayDeployAccountTransactionV4 {
+    fn from(value: RpcDeployAccountTransactionV4) -> Self {
         Self {
             signature: value.signature,
             nonce: value.nonce,

@@ -7,7 +7,9 @@ use starknet_api::transaction::TransactionHash;
 use crate::errors::GatewayError;
 
 const TRANSACTION_RECEIVED: &str = "TRANSACTION_RECEIVED";
-pub const SUPPORTED_TRANSACTION_VERSIONS: [u64; 1] = [3];
+// Version 4 is deploy_account only; the per-type gate is the serde of the transaction enums, so
+// this list only shapes the deprecated endpoint's fallback version error.
+pub const SUPPORTED_TRANSACTION_VERSIONS: [u64; 2] = [3, 4];
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GatewayInput {

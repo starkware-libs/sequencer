@@ -3,16 +3,21 @@ use expect_test::expect;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use crate::core::CompiledClassHash;
+use crate::core::{is_pedersen_reachable_address, CompiledClassHash};
 use crate::rpc_transaction::{
     DataAvailabilityMode,
+    InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
     RpcInvokeTransaction,
     RpcTransaction,
 };
 use crate::state::SierraContractClass;
 use crate::test_utils::declare::{rpc_declare_tx, DeclareTxArgs};
-use crate::test_utils::deploy_account::{rpc_deploy_account_tx, DeployAccountTxArgs};
+use crate::test_utils::deploy_account::{
+    internal_deploy_account_tx,
+    rpc_deploy_account_tx,
+    DeployAccountTxArgs,
+};
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::test_utils::valid_resource_bounds_for_testing;
 use crate::transaction::fields::{
@@ -24,6 +29,7 @@ use crate::transaction::fields::{
     Tip,
     TransactionSignature,
 };
+use crate::transaction::TransactionVersion;
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 
 fn create_declare_tx() -> RpcTransaction {
@@ -168,5 +174,35 @@ fn test_invoke_tx_size_of() {
         .assert_debug_eq(&tx_v3.size_bytes());
     } else {
         panic!("Expected RpcTransaction::Invoke");
+    }
+}
+
+#[rstest]
+#[case::v3(TransactionVersion::THREE)]
+#[case::v4(TransactionVersion::FOUR)]
+fn test_internal_deploy_account_tx_derives_the_version_s_address(
+    #[case] version: TransactionVersion,
+) {
+    let internal_tx = internal_deploy_account_tx(DeployAccountTxArgs {
+        version,
+        resource_bounds: valid_resource_bounds_for_testing(),
+        class_hash: class_hash!("0x4242"),
+        contract_address_salt: ContractAddressSalt(felt!("0x303")),
+        constructor_calldata: calldata![felt!("0x2a")],
+        ..Default::default()
+    });
+    let InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_account) = &internal_tx.tx else {
+        panic!("Expected a deploy account transaction.");
+    };
+
+    match &deploy_account.tx {
+        RpcDeployAccountTransaction::V3(_) => {
+            assert_eq!(version, TransactionVersion::THREE);
+            assert!(is_pedersen_reachable_address(deploy_account.contract_address.0.key()));
+        }
+        RpcDeployAccountTransaction::V4(_) => {
+            assert_eq!(version, TransactionVersion::FOUR);
+            assert!(!is_pedersen_reachable_address(deploy_account.contract_address.0.key()));
+        }
     }
 }
