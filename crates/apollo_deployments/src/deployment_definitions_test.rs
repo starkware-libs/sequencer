@@ -2,15 +2,17 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::env;
 use std::fs::File;
 
+use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::config_utils::private_parameters;
+use apollo_node_config::node_config::CONFIG_SCHEMA_PATH;
 use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
-use crate::service::NodeType;
+use crate::service::{NodeService, NodeType};
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
@@ -58,25 +60,14 @@ fn duplicate_config_entries() {
 
     for node_type in NodeType::iter() {
         for node_service in node_type.all_service_names() {
-            let deployment_file_path = node_service.replacer_deployment_file_path();
-            let deployment_file = File::open(deployment_file_path).unwrap();
-
-            let mut application_config_files: Vec<String> =
-                serde_json::from_reader(deployment_file)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    .unwrap();
+            let mut config_files_to_load = application_config_files(&node_service);
 
             // Add the secrets config file path to the config load command.
-            application_config_files.push(secrets_file_path.to_string());
+            config_files_to_load.push(secrets_file_path.to_string());
 
             let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-            for application_config_file in &application_config_files {
-                let file = File::open(application_config_file).unwrap();
-                let json_map: Map<String, Value> = serde_json::from_reader(file)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    .unwrap();
-
-                for key in json_map.keys() {
+            for application_config_file in &config_files_to_load {
+                for key in config_file_params(application_config_file).keys() {
                     key_to_files
                         .entry(key.clone())
                         .or_default()
@@ -95,6 +86,72 @@ fn duplicate_config_entries() {
                 }
             }
             assert!(!has_duplicates, "Found duplicate keys in service config files.");
+        }
+    }
+}
+
+/// Test that every config param a service needs is set explicitly in its application config
+/// files. A deployed pod loads them through `SequencerNodeConfig::load_and_process`, which passes
+/// `ignore_default_values = true`, so an absent param either fails deserialization at startup or
+/// silently takes a value no environment can override.
+#[test]
+fn all_config_params_are_set_in_service_configs() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let config_schema: Map<String, Value> = serde_json::from_reader(
+        File::open(resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap()).unwrap(),
+    )
+    .unwrap();
+
+    // Params carrying a `pointer_target` instead of a `value` are resolved from the param they
+    // point at, and private params come from the secrets file; neither belongs in an app config.
+    let private_params = private_parameters();
+    let required_params: BTreeSet<&String> = config_schema
+        .iter()
+        .filter(|(param_path, param)| {
+            param.get("value").is_some() && !private_params.contains(*param_path)
+        })
+        .map(|(param_path, _)| param_path)
+        .collect();
+
+    let is_none_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let mut set_params: Map<String, Value> = Map::new();
+            for application_config_file in &application_config_files(&node_service) {
+                set_params.extend(config_file_params(application_config_file));
+            }
+
+            // A `None` optional keeps only its own `#is_none` mark: `update_optional_values` drops
+            // both the params below it and its own param.
+            let disabled_params: BTreeSet<String> = set_params
+                .iter()
+                .filter(|(param_path, value)| {
+                    param_path.ends_with(&is_none_suffix) && *value == &Value::Bool(true)
+                })
+                .map(|(param_path, _)| param_path.strip_suffix(&is_none_suffix).unwrap().to_owned())
+                .collect();
+
+            let missing_params: Vec<&String> = required_params
+                .iter()
+                .copied()
+                .filter(|param_path| {
+                    !set_params.contains_key(*param_path)
+                        && !disabled_params.iter().any(|disabled| {
+                            *param_path == disabled
+                                || param_path.starts_with(&format!("{disabled}{FIELD_SEPARATOR}"))
+                        })
+                })
+                .collect();
+
+            assert!(
+                missing_params.is_empty(),
+                "Service {node_service:?} of node type {node_type} does not set \
+                 {missing_params:#?}. Add each param to the matching file under \
+                 crates/apollo_deployments/resources/app_configs and regenerate."
+            );
         }
     }
 }
@@ -179,4 +236,14 @@ fn l1_components_state_consistency() {
             "L1 provider and scraper should either be both enabled or both disabled."
         );
     }
+}
+
+/// The application config files a service's pod mounts, in the order the deployment lists them.
+fn application_config_files(node_service: &NodeService) -> Vec<String> {
+    let deployment_file = File::open(node_service.replacer_deployment_file_path()).unwrap();
+    serde_json::from_reader(deployment_file).unwrap()
+}
+
+fn config_file_params(application_config_file: &str) -> Map<String, Value> {
+    serde_json::from_reader(File::open(application_config_file).unwrap()).unwrap()
 }
