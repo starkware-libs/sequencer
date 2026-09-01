@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788168337611,
+  "lastUpdate": 1788257133229,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -271,6 +271,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1414.38605476,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c52d575ea25784405e81b8e9320cd239b1d7cb15",
+          "message": "workspace,apollo_starknet_os_program,blockifier,starknet_proof_verifier: switch to proof version V2 (#15014)\n\nReplaces proof version V1 with V2 for client-side proving.\n\n- Cairo OS: PROOF_VERSION_V1 -> PROOF_VERSION_V2 ('PROOF2'), asserted by\n  check_proof_facts. Only the `os` program hash changes.\n- starknet_os: Const::ProofVersionV1 -> Const::ProofVersionV2.\n- blockifier: allowed_proof_versions for 0.14.4 becomes [V2].\n- starknet_proof_verifier: pins privacy-circuit-verify and privacy-prove to\n  starkware-libs/proving, dispatches V2 to the V2 circuit, and rejects V0\n  and V1. try_into_proof_facts stamps V2.\n- Regenerates the program hash, proof fixtures and derived test fixtures.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-01T09:36:47Z",
+          "tree_id": "b590977f42c7de2b6c47eb07cb9edd504499a114",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c52d575ea25784405e81b8e9320cd239b1d7cb15"
+        },
+        "date": 1788257132537,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 923.1492602100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1509.3789061500001,
             "unit": "ms"
           }
         ]
