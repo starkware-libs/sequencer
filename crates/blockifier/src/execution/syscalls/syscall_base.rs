@@ -385,17 +385,19 @@ impl<'state> SyscallHandlerBase<'state> {
         constructor_calldata: Calldata,
         deploy_from_zero: bool,
         remaining_gas: &mut u64,
+        address_derivation_hash: AddressDerivationHash,
     ) -> SyscallResult<(ContractAddress, CallInfo)> {
-        self.increment_syscall_linear_factor_by(
-            &SyscallSelector::Deploy,
-            constructor_calldata.0.len(),
-        );
+        let (syscall_selector, syscall_name) = match address_derivation_hash {
+            AddressDerivationHash::Pedersen => (SyscallSelector::Deploy, "deploy"),
+            AddressDerivationHash::Blake2 => (SyscallSelector::DeployV2, "deploy_v2"),
+        };
+        self.increment_syscall_linear_factor_by(&syscall_selector, constructor_calldata.0.len());
         let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
         if should_reject_deploy(
             versioned_constants.disable_deploy_in_validation_mode,
             self.context.execution_mode,
         ) {
-            self.reject_syscall_in_validate_mode("deploy")?;
+            self.reject_syscall_in_validate_mode(syscall_name)?;
         }
 
         let deployer_address = self.call.storage_address;
@@ -408,7 +410,7 @@ impl<'state> SyscallHandlerBase<'state> {
             class_hash,
             &constructor_calldata,
             deployer_address_for_calculation,
-            AddressDerivationHash::Pedersen,
+            address_derivation_hash,
         )?;
 
         let ctor_context = ConstructorContext {

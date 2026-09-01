@@ -574,6 +574,7 @@ pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
             execute_syscall(syscall_executor, vm, selector, T::call_contract)
         }
         SyscallSelector::Deploy => execute_syscall(syscall_executor, vm, selector, T::deploy),
+        SyscallSelector::DeployV2 => execute_syscall(syscall_executor, vm, selector, T::deploy_v2),
         SyscallSelector::EmitEvent => {
             execute_syscall(syscall_executor, vm, selector, T::emit_event)
         }

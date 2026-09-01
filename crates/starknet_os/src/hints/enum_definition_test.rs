@@ -223,7 +223,8 @@ fn test_deprecated_syscall_hint_consistency() {
                     selector,
                     // As the new and deprecated syscall selector enums are the same enum,
                     // explicitly filter out all "new" syscalls that are not supported in Cairo0.
-                    DeprecatedSyscallSelector::GetBlockHash
+                    DeprecatedSyscallSelector::DeployV2
+                        | DeprecatedSyscallSelector::GetBlockHash
                         | DeprecatedSyscallSelector::GetClassHashAt
                         | DeprecatedSyscallSelector::GetExecutionInfo
                         | DeprecatedSyscallSelector::Keccak
