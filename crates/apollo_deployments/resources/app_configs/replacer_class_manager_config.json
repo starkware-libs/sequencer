@@ -3,6 +3,8 @@
   "class_manager_config.static_config.class_manager_config.cached_class_storage_config.class_cache_size": 128,
   "class_manager_config.static_config.class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 128,
   "class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size": "$$$_CLASS_MANAGER_CONFIG-STATIC_CONFIG-CLASS_MANAGER_CONFIG-MAX_COMPILED_CONTRACT_CLASS_OBJECT_SIZE_$$$",
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.batch_config.batch_size": 100,
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.batch_config.enabled": false,
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.enforce_file_exists": false,
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.growth_step": 67108864,
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.max_readers": 8192,
