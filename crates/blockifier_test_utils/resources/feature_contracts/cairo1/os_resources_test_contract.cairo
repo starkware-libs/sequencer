@@ -56,12 +56,25 @@ mod OsResourcesTestContract {
         starknet::VALIDATED
     }
 
+    #[allow(extern_outside_corelib)]
     extern fn meta_tx_v0_syscall(
         address: ContractAddress,
         entry_point_selector: felt252,
         calldata: Span<felt252>,
         signature: Span<felt252>,
     ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
+
+    // Declared inline (not yet re-exported by the pinned compiler's corelib), same as
+    // `meta_tx_v0_syscall` above.
+    #[allow(extern_outside_corelib)]
+    extern fn deploy_v2_syscall(
+        class_hash: ClassHash,
+        contract_address_salt: felt252,
+        calldata: Span<felt252>,
+        deploy_from_zero: bool,
+    ) -> starknet::SyscallResult<(ContractAddress, Span<felt252>)> implicits(
+        GasBuiltin, System,
+    ) nopanic;
 
     // Calls every measured syscall in order.
     #[external(v0)]
@@ -115,6 +128,15 @@ mod OsResourcesTestContract {
         deploy_syscall(stable_class_hash, 3, array![0].span(), true).unwrap_syscall();
         // linear factor:
         deploy_syscall(stable_class_hash, 3, large_input.span(), true).unwrap_syscall();
+
+        // deploy_v2 syscall (Blake-escaped address derivation; same request/response as deploy).
+        // Measured base + linear like deploy. A distinct salt is used so the derived addresses don't
+        // collide with the deploy calls above (the Blake and Pedersen address spaces are disjoint
+        // regardless, but keeping the salt distinct is clearer).
+        // base:
+        deploy_v2_syscall(stable_class_hash, 4, array![0].span(), true).unwrap_syscall();
+        // linear factor:
+        deploy_v2_syscall(stable_class_hash, 4, large_input.span(), true).unwrap_syscall();
 
         // emit event syscall.
         emit_event_syscall(array![5].span(), array![7].span()).unwrap_syscall();

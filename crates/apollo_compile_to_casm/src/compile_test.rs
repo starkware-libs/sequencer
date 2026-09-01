@@ -36,8 +36,12 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
 // Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["sha512_process_block_syscall", "sha512_state_handle_digest", "sha512_state_handle_init"];
+const PENDING_LIBFUNCS: &[&str] = &[
+    "deploy_v2_syscall",
+    "sha512_process_block_syscall",
+    "sha512_state_handle_digest",
+    "sha512_state_handle_init",
+];
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
