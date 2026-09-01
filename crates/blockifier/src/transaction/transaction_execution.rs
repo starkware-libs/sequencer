@@ -1,5 +1,5 @@
 use starknet_api::contract_class::ClassInfo;
-use starknet_api::core::{AddressDerivationHash, ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction,
@@ -30,6 +30,10 @@ use crate::transaction::objects::{
     TransactionInfoCreator,
 };
 use crate::transaction::transactions::ExecutableTransaction;
+
+#[cfg(test)]
+#[path = "transaction_execution_test.rs"]
+mod transaction_execution_test;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
 #[allow(clippy::large_enum_variant)]
@@ -103,7 +107,7 @@ impl Transaction {
                 let contract_address = match deployed_contract_address {
                     Some(address) => address,
                     None => deploy_account
-                        .calculate_contract_address(AddressDerivationHash::Pedersen)?,
+                        .calculate_contract_address(deploy_account.address_derivation_hash())?,
                 };
                 ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
                     tx: deploy_account,
