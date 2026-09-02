@@ -95,6 +95,27 @@ pub fn pack_output_digest(output_digest: &Blake2sDigestWords) -> (Felt, Felt) {
     (pack_half(&output_digest[..4]), pack_half(&output_digest[4..]))
 }
 
+/// The inverse of [`pack_output_digest`]: unpacks the (low, high) felt pair of an OS
+/// output back into the digest's eight u32 words. Returns `None` when either half is
+/// not under 2^128 (mirroring the Cairo `unpack_block_root_entry` range checks).
+pub fn unpack_output_digest(low: Felt, high: Felt) -> Option<Blake2sDigestWords> {
+    let unpack_half = |packed_half: Felt| -> Option<[u32; 4]> {
+        let half_bytes = packed_half.to_bytes_le();
+        if half_bytes[16..].iter().any(|byte| *byte != 0) {
+            return None;
+        }
+        Some(std::array::from_fn(|word_index| {
+            u32::from_le_bytes(half_bytes[word_index * 4..(word_index + 1) * 4].try_into().unwrap())
+        }))
+    };
+    let low_words = unpack_half(low)?;
+    let high_words = unpack_half(high)?;
+    let mut output_digest = [0; BLAKE2S_DIGEST_N_WORDS];
+    output_digest[..4].copy_from_slice(&low_words);
+    output_digest[4..].copy_from_slice(&high_words);
+    Some(output_digest)
+}
+
 /// Computes one transaction's leaf output digest:
 /// blake2s(encode_felt252s_to_u32s(proof_facts[2..])). The preimage drops the two
 /// version markers, keeping [program_hash, ...virtual OS output] - the preimage the

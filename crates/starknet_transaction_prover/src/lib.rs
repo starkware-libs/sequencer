@@ -22,6 +22,7 @@ pub mod errors;
 pub mod proving;
 pub mod running;
 pub mod server;
+pub mod verifier_task;
 
 #[cfg(test)]
 mod test_utils;
