@@ -395,7 +395,7 @@
           "description": "Blocks the last state-commitment-infos blob sent trails consensus; the retrospective gate errors once it reaches STORED_BLOCK_HASH_BUFFER.",
           "type": "timeseries",
           "exprs": [
-            "max by (namespace) (consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - max by (namespace) (cende_last_state_commitment_infos_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "cende_state_commitment_infos_gap{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {
             "thresholds": {
