@@ -63,6 +63,7 @@ use crate::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER,
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
+    CENDE_STATE_COMMITMENT_INFOS_GAP,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
 };
@@ -387,7 +388,7 @@ impl CendeContext for CendeAmbassador {
                 }
 
                 info!("Writing blob to Aerospike.");
-                return send_write_blob(request_builder, blob.as_ref()).await;
+                return send_write_blob(request_builder, blob.as_ref(), current_height).await;
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
         )
@@ -436,7 +437,11 @@ impl CendeContext for CendeAmbassador {
 }
 
 #[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
-async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
+async fn send_write_blob(
+    request_builder: RequestBuilder,
+    blob: &AerospikeBlob,
+    current_height: BlockNumber,
+) -> bool {
     // TODO(dvir): use compression to reduce the size of the blob in the network.
     match request_builder.json(blob).send().await {
         Ok(response) => {
@@ -453,6 +458,9 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                 {
                     CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER
                         .set_lossy(last_state_commitment_infos.block_number.0);
+                    let gap =
+                        current_height.0.saturating_sub(last_state_commitment_infos.block_number.0);
+                    CENDE_STATE_COMMITMENT_INFOS_GAP.set_lossy(gap);
                 }
                 true
             } else {
