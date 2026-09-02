@@ -29,13 +29,7 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{
-    HealthLayer,
-    HttpMetricsLayer,
-    RequestLogLayer,
-    RequestSpanLayer,
-    ServerLayers,
-};
+use crate::server::{HttpMetricsLayer, RequestLogLayer, RequestSpanLayer, ServerLayers};
 
 #[cfg(test)]
 #[path = "tls_test.rs"]
@@ -57,7 +51,6 @@ pub async fn start_tls_server(
     max_request_body_size: u32,
     layers: ServerLayers,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
-    let ServerLayers { cors_layer, ohttp_layer, metrics_layer } = layers;
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
     let server_config = ServerConfig::builder()
@@ -98,16 +91,7 @@ pub async fn start_tls_server(
         }
     };
 
-    spawn_accept_loop(
-        listener,
-        stop_handle,
-        methods,
-        server_config,
-        metrics_layer,
-        cors_layer,
-        ohttp_layer,
-        prepare_stream,
-    );
+    spawn_accept_loop(listener, stop_handle, methods, server_config, layers, prepare_stream);
 
     Ok((local_addr, server_handle))
 }
@@ -122,19 +106,23 @@ fn spawn_accept_loop<PrepareStream, PrepareStreamFuture, ServedStream>(
     stop_handle: StopHandle,
     methods: Methods,
     server_config: ServerConfig,
-    metrics_layer: Option<MetricsLayer>,
-    cors_layer: Option<CorsLayer>,
-    ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    layers: ServerLayers,
     prepare_stream: PrepareStream,
 ) where
     PrepareStream: Fn(TcpStream, SocketAddr) -> PrepareStreamFuture + Clone + Send + 'static,
     PrepareStreamFuture: Future<Output = Option<ServedStream>> + Send,
     ServedStream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    let ServerLayers { cors_layer, ohttp_layer, metrics_layer, health_layer } = layers;
     // See `prover_http_middleware!` for the full layer-order rationale.
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(prover_http_middleware!(metrics_layer, cors_layer, ohttp_layer))
+        .set_http_middleware(prover_http_middleware!(
+            health_layer,
+            metrics_layer,
+            cors_layer,
+            ohttp_layer
+        ))
         .to_service_builder();
 
     tokio::spawn(async move {
