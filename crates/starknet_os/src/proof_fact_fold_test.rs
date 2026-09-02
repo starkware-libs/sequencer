@@ -12,6 +12,8 @@ use super::{
     combine_leaf_digests,
     compute_leaf_output_digest,
     compute_verification_digest,
+    pack_output_digest,
+    unpack_output_digest,
     Blake2sDigestWords,
     BLAKE2S_DIGEST_N_WORDS,
     LEAF_VERIFIER_CIRCUIT_HASH,
@@ -254,4 +256,15 @@ fn test_processed_proof_output_digest_execution_resources() {
         .assert_eq(&format_steps_and_range_checks(&leaf_digest_resources));
     expect!["399 steps, 3 range checks"]
         .assert_eq(&format_steps_and_range_checks(&combine_resources));
+}
+
+#[test]
+fn test_unpack_output_digest_roundtrip() {
+    let output_digest = GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST;
+    let (packed_low, packed_high) = pack_output_digest(&output_digest);
+    assert_eq!(unpack_output_digest(packed_low, packed_high), Some(output_digest));
+
+    let felt_2_to_128 = Felt::from(2u64).pow(128u64);
+    assert_eq!(unpack_output_digest(felt_2_to_128, packed_high), None);
+    assert_eq!(unpack_output_digest(packed_low, felt_2_to_128 + packed_high), None);
 }
