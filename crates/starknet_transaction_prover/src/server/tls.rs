@@ -1,5 +1,6 @@
 //! TLS helpers for serving JSON-RPC over HTTPS.
 
+use std::future::Future;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -14,8 +15,10 @@ use jsonrpsee::server::{
     ServerBuilder,
     ServerConfig,
     ServerHandle,
+    StopHandle,
 };
-use tokio::net::TcpListener;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::rustls::pki_types::pem::PemObject;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig as RustlsServerConfig;
@@ -28,6 +31,10 @@ use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
 use crate::server::{HealthLayer, OhttpJsonrpseeLayer, RequestLogLayer, RequestSpanLayer};
+
+#[cfg(test)]
+#[path = "tls_test.rs"]
+mod tls_test;
 
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -52,11 +59,6 @@ pub async fn start_tls_server(
         .max_connections(max_connections)
         .max_request_body_size(max_request_body_size)
         .build();
-    // See `prover_http_middleware!` for the full layer-order rationale.
-    let svc_builder = ServerBuilder::default()
-        .set_config(server_config)
-        .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))
-        .to_service_builder();
 
     let listener = TcpListener::bind(addr)
         .await
@@ -66,6 +68,67 @@ pub async fn start_tls_server(
 
     let methods: Methods = methods.into();
     let (stop_handle, server_handle) = stop_channel();
+
+    let prepare_stream = move |socket, remote_addr| {
+        let tls_acceptor = tls_acceptor.clone();
+        async move {
+            match tokio::time::timeout(TLS_HANDSHAKE_TIMEOUT, tls_acceptor.accept(socket)).await {
+                Ok(Ok(stream)) => Some(stream),
+                Ok(Err(err)) => {
+                    warn!(
+                        remote_address = %remote_addr,
+                        error = %err,
+                        "TLS handshake failed"
+                    );
+                    None
+                }
+                Err(_) => {
+                    warn!(
+                        remote_address = %remote_addr,
+                        "TLS handshake timed out"
+                    );
+                    None
+                }
+            }
+        }
+    };
+
+    spawn_accept_loop(
+        listener,
+        stop_handle,
+        methods,
+        server_config,
+        cors_layer,
+        ohttp_layer,
+        prepare_stream,
+    );
+
+    Ok((local_addr, server_handle))
+}
+
+/// Spawns the loop that accepts connections until `stop_handle` signals shutdown.
+///
+/// `prepare_stream` turns an accepted socket into the stream to serve, or `None` to drop it.
+/// Each connection's service holds a `StopHandle` clone, so `ServerHandle::stopped()` stays pending
+/// until the in-flight requests finish.
+fn spawn_accept_loop<PrepareStream, PrepareStreamFuture, ServedStream>(
+    listener: TcpListener,
+    stop_handle: StopHandle,
+    methods: Methods,
+    server_config: ServerConfig,
+    cors_layer: Option<CorsLayer>,
+    ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    prepare_stream: PrepareStream,
+) where
+    PrepareStream: Fn(TcpStream, SocketAddr) -> PrepareStreamFuture + Clone + Send + 'static,
+    PrepareStreamFuture: Future<Output = Option<ServedStream>> + Send,
+    ServedStream: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    // See `prover_http_middleware!` for the full layer-order rationale.
+    let svc_builder = ServerBuilder::default()
+        .set_config(server_config)
+        .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))
+        .to_service_builder();
 
     tokio::spawn(async move {
         loop {
@@ -82,49 +145,29 @@ pub async fn start_tls_server(
                 }
             };
 
-            let tls_acceptor = tls_acceptor.clone();
             let stop_handle = stop_handle.clone();
             let methods = methods.clone();
             let svc_builder = svc_builder.clone();
+            let prepare_stream = prepare_stream.clone();
 
             tokio::spawn(async move {
-                let tls_stream =
-                    match tokio::time::timeout(TLS_HANDSHAKE_TIMEOUT, tls_acceptor.accept(socket))
-                        .await
-                    {
-                        Ok(Ok(stream)) => stream,
-                        Ok(Err(err)) => {
-                            warn!(
-                                remote_address = %remote_addr,
-                                error = %err,
-                                "TLS handshake failed"
-                            );
-                            return;
-                        }
-                        Err(_) => {
-                            warn!(
-                                remote_address = %remote_addr,
-                                "TLS handshake timed out"
-                            );
-                            return;
-                        }
-                    };
+                let Some(stream) = prepare_stream(socket, remote_addr).await else {
+                    return;
+                };
 
                 let svc = svc_builder.build(methods, stop_handle.clone());
                 if let Err(err) =
-                    serve_with_graceful_shutdown(tls_stream, svc, stop_handle.shutdown()).await
+                    serve_with_graceful_shutdown(stream, svc, stop_handle.shutdown()).await
                 {
                     warn!(
                         remote_address = %remote_addr,
                         error = %err,
-                        "HTTPS connection terminated with error"
+                        "Connection terminated with error"
                     );
                 }
             });
         }
     });
-
-    Ok((local_addr, server_handle))
 }
 
 /// Loads a certificate chain and private key from PEM files and builds a TLS acceptor.
