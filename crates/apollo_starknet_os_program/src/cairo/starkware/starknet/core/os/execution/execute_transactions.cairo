@@ -24,6 +24,7 @@ from starkware.starknet.core.os.execution.execute_transactions_inner import (
     execute_transactions_inner,
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
+from starkware.starknet.core.os.proof_fact_fold import ProofFactsReference
 
 // Executes the transactions in the hint variable block_input.transactions.
 //
@@ -49,6 +50,7 @@ func execute_transactions{
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
+    proof_facts_references: ProofFactsReference*,
     txs_range_check_ptr,
 }(block_context: BlockContext*) {
     alloc_locals;

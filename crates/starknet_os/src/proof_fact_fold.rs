@@ -64,10 +64,34 @@ pub fn fold_block_proof_facts(per_transaction_proof_facts: &[&[Felt]]) -> FoldEn
     fold_entries_to_root(leaf_entries)
 }
 
+/// Folds block-root entries (each a multiverifier node produced by
+/// [`fold_block_proof_facts`]) into a single entry, for combining blocks. Unlike a
+/// block's own fold, a single entry is returned unchanged - it is a carried subtree
+/// root, not self-folded; self-folding happens only at a block's leaf layer.
+///
+/// # Panics
+/// If `entries` is empty.
+pub fn fold_block_root_entries(entries: Vec<FoldEntry>) -> FoldEntry {
+    assert!(!entries.is_empty(), "folding block-root entries requires at least one entry");
+    fold_layers_to_root(entries)
+}
+
 /// The digest the circuit verifier outputs for the proof whose facts fold to `entry`:
 /// blake2s over its 16 words (proving side: `get_verification_output`).
 pub fn compute_fold_digest(entry: &FoldEntry) -> Blake2sDigestWords {
     blake2s_over_u32_words(&entry.to_words())
+}
+
+/// Packs an output digest into the (low, high) felt pair used in the OS output: the same
+/// Uint256 composition `encode_felt252_data_and_calc_blake2s` uses - low and high are
+/// the little-endian word compositions of words 0-3 and 4-7.
+pub fn pack_output_digest(output_digest: &Blake2sDigestWords) -> (Felt, Felt) {
+    let pack_half = |words: &[u32]| {
+        words.iter().rev().fold(Felt::ZERO, |packed_half, word| {
+            packed_half * Felt::from(1u64 << 32) + Felt::from(*word)
+        })
+    };
+    (pack_half(&output_digest[..4]), pack_half(&output_digest[4..]))
 }
 
 /// Computes one transaction's leaf output digest:
