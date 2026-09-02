@@ -119,6 +119,10 @@ impl SierraVersion {
     }
 }
 
+/// The size of the sierra program for deprecated contracts (Cairo 0), which have no sierra
+/// program.
+pub const DEPRECATED_CONTRACT_SIERRA_SIZE: usize = 0;
+
 impl Default for SierraVersion {
     fn default() -> Self {
         Self::LATEST
