@@ -8,9 +8,11 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::{
+    compute_fold_digest,
     compute_leaf_output_digest,
     fold_block_proof_facts,
     Blake2sDigestWords,
+    FoldEntry,
     BLAKE2S_DIGEST_N_WORDS,
     LEAF_VERIFIER_CIRCUIT_HASH,
     MULTIVERIFIER_CIRCUIT_HASH,
@@ -22,6 +24,8 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
     PointerArg,
 };
+
+const FOLD_ENTRY_N_WORDS: usize = 2 * BLAKE2S_DIGEST_N_WORDS;
 
 fn entrypoint_runner_config() -> EntryPointRunnerConfig {
     EntryPointRunnerConfig {
@@ -77,6 +81,38 @@ fn run_cairo_function_returning_words(
             u32::try_from(word_felt.to_biguint()).expect("A digest word must fit in a u32.")
         })
         .collect()
+}
+
+fn fold_entry_from_words(entry_words: &[u32]) -> FoldEntry {
+    FoldEntry {
+        circuit_hash: entry_words[..BLAKE2S_DIGEST_N_WORDS].try_into().unwrap(),
+        output_digest: entry_words[BLAKE2S_DIGEST_N_WORDS..].try_into().unwrap(),
+    }
+}
+
+/// Runs the Cairo `fold_block_proof_facts` and returns the root entry.
+fn run_cairo_fold_block_proof_facts(per_transaction_proof_facts: &[&[Felt]]) -> FoldEntry {
+    let root_entry_words = run_cairo_function_returning_words(
+        "fold_block_proof_facts",
+        &fold_block_proof_facts_args(per_transaction_proof_facts),
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        FOLD_ENTRY_N_WORDS,
+    );
+    fold_entry_from_words(&root_entry_words)
+}
+
+/// The Cairo arguments: `n_transactions`, then an array of `ProofFactsReference`s - a
+/// (size, pointer) pair per transaction.
+fn fold_block_proof_facts_args(per_transaction_proof_facts: &[&[Felt]]) -> Vec<EndpointArg> {
+    let proof_facts_references = EndpointArg::Pointer(PointerArg::Composed(
+        per_transaction_proof_facts
+            .iter()
+            .flat_map(|proof_facts| {
+                [EndpointArg::from(Felt::from(proof_facts.len())), felt_array_arg(proof_facts)]
+            })
+            .collect(),
+    ));
+    vec![EndpointArg::from(Felt::from(per_transaction_proof_facts.len())), proof_facts_references]
 }
 
 /// Proof facts shaped like a real transaction's, with values derived from
@@ -154,6 +190,43 @@ fn test_cairo_leaf_output_digest_matches_rust(#[case] proof_facts: Vec<Felt>) {
         BLAKE2S_DIGEST_N_WORDS,
     );
     assert_eq!(cairo_digest_words, compute_leaf_output_digest(&proof_facts));
+}
+
+/// Covers the self-fold (one transaction), a full layer (two, four), the carry rule at
+/// one layer (three) and at two layers (five), and a deeper tree (seven).
+#[rstest]
+#[case::single_transaction_self_fold(1)]
+#[case::two_transactions(2)]
+#[case::three_transactions_carry(3)]
+#[case::four_transactions(4)]
+#[case::five_transactions_double_carry(5)]
+#[case::seven_transactions(7)]
+fn test_cairo_fold_block_proof_facts_matches_rust(#[case] n_transactions: u64) {
+    let per_transaction_proof_facts: Vec<Vec<Felt>> =
+        (0..n_transactions).map(synthetic_proof_facts).collect();
+    let proof_facts_references: Vec<&[Felt]> =
+        per_transaction_proof_facts.iter().map(Vec::as_slice).collect();
+    let cairo_root_entry = run_cairo_fold_block_proof_facts(&proof_facts_references);
+    assert_eq!(cairo_root_entry, fold_block_proof_facts(&proof_facts_references));
+}
+
+#[test]
+fn test_cairo_fold_digest_matches_rust() {
+    let proof_facts = synthetic_proof_facts(0);
+    let root_entry = fold_block_proof_facts(&[&proof_facts, &proof_facts]);
+    let root_entry_words: Vec<Felt> = root_entry
+        .circuit_hash
+        .iter()
+        .chain(root_entry.output_digest.iter())
+        .map(|word| Felt::from(*word))
+        .collect();
+    let cairo_fold_digest_words = run_cairo_function_returning_words(
+        "compute_fold_digest",
+        &[felt_array_arg(&root_entry_words)],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        BLAKE2S_DIGEST_N_WORDS,
+    );
+    assert_eq!(cairo_fold_digest_words, compute_fold_digest(&root_entry));
 }
 
 #[rstest]
