@@ -20,8 +20,9 @@ pub type Blake2sDigestWords = [u32; BLAKE2S_DIGEST_N_WORDS];
 /// is chosen per proof by its trace size, so each transaction selects its entry by
 /// [`TransactionProofFacts::leaf_circuit_index`].
 ///
-/// NOTE: `canonical_small` test-registry values (a single leaf circuit); to be replaced
-/// with the production registry's before production use.
+/// NOTE: `canonical_small` test-registry values (a single leaf circuit), pinned against
+/// the vendored `resources/circuit_registry_canonical_small.json`; to be replaced -
+/// together with the registry - with the production values before production use.
 pub const LEAF_VERIFIER_CIRCUIT_HASHES: [Blake2sDigestWords; 1] = [[
     0xd2d85a42, 0x79697b22, 0x3a41a061, 0x011cb393, 0x7a040ec9, 0x4508f4ca, 0x42239409, 0x60f3baea,
 ]];

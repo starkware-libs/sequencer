@@ -4,6 +4,8 @@ use apollo_starknet_os_program::test_programs::PROOF_FACT_FOLD_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::expect;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
@@ -105,6 +107,28 @@ fn run_cairo_fold_block_proof_facts(
         FOLD_ENTRY_N_WORDS,
     );
     fold_entry_from_words(&root_entry_words)
+}
+
+/// Runs the Cairo `fold_block_proof_facts` and returns the run's execution resources.
+fn run_cairo_fold_execution_resources(
+    per_transaction_proof_facts: &[TransactionProofFacts<'_>],
+) -> ExecutionResources {
+    let expected_return_values = vec![EndpointArg::Pointer(PointerArg::Array(vec![
+            MaybeRelocatable::from(Felt::ZERO);
+            FOLD_ENTRY_N_WORDS
+        ]))];
+    let (_, _, cairo_runner) = initialize_and_run_cairo_0_entry_point(
+        &entrypoint_runner_config(),
+        PROOF_FACT_FOLD_BYTES,
+        "fold_block_proof_facts",
+        &fold_block_proof_facts_args(per_transaction_proof_facts),
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &expected_return_values,
+        HashMap::new(),
+        None,
+    )
+    .unwrap_or_else(|error| panic!("Failed to run fold_block_proof_facts: {error:?}"));
+    cairo_runner.get_execution_resources().unwrap().filter_unused_builtins()
 }
 
 /// The Cairo arguments: `n_transactions`, then an array of `ProofFactsReference`s - a
@@ -373,4 +397,87 @@ fn test_cairo_pack_and_unpack_output_digest_match_rust() {
         FOLD_ENTRY_N_WORDS,
     );
     assert_eq!(fold_entry_from_words(&unpacked_entry_words), root_entry);
+}
+
+/// One verifier list's circuit hashes from the vendored registry, in registry order.
+fn registry_circuit_hashes(
+    registry: &serde_json::Value,
+    verifier_list_key: &str,
+) -> Vec<Blake2sDigestWords> {
+    registry[verifier_list_key]
+        .as_array()
+        .unwrap_or_else(|| panic!("The registry must list {verifier_list_key}."))
+        .iter()
+        .map(|verifier_entry| {
+            let circuit_hash_words: Vec<u32> = verifier_entry["circuit_hash"]
+                .as_array()
+                .expect("A circuit hash must be an array of words.")
+                .iter()
+                .map(|circuit_hash_word| {
+                    let word_hex =
+                        circuit_hash_word.as_str().expect("A circuit hash word must be a string.");
+                    u32::from_str_radix(word_hex.trim_start_matches("0x"), 16)
+                        .expect("A circuit hash word must be a hex u32.")
+                })
+                .collect();
+            circuit_hash_words.try_into().expect("A circuit hash must have exactly 8 words.")
+        })
+        .collect()
+}
+
+/// Pins the circuit hash constants to the vendored circuit registry
+/// (`resources/circuit_registry_canonical_small.json`): the `canonical_small` registry,
+/// taken verbatim from proving-dev commit b75d21f91fe846401e002ad169dbcbe57f289ebf at
+/// crates/stwo_run_and_prove_recursive_tree/test_data/circuit_registry.json. Together
+/// with the Cairo constant tests (`test_cairo_leaf_verifier_circuit_hash_table_matches_rust`
+/// and `test_cairo_multiverifier_circuit_hash_matches_rust`) this pins the Cairo tables
+/// to the registry, so swapping in the production registry is a values-only change whose
+/// omissions or drift are caught here. The production registry lists one leaf verifier
+/// per trace size (five today); swapping it in means growing the allowed-circuits tables
+/// to all of them and feeding each transaction's real leaf circuit index into the OS -
+/// this comparison failing on such a registry forces that work.
+#[test]
+fn test_circuit_hash_constants_match_vendored_registry() {
+    let registry: serde_json::Value =
+        serde_json::from_str(include_str!("../resources/circuit_registry_canonical_small.json"))
+            .expect("The vendored circuit registry must be valid JSON.");
+    assert_eq!(
+        registry_circuit_hashes(&registry, "leaf_verifiers"),
+        LEAF_VERIFIER_CIRCUIT_HASHES.to_vec()
+    );
+    assert_eq!(
+        registry_circuit_hashes(&registry, "multiverifiers"),
+        vec![MULTIVERIFIER_CIRCUIT_HASH]
+    );
+}
+
+/// Pins the Cairo fold's execution cost, answering the design's per-block budget
+/// question: `fold_block_proof_facts` over `n_transactions` realistic transactions
+/// (9-felt proof facts with three large felts) costs `n_transactions` leaf digests
+/// (felt encoding + blake) plus the fold hashes - one self-fold for a single
+/// transaction, `n_transactions - 1` pair folds otherwise. A change here means the
+/// fold's cost profile changed; rerun with `UPDATE_EXPECT=1` after verifying the cause.
+#[test]
+fn test_fold_block_proof_facts_execution_resources() {
+    let fold_resources_summary = |n_transactions: u64| {
+        let per_transaction_proof_facts: Vec<Vec<Felt>> =
+            (0..n_transactions).map(synthetic_proof_facts).collect();
+        let transaction_proof_facts: Vec<TransactionProofFacts<'_>> = per_transaction_proof_facts
+            .iter()
+            .map(|proof_facts| TransactionProofFacts { proof_facts, leaf_circuit_index: 0 })
+            .collect();
+        let execution_resources = run_cairo_fold_execution_resources(&transaction_proof_facts);
+        format!(
+            "{} steps, {} range checks",
+            execution_resources.n_steps,
+            execution_resources
+                .builtin_instance_counter
+                .get(&BuiltinName::range_check)
+                .copied()
+                .unwrap_or(0)
+        )
+    };
+    expect!["970 steps, 15 range checks"].assert_eq(&fold_resources_summary(1));
+    expect!["1335 steps, 27 range checks"].assert_eq(&fold_resources_summary(2));
+    expect!["5979 steps, 117 range checks"].assert_eq(&fold_resources_summary(8));
 }
