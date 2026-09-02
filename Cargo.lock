@@ -4938,6 +4938,33 @@ dependencies = [
 
 [[package]]
 name = "cairo-program-runner-lib"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ea514a5d0257c2b2abc19433cbb317c00606149c9187760f48368f2c9cd6223"
+dependencies = [
+ "anyhow",
+ "cairo-lang-casm",
+ "cairo-lang-executable",
+ "cairo-lang-execute-utils",
+ "cairo-lang-runner",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "clap",
+ "num-bigint",
+ "num-traits",
+ "regex",
+ "serde",
+ "serde_json",
+ "sonic-rs",
+ "starknet-crypto 0.8.1",
+ "starknet-types-core",
+ "thiserror 1.0.69",
+ "thiserror-no-std",
+ "tracing",
+]
+
+[[package]]
+name = "cairo-program-runner-lib"
 version = "2.4.0"
 source = "git+https://github.com/starkware-libs/proving?rev=2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3#2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3"
 dependencies = [
@@ -5170,7 +5197,7 @@ dependencies = [
  "circuit-common 2.4.0",
  "circuits 2.4.0",
  "circuits-stark-verifier 2.4.0",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5314,7 +5341,7 @@ version = "2.4.0"
 source = "git+https://github.com/starkware-libs/proving?rev=2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3#2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3"
 dependencies = [
  "blake2",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5343,7 +5370,7 @@ version = "2.4.0"
 source = "git+https://github.com/starkware-libs/proving?rev=2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3#2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3"
 dependencies = [
  "circuits 2.4.0",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -6011,7 +6038,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 2.0.110",
 ]
 
 [[package]]
@@ -7165,7 +7192,6 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash 0.1.5",
- "serde",
 ]
 
 [[package]]
@@ -8583,7 +8609,7 @@ version = "2.4.0"
 source = "git+https://github.com/starkware-libs/proving?rev=2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3#2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3"
 dependencies = [
  "cairo-air 2.4.0",
- "cairo-program-runner-lib",
+ "cairo-program-runner-lib 2.4.0",
  "cairo-vm",
  "circuit-cairo-verifier 2.4.0",
  "circuit-common 2.4.0",
@@ -10922,7 +10948,7 @@ source = "git+https://github.com/starkware-libs/proving?rev=2b495a36d57a4bd754cd
 dependencies = [
  "anyhow",
  "cairo-air 2.4.0",
- "cairo-program-runner-lib",
+ "cairo-program-runner-lib 2.4.0",
  "cairo-vm",
  "circuit-cairo-verifier 2.4.0",
  "circuit-common 2.4.0",
@@ -13678,6 +13704,7 @@ dependencies = [
  "bytes",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-program-runner-lib 1.3.1",
  "cairo-vm",
  "clap",
  "flate2",
@@ -13815,7 +13842,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "hex",
  "indexmap 2.14.0",
  "itertools 0.12.1",
@@ -14013,7 +14040,7 @@ name = "stwo-constraint-framework"
 version = "2.4.0"
 source = "git+https://github.com/starkware-libs/proving?rev=2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3#2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3"
 dependencies = [
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.9.5",
