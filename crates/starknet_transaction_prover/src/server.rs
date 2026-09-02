@@ -84,6 +84,8 @@ pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 pub use request_span::RequestSpanLayer;
 
 #[cfg(test)]
+mod cors_test;
+#[cfg(test)]
 mod rpc_spec_test;
 
 #[cfg(test)]
