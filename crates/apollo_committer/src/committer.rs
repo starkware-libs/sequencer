@@ -8,10 +8,13 @@ use apollo_committer_types::committer_types::{
     AccessedKeys,
     CommitBlockRequest,
     CommitBlockResponse,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
     RevertBlockResponse,
+    StateCommitmentInfosAtHeight,
 };
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -705,6 +708,33 @@ where
                 })
             }
         }
+    }
+
+    /// Reads the stored state commitment infos of the committed heights in `[start_height,
+    /// end_height)`, ascending by height. Heights whose infos were never stored or already pruned
+    /// are absent from the result.
+    pub async fn get_state_commitment_infos(
+        &mut self,
+        GetStateCommitmentInfosRequest { start_height, end_height }: GetStateCommitmentInfosRequest,
+    ) -> CommitterResult<GetStateCommitmentInfosResponse> {
+        let end_height = end_height.min(self.offset);
+        let mut state_commitment_infos = Vec::new();
+        for height in start_height.iter_up_to(end_height) {
+            let infos = self
+                .forest_storage
+                .read_compressed_commitment_infos(height)
+                .await
+                .map_err(|error| self.map_internal_error_at_height(height, error))?;
+            if let Some(infos) = infos {
+                state_commitment_infos
+                    .push(StateCommitmentInfosAtHeight { height, state_commitment_infos: infos });
+            }
+        }
+        info!(
+            "Read the state commitment infos of heights {:?} in [{start_height}, {end_height}).",
+            state_commitment_infos.iter().map(|infos| infos.height).collect::<Vec<_>>()
+        );
+        Ok(GetStateCommitmentInfosResponse { state_commitment_infos })
     }
 
     async fn load_witnesses_digest(
