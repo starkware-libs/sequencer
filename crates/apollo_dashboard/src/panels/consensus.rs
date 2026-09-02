@@ -48,6 +48,7 @@ use apollo_consensus_manager::metrics::{
 use apollo_consensus_orchestrator::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER,
+    CENDE_STATE_COMMITMENT_INFOS_GAP,
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
@@ -72,7 +73,6 @@ use apollo_l1_gas_price::metrics::{
     EXCHANGE_RATE_ORACLE_SUCCESS_COUNT,
 };
 use apollo_l1_gas_price_types::{CurrencyPair, LABEL_NAME_CURRENCY_PAIR};
-use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
@@ -373,18 +373,13 @@ fn get_panel_cende_last_state_commitment_infos_block_number() -> Panel {
 }
 
 fn get_panel_consensus_cende_state_commitment_infos_gap() -> Panel {
-    // The two metrics are emitted by different pods, so drop the pod filter or the diff empties.
-    let consensus = CONSENSUS_BLOCK_NUMBER.get_name_with_filter().replace(POD_LABEL_FILTER, "");
-    let cende = CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER
-        .get_name_with_filter()
-        .replace(POD_LABEL_FILTER, "");
     #[allow(clippy::as_conversions)]
     let gap_failure_threshold = STORED_BLOCK_HASH_BUFFER as f64;
     Panel::new(
         "Consensus vs Cende State Commitment Infos Gap (blocks)",
         "Blocks the last state-commitment-infos blob sent trails consensus; the retrospective \
          gate errors once it reaches STORED_BLOCK_HASH_BUFFER.",
-        format!("max by (namespace) ({consensus}) - max by (namespace) ({cende})"),
+        CENDE_STATE_COMMITMENT_INFOS_GAP.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
     .with_absolute_thresholds(vec![("green", None), ("red", Some(gap_failure_threshold))])
