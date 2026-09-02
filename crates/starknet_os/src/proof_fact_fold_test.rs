@@ -4,6 +4,8 @@ use apollo_starknet_os_program::test_programs::PROOF_FACT_FOLD_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::expect;
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -11,6 +13,9 @@ use super::{
     compute_leaf_output_digest,
     compute_verification_digest,
     Blake2sDigestWords,
+    BLAKE2S_DIGEST_N_WORDS,
+    LEAF_VERIFIER_CIRCUIT_HASH,
+    MULTIVERIFIER_CIRCUIT_HASH,
 };
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
@@ -41,6 +46,8 @@ const GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST: Blake2sDigestWords =
 
 const GOLDEN_VERIFICATION_DIGEST: Blake2sDigestWords =
     [2180856259, 1333085512, 862178086, 2311453888, 551146339, 2046676941, 3386628737, 1763131494];
+
+const GATED_LEAF_PROOF_TRACE_LOG_SIZE: u64 = 20;
 
 fn entrypoint_runner_config() -> EntryPointRunnerConfig {
     EntryPointRunnerConfig {
@@ -110,6 +117,65 @@ fn assert_cairo_function_returns_digest(
     assert_eq!(explicit_return_values, expected_return_values);
 }
 
+fn run_cairo_function_resources(
+    function_name: &str,
+    explicit_args: &[EndpointArg],
+) -> ExecutionResources {
+    let expected_return_values = vec![EndpointArg::Pointer(PointerArg::Array(vec![
+            MaybeRelocatable::from(Felt::ZERO);
+            BLAKE2S_DIGEST_N_WORDS
+        ]))];
+    let (_, _, cairo_runner) = initialize_and_run_cairo_0_entry_point(
+        &entrypoint_runner_config(),
+        PROOF_FACT_FOLD_BYTES,
+        function_name,
+        explicit_args,
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &expected_return_values,
+        HashMap::new(),
+        None,
+    )
+    .unwrap_or_else(|error| panic!("Failed to run Cairo function {function_name}: {error:?}"));
+    cairo_runner.get_execution_resources().unwrap().filter_unused_builtins()
+}
+
+fn format_steps_and_range_checks(execution_resources: &ExecutionResources) -> String {
+    format!(
+        "{} steps, {} range checks",
+        execution_resources.n_steps,
+        execution_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::range_check)
+            .copied()
+            .unwrap_or(0)
+    )
+}
+
+fn registry_circuit_hashes(
+    registry: &serde_json::Value,
+    verifier_list_key: &str,
+) -> Vec<Blake2sDigestWords> {
+    registry[verifier_list_key]
+        .as_array()
+        .unwrap_or_else(|| panic!("The registry must list {verifier_list_key}."))
+        .iter()
+        .map(|verifier_entry| {
+            let circuit_hash_words: Vec<u32> = verifier_entry["circuit_hash"]
+                .as_array()
+                .expect("A circuit hash must be an array of words.")
+                .iter()
+                .map(|circuit_hash_word| {
+                    let word_hex =
+                        circuit_hash_word.as_str().expect("A circuit hash word must be a string.");
+                    u32::from_str_radix(word_hex.trim_start_matches("0x"), 16)
+                        .expect("A circuit hash word must be a hex u32.")
+                })
+                .collect();
+            circuit_hash_words.try_into().expect("A circuit hash must have exactly 8 words.")
+        })
+        .collect()
+}
+
 #[test]
 fn test_leaf_output_digest_matches_proving_side_golden() {
     assert_eq!(compute_leaf_output_digest(&GOLDEN_PROOF_FACTS), GOLDEN_LEAF_OUTPUT_DIGEST);
@@ -148,4 +214,44 @@ fn test_cairo_combine_leaf_digests_matches_rust_for_two_different_leaves() {
         &right_leaf_digest,
         &combine_leaf_digests(&left_leaf_digest, &right_leaf_digest),
     );
+}
+
+#[test]
+fn test_circuit_hash_constants_match_vendored_registry() {
+    let registry: serde_json::Value =
+        serde_json::from_str(include_str!("../resources/circuit_registry_canonical_small.json"))
+            .expect("The vendored circuit registry must be valid JSON.");
+    assert_eq!(
+        registry_circuit_hashes(&registry, "leaf_verifiers"),
+        vec![LEAF_VERIFIER_CIRCUIT_HASH]
+    );
+    assert_eq!(
+        registry["leaf_verifiers"][0]["trace_log_size"].as_u64(),
+        Some(GATED_LEAF_PROOF_TRACE_LOG_SIZE)
+    );
+    assert_eq!(
+        registry_circuit_hashes(&registry, "multiverifiers"),
+        vec![MULTIVERIFIER_CIRCUIT_HASH]
+    );
+}
+
+#[test]
+fn test_processed_proof_output_digest_execution_resources() {
+    let leaf_digest_resources = run_cairo_function_resources(
+        "compute_leaf_output_digest",
+        &[
+            EndpointArg::from(Felt::from(GOLDEN_PROOF_FACTS.len())),
+            felt_array_arg(&GOLDEN_PROOF_FACTS),
+        ],
+    );
+    let leaf_digest = GOLDEN_LEAF_OUTPUT_DIGEST.map(Felt::from);
+    // The single transaction's proof fills both of the multiverifier's verifier slots.
+    let combine_resources = run_cairo_function_resources(
+        "combine_leaf_digests",
+        &[felt_array_arg(&leaf_digest), felt_array_arg(&leaf_digest)],
+    );
+    expect!["274 steps, 7 range checks"]
+        .assert_eq(&format_steps_and_range_checks(&leaf_digest_resources));
+    expect!["399 steps, 3 range checks"]
+        .assert_eq(&format_steps_and_range_checks(&combine_resources));
 }
