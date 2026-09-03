@@ -1,5 +1,5 @@
 // Full per-service SequencerNodeConfig for the `testing/node-0` overlay (self-contained testing overlay).
-// Evaluate: jsonnet -J <repo>/crates/apollo_deployments/jsonnet node.jsonnet
+// Evaluate: jsonnet -J <repo>/deployments/sequencer/configs/jsonnet node.jsonnet
 local build = import 'lib/build.libsonnet';
 build.build({
   chain_params: import './chain_params.jsonnet',
