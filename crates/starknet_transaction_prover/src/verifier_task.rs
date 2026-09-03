@@ -32,6 +32,9 @@ use starknet_os::proof_fact_fold::{
 };
 use starknet_types_core::felt::Felt;
 
+#[cfg(any(test, feature = "testing"))]
+pub mod test_utils;
+
 #[cfg(test)]
 #[path = "verifier_task_test.rs"]
 mod verifier_task_test;
