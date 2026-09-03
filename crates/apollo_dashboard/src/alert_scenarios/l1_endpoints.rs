@@ -17,8 +17,13 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
-// 10 minutes; change this constant and regenerate the dashboard to adjust the threshold.
-const MAX_PRIMARY_DOWN_SECONDS: f64 = 600.0;
+/// How long the primary may stay down before paging, per scraper.
+fn max_primary_down_seconds(scraper: ScraperLabel) -> f64 {
+    match scraper {
+        ScraperLabel::L1Events => 600.0,
+        ScraperLabel::L1GasPrice => 600.0,
+    }
+}
 
 /// Returns one alert per scraper label (`l1_events`, `l1_gas_price`).
 ///
@@ -47,7 +52,7 @@ pub(crate) fn get_primary_l1_endpoint_down_too_long_alerts() -> Vec<Alert> {
                 format!("max((time() - {metric}) and ({metric} > 0))"),
                 vec![AlertCondition::new(
                     AlertComparisonOp::GreaterThan,
-                    MAX_PRIMARY_DOWN_SECONDS,
+                    max_primary_down_seconds(scraper),
                     AlertLogicalOp::And,
                 )],
                 PENDING_DURATION_DEFAULT,

@@ -31,13 +31,17 @@ pub(crate) fn get_mempool_pool_size_increase() -> Alert {
     )
 }
 
+/// Window over which evictions are counted.
+const EVICTIONS_WINDOW: &str = "10m";
+
 pub(crate) fn get_mempool_evictions_count_alert() -> Alert {
     const ALERT_NAME: &str = "mempool_evictions_count";
     let evicted_label: &str = DropReason::Evicted.into();
 
-    let query_expr = MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filer_and_additional_fields(
+    let evicted_metric = MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filer_and_additional_fields(
         &format!("{LABEL_NAME_DROP_REASON}=\"{evicted_label}\""),
     );
+    let query_expr = format!("sum(increase({evicted_metric}[{EVICTIONS_WINDOW}]))");
 
     Alert::new(
         ALERT_NAME,

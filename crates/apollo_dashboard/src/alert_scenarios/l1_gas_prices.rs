@@ -96,7 +96,6 @@ pub(crate) fn get_strk_to_usd_error_count_alert() -> Alert {
     )
 }
 
-/// Eth to Strk is queried when validating a proposal too, so every node's gauge moves.
 pub(crate) fn get_eth_to_strk_rate_frozen_alert() -> Alert {
     const ALERT_NAME: &str = "eth_to_strk_rate_frozen";
     oracle_rate_frozen_alert(
@@ -104,12 +103,11 @@ pub(crate) fn get_eth_to_strk_rate_frozen_alert() -> Alert {
         "Eth to Strk rate frozen",
         CurrencyPair::EthStrk,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        // Queried while validating a proposal, so every node's gauge moves.
         ObserverApplicability::Applicable,
     )
 }
 
-/// Strk to Usd is queried only when building a proposal; observers never propose, so their gauge
-/// stays flat and the alert excludes them.
 pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
     const ALERT_NAME: &str = "strk_to_usd_rate_frozen";
     oracle_rate_frozen_alert(
@@ -117,6 +115,7 @@ pub(crate) fn get_strk_to_usd_rate_frozen_alert() -> Alert {
         "Strk to Usd rate frozen",
         CurrencyPair::StrkUsd,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        // Queried only while building a proposal, which observers never do.
         ObserverApplicability::NotApplicable,
     )
 }
@@ -277,6 +276,8 @@ fn oracle_error_count_alert(
 /// impossible for a live 18-decimal rate. Unlike the error-count alert there is deliberately no
 /// `or vector(0)`: an absent gauge must stay no-data (so an oracle that never resolves doesn't look
 /// "frozen"); only a present-but-flat gauge trips this.
+///
+/// Observer applicability differs per pair, so the caller supplies it.
 fn oracle_rate_frozen_alert(
     name: &str,
     title: &str,
