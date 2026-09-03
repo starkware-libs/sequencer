@@ -223,11 +223,9 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
     deserialize_optional_sensitive_vec_u8,
     deserialize_seconds_to_duration,
     serialize_duration_as_seconds,
-    serialize_optional_comma_separated_str,
 };
 use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_optional_sensitive_vec_u256;
@@ -321,10 +319,6 @@ pub struct NetworkConfig {
 
     /// Bootstrap peer multiaddresses for initial connectivity. Each must include a valid peer ID.
     /// Format: `/ip4/1.2.3.4/tcp/10000/p2p/<peer-id>`. Default: None
-    #[serde(
-        deserialize_with = "deserialize_comma_separated_str",
-        serialize_with = "serialize_optional_comma_separated_str"
-    )]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
 

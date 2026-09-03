@@ -3,14 +3,12 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    deserialize_comma_separated_str,
     deserialize_float_seconds_to_duration,
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
     serialize_duration_as_float_seconds,
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
-    serialize_optional_comma_separated_str,
 };
 
 // These wrappers mirror the `#[serde(deserialize_with = ..., serialize_with = ...)]` pairings used
@@ -45,17 +43,6 @@ struct FloatSecondsWrapper {
     duration: Duration,
 }
 
-// `deserialize_comma_separated_str`/`serialize_optional_comma_separated_str` are generic over any
-// `T: FromStr + ToString`; `u64` exercises the same code path without pulling in `starknet_api`.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct CommaSeparatedWrapper {
-    #[serde(
-        deserialize_with = "deserialize_comma_separated_str",
-        serialize_with = "serialize_optional_comma_separated_str"
-    )]
-    list: Option<Vec<u64>>,
-}
-
 fn assert_round_trips<T>(value: T)
 where
     T: Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
@@ -84,11 +71,4 @@ fn float_seconds_duration_round_trips() {
     // `deserialize_float_seconds_to_duration` uses `from_secs_f64`, so pick a value that is exactly
     // representable to avoid float rounding noise in the equality assertion.
     assert_round_trips(FloatSecondsWrapper { duration: Duration::from_secs_f64(1.5) });
-}
-
-#[test]
-fn comma_separated_list_round_trips() {
-    // `None` (the default) and a populated list.
-    assert_round_trips(CommaSeparatedWrapper { list: None });
-    assert_round_trips(CommaSeparatedWrapper { list: Some(vec![1, 22, 333]) });
 }
