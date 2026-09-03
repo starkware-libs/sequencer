@@ -20,6 +20,19 @@ from update_config_and_restart_nodes_lib import (
     update_config_and_restart_nodes,
 )
 
+# Both copies must agree or the node refuses to boot (`validate_node_config`).
+REVERT_CONFIG_PATHS = (
+    "consensus_manager_config.revert_config",
+    "state_sync_config.static_config.revert_config",
+)
+
+
+def revert_config_overrides(
+    should_revert: bool, revert_up_to_block: int
+) -> dict[str, Optional[int]]:
+    """`revert_config` is the target block height when reverting, or null to disable reverting."""
+    return {path: revert_up_to_block if should_revert else None for path in REVERT_CONFIG_PATHS}
+
 
 def get_logs_explorer_url_for_enable_revert(
     namespace: str,
@@ -41,12 +54,8 @@ def set_revert_mode(
     revert_up_to_block: int,
     max_parallelism: int,
 ):
-    config_overrides = {
-        "revert_config.should_revert": should_revert,
-        "revert_config.revert_up_to_and_including": revert_up_to_block,
-    }
     update_config_and_restart_nodes(
-        ConstConfigValuesUpdater(config_overrides),
+        ConstConfigValuesUpdater(revert_config_overrides(should_revert, revert_up_to_block)),
         namespace_and_instruction_args,
         Service.Core,
         restarter,

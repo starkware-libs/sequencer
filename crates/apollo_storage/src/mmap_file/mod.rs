@@ -7,7 +7,6 @@
 #[cfg(test)]
 mod mmap_file_test;
 
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
@@ -15,8 +14,6 @@ use std::path::PathBuf;
 use std::result;
 use std::sync::{Arc, Mutex};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 #[cfg(test)]
 use apollo_test_utils::GetTestInstance;
 use memmap2::{MmapMut, MmapOptions};
@@ -42,32 +39,6 @@ pub struct MmapFileConfig {
     pub growth_step: usize,
     /// The maximum size of an object in bytes.
     pub max_object_size: usize,
-}
-
-impl SerializeConfig for MmapFileConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "max_size",
-                &self.max_size,
-                "The maximum size of a memory mapped file in bytes. Must be greater than \
-                 growth_step.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "growth_step",
-                &self.growth_step,
-                "The growth step in bytes, must be greater than max_object_size.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_object_size",
-                &self.max_object_size,
-                "The maximum size of a single object in the file in bytes",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for MmapFileConfig {

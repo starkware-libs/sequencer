@@ -9,6 +9,10 @@ from git import Repo
 
 # Set of files which - if changed - should trigger tests for all packages.
 ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
+# Directories outside any crate whose files a crate's tests evaluate (repo-relative prefixes).
+PATH_TO_PACKAGE_TRIGGERS: Dict[str, str] = {
+    "deployments/sequencer/configs/jsonnet/": "apollo_deployments",
+}
 PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
 
 # Pattern to match the dependency tree output (`cargo tree -i` output).
@@ -60,6 +64,9 @@ def get_modified_packages(files: List[str]) -> Set[str]:
     for file in files:
         for p_name, p_path in tree.items():
             if os.path.abspath(file).startswith(p_path):
+                packages.add(p_name)
+        for path_prefix, p_name in PATH_TO_PACKAGE_TRIGGERS.items():
+            if file.startswith(path_prefix):
                 packages.add(p_name)
     return packages
 
