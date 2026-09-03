@@ -1162,7 +1162,7 @@
       "name": "high_empty_blocks_ratio",
       "title": "High ratio of empty blocks",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"0.001\"}[$$$high_empty_blocks_ratio-zero_bucket-sampling_window_secs-expression$$$s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$high_empty_blocks_ratio-total_count-sampling_window_secs-expression$$$s])), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"0.001\"}[$$$high_empty_blocks_ratio-zero_bucket-sampling_window_secs-expression$$$s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$high_empty_blocks_ratio-total_count-sampling_window_secs-expression$$$s])), 1)) * (max(min_over_time(mempool_priority_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) > bool 10)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -1181,7 +1181,7 @@
           "type": "query"
         }
       ],
-      "for": "30s",
+      "for": "2m",
       "severity": "$$$high_empty_blocks_ratio-severity$$$"
     },
     {
@@ -1292,7 +1292,7 @@
       "name": "http_server_min_add_tx_latency",
       "title": "High HTTP server minimal add_tx latency",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "((sum(increase(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) > 0) * (sum(increase(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"1.0\"}[2m])) < 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) > bool 50) * (sum(increase(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"1\"}[2m])) < bool 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -1656,7 +1656,7 @@
       "name": "mempool_evictions_count",
       "title": "Mempool evictions count",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason=\"evicted\"}) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason=\"evicted\"}[10m]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
