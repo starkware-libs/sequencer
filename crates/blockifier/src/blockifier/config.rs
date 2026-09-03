@@ -1,8 +1,4 @@
-use std::collections::BTreeMap;
-
 use apollo_compile_to_native_types::SierraCompilationConfig;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::{self, Deserializer};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
@@ -45,20 +41,6 @@ impl Default for TransactionExecutorConfig {
     }
 }
 
-impl SerializeConfig for TransactionExecutorConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump =
-            prepend_sub_config_name(self.concurrency_config.dump(), "concurrency_config");
-        dump.append(&mut BTreeMap::from([ser_param(
-            "stack_size",
-            &self.stack_size,
-            "The thread stack size (proportional to the maximal gas of a transaction).",
-            ParamPrivacyInput::Public,
-        )]));
-        dump
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct ConcurrencyConfig {
     pub enabled: bool,
@@ -72,31 +54,6 @@ impl ConcurrencyConfig {
             return Self { enabled: true, n_workers: 4, chunk_size: 64 };
         }
         Self { enabled: false, n_workers: 0, chunk_size: 0 }
-    }
-}
-
-impl SerializeConfig for ConcurrencyConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "enabled",
-                &self.enabled,
-                "Enables concurrency of transaction execution.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "n_workers",
-                &self.n_workers,
-                "Number of parallel transaction execution workers.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "chunk_size",
-                &self.chunk_size,
-                "The size of the transaction chunk executed in parallel.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 
@@ -115,25 +72,6 @@ impl WorkerPoolConfig {
 impl Default for WorkerPoolConfig {
     fn default() -> Self {
         Self { n_workers: 1, stack_size: DEFAULT_STACK_SIZE }
-    }
-}
-
-impl SerializeConfig for WorkerPoolConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "n_workers",
-                &self.n_workers,
-                "Number of parallel transaction execution workers.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "stack_size",
-                &self.stack_size,
-                "The thread stack size (proportional to the maximal gas of a transaction).",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 
@@ -165,45 +103,10 @@ impl ContractClassManagerConfig {
     }
 }
 
-impl SerializeConfig for ContractClassManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([ser_param(
-            "contract_cache_size",
-            &self.contract_cache_size,
-            "The size of the global contract cache.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.append(&mut prepend_sub_config_name(
-            self.cairo_native_run_config.dump(),
-            "cairo_native_run_config",
-        ));
-        dump.append(&mut prepend_sub_config_name(
-            self.native_compiler_config.dump(),
-            "native_compiler_config",
-        ));
-        dump
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum NativeClassesWhitelist {
     All,
     Limited(Vec<ClassHash>),
-}
-
-impl NativeClassesWhitelist {
-    pub const SER_PARAM_DESCRIPTION: &str = "Specifies whether to execute all class hashes or \
-                                             only specific ones using Cairo native. If limited, a \
-                                             specific list of class hashes is provided.";
-
-    pub fn ser_param(&self) -> (String, SerializedParam) {
-        ser_param(
-            "native_classes_whitelist",
-            &self,
-            Self::SER_PARAM_DESCRIPTION,
-            ParamPrivacyInput::Public,
-        )
-    }
 }
 
 impl<'de> Deserialize<'de> for NativeClassesWhitelist {
@@ -281,33 +184,6 @@ impl CairoNativeRunConfig {
             panic_on_compilation_failure: true,
             ..Default::default()
         }
-    }
-}
-
-impl SerializeConfig for CairoNativeRunConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "cairo_native_mode",
-                &self.cairo_native_mode,
-                "Cairo native execution mode. 'off' disables native execution, \
-                 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles \
-                 asynchronously.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "channel_size",
-                &self.channel_size,
-                "The size of the compilation request channel.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "panic_on_compilation_failure",
-                &self.panic_on_compilation_failure,
-                "Whether to panic on compilation failure.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

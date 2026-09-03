@@ -35,6 +35,10 @@ use url::Url;
 
 use crate::secrets::Sensitive;
 
+#[cfg(test)]
+#[path = "converters_test.rs"]
+mod converters_test;
+
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -61,6 +65,15 @@ where
     Ok(Duration::from_secs(secs))
 }
 
+/// Serializes a duration object to whole seconds. Counterpart of `deserialize_seconds_to_duration`,
+/// emitting the same integer-seconds wire format the deserializer reads.
+pub fn serialize_duration_as_seconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_u64(duration.as_secs())
+}
+
 /// Deserializes float seconds to duration object.
 pub fn deserialize_float_seconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -68,6 +81,16 @@ where
 {
     let secs: f64 = Deserialize::deserialize(de)?;
     Ok(Duration::from_secs_f64(secs))
+}
+
+/// Serializes a duration object to fractional seconds. Counterpart of
+/// `deserialize_float_seconds_to_duration`, emitting the same float-seconds wire format the
+/// deserializer reads.
+pub fn serialize_duration_as_float_seconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_f64(duration.as_secs_f64())
 }
 
 /// Serializes a map to "k1:v1 k2:v2" string structure.
@@ -303,44 +326,6 @@ where
     raw.split_whitespace()
         .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
-}
-
-/// Serializes an optional list into a comma-separated string.
-/// Returns `None` if the input is `None`.
-pub fn serialize_optional_comma_separated<T>(list: &Option<Vec<T>>) -> Option<String>
-where
-    T: ToString,
-{
-    match list {
-        None => None,
-        Some(list) => Some(list.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(",")),
-    }
-}
-
-/// Deserializes an optional comma-separated list of values implementing `FromStr` into
-/// `Option<Vec<T>>`. Returns `None` for empty or missing strings.
-pub fn deserialize_comma_separated_str<'de, D, T>(de: D) -> Result<Option<Vec<T>>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Display,
-{
-    let raw = String::deserialize(de).unwrap_or_default();
-    if raw.trim().is_empty() {
-        return Ok(None);
-    }
-
-    let mut output: Vec<T> = Vec::new();
-    for part in raw.split(',').filter(|s| !s.is_empty()) {
-        let value = T::from_str(part)
-            .map_err(|e| D::Error::custom(format!("Invalid value '{part}': {e}")))?;
-        output.push(value);
-    }
-
-    if output.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(output))
 }
 
 /// Deserializes a sensitive `Vec<u8>` from hex string structure.
