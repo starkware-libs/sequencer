@@ -35,10 +35,6 @@ eth_to_strk_rate_out_of_bounds-severity: "p2"
 eth_to_strk_success_count-severity: "p4"
 gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression: 120
 gateway_low_successful_transaction_rate-severity: "p4"
-high_empty_blocks_ratio-comparison_value: 0.6
-high_empty_blocks_ratio-severity: "p2"
-high_empty_blocks_ratio-total_count-sampling_window_secs-expression: 300
-high_empty_blocks_ratio-zero_bucket-sampling_window_secs-expression: 300
 http_server_avg_add_tx_latency-severity: "p4"
 http_server_internal_error_ratio-severity: "p4"
 http_server_min_add_tx_latency-severity: "p2"
