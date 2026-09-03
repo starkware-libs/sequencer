@@ -15,6 +15,7 @@ deserialize = [
 ]
 include_program_output = []
 testing = [
+  "apollo_starknet_os_program/test_programs",
   "blockifier/testing",
   "expect-test",
   "itertools",
