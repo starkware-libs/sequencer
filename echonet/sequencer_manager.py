@@ -80,6 +80,10 @@ class SequencerManager:
         self._apps_v1 = apps_v1
         self._spec = spec
         self._timing = timing
+        # The revert target height, remembered so revert can be re-enabled after being disabled.
+        # `revert_config` in the node config is a single optional value (the target, or null to
+        # disable), so the "disabled" state can't itself carry the target to restore.
+        self._revert_target: Optional[int] = None
 
     @classmethod
     def from_incluster(
@@ -130,23 +134,31 @@ class SequencerManager:
         return updated
 
     def configure_revert(self, should_revert: bool):
+        if should_revert:
+            assert self._revert_target is not None, (
+                "configure_revert(should_revert=True) requires a target set by a prior "
+                "configure_stop_sync"
+            )
+        target = self._revert_target if should_revert else None
+
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = should_revert
+            config["revert_config"] = target
 
         return self.patch_node_config(_mutate)
 
     def configure_start_sync(self):
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = False
+            config["revert_config"] = None
             config["starknet_url"] = CONFIG.feeder.base_url
             config["validator_id"] = "0x1"
 
         return self.patch_node_config(_mutate)
 
     def configure_stop_sync(self, block_number: int):
+        self._revert_target = block_number
+
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = True
-            config["revert_config.revert_up_to_and_including"] = block_number
+            config["revert_config"] = block_number
             config["starknet_url"] = "http://echonet:80"
             config["validator_id"] = "0x64"
 
@@ -318,7 +330,9 @@ class SequencerManager:
             self._spec.configmap_name, self._namespace
         )
         config: JsonObject = json.loads(configmap.data["config"])
-        return int(config["revert_config.revert_up_to_and_including"])
+        revert_target = config["revert_config"]
+        assert revert_target is not None, "revert is not enabled; no target to read"
+        return int(revert_target)
 
     def initial_revert_then_restore(self, block_number: int) -> None:
         """

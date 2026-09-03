@@ -6,5 +6,5 @@
   MAX_CPU_TIME: 600,
   VALIDATE_RESOURCE_BOUNDS: true,
   BEHAVIOR_MODE: 'starknet',
-  REVERT_CONFIG: { revert_up_to_and_including: 18446744073709551615, should_revert: false },
+  REVERT_CONFIG: null,
 }
