@@ -10,6 +10,7 @@ pub mod cairo_dict;
 pub mod cairo_runner;
 pub mod coverage;
 pub mod errors;
+pub mod proof_fact_fold_runner;
 #[cfg(test)]
 pub mod utils;
 pub mod validations;
