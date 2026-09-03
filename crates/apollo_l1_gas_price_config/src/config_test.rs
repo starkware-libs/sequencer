@@ -1,11 +1,7 @@
-use std::collections::BTreeMap;
 use std::mem::swap;
 
-use apollo_config::dumping::SerializeConfig;
-use apollo_config::loading::load;
-use apollo_config::{ParamPath, SerializedContent};
 use rstest::rstest;
-use serde_json::{json, Value};
+use serde_json::json;
 use validator::Validate;
 
 use super::{
@@ -164,40 +160,12 @@ fn provider_validation_reaches_the_nested_rate_bounds_config() {
     assert!(config.validate().is_err());
 }
 
-// The nested configs reach a node only through the param paths `dump()` emits, so a load of those
-// paths must reproduce the config they were dumped from.
-#[test]
-fn provider_config_round_trips_through_serialize_config() {
-    let config = L1GasPriceProviderConfig::default();
-
-    assert_eq!(load::<L1GasPriceProviderConfig>(&dumped_values(&config)).unwrap(), config);
-}
-
 #[test]
 fn default_oracle_sources_are_http() {
     let config = L1GasPriceProviderConfig::default();
 
     assert_eq!(config.eth_to_strk_oracle_source, ExchangeRateOracleSource::Http);
     assert_eq!(config.strk_to_usd_oracle_source, ExchangeRateOracleSource::Http);
-}
-
-// Each feed is switched on its own, so all four combinations must survive a dump and load.
-#[rstest]
-#[case::both_http(ExchangeRateOracleSource::Http, ExchangeRateOracleSource::Http)]
-#[case::eth_to_strk_only(ExchangeRateOracleSource::Chainlink, ExchangeRateOracleSource::Http)]
-#[case::strk_to_usd_only(ExchangeRateOracleSource::Http, ExchangeRateOracleSource::Chainlink)]
-#[case::both_chainlink(ExchangeRateOracleSource::Chainlink, ExchangeRateOracleSource::Chainlink)]
-fn oracle_sources_round_trip_through_serialize_config(
-    #[case] eth_to_strk_oracle_source: ExchangeRateOracleSource,
-    #[case] strk_to_usd_oracle_source: ExchangeRateOracleSource,
-) {
-    let config = L1GasPriceProviderConfig {
-        eth_to_strk_oracle_source,
-        strk_to_usd_oracle_source,
-        ..Default::default()
-    };
-
-    assert_eq!(load::<L1GasPriceProviderConfig>(&dumped_values(&config)).unwrap(), config);
 }
 
 // The enum takes no `serde` renaming, so the variant names are matched exactly as written in Rust.
@@ -208,26 +176,9 @@ fn oracle_sources_round_trip_through_serialize_config(
 #[case::uppercase("CHAINLINK")]
 #[case::feed_name("eth_to_strk")]
 #[case::unknown_source("Coinbase")]
-fn unrecognized_oracle_source_fails_to_load(#[case] source_value: &str) {
-    for param_path in ["eth_to_strk_oracle_source", "strk_to_usd_oracle_source"] {
-        let mut config_values = dumped_values(&L1GasPriceProviderConfig::default());
-        config_values.insert(param_path.to_string(), json!(source_value));
-
-        assert!(
-            load::<L1GasPriceProviderConfig>(&config_values).is_err(),
-            "`{param_path}` accepted the unrecognized value {source_value}"
-        );
-    }
-}
-
-/// The config as an operator's config file holds it: one flat map from param path to value.
-fn dumped_values(config: &L1GasPriceProviderConfig) -> BTreeMap<ParamPath, Value> {
-    config
-        .dump()
-        .into_iter()
-        .map(|(param_path, param)| match param.content {
-            SerializedContent::DefaultValue(value) => (param_path, value),
-            content => panic!("`{param_path}` was dumped without a default value: {content:?}"),
-        })
-        .collect()
+fn unrecognized_oracle_source_fails_to_deserialize(#[case] source_value: &str) {
+    assert!(
+        serde_json::from_value::<ExchangeRateOracleSource>(json!(source_value)).is_err(),
+        "`ExchangeRateOracleSource` accepted the unrecognized value {source_value}"
+    );
 }

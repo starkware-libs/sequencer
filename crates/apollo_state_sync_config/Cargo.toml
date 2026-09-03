@@ -8,7 +8,6 @@ description = "Configuration types for the Apollo state sync component."
 
 [dependencies]
 apollo_central_sync_config.workspace = true
-apollo_config.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync_config.workspace = true
 apollo_reverts.workspace = true
