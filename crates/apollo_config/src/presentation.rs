@@ -1,30 +1,32 @@
 //! presentation of a configuration, with hiding or exposing private parameters.
 
+use std::collections::BTreeSet;
 use std::ops::IndexMut;
 
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::dumping::SerializeConfig;
-use crate::{ConfigError, ParamPrivacy};
+use crate::{ConfigError, ParamPath};
 
 /// Returns presentation of the public parameters in the config.
-pub fn get_config_presentation<T: Serialize + SerializeConfig>(
+///
+/// When `include_private_parameters` is `false`, every path in `private_paths` is redacted from the
+/// presentation (the dump-independent redaction mechanism). `private_paths` is the set of `Private`
+/// param paths for `config`'s type, injected by the caller (this crate sits below the crate that
+/// owns the privacy registry, so it cannot derive the set itself).
+pub fn get_config_presentation<T: Serialize>(
     config: &T,
     include_private_parameters: bool,
+    private_paths: &BTreeSet<ParamPath>,
 ) -> Result<serde_json::Value, ConfigError> {
     let mut config_presentation = serde_json::to_value(config)?;
     if include_private_parameters {
         return Ok(config_presentation);
     }
 
-    // Iterates over flatten param paths for removing non-public parameters from the nested config.
-    for (param_path, serialized_param) in config.dump() {
-        match serialized_param.privacy {
-            ParamPrivacy::Public => continue,
-            ParamPrivacy::TemporaryValue => continue,
-            ParamPrivacy::Private => remove_path_from_json(&param_path, &mut config_presentation)?,
-        }
+    // Remove every private param path from the nested config presentation.
+    for param_path in private_paths {
+        remove_path_from_json(param_path, &mut config_presentation)?;
     }
     Ok(config_presentation)
 }

@@ -235,9 +235,8 @@ impl StateSyncRunner {
             Some(class_manager_client.clone()),
         );
 
-        if revert_config.should_revert {
+        if let Some(revert_up_to_and_including) = revert_config.0 {
             debug!("State sync runner should revert; creating revert futures.");
-            let revert_up_to_and_including = revert_config.revert_up_to_and_including;
             // We assume that sync always writes the headers before any other block data.
             let current_header_marker = storage_reader
                 .begin_ro_txn()

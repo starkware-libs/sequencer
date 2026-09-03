@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io;
@@ -6,8 +5,6 @@ use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
@@ -42,41 +39,11 @@ impl Default for StorageReaderServerStaticConfig {
     }
 }
 
-impl SerializeConfig for StorageReaderServerStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "ip",
-                &self.ip.to_string(),
-                "The IP address for the storage reader HTTP server.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "port",
-                &self.port,
-                "The port for the storage reader HTTP server.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
 /// Dynamic configuration for the storage reader server.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
 pub struct StorageReaderServerDynamicConfig {
     /// Whether the server is enabled.
     pub enable: bool,
-}
-
-impl SerializeConfig for StorageReaderServerDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "enable",
-            &self.enable,
-            "Whether to enable the storage reader HTTP server.",
-            ParamPrivacyInput::Public,
-        )])
-    }
 }
 
 /// Error returned by [`DynamicConfigProvider`] implementations.
@@ -136,14 +103,6 @@ impl ServerConfig {
     /// Returns whether the server is enabled.
     pub fn is_enabled(&self) -> bool {
         self.dynamic_config.enable
-    }
-}
-
-impl SerializeConfig for ServerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = prepend_sub_config_name(self.static_config.dump(), "static_config");
-        dump.append(&mut prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
-        dump
     }
 }
 
