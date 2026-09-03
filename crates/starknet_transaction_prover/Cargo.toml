@@ -11,6 +11,7 @@ cairo_native = ["blockifier/cairo_native"]
 # Enables in-memory stwo proving.  Requires a nightly Rust toolchain because the
 # stwo prover crate uses unstable features (array_chunks, portable_simd, …).
 stwo_proving = ["dep:privacy-prove"]
+testing = ["dep:flate2"]
 
 [dependencies]
 anyhow.workspace = true
@@ -24,6 +25,7 @@ cairo-program-runner-lib.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
+flate2 = { workspace = true, optional = true }
 futures.workspace = true
 http.workspace = true
 http-body-util.workspace = true
