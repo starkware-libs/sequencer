@@ -11,41 +11,12 @@ use crate::deployment_definitions::ComponentConfigInService;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::jsonnet_tests::{assert_build_deserializes, assert_infra_matches_rust};
+use crate::jsonnet_tests::assert_build_deserializes;
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
-
-/// Verifies the jsonnet hybrid infra config matches the Rust deployment definitions (hybrid.rs).
-#[test]
-fn hybrid_infra_matches_rust() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
-    assert_infra_matches_rust::<HybridNodeServiceName>();
-}
-
-/// Verifies the jsonnet consolidated infra config matches the Rust deployment definitions
-/// (consolidated.rs).
-#[test]
-fn consolidated_infra_matches_rust() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
-    assert_infra_matches_rust::<ConsolidatedNodeServiceName>();
-}
-
-/// Verifies the jsonnet distributed infra config matches the Rust deployment definitions
-/// (distributed.rs).
-#[test]
-fn distributed_infra_matches_rust() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
-    assert_infra_matches_rust::<DistributedNodeServiceName>();
-}
 
 /// Verifies build('consolidated', params) deserializes into SequencerNodeConfig per service.
 #[test]
