@@ -2,10 +2,3 @@ include: configs/overlays/hybrid/common/common.yaml
 
 image:
   tag: APOLLO-0.14.2-RC.5
-
-config:
-  sequencerConfig:
-    chain_id: SN_SEPOLIA
-    native_classes_whitelist: All
-    recorder_url: http://starknet-sepolia-alpha.cende-recorder-proxy.starknet.io/
-    starknet_url: https://feeder.alpha-sepolia.starknet.io/
