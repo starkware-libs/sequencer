@@ -1,7 +1,1 @@
 name: core
-config:
-  sequencerConfig:
-    consensus_manager_config.network_config.advertised_multiaddr: ""
-    consensus_manager_config.network_config.advertised_multiaddr.#is_none: true
-    consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
-    consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: true

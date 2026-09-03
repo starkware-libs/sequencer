@@ -467,9 +467,6 @@ class PriorityClass(StrictBaseModel):
 
 
 class Config(StrictBaseModel):
-    configList: Optional[
-        str
-    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for shared config)
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
     readOnly: Optional[bool] = None  # Whether the config map mount is read-only. Defaults to True.
     sequencerConfig: Optional[

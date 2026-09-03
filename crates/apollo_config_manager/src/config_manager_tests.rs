@@ -8,11 +8,7 @@ use apollo_config_manager_types::communication::{
 };
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_config::ValidatorId;
-use apollo_consensus_orchestrator_config::config::{
-    parse_price_per_height,
-    ContextDynamicConfig,
-    PricePerHeight,
-};
+use apollo_consensus_orchestrator_config::config::{ContextDynamicConfig, PricePerHeight};
 use apollo_infra::component_definitions::RequestWrapper;
 use apollo_infra::component_server::{
     ComponentServerStarter,
@@ -132,20 +128,6 @@ fn test_context_dynamic_config_serialize_deserialize_empty() {
         serde_json::from_str(&json).expect("Failed to deserialize");
 
     assert_eq!(deserialized, config);
-}
-
-#[test]
-fn test_parse_price_per_height_with_whitespace() {
-    // Test that whitespace is properly trimmed during parsing
-    let data = " 100 : 10000000000 , 500 :  20000000000 ";
-    // This func is used for deserialization of the min_l2_gas_price_per_height field.
-    let result = parse_price_per_height(data).expect("Failed to parse");
-
-    assert_eq!(result.len(), 2);
-    assert_eq!(result[0].height, 100);
-    assert_eq!(result[0].price, 10_000_000_000);
-    assert_eq!(result[1].height, 500);
-    assert_eq!(result[1].price, 20_000_000_000);
 }
 
 #[test]

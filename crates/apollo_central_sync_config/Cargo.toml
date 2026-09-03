@@ -9,7 +9,6 @@ description = "Configuration types for Apollo centralized state synchronization.
 [dependencies]
 apollo_config.workspace = true
 apollo_starknet_client.workspace = true
-itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
 url.workspace = true
 validator.workspace = true

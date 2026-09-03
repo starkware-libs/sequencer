@@ -1,8 +1,6 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -178,25 +176,6 @@ impl ReaderConfig {
     /// Indicates whether to build the storage tries concurrently or sequentially.
     pub fn build_storage_tries_concurrently(&self) -> bool {
         self.build_storage_tries_concurrently
-    }
-}
-
-impl SerializeConfig for ReaderConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "warn_on_trivial_modifications",
-                &self.warn_on_trivial_modifications,
-                "Whether to warn on trivial state update.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "build_storage_tries_concurrently",
-                &self.build_storage_tries_concurrently,
-                "Whether to build the storage tries concurrently or sequentially.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

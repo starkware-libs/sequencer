@@ -81,12 +81,14 @@ class PodBuilder:
         )
 
     def _build_container_args(self) -> list[str]:
-        """Build container arguments, always including --config_file with fixed file paths."""
-        args = []
+        """
+        Build container arguments, always including --config_file with fixed file paths.
+        """
+        args: list[str] = []
 
         # Add --config_file /config/sequencer/presets/config (ConfigMap)
         # Note: node version uses directory mount, so path is just the directory + "config"
-        if self.service_config.config and self.service_config.config.configList:
+        if self.service_config.config:
             mount_path = (
                 getattr(self.service_config.config, "mountPath", None)
                 or "/config/sequencer/presets/"
@@ -192,7 +194,7 @@ class PodBuilder:
         volume_mounts: list[k8s.VolumeMount] = []
 
         # Auto-mount ConfigMap if config exists (as directory, not file)
-        if self.service_config.config and self.service_config.config.configList:
+        if self.service_config.config:
             # Default mountPath is "/config/sequencer/presets/" (with trailing slash to match node/)
             mount_path = (
                 getattr(self.service_config.config, "mountPath", None)
@@ -313,7 +315,7 @@ class PodBuilder:
         volumes: list[k8s.Volume] = []
 
         # Always create ConfigMap volume if config exists
-        if self.service_config.config and self.service_config.config.configList:
+        if self.service_config.config:
             volumes.append(
                 k8s.Volume(
                     name=f"sequencer-{self.service_config.name}-config",
