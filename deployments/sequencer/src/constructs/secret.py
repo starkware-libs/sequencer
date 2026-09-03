@@ -31,7 +31,7 @@ class SecretConstruct(BaseConstruct):
         if not self.service_config.secret.file:
             return {}
 
-        # Resolve file path relative to project root (same as NodeConfigLoader)
+        # Resolve file path relative to project root.
         root_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../../")
         file_path = os.path.join(root_dir, self.service_config.secret.file)
 

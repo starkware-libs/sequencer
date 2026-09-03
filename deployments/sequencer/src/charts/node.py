@@ -48,7 +48,13 @@ class SequencerNodeChart(Chart):
 
         # Create ConfigMap
         self.config_map = ConfigMapConstruct(
-            self, "configmap", service_config, labels, monitoring_endpoint_port, layout, overlays
+            self,
+            "configmap",
+            service_config,
+            labels,
+            monitoring_endpoint_port,
+            layout,
+            overlays,
         )
 
         # Create ServiceAccount if enabled
