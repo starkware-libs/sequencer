@@ -10,12 +10,11 @@ description = "Handles blockchain revert detection and management."
 workspace = true
 
 [dependencies]
-apollo_config.workspace = true
 apollo_metrics.workspace = true
 apollo_storage.workspace = true
 futures.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-validator.workspace = true
+validator = { workspace = true, features = ["derive"] }

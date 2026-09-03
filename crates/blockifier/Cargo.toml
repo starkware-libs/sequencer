@@ -40,7 +40,6 @@ anyhow.workspace = true
 apollo_compilation_utils = { workspace = true, optional = true }
 apollo_compile_to_native = { workspace = true, optional = true }
 apollo_compile_to_native_types.workspace = true
-apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 ark-ec.workspace = true
@@ -86,7 +85,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
-validator.workspace = true
+validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 apollo_metrics = { workspace = true, features = ["testing"] }

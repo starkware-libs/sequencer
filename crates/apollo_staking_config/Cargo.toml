@@ -7,11 +7,10 @@ license-file.workspace = true
 description = "Configuration types for the staking manager."
 
 [dependencies]
-apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-validator.workspace = true
+validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 

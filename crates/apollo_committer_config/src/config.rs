@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -6,13 +5,6 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     serialize_duration_as_milliseconds,
 };
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
 use starknet_patricia_storage::map_storage::CachedStorage;
@@ -37,26 +29,6 @@ pub struct CommitmentInfosPruningConfig {
     pub retention_blocks: u64,
     /// At most this many heights are pruned per commit.
     pub max_deletions_per_commit: u64,
-}
-
-impl SerializeConfig for CommitmentInfosPruningConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "retention_blocks",
-                &self.retention_blocks,
-                "The commitment infos of this many highest committed heights are kept in storage; \
-                 those of lower heights are pruned when committing a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_deletions_per_commit",
-                &self.max_deletions_per_commit,
-                "At most this many heights' commitment infos are pruned per commit.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for CommitmentInfosPruningConfig {
@@ -86,46 +58,6 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     /// If None, no commitment infos are pruned.
     #[validate(nested)]
     pub commitment_infos_pruning_config: Option<CommitmentInfosPruningConfig>,
-}
-
-impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "verify_state_diff_hash",
-                &self.verify_state_diff_hash,
-                "If true, the committer will verify the state diff hash.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "serve_read_paths_as_commit_block",
-                &self.serve_read_paths_as_commit_block,
-                "If true, read_paths_and_commit_block requests are served as commit_block \
-                 requests, treating the accessed keys as an empty set.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "db_path",
-                &self.db_path,
-                "Path to the committer storage directory.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "commit_duration_warn_threshold_millis",
-                &self.commit_duration_warn_threshold_millis.as_millis(),
-                "Blocks whose commit duration exceeds this threshold (in milliseconds) are logged \
-                 at WARN level.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend(ser_optional_sub_config(
-            &self.commitment_infos_pruning_config,
-            "commitment_infos_pruning_config",
-        ));
-        dump.extend(prepend_sub_config_name(self.reader_config.dump(), "reader_config"));
-        dump.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
-        dump
-    }
 }
 
 impl<C: StorageConfigTrait> Default for CommitterConfig<C> {

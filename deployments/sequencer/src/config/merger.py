@@ -47,7 +47,7 @@ def _load_common_yaml(path: str, config_base_dir: str | None = None) -> dict | N
 def _merge_common_into_service(
     common_config: CommonConfig | dict | None, service_config: ServiceConfig
 ) -> ServiceConfig:
-    """Merge common config into service config. Common first, service overrides. Special handling for service.ports (merge by name), config.sequencerConfig, config.configList."""
+    """Merge common config into service config. Common first, service overrides. Special handling for service.ports (merge by name), config.sequencerConfig."""
     service_dict = service_config.model_dump(mode="python", exclude_unset=True, exclude_none=True)
     if common_config is None:
         return service_config
@@ -98,11 +98,8 @@ def _merge_common_into_service(
                     **deepcopy(common_val["sequencerConfig"]),
                     **merged_cfg.get("sequencerConfig", {}),
                 }
-            # Common first, service overrides: only set configList from common when service has none
-            if "configList" in common_val and "configList" not in merged_cfg:
-                merged_cfg["configList"] = deepcopy(common_val["configList"])
             for k, v in common_val.items():
-                if k in ("sequencerConfig", "configList"):
+                if k == "sequencerConfig":
                     continue
                 if k not in merged_cfg:
                     merged_cfg[k] = deepcopy(v)
