@@ -3,9 +3,9 @@
 Builds the batcher's `blocked_storage_keys` config value from a list of account addresses.
 
 For each address, the output contains the ERC20 balance storage entry of that account, i.e. the
-storage key of `ERC20_balances[address]`. Balances are u256 values which occupy two consecutive
-storage slots (low and high words), so both slots are emitted for every address unless
-`--low-only` is given. Accessing either slot fails the transaction.
+storage key of `ERC20_balances[address]`. A balance is a u256 stored in two consecutive slots, and
+reading or writing it always accesses the low word, so blocking the low word alone blocks every
+balance access. Pass `--include-high-word` to also emit the second slot.
 
 Usage (from the repo root, inside the venv):
     python scripts/blocked_balance_storage_keys.py 0x1234... 0xabcd...
@@ -42,9 +42,9 @@ def get_storage_var_address(storage_var_name: str, args: List[int]) -> int:
     return storage_key_hash % STORAGE_KEY_UPPER_BOUND
 
 
-def balance_storage_keys(address: int, storage_var_name: str, low_only: bool) -> List[int]:
+def balance_storage_keys(address: int, storage_var_name: str, include_high_word: bool) -> List[int]:
     low_word_key = get_storage_var_address(storage_var_name, [address])
-    if low_only:
+    if not include_high_word:
         return [low_word_key]
     # The high word sits in the next storage slot (`StorageKey::next_storage_key`).
     return [low_word_key, low_word_key + 1]
@@ -92,9 +92,9 @@ def parse_args(args: List[str]) -> argparse.Namespace:
         help="The ERC20 contract's balances storage variable name.",
     )
     parser.add_argument(
-        "--low-only",
+        "--include-high-word",
         action="store_true",
-        help="Emit only the low-word slot of each balance instead of both u256 slots.",
+        help="Also emit the second slot of each balance, holding the u256 high word.",
     )
     return parser.parse_args(split_comma_separated_addresses(args))
 
@@ -104,7 +104,9 @@ def main(args: List[str]) -> None:
     storage_keys: List[int] = []
     for address in parsed_args.addresses:
         storage_keys.extend(
-            balance_storage_keys(address, parsed_args.storage_var_name, parsed_args.low_only)
+            balance_storage_keys(
+                address, parsed_args.storage_var_name, parsed_args.include_high_word
+            )
         )
     print(",".join(hex(storage_key) for storage_key in storage_keys))
 
