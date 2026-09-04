@@ -84,6 +84,16 @@
     "privacy": "Public",
     "value": 5000
   },
+  "batcher_config.static_config.block_builder_config.blocked_storage_keys": {
+    "description": "Comma-separated list of hexadecimal storage keys, i.e., \"0x1,0x2\", that transactions must not access; a transaction that reads or writes any of them, in any contract, fails.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.static_config.block_builder_config.blocked_storage_keys_error_message": {
+    "description": "The error message of a transaction that accessed a blocked storage key.",
+    "privacy": "Public",
+    "value": ""
+  },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",

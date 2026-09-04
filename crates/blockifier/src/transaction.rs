@@ -7,4 +7,6 @@ pub mod objects;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 pub mod transaction_execution;
+#[cfg(test)]
+pub mod transaction_execution_test;
 pub mod transactions;

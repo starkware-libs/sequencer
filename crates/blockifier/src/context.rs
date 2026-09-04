@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, OnceLock};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress, OsChainInfo};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Fee,
@@ -128,9 +129,31 @@ pub struct BlockContext {
     pub(crate) chain_info: ChainInfo,
     pub(crate) versioned_constants: VersionedConstants,
     pub bouncer_config: BouncerConfig,
+    /// Storage keys that transactions must not access, in any contract. A transaction that reads
+    /// or writes any of them fails with `blocked_storage_keys_error_message`.
+    pub(crate) blocked_storage_keys: HashSet<StorageKey>,
+    pub(crate) blocked_storage_keys_error_message: String,
     /// Cached on first access; derived from `chain_info`. Fixed for the lifetime of a block
     /// context.
     virtual_os_config_hash: OnceLock<Felt>,
+}
+
+/// Parses a comma-separated list of hexadecimal storage keys, e.g. "0x1,0x2". Whitespace around
+/// entries is ignored, and empty entries (e.g. a trailing comma) are skipped.
+pub fn parse_blocked_storage_keys(
+    blocked_storage_keys: &str,
+) -> Result<HashSet<StorageKey>, String> {
+    blocked_storage_keys
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| {
+            let felt = Felt::from_hex(entry)
+                .map_err(|error| format!("Invalid blocked storage key {entry:?}: {error}"))?;
+            StorageKey::try_from(felt)
+                .map_err(|error| format!("Invalid blocked storage key {entry:?}: {error}"))
+        })
+        .collect()
 }
 
 impl BlockContext {
@@ -145,8 +168,20 @@ impl BlockContext {
             chain_info,
             versioned_constants,
             bouncer_config,
+            blocked_storage_keys: HashSet::new(),
+            blocked_storage_keys_error_message: String::new(),
             virtual_os_config_hash: OnceLock::new(),
         }
+    }
+
+    pub fn with_blocked_storage_keys(
+        mut self,
+        blocked_storage_keys: HashSet<StorageKey>,
+        blocked_storage_keys_error_message: String,
+    ) -> Self {
+        self.blocked_storage_keys = blocked_storage_keys;
+        self.blocked_storage_keys_error_message = blocked_storage_keys_error_message;
+        self
     }
 
     pub fn block_info(&self) -> &BlockInfo {
@@ -208,6 +243,10 @@ impl BlockContext {
     #[cfg(any(test, feature = "testing"))]
     pub fn with_chain_info(self, chain_info: ChainInfo) -> Self {
         Self::new(self.block_info, chain_info, self.versioned_constants, self.bouncer_config)
+            .with_blocked_storage_keys(
+                self.blocked_storage_keys,
+                self.blocked_storage_keys_error_message,
+            )
     }
 
     /// Test util to allow overriding block gas limits.
