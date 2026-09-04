@@ -29,7 +29,7 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
-use blockifier::context::BlockContext;
+use blockifier::context::{parse_blocked_storage_keys, BlockContext};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -781,6 +781,11 @@ impl BlockBuilderFactory {
             block_builder_config.chain_info,
             versioned_constants,
             block_builder_config.bouncer_config,
+        )
+        .with_blocked_storage_keys(
+            parse_blocked_storage_keys(&block_builder_config.blocked_storage_keys)
+                .expect("Blocked storage keys are validated when the config is loaded."),
+            block_builder_config.blocked_storage_keys_error_message,
         );
 
         // Block production has no per-call deadline to bound this against; leave it unbounded, as

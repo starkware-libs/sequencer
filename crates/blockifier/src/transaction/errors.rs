@@ -81,6 +81,8 @@ pub enum TransactionExecutionError {
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ContractConstructorExecutionFailed(#[from] ConstructorEntryPointExecutionError),
+    #[error("{message}")]
+    BlockedStorageKeyAccessed { message: String },
     #[error("Class with hash {:#066x} is already declared.", **class_hash)]
     DeclareTransactionError { class_hash: ClassHash },
     #[error("{}", gen_tx_execution_error_trace(self))]

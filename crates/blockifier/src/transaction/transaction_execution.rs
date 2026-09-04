@@ -17,12 +17,14 @@ use starknet_api::transaction::{
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
+use crate::execution::call_info::CallInfo;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
+use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     TransactionExecutionInfo,
     TransactionExecutionResult,
@@ -154,6 +156,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             Self::L1Handler(tx) => tx.execute_raw(state, block_context, concurrency_mode)?,
         };
 
+        verify_no_blocked_storage_key_accessed(&tx_execution_info, block_context)?;
+
         // Check if the transaction is too large to fit any block.
         // TODO(Yoni, 1/8/2024): consider caching these two.
         let tx_execution_summary = tx_execution_info.summarize(&block_context.versioned_constants);
@@ -177,4 +181,27 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
 
         Ok(tx_execution_info)
     }
+}
+
+fn verify_no_blocked_storage_key_accessed(
+    tx_execution_info: &TransactionExecutionInfo,
+    block_context: &BlockContext,
+) -> TransactionExecutionResult<()> {
+    if block_context.blocked_storage_keys.is_empty() {
+        return Ok(());
+    }
+    // `CallInfo::iter` walks the whole call tree, so inner calls are covered.
+    for call_info in tx_execution_info.non_optional_call_infos().flat_map(CallInfo::iter) {
+        if call_info
+            .storage_access_tracker
+            .accessed_storage_keys
+            .iter()
+            .any(|storage_key| block_context.blocked_storage_keys.contains(storage_key))
+        {
+            return Err(TransactionExecutionError::BlockedStorageKeyAccessed {
+                message: block_context.blocked_storage_keys_error_message.clone(),
+            });
+        }
+    }
+    Ok(())
 }
