@@ -11,9 +11,13 @@ use starknet_api::{felt, invoke_tx_args, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{parse_blocked_storage_keys, BlockContext};
+use crate::state::state_api::StateReader;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::objects::{
+    RevertError,
+    TransactionExecutionInfo,
+    TransactionExecutionResult,
+};
 use crate::transaction::test_utils::{
     create_test_init_data,
     default_all_resource_bounds,
@@ -69,14 +73,23 @@ fn execute_storage_write_tx(
         .execute(&mut state, &block_context)
 }
 
-fn assert_blocked(result: TransactionExecutionResult<TransactionExecutionInfo>) {
-    let error = result.expect_err("Access to a blocked storage key should fail the tx.");
-    assert_matches!(
-        &error,
-        TransactionExecutionError::BlockedStorageKeyAccessed { message }
-            if message == BLOCKED_STORAGE_KEY_ERROR_MESSAGE
+/// Asserts the tx was included and reverted, carrying the configured message, and that the sender
+/// was still charged.
+fn assert_reverted(result: TransactionExecutionResult<TransactionExecutionInfo>) {
+    let tx_execution_info =
+        result.expect("A blocked storage key should revert the tx, not fail it.");
+    assert!(tx_execution_info.is_reverted());
+    let revert_error =
+        tx_execution_info.revert_error.as_ref().expect("A reverted tx must carry a revert error.");
+    assert_matches!(revert_error, RevertError::Execution(_));
+    assert!(
+        revert_error.to_string().contains(BLOCKED_STORAGE_KEY_ERROR_MESSAGE),
+        "revert error {revert_error} should carry the configured message"
     );
-    assert_eq!(error.to_string(), BLOCKED_STORAGE_KEY_ERROR_MESSAGE);
+    // The execute stage is rolled back, so its call info is dropped.
+    assert!(tx_execution_info.execute_call_info.is_none());
+    // Reverting still charges the sender, which is the point of reverting rather than rejecting.
+    assert!(tx_execution_info.receipt.fee.0 > 0);
 }
 
 fn assert_executed(result: TransactionExecutionResult<TransactionExecutionInfo>) {
@@ -118,12 +131,46 @@ fn test_blocked_storage_keys_do_not_affect_other_keys(
     "0x0000000000000000000000000000000000000000000000000000000000000010",
     felt!(0x10_u8)
 )]
-fn test_blocked_storage_key_access_fails_tx(
+fn test_blocked_storage_key_access_reverts_tx(
     #[case] blocked_storage_keys: &str,
     #[case] accessed_storage_key: Felt,
     #[values(false, true)] nested: bool,
 ) {
-    assert_blocked(execute_storage_write_tx(blocked_storage_keys, accessed_storage_key, nested));
+    assert_reverted(execute_storage_write_tx(blocked_storage_keys, accessed_storage_key, nested));
+}
+
+/// A reverted transaction must leave no trace of the blocked write in the state.
+#[rstest]
+fn test_blocked_storage_key_write_is_rolled_back() {
+    let blocked_storage_key = felt!(0x10_u8);
+    let block_context = BlockContext::create_for_account_testing().with_blocked_storage_keys(
+        parse_blocked_storage_keys("0x10").unwrap(),
+        BLOCKED_STORAGE_KEY_ERROR_MESSAGE.to_string(),
+    );
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(
+            &block_context.chain_info,
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+        );
+    let tx = executable_invoke_tx(invoke_tx_args! {
+        sender_address: account_address,
+        calldata: create_calldata(
+            contract_address,
+            "test_storage_read_write",
+            &[blocked_storage_key, felt!(7_u8)],
+        ),
+        resource_bounds: default_all_resource_bounds(),
+        nonce: nonce_manager.next(account_address),
+    });
+    let tx_execution_info = Transaction::Account(AccountTransaction::new_for_sequencing(tx))
+        .execute(&mut state, &block_context)
+        .expect("A blocked storage key should revert the tx, not fail it.");
+    assert!(tx_execution_info.is_reverted());
+
+    let stored_value = state
+        .get_storage_at(contract_address, storage_key!(0x10_u8))
+        .expect("Reading the blocked key from the state should succeed.");
+    assert_eq!(stored_value, Felt::ZERO, "The reverted write must not persist.");
 }
 
 #[test]

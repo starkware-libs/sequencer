@@ -130,7 +130,9 @@ pub struct BlockContext {
     pub(crate) versioned_constants: VersionedConstants,
     pub bouncer_config: BouncerConfig,
     /// Storage keys that transactions must not access, in any contract. A transaction that reads
-    /// or writes any of them fails with `blocked_storage_keys_error_message`.
+    /// or writes any of them during its execute stage reverts with
+    /// `blocked_storage_keys_error_message`; one that does so in a stage that cannot be reverted
+    /// fails.
     pub(crate) blocked_storage_keys: HashSet<StorageKey>,
     pub(crate) blocked_storage_keys_error_message: String,
     /// Cached on first access; derived from `chain_info`. Fixed for the lifetime of a block
@@ -182,6 +184,28 @@ impl BlockContext {
         self.blocked_storage_keys = blocked_storage_keys;
         self.blocked_storage_keys_error_message = blocked_storage_keys_error_message;
         self
+    }
+
+    /// Returns the configured error message if any call in `call_infos`, or in their inner calls,
+    /// read or wrote a blocked storage key. Returns `None` when no key is blocked.
+    pub fn blocked_storage_key_access_error<'a>(
+        &self,
+        call_infos: impl Iterator<Item = &'a CallInfo>,
+    ) -> Option<&str> {
+        if self.blocked_storage_keys.is_empty() {
+            return None;
+        }
+        // `CallInfo::iter` walks the whole call tree, so inner calls are covered.
+        call_infos
+            .flat_map(CallInfo::iter)
+            .any(|call_info| {
+                call_info
+                    .storage_access_tracker
+                    .accessed_storage_keys
+                    .iter()
+                    .any(|storage_key| self.blocked_storage_keys.contains(storage_key))
+            })
+            .then_some(self.blocked_storage_keys_error_message.as_str())
     }
 
     pub fn block_info(&self) -> &BlockInfo {
