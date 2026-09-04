@@ -40,6 +40,8 @@ use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
     gen_tx_execution_error_trace,
     Cairo1RevertHeader,
+    ErrorStack,
+    ErrorStackSegment,
 };
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
@@ -765,6 +767,31 @@ impl AccountTransaction {
 
         match execution_result {
             Ok(execute_call_info) => {
+                // A blocked storage key accessed during execution reverts the transaction, so the
+                // sender still pays for the work done. Checked before the fee computation below,
+                // since the reverted receipt is the one that applies.
+                if let Some(message) = tx_context
+                    .block_context
+                    .blocked_storage_key_access_error(execute_call_info.iter())
+                {
+                    let revert_error = blocked_storage_key_revert_error(message);
+                    execution_state.abort();
+                    let revert_receipt = get_revert_receipt();
+                    let post_execution_report = PostExecutionReport::new(
+                        state,
+                        &tx_context,
+                        &revert_receipt,
+                        self.execution_flags.charge_fee,
+                    )?;
+                    return Ok(ValidateExecuteCallInfo::new_reverted(
+                        validate_call_info,
+                        revert_error,
+                        TransactionReceipt {
+                            fee: post_execution_report.recommended_fee(),
+                            ..revert_receipt
+                        },
+                    ));
+                }
                 // When execution succeeded, calculate the actual required fee before committing the
                 // transactional state. If max_fee is insufficient, revert the `run_execute` part.
                 let tx_receipt = TransactionReceipt::from_account_tx(
@@ -956,6 +983,14 @@ impl TransactionInfoCreator for AccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         self.tx.create_tx_info(self.execution_flags.only_query)
     }
+}
+
+/// Builds the revert error for a transaction that accessed a blocked storage key. The message is
+/// operator-configured, so it is carried as a plain frame rather than a structured error.
+fn blocked_storage_key_revert_error(message: &str) -> RevertError {
+    let mut error_stack = ErrorStack::default();
+    error_stack.push(ErrorStackSegment::StringFrame(message.to_string()));
+    RevertError::Execution(error_stack)
 }
 
 /// Represents a bundle of validate-execute stage execution effects.

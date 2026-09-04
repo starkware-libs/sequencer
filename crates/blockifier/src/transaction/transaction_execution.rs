@@ -17,7 +17,6 @@ use starknet_api::transaction::{
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
-use crate::execution::call_info::CallInfo;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::{
@@ -183,25 +182,23 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
     }
 }
 
+/// Fails a transaction that accessed a blocked storage key in a stage that cannot be reverted.
+///
+/// A revertible account transaction that touches a blocked key while executing is reverted instead,
+/// in `AccountTransaction::run_revertible`, which charges the sender and drops the execute-stage
+/// call info. What reaches here is therefore only what reverting cannot undo: the validate stage,
+/// the fee transfer, non-revertible transaction types (declare, deploy account, invoke v0) and L1
+/// handlers.
 fn verify_no_blocked_storage_key_accessed(
     tx_execution_info: &TransactionExecutionInfo,
     block_context: &BlockContext,
 ) -> TransactionExecutionResult<()> {
-    if block_context.blocked_storage_keys.is_empty() {
-        return Ok(());
+    match block_context
+        .blocked_storage_key_access_error(tx_execution_info.non_optional_call_infos())
+    {
+        Some(message) => Err(TransactionExecutionError::BlockedStorageKeyAccessed {
+            message: message.to_string(),
+        }),
+        None => Ok(()),
     }
-    // `CallInfo::iter` walks the whole call tree, so inner calls are covered.
-    for call_info in tx_execution_info.non_optional_call_infos().flat_map(CallInfo::iter) {
-        if call_info
-            .storage_access_tracker
-            .accessed_storage_keys
-            .iter()
-            .any(|storage_key| block_context.blocked_storage_keys.contains(storage_key))
-        {
-            return Err(TransactionExecutionError::BlockedStorageKeyAccessed {
-                message: block_context.blocked_storage_keys_error_message.clone(),
-            });
-        }
-    }
-    Ok(())
 }
