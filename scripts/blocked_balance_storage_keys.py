@@ -9,6 +9,7 @@ storage slots (low and high words), so both slots are emitted for every address 
 
 Usage (from the repo root, inside the venv):
     python scripts/blocked_balance_storage_keys.py 0x1234... 0xabcd...
+    python scripts/blocked_balance_storage_keys.py 0x1234...,0xabcd...
 """
 
 import argparse
@@ -59,6 +60,16 @@ def parse_address(address_hex: str) -> int:
     return address
 
 
+def split_comma_separated_addresses(args: List[str]) -> List[str]:
+    split_args: List[str] = []
+    for arg in args:
+        if arg.startswith("-"):
+            split_args.append(arg)
+        else:
+            split_args.extend(part for part in arg.split(",") if part.strip())
+    return split_args
+
+
 def parse_args(args: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -72,7 +83,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
         type=parse_address,
         nargs="+",
         metavar="ADDRESS",
-        help="Account addresses in hexadecimal, e.g. 0x1234.",
+        help="Account addresses in hexadecimal, e.g. 0x1234. Space- or comma-separated.",
     )
     parser.add_argument(
         "--storage-var-name",
@@ -85,7 +96,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
         action="store_true",
         help="Emit only the low-word slot of each balance instead of both u256 slots.",
     )
-    return parser.parse_args(args)
+    return parser.parse_args(split_comma_separated_addresses(args))
 
 
 def main(args: List[str]) -> None:
