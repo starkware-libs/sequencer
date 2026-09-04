@@ -25,7 +25,7 @@ use blockifier::blockifier::config::{
 };
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
-use blockifier::context::ChainInfo;
+use blockifier::context::{parse_blocked_storage_keys, ChainInfo};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use url::Url;
@@ -35,12 +35,21 @@ pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
 /// Configuration for the block builder component of the batcher.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BlockBuilderConfig {
     pub chain_info: ChainInfo,
     pub execute_config: WorkerPoolConfig,
     pub bouncer_config: BouncerConfig,
     pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
+    #[validate(custom(function = "validate_blocked_storage_keys"))]
+    pub blocked_storage_keys: String,
+    pub blocked_storage_keys_error_message: String,
+}
+
+fn validate_blocked_storage_keys(blocked_storage_keys: &str) -> Result<(), ValidationError> {
+    parse_blocked_storage_keys(blocked_storage_keys).map(|_| ()).map_err(|error| {
+        ValidationError::new("Invalid blocked_storage_keys").with_message(error.into())
+    })
 }
 
 impl SerializeConfig for BlockBuilderConfig {
@@ -52,6 +61,22 @@ impl SerializeConfig for BlockBuilderConfig {
             &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
+        dump.append(&mut BTreeMap::from([
+            ser_param(
+                "blocked_storage_keys",
+                &self.blocked_storage_keys,
+                "Comma-separated list of hexadecimal storage keys, i.e., \"0x1,0x2\", that \
+                 transactions must not access; a transaction that reads or writes any of them, in \
+                 any contract, fails.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "blocked_storage_keys_error_message",
+                &self.blocked_storage_keys_error_message,
+                "The error message of a transaction that accessed a blocked storage key.",
+                ParamPrivacyInput::Public,
+            ),
+        ]));
         dump
     }
 }
@@ -198,6 +223,7 @@ pub struct BatcherStaticConfig {
     pub storage: StorageConfig,
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
+    #[validate(nested)]
     pub block_builder_config: BlockBuilderConfig,
     pub pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig,
     #[validate(nested)]
