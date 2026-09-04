@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -17,12 +19,14 @@ use starknet_api::transaction::{
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
+use crate::execution::call_info::CallInfo;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
+use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     TransactionExecutionInfo,
     TransactionExecutionResult,
@@ -154,6 +158,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             Self::L1Handler(tx) => tx.execute_raw(state, block_context, concurrency_mode)?,
         };
 
+        verify_no_blocked_storage_key_accessed(&tx_execution_info, block_context)?;
+
         // Check if the transaction is too large to fit any block.
         // TODO(Yoni, 1/8/2024): consider caching these two.
         let tx_execution_summary = tx_execution_info.summarize(&block_context.versioned_constants);
@@ -177,4 +183,29 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
 
         Ok(tx_execution_info)
     }
+}
+
+fn verify_no_blocked_storage_key_accessed(
+    tx_execution_info: &TransactionExecutionInfo,
+    block_context: &BlockContext,
+) -> TransactionExecutionResult<()> {
+    if block_context.blocked_storage_keys.is_empty() {
+        return Ok(());
+    }
+    let blocked_storage_keys: HashSet<String> =
+        block_context.blocked_storage_keys.split(',').map(normalized_hex_string).collect();
+    for call_info in tx_execution_info.non_optional_call_infos().flat_map(CallInfo::iter) {
+        for storage_key in &call_info.storage_access_tracker.accessed_storage_keys {
+            if blocked_storage_keys.contains(&normalized_hex_string(&(**storage_key).to_string())) {
+                return Err(TransactionExecutionError::BlockedStorageKeyAccessed {
+                    message: block_context.blocked_storage_keys_error_message.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn normalized_hex_string(value: &str) -> String {
+    value.trim().to_lowercase().trim_start_matches("0x").trim_start_matches('0').to_string()
 }

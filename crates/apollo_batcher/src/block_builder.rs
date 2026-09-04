@@ -781,6 +781,10 @@ impl BlockBuilderFactory {
             block_builder_config.chain_info,
             versioned_constants,
             block_builder_config.bouncer_config,
+        )
+        .with_blocked_storage_keys(
+            block_builder_config.blocked_storage_keys,
+            block_builder_config.blocked_storage_keys_error_message,
         );
 
         // Block production has no per-call deadline to bound this against; leave it unbounded, as

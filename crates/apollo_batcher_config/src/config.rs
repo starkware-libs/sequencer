@@ -41,6 +41,8 @@ pub struct BlockBuilderConfig {
     pub execute_config: WorkerPoolConfig,
     pub bouncer_config: BouncerConfig,
     pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
+    pub blocked_storage_keys: String,
+    pub blocked_storage_keys_error_message: String,
 }
 
 impl SerializeConfig for BlockBuilderConfig {
@@ -52,6 +54,22 @@ impl SerializeConfig for BlockBuilderConfig {
             &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
+        dump.append(&mut BTreeMap::from([
+            ser_param(
+                "blocked_storage_keys",
+                &self.blocked_storage_keys,
+                "Comma-separated list of hexadecimal storage keys, i.e., \"0x1,0x2\", that \
+                 transactions must not access; a transaction that reads or writes any of them, in \
+                 any contract, fails.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "blocked_storage_keys_error_message",
+                &self.blocked_storage_keys_error_message,
+                "The error message of a transaction that accessed a blocked storage key.",
+                ParamPrivacyInput::Public,
+            ),
+        ]));
         dump
     }
 }

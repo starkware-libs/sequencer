@@ -128,6 +128,8 @@ pub struct BlockContext {
     pub(crate) chain_info: ChainInfo,
     pub(crate) versioned_constants: VersionedConstants,
     pub bouncer_config: BouncerConfig,
+    pub blocked_storage_keys: String,
+    pub blocked_storage_keys_error_message: String,
     /// Cached on first access; derived from `chain_info`. Fixed for the lifetime of a block
     /// context.
     virtual_os_config_hash: OnceLock<Felt>,
@@ -145,8 +147,20 @@ impl BlockContext {
             chain_info,
             versioned_constants,
             bouncer_config,
+            blocked_storage_keys: String::new(),
+            blocked_storage_keys_error_message: String::new(),
             virtual_os_config_hash: OnceLock::new(),
         }
+    }
+
+    pub fn with_blocked_storage_keys(
+        mut self,
+        blocked_storage_keys: String,
+        blocked_storage_keys_error_message: String,
+    ) -> Self {
+        self.blocked_storage_keys = blocked_storage_keys;
+        self.blocked_storage_keys_error_message = blocked_storage_keys_error_message;
+        self
     }
 
     pub fn block_info(&self) -> &BlockInfo {
@@ -208,6 +222,10 @@ impl BlockContext {
     #[cfg(any(test, feature = "testing"))]
     pub fn with_chain_info(self, chain_info: ChainInfo) -> Self {
         Self::new(self.block_info, chain_info, self.versioned_constants, self.bouncer_config)
+            .with_blocked_storage_keys(
+                self.blocked_storage_keys,
+                self.blocked_storage_keys_error_message,
+            )
     }
 
     /// Test util to allow overriding block gas limits.
