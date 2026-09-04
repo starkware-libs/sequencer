@@ -9,7 +9,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: moonrepo/setup-rust@v1
+    - uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1
       name: Install Rust toolchain and binaries
       with:
         cache: false
@@ -23,6 +23,6 @@ runs:
 
     # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged binaries.
     - name: Install Anvil
-      uses: foundry-rs/foundry-toolchain@v1
+      uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
       with:
         version: v1.5.1
