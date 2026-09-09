@@ -1,0 +1,209 @@
+use std::collections::HashSet;
+use std::time::Duration;
+
+use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_node_config::definitions::ConfigPointersMap;
+use apollo_node_config::node_config::SequencerNodeConfig;
+use serde_json::Value;
+use starknet_api::block::BlockNumber;
+use tracing::info;
+
+use crate::integration_test_manager::IntegrationTestManager;
+use crate::integration_test_utils::integration_test_setup;
+use crate::utils::NodeDescriptor;
+
+pub async fn run() {
+    integration_test_setup("revert").await;
+    const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(30);
+    const REVERT_UP_TO_AND_INCLUDING: BlockNumber = BlockNumber(1);
+    const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(40);
+    // can't use static assertion as comparison is non const.
+    assert!(REVERT_UP_TO_AND_INCLUDING < BLOCK_TO_REVERT_FROM);
+    assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
+
+    const N_INVOKE_TXS: usize = 50;
+    const N_L1_HANDLER_TXS: usize = 5;
+
+    const AWAIT_REVERT_INTERVAL_MS: u64 = 500;
+    const MAX_ATTEMPTS: usize = 50;
+    const AWAIT_REVERT_TIMEOUT_DURATION: Duration = Duration::from_secs(15);
+
+    let node_descriptors = vec![
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+    ];
+
+    // Get the sequencer configurations.
+    let mut integration_test_manager = IntegrationTestManager::new(
+        node_descriptors,
+        None,
+        TestIdentifier::RevertFlowIntegrationTest,
+    )
+    .await;
+
+    let node_indices = integration_test_manager.get_node_indices();
+
+    integration_test_manager.run_nodes(node_indices.clone()).await;
+
+    // Save a snapshot of the tx_generator so we can restore the state after reverting.
+    let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
+
+    info!("Sending deploy and invoke together transactions and verifying state.");
+    integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
+
+    info!("Sending declare transactions and verifying state.");
+    integration_test_manager.send_declare_txs_and_verify().await;
+
+    info!("Sending transactions and verifying state.");
+    integration_test_manager
+        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_REVERT_FROM)
+        .await;
+
+    // This method is called twice in the test, once before and once after the revert.
+    // The first call is mainly to verify block hashes were written to storage before the revert.
+    integration_test_manager
+        .verify_block_hash_across_all_running_nodes(Some(BLOCK_TO_REVERT_FROM.unchecked_next()))
+        .await;
+
+    info!("Shutting down nodes.");
+    integration_test_manager.shutdown_nodes(node_indices.clone()).await;
+
+    let expected_block_number_after_revert = REVERT_UP_TO_AND_INCLUDING.prev().unwrap_or_default();
+    info!(
+        "Changing revert config for all nodes to revert from block {BLOCK_TO_REVERT_FROM} back to \
+         block {expected_block_number_after_revert}."
+    );
+    modify_revert_config_idle_nodes(
+        &mut integration_test_manager,
+        node_indices.clone(),
+        Some(REVERT_UP_TO_AND_INCLUDING),
+    );
+
+    integration_test_manager.run_nodes(node_indices.clone()).await;
+
+    info!(
+        "Awaiting for all running nodes to revert back to block \
+         {expected_block_number_after_revert}.",
+    );
+    integration_test_manager
+        .await_revert_all_running_nodes(
+            expected_block_number_after_revert,
+            AWAIT_REVERT_TIMEOUT_DURATION,
+            AWAIT_REVERT_INTERVAL_MS,
+            MAX_ATTEMPTS,
+        )
+        .await;
+
+    info!("All nodes reverted to block {expected_block_number_after_revert}. Shutting down nodes.");
+    integration_test_manager.shutdown_nodes(node_indices.clone()).await;
+
+    // Restore the tx generator state.
+    *integration_test_manager.tx_generator_mut() = tx_generator_snapshot;
+
+    info!(
+        "Modifying revert config for all nodes and resume sequencing from block \
+         {expected_block_number_after_revert}."
+    );
+    modify_revert_config_idle_nodes(&mut integration_test_manager, node_indices.clone(), None);
+    modify_height_configs_idle_nodes(&mut integration_test_manager, node_indices.clone());
+
+    integration_test_manager.run_nodes(node_indices.clone()).await;
+
+    info!("Sending deploy and invoke together transactions and verifying state.");
+    integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
+
+    info!("Sending declare transactions and verifying state.");
+    integration_test_manager.send_declare_txs_and_verify().await;
+
+    info!("Sending transactions and verifying state.");
+    integration_test_manager
+        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR_AFTER_REVERT)
+        .await;
+
+    integration_test_manager
+        .verify_block_hash_across_all_running_nodes(Some(
+            BLOCK_TO_WAIT_FOR_AFTER_REVERT.unchecked_next(),
+        ))
+        .await;
+
+    integration_test_manager.shutdown_nodes(node_indices).await;
+
+    info!("Revert flow integration test completed successfully!");
+}
+
+// Modifies the revert config state in the given config. If `revert_up_to_and_including` is
+// `None`, the revert config is disabled. Otherwise, the revert config is enabled and set
+// to revert up to and including the given block number.
+fn modify_revert_config_idle_nodes(
+    integration_test_manager: &mut IntegrationTestManager,
+    node_indices: HashSet<usize>,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    integration_test_manager.modify_config_pointers_idle_nodes(
+        node_indices.clone(),
+        |config_pointers| {
+            modify_revert_config_pointers(config_pointers, revert_up_to_and_including)
+        },
+    );
+    integration_test_manager.modify_config_idle_nodes(node_indices, |config_pointers| {
+        modify_revert_config(config_pointers, revert_up_to_and_including)
+    });
+}
+
+fn modify_revert_config_pointers(
+    config_pointers: &mut ConfigPointersMap,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    let should_revert = revert_up_to_and_including.is_some();
+    config_pointers.change_target_value("revert_config.should_revert", Value::from(should_revert));
+
+    // If should revert is false, the revert_up_to_and_including value is irrelevant.
+    if should_revert {
+        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
+        config_pointers.change_target_value(
+            "revert_config.revert_up_to_and_including",
+            Value::from(revert_up_to_and_including.0),
+        );
+    }
+}
+
+fn modify_revert_config(
+    config: &mut SequencerNodeConfig,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    let should_revert = revert_up_to_and_including.is_some();
+    config.state_sync_config.as_mut().unwrap().static_config.revert_config.should_revert =
+        should_revert;
+    config.consensus_manager_config.as_mut().unwrap().revert_config.should_revert = should_revert;
+
+    // If should revert is false, the revert_up_to_and_including value is irrelevant.
+    if should_revert {
+        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
+        config
+            .state_sync_config
+            .as_mut()
+            .unwrap()
+            .static_config
+            .revert_config
+            .revert_up_to_and_including = revert_up_to_and_including;
+        config
+            .consensus_manager_config
+            .as_mut()
+            .unwrap()
+            .revert_config
+            .revert_up_to_and_including = revert_up_to_and_including;
+    }
+}
+
+fn modify_height_configs_idle_nodes(
+    integration_test_manager: &mut IntegrationTestManager,
+    node_indices: HashSet<usize>,
+) {
+    integration_test_manager.modify_config_idle_nodes(node_indices, |_config| {
+        // TODO(noamsp): Change these values point to a single config value and refactor this
+        // function accordingly.
+    });
+}
