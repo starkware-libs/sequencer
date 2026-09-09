@@ -5,7 +5,7 @@ runs:
   using: "composite"
   steps:
     - name: Mount namespace cache volume for rust
-      uses: namespacelabs/nscloud-cache-action@v1
+      uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
       with:
         path: |
           /home/runner/.cargo
@@ -21,6 +21,6 @@ runs:
         echo "SCCACHE_CACHE_SIZE=${SCCACHE_CACHE_SIZE}" >> "$GITHUB_ENV"
 
     - name: Mount namespace cache volume for python
-      uses: namespacelabs/nscloud-cache-action@v1
+      uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
       with:
         cache: python
