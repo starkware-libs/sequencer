@@ -52,6 +52,14 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "builtin_offset_increase_test",
         None,
     ));
+    // The proof-fact fold module is not yet reachable from the OS program, so it is
+    // compiled standalone for its Cairo-vs-Rust tests.
+    task_set.spawn(compile_and_output_program(
+        out_dir.clone(),
+        "starkware/starknet/core/os/proof_fact_fold.cairo",
+        "proof_fact_fold",
+        None,
+    ));
     task_set.join_all().await;
 }
 
