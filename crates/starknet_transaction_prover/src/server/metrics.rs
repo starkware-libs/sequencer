@@ -16,6 +16,8 @@ use jsonrpsee::server::HttpBody;
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use tower::{Layer, Service};
 
+use crate::server::http_metrics;
+
 #[cfg(test)]
 #[path = "metrics_test.rs"]
 mod metrics_test;
@@ -47,7 +49,18 @@ const DURATION_HISTOGRAM_BUCKETS: &[(&str, &[f64])] = &[
     (names::PROVE_TRANSACTION_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
     (names::OS_RUN_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
     (names::STWO_PROVE_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
+    (http_metrics::names::REQUEST_DURATION_SECONDS, HTTP_DURATION_BUCKETS),
 ];
+
+/// Bucket bounds, in seconds, for the HTTP latency histogram. The layers above
+/// short-circuit probe and scrape traffic, so these buckets cover JSON-RPC
+/// calls. The range spans a millisecond-scale reject at one end and, at the
+/// other, a proving POST held open for its queue wait plus the proof itself.
+/// Boundaries at 2s and 10s match the proving histogram so a dashboard can read
+/// the two against each other, and the 30s boundary is the default queue-wait
+/// timeout.
+const HTTP_DURATION_BUCKETS: &[f64] =
+    &[0.005, 0.025, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 45.0, 60.0];
 
 /// Metric name constants, so `metrics!` calls elsewhere point at one
 /// definition instead of repeating string literals.
@@ -99,6 +112,7 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
         "git_sha" => git_sha.to_string(),
     )
     .set(1.0);
+    super::http_metrics::preregister_http_metrics();
     Ok(handle)
 }
 
@@ -112,6 +126,25 @@ pub fn spawn_upkeep(handle: PrometheusHandle) -> tokio::task::JoinHandle<()> {
             handle.run_upkeep();
         }
     })
+}
+
+/// Increments a gauge on construction and decrements it on drop, so a panic or
+/// a dropped future cannot leak the gauge upward.
+pub struct GaugeGuard {
+    metric: &'static str,
+}
+
+impl GaugeGuard {
+    pub fn acquire(metric: &'static str) -> Self {
+        metrics::gauge!(metric).increment(1.0);
+        Self { metric }
+    }
+}
+
+impl Drop for GaugeGuard {
+    fn drop(&mut self) {
+        metrics::gauge!(self.metric).decrement(1.0);
+    }
 }
 
 #[derive(Clone)]
