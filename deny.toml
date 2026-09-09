@@ -150,6 +150,10 @@ registries = [
 multiple-versions = "warn"
 # Lint level for when a crate version requirement is `*`
 wildcards = "deny"
+# Intra-workspace path dependencies carry no version requirement; exempt them from the
+# wildcard check. Only applies to dev-dependencies and crates marked `publish = false`,
+# since crates.io rejects path dependencies in published crates.
+allow-wildcard-paths = true
 # The graph highlighting used when creating dotgraphs for crates
 # with multiple versions
 # * lowest-version - The path to the lowest versioned duplicate is highlighted
@@ -169,10 +173,6 @@ allow = [
   #"ansi_term@0.11.0",
   #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason it is allowed" },
 ]
-# If true, workspace members are automatically allowed even when using deny-by-default
-# This is useful for organizations that want to deny all external dependencies by default
-# but allow their own workspace crates without having to explicitly list them
-allow-workspace = false
 # List of crates to deny
 deny = [
   #"ansi_term@0.11.0",
