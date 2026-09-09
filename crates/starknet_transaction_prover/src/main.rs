@@ -22,13 +22,16 @@ async fn main() -> anyhow::Result<()> {
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::log_redact::redact_url_host;
+    use starknet_transaction_prover::server::metrics::{install_exporter, spawn_upkeep};
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::shutdown::spawn_signal_bridge;
     use starknet_transaction_prover::server::{
         start_server,
+        MetricsLayer,
         OhttpJsonrpseeLayer,
+        ServerLayers,
         OHTTP_JSONRPSEE_BODY_BUILDER,
     };
     use tower_ohttp::OhttpGateway;
@@ -53,6 +56,14 @@ async fn main() -> anyhow::Result<()> {
     install_panic_hook();
 
     let config = ServiceConfig::from_args(args)?;
+
+    // Install the Prometheus exporter and emit `prover_build_info` before binding, so a scrape
+    // during a slow startup still returns the build identity.
+    let prometheus_handle =
+        install_exporter(env!("CARGO_PKG_VERSION"), option_env!("GIT_SHA").unwrap_or("unknown"))
+            .context("Failed to install Prometheus exporter")?;
+    let metrics_layer = MetricsLayer::new(prometheus_handle.clone());
+    spawn_upkeep(prometheus_handle);
 
     // Startup banner — version + chain id + redacted RPC host only. No URLs
     // with userinfo, no fee token address, no TLS paths, no tx data.
@@ -98,8 +109,7 @@ async fn main() -> anyhow::Result<()> {
         rpc_impl.into_rpc().into(),
         config.max_connections,
         config.max_request_body_size,
-        cors_layer,
-        ohttp_layer,
+        ServerLayers { cors_layer, ohttp_layer, metrics_layer },
     )
     .await?;
 

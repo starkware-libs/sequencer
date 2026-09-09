@@ -14,6 +14,8 @@
 #
 # Environment Variables:
 #   DOCKER_BUILDKIT               Set to 1 to enable Docker BuildKit (recommended)
+#   GIT_SHA                       Commit to record in the prover_build_info metric
+#                                 (default: the current HEAD)
 #
 # Examples:
 #   # Build with default settings
@@ -55,6 +57,9 @@ IMAGE_TAG="us-central1-docker.pkg.dev/starkware-dev/sequencer/transaction-prover
 BUILD_MODE="release"
 TARGET_CPU=""
 DOCKER_BUILD_ARGS=""
+# Baked into the binary and exported as the git_sha label on the prover_build_info metric, so a
+# scrape identifies the commit the image was built from. Falls back to "unknown" outside a checkout.
+GIT_SHA="${GIT_SHA:-$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo unknown)}"
 
 # Parse command-line arguments.
 while [[ $# -gt 0 ]]; do
@@ -149,6 +154,7 @@ build_docker_image() {
         -f "${DOCKERFILE_PATH}"
         --build-arg "BUILD_MODE=${BUILD_MODE}"
         --build-arg "TARGET_CPU=${TARGET_CPU}"
+        --build-arg "GIT_SHA=${GIT_SHA}"
         -t "${IMAGE_TAG}"
     )
 

@@ -58,6 +58,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             TARGET_CPU=${{ matrix.target_cpu }}
+            GIT_SHA=${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.IMAGE }}",push-by-digest=true,name-canonical=true,push=true
 
