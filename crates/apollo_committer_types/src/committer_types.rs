@@ -48,3 +48,24 @@ pub struct ReadPathsAndCommitBlockResponse {
     pub global_root: GlobalRoot,
     pub state_commitment_infos: CompressedStateCommitmentInfos,
 }
+
+/// Read the stored state commitment infos of the committed heights in `[start_height,
+/// end_height)`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GetStateCommitmentInfosRequest {
+    pub start_height: BlockNumber,
+    /// Exclusive.
+    pub end_height: BlockNumber,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StateCommitmentInfosAtHeight {
+    pub height: BlockNumber,
+    pub state_commitment_infos: CompressedStateCommitmentInfos,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct GetStateCommitmentInfosResponse {
+    /// Ascending by height; heights without stored infos are absent.
+    pub state_commitment_infos: Vec<StateCommitmentInfosAtHeight>,
+}

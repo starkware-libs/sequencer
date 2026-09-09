@@ -7,6 +7,8 @@ use tokio::sync::Mutex;
 use crate::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -48,6 +50,13 @@ impl CommitterClient for MockCommitterClientWithOffset {
     ) -> CommitterClientResult<ReadPathsAndCommitBlockResponse> {
         self.set_offset(input.commit.height).await;
         self.inner.read_paths_and_commit_block(input).await
+    }
+
+    async fn get_state_commitment_infos(
+        &self,
+        input: GetStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<GetStateCommitmentInfosResponse> {
+        self.inner.get_state_commitment_infos(input).await
     }
 }
 
