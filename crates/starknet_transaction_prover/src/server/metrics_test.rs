@@ -1,7 +1,7 @@
 use http::{Method, StatusCode};
 use tower::{Layer, ServiceExt};
 
-use crate::server::metrics::{MetricsLayer, METRICS_PATH};
+use crate::server::metrics::{names, MetricsLayer, METRICS_PATH};
 use crate::server::middleware_test_utils::{empty_request, fallthrough_service, read_response};
 use crate::server::test_recorder::shared_handle;
 
@@ -24,4 +24,28 @@ async fn get_metrics_renders_prometheus_text() {
     // series exists at all is enough.
     assert!(body_text.contains("version="));
     assert!(body_text.contains("git_sha="));
+}
+
+/// Guards the bucket configuration whose rationale is on `DURATION_HISTOGRAM_BUCKETS`.
+#[tokio::test]
+async fn duration_metrics_render_as_histograms_not_summaries() {
+    let handle = shared_handle();
+    metrics::histogram!(names::PROVE_TRANSACTION_DURATION_SECONDS, "outcome" => "success")
+        .record(0.5);
+
+    let scrape = handle.render();
+
+    let name = names::PROVE_TRANSACTION_DURATION_SECONDS;
+    assert!(
+        scrape.contains(&format!("# TYPE {name} histogram")),
+        "{name} must be exported as a histogram, got:\n{scrape}"
+    );
+    assert!(
+        scrape.contains(&format!("{name}_bucket")),
+        "{name} must expose _bucket series for histogram_quantile(), got:\n{scrape}"
+    );
+    assert!(
+        !scrape.contains(&format!("# TYPE {name} summary")),
+        "{name} must not fall back to a rolling-window summary, got:\n{scrape}"
+    );
 }
