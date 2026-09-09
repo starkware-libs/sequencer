@@ -8,7 +8,7 @@ use expect_test::expect;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::calculate_contract_address;
+use starknet_api::core::{calculate_contract_address, AddressDerivationHash};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::{calldata, felt};
 use test_case::test_case;
@@ -63,6 +63,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
         class_hash,
         &calldata![],
         deployer_contract.get_instance_address(0),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
 
@@ -120,6 +121,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
         class_hash,
         &Calldata(constructor_calldata.clone().into()),
         deployer_contract.get_instance_address(0),
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
 

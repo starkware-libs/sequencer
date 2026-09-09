@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{AddressDerivationHash, ChainId, ClassHash};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -395,7 +395,8 @@ impl TransactionConverter {
                 )
             }
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                let contract_address = tx.calculate_contract_address()?;
+                let contract_address =
+                    tx.calculate_contract_address(AddressDerivationHash::Pedersen)?;
                 (
                     InternalRpcTransactionWithoutTxHash::DeployAccount(
                         InternalRpcDeployAccountTransaction {
