@@ -176,17 +176,20 @@ jobs:
         env:
           SEED: 0
 
-  # TODO(dan): Once all cargo-deny issues are resolved, consider merging this into code_style job.
+  # Scans Cargo.lock against the RustSec advisory database and the deny.toml policy. This needs no
+  # build, so it runs on every pull request instead of going through optimize_ci.
   cargo-deny:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run cargo-deny (security/license check)
-        continue-on-error: true  # Warning only until all issues are resolved
-        run: cargo deny check
+      - name: Run cargo-deny advisories
+        run: cargo deny check advisories
+      - name: Run cargo-deny licenses, bans and sources
+        # These three still report pre-existing findings in the dependency tree, so they stay
+        # non-blocking until those are resolved.
+        continue-on-error: true
+        run: cargo deny check licenses bans sources
