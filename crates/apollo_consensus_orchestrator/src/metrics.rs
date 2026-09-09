@@ -20,6 +20,7 @@ define_metrics!(
         LabeledMetricCounter { CONSENSUS_L2_GAS_PRICE_CLAMPED, "consensus_l2_gas_price_clamped", "Number of times a clamp bound the computed next L2 gas price. `minimum`: the previous price was below the effective minimum, i.e. still ramping up towards the floor. A price at or above the floor is not counted, even when the floor raised it; see consensus_l2_gas_price_at_minimum. `maximum`: bound by the ceiling, including when only the SNIP-35 floor was clipped, in which case the published price can be below the ceiling", init = 0, labels = L2_GAS_PRICE_CLAMP_BOUND },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
         MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH, "consensus_retrospective_block_hash_mismatch", "Number of times the retrospective block hashes of the state sync and the batcher mismatched", init=0},
+        MetricCounter { CONSENSUS_ETH_TO_FRI_RATE_CLAMPED, "consensus_eth_to_fri_rate_clamped", "Number of times the eth to fri rate from the oracle was clamped to the per-block change bound around the rate implied by the previous block. Not counted when the clamp does not run: the override_eth_to_fri_rate operator pin replaces the rate, or the previous block implies no rate (genesis, or recorded prices that yield no rate)", init=0},
 
 
         // Cende metrics
@@ -125,6 +126,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_L2_GAS_PRICE_CLAMPED.register();
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.register();
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.register();
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.register();
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.register();
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.register();
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.register();

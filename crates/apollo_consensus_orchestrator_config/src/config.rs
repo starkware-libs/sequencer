@@ -22,6 +22,10 @@ use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
     pub recorder_url: Url,
@@ -84,6 +88,20 @@ const ETH_FACTOR: u128 = u128::pow(10, 18);
 
 // Default SNIP-35 target USD cost per L2 gas unit: $0.88 per 1e9 L2 gas = 880_000_000 atto-USD.
 pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
+
+// Denominator for parts-per-thousand values. Duplicates
+// `apollo_consensus_orchestrator::dynamic_gas_price::PPT_DENOMINATOR`, which computes the bands
+// these values configure; that crate depends on this one, so the two must stay equal.
+const PPT_DENOMINATOR: u128 = 1000;
+
+// Default per-block bound on the Eth-to-Fri rate change: 5%. Wide enough that a single feed
+// update never trips it (the ETH and STRK feeds update on deviation thresholds of about 0.5% and
+// 1%, so their ratio steps by at most ~1.5% between blocks), tight enough that one manipulated
+// feed reading moves the rate a node publishes by at most 5%, and doubling it requires holding the
+// feed for ~15 consecutive blocks. A malicious proposer reaches further than a manipulated feed
+// does, since the band's center comes from the previous block: see `clamp_eth_to_fri_rate_change`
+// in apollo_consensus_orchestrator.
+pub const DEFAULT_MAX_ETH_TO_FRI_RATE_CHANGE_PPT: u128 = 50;
 
 // This matches the min_gas_price in orchestrator_versioned_constants_0_14_1.json (0x1dcd65000).
 const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
@@ -314,6 +332,16 @@ pub struct ContextDynamicConfig {
     /// SNIP-35 target USD cost per L2 gas unit, in atto-USD ($0.88 per 1e9 L2 gas = 880_000_000
     /// atto-USD).
     pub snip35_target_atto_usd_per_l2_gas: u128,
+    /// Maximum change, in parts per thousand, of the Eth-to-Fri rate relative to the rate implied
+    /// by the previous block. A fresh oracle rate outside this band is clamped to the band's edge.
+    /// Must be in `1..1000`: zero pins the rate to the previous block's forever, and a thousand or
+    /// more puts the band's lower edge at zero. The bound does not apply when there is no previous
+    /// block, or when `override_eth_to_fri_rate` pins the rate.
+    ///
+    /// Must hold the same value network-wide. A validator checks a proposal's L1 prices against
+    /// its own clamped rate within `l1_gas_price_margin_percent`, so two honest nodes whose values
+    /// differ by more than that margin reject each other's proposals on a large oracle move.
+    pub max_eth_to_fri_rate_change_ppt: u128,
     /// If given, will override the L2 gas price.
     pub override_l2_gas_price_fri: Option<u128>,
     /// If given, will override the L1 gas price in FRI.
@@ -388,6 +416,14 @@ impl SerializeConfig for ContextDynamicConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "max_eth_to_fri_rate_change_ppt",
+                &self.max_eth_to_fri_rate_change_ppt,
+                "Maximum change, in parts per thousand, of the Eth-to-Fri rate relative to the \
+                 rate implied by the previous block. A fresh oracle rate outside this band is \
+                 clamped to the band's edge. Must be in 1..1000, and the same network-wide.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "compare_retrospective_block_hash",
                 &self.compare_retrospective_block_hash,
                 "Whether to compare the retrospective block hash between the Batcher and the \
@@ -451,6 +487,7 @@ impl Default for ContextDynamicConfig {
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
             snip35_target_atto_usd_per_l2_gas: DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS,
+            max_eth_to_fri_rate_change_ppt: DEFAULT_MAX_ETH_TO_FRI_RATE_CHANGE_PPT,
             override_l2_gas_price_fri: None,
             override_l1_gas_price_fri: None,
             override_l1_data_gas_price_fri: None,
@@ -502,6 +539,16 @@ fn validate_dynamic_config(
                  fri)",
             ));
         }
+    }
+
+    // Zero freezes the Eth-to-Fri rate at the previous block's, and the denominator or more leaves
+    // the band one-sided, with its lower edge at zero.
+    if config.max_eth_to_fri_rate_change_ppt == 0
+        || config.max_eth_to_fri_rate_change_ppt >= PPT_DENOMINATOR
+    {
+        return Err(validator::ValidationError::new(
+            "max_eth_to_fri_rate_change_ppt must be greater than zero and less than 1000",
+        ));
     }
 
     Ok(())

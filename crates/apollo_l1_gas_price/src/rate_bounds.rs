@@ -8,14 +8,14 @@ use apollo_l1_gas_price_types::ExchangeRate;
 #[path = "rate_bounds_test.rs"]
 mod rate_bounds_test;
 
-// TODO(Asaf): bound the rate's change against the previous block's implied rate. The absolute
-// bounds below are wide enough to pass a manipulated but plausible answer, the STRK/USD pair alone
-// accepting anything from $0.0001 to $10, which only a bound relative to the last accepted rate
-// catches. It must be anchored to the block header rather than to node-local history, so that every
-// validator accepts and rejects the same values.
-/// Absolute bounds are the only defense against a feed wired to the wrong asset or a
-/// plausible-but-poisoned answer: consensus checks that validators agree with each other, never
-/// that the agreed value is sane, and every node reads the same chain state.
+/// Absolute bounds catch a feed wired to the wrong asset: consensus checks that validators agree
+/// with each other, never that the agreed value is sane, and every node reads the same chain state.
+/// They are wide enough to pass a manipulated but plausible answer, the STRK/USD pair alone
+/// accepting anything from $0.0001 to $10. The bound relative to the previous block's implied rate,
+/// which limits how fast such an answer moves the rate a node publishes, lives in
+/// `apollo_consensus_orchestrator::utils`, where the previous block is in hand, so that its band is
+/// centered on the block header rather than on this client's own read history and every validator
+/// derives the same clamped rate.
 pub(crate) fn check_rate_bounds(
     rate: ExchangeRate,
     bounds: RateBounds,

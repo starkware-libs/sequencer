@@ -1,22 +1,44 @@
+use std::sync::Arc;
+
 use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
 use apollo_batcher_types::errors::BatcherError;
+use apollo_consensus_orchestrator_config::config::{
+    ContextDynamicConfig,
+    DEFAULT_MAX_ETH_TO_FRI_RATE_CHANGE_PPT,
+};
+use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::ProposalInit;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockNumber,
+    GasPrice,
+    TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+    TEMP_ETH_GAS_FEE_IN_WEI,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::build_proposal::ProposalBuildArguments;
 use crate::cende::MockCendeContext;
+use crate::dynamic_gas_price::PPT_DENOMINATOR;
+use crate::metrics::{register_metrics, CONSENSUS_ETH_TO_FRI_RATE_CLAMPED};
 use crate::test_utils::create_proposal_build_arguments;
 use crate::utils::{
     get_l1_prices_in_fri_and_wei,
+    get_l1_prices_in_fri_and_wei_and_conversion_rate,
+    make_gas_price_params,
     retrospective_block_hash,
     verify_retrospective_state_commitment_infos,
     wait_for_retrospective_block_hash,
+    L1PricesInFri,
+    L1PricesInWei,
+    PreviousProposalInitInfo,
     RetrospectiveBlockHashError,
     RetrospectiveStateCommitmentInfosError,
 };
@@ -32,6 +54,17 @@ const STORED_HEIGHT_OFFSET: Option<BlockNumber> =
 const BEHIND_HEIGHT_OFFSET: Option<BlockNumber> = Some(NEXT_HEIGHT_RETRO_BLOCK_NUMBER);
 const MUST_HAVE_BLOCK_HASH_FOR: BlockNumber = BlockNumber(1);
 const RETRO_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0x1234567890abcdef"));
+
+const PROPOSAL_TIMESTAMP: u64 = 1_700_000_000;
+// A gas price of one gwei keeps the previous block's implied rate exactly equal to the rate it was
+// built with, for the rates used in these tests.
+const PREVIOUS_L1_GAS_PRICE_WEI: GasPrice = GasPrice(u128::pow(10, 9));
+const PREVIOUS_ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
+// The band the shipped default puts around `PREVIOUS_ETH_TO_FRI_RATE`.
+const MAX_ETH_TO_FRI_RATE_CHANGE: u128 =
+    PREVIOUS_ETH_TO_FRI_RATE * DEFAULT_MAX_ETH_TO_FRI_RATE_CHANGE_PPT / PPT_DENOMINATOR;
+const MAX_ETH_TO_FRI_RATE: u128 = PREVIOUS_ETH_TO_FRI_RATE + MAX_ETH_TO_FRI_RATE_CHANGE;
+const MIN_ETH_TO_FRI_RATE: u128 = PREVIOUS_ETH_TO_FRI_RATE - MAX_ETH_TO_FRI_RATE_CHANGE;
 
 async fn get_proposal_init(args: &ProposalBuildArguments) -> ProposalInit {
     let timestamp = args.deps.clock.unix_now();
@@ -403,4 +436,177 @@ async fn retrospective_state_commitment_infos_next_height_below_buffer() {
     )
     .await
     .unwrap();
+}
+
+/// Builds the previous block's recorded prices such that they imply `eth_to_fri_rate`.
+fn previous_proposal_init_with_rate(eth_to_fri_rate: u128) -> PreviousProposalInitInfo {
+    let l1_prices_wei = L1PricesInWei {
+        l1_gas_price: PREVIOUS_L1_GAS_PRICE_WEI,
+        l1_data_gas_price: PREVIOUS_L1_GAS_PRICE_WEI,
+    };
+    let l1_prices_fri = L1PricesInFri::convert_from_wei(&l1_prices_wei, eth_to_fri_rate)
+        .expect("Test prices should be convertible to fri.");
+    PreviousProposalInitInfo { timestamp: PROPOSAL_TIMESTAMP, l1_prices_wei, l1_prices_fri }
+}
+
+/// Fetches the eth to fri rate through the full oracle path, with a freshly built provider and a
+/// freshly built config, both independent of any other instance.
+async fn fetch_eth_to_fri_rate(
+    oracle_eth_to_fri_rate: u128,
+    previous_proposal_init: Option<&PreviousProposalInitInfo>,
+) -> u128 {
+    fetch_eth_to_fri_rate_with_config(
+        oracle_eth_to_fri_rate,
+        previous_proposal_init,
+        ContextDynamicConfig::default(),
+    )
+    .await
+}
+
+async fn fetch_eth_to_fri_rate_with_config(
+    oracle_eth_to_fri_rate: u128,
+    previous_proposal_init: Option<&PreviousProposalInitInfo>,
+    dynamic_config: ContextDynamicConfig,
+) -> u128 {
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_rate().return_const(Ok(oracle_eth_to_fri_rate));
+    l1_gas_price_provider.expect_get_price_info().return_const(Ok(PriceInfo {
+        base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+        blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+    }));
+
+    let (_l1_prices_fri, _l1_prices_wei, eth_to_fri_rate) =
+        get_l1_prices_in_fri_and_wei_and_conversion_rate(
+            Arc::new(l1_gas_price_provider),
+            PROPOSAL_TIMESTAMP,
+            previous_proposal_init,
+            &make_gas_price_params(&dynamic_config),
+        )
+        .await;
+    eth_to_fri_rate
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_inside_the_band_is_not_clamped() {
+    let previous_proposal_init = previous_proposal_init_with_rate(PREVIOUS_ETH_TO_FRI_RATE);
+    let oracle_eth_to_fri_rate = PREVIOUS_ETH_TO_FRI_RATE + MAX_ETH_TO_FRI_RATE_CHANGE / 2;
+    assert_eq!(
+        fetch_eth_to_fri_rate(oracle_eth_to_fri_rate, Some(&previous_proposal_init)).await,
+        oracle_eth_to_fri_rate
+    );
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_above_the_band_is_clamped_to_the_maximum() {
+    let previous_proposal_init = previous_proposal_init_with_rate(PREVIOUS_ETH_TO_FRI_RATE);
+    assert_eq!(
+        fetch_eth_to_fri_rate(PREVIOUS_ETH_TO_FRI_RATE * 3, Some(&previous_proposal_init)).await,
+        MAX_ETH_TO_FRI_RATE
+    );
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_below_the_band_is_clamped_to_the_minimum() {
+    let previous_proposal_init = previous_proposal_init_with_rate(PREVIOUS_ETH_TO_FRI_RATE);
+    assert_eq!(
+        fetch_eth_to_fri_rate(PREVIOUS_ETH_TO_FRI_RATE / 3, Some(&previous_proposal_init)).await,
+        MIN_ETH_TO_FRI_RATE
+    );
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_exactly_at_the_band_edge_is_not_clamped() {
+    let previous_proposal_init = previous_proposal_init_with_rate(PREVIOUS_ETH_TO_FRI_RATE);
+    assert_eq!(
+        fetch_eth_to_fri_rate(MAX_ETH_TO_FRI_RATE, Some(&previous_proposal_init)).await,
+        MAX_ETH_TO_FRI_RATE
+    );
+    assert_eq!(
+        fetch_eth_to_fri_rate(MIN_ETH_TO_FRI_RATE, Some(&previous_proposal_init)).await,
+        MIN_ETH_TO_FRI_RATE
+    );
+}
+
+/// Genesis is the only height with no `previous_proposal_init`. A restarted node seeds it from
+/// state_sync, covered by `test_initialize_from_committed_blocks_seeds_previous_block`.
+#[tokio::test]
+async fn eth_to_fri_rate_at_genesis_is_not_clamped() {
+    let oracle_eth_to_fri_rate = PREVIOUS_ETH_TO_FRI_RATE * 100;
+    assert_eq!(fetch_eth_to_fri_rate(oracle_eth_to_fri_rate, None).await, oracle_eth_to_fri_rate);
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_clamp_metric_increments_only_when_clamping() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    let previous_proposal_init = previous_proposal_init_with_rate(PREVIOUS_ETH_TO_FRI_RATE);
+    fetch_eth_to_fri_rate(PREVIOUS_ETH_TO_FRI_RATE, Some(&previous_proposal_init)).await;
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.assert_eq(&recorder.handle().render(), 0);
+
+    fetch_eth_to_fri_rate(PREVIOUS_ETH_TO_FRI_RATE * 3, Some(&previous_proposal_init)).await;
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.assert_eq(&recorder.handle().render(), 1);
+}
+
+/// The operator pin replaces the rate the clamp returns, so a clamp there would shape no published
+/// price. `get_l1_prices_in_fri_and_wei_and_conversion_rate` returns the rate before the pin is
+/// applied, so the assertion is that the oracle rate passed through untouched and uncounted.
+#[tokio::test]
+async fn eth_to_fri_rate_is_not_clamped_when_the_operator_pins_the_rate() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    let previous_proposal_init = previous_proposal_init_with_rate(PREVIOUS_ETH_TO_FRI_RATE);
+    let oracle_eth_to_fri_rate = PREVIOUS_ETH_TO_FRI_RATE * 3;
+    let dynamic_config = ContextDynamicConfig {
+        override_eth_to_fri_rate: Some(PREVIOUS_ETH_TO_FRI_RATE),
+        ..Default::default()
+    };
+
+    assert_eq!(
+        fetch_eth_to_fri_rate_with_config(
+            oracle_eth_to_fri_rate,
+            Some(&previous_proposal_init),
+            dynamic_config
+        )
+        .await,
+        oracle_eth_to_fri_rate
+    );
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.assert_eq(&recorder.handle().render(), 0);
+}
+
+/// A previous block whose prices imply no rate leaves the clamp with nothing to center on, so the
+/// oracle rate passes through unclamped and uncounted.
+#[rstest]
+#[case::zero_previous_wei_price(GasPrice(0), GasPrice(u128::pow(10, 9)))]
+#[case::overflowing_previous_fri_price(PREVIOUS_L1_GAS_PRICE_WEI, GasPrice(u128::MAX))]
+#[tokio::test]
+async fn eth_to_fri_rate_is_not_clamped_when_the_previous_block_implies_no_rate(
+    #[case] previous_l1_gas_price_wei: GasPrice,
+    #[case] previous_l1_gas_price_fri: GasPrice,
+) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    let previous_proposal_init = PreviousProposalInitInfo {
+        timestamp: PROPOSAL_TIMESTAMP,
+        l1_prices_wei: L1PricesInWei {
+            l1_gas_price: previous_l1_gas_price_wei,
+            l1_data_gas_price: previous_l1_gas_price_wei,
+        },
+        l1_prices_fri: L1PricesInFri {
+            l1_gas_price: previous_l1_gas_price_fri,
+            l1_data_gas_price: previous_l1_gas_price_fri,
+        },
+    };
+    let oracle_eth_to_fri_rate = PREVIOUS_ETH_TO_FRI_RATE * 100;
+
+    assert_eq!(
+        fetch_eth_to_fri_rate(oracle_eth_to_fri_rate, Some(&previous_proposal_init)).await,
+        oracle_eth_to_fri_rate
+    );
+    CONSENSUS_ETH_TO_FRI_RATE_CLAMPED.assert_eq(&recorder.handle().render(), 0);
 }

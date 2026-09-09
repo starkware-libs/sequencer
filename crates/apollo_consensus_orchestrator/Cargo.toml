@@ -83,6 +83,8 @@ rand_chacha.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 shared_execution_objects = { workspace = true, features = ["deserialize", "testing"] }
+# `test-util` for `tokio::test(start_paused = true)`, which skips the state_sync retry sleeps.
+tokio = { workspace = true, features = ["test-util"] }
 tracing-test.workspace = true
 
 [lints]
