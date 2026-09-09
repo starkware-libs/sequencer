@@ -415,7 +415,12 @@ impl StateMaps {
             map: &HashMap<K, V>,
             keys: &BTreeSet<K>,
         ) -> HashMap<K, V> {
-            keys.iter().filter_map(|key| map.get(key).map(|value| (*key, *value))).collect()
+            // `collect()` only reserves for the filter_map's lower size-hint bound (0), causing
+            // repeated reallocation and rehashing as the map grows; reserve the tight upper bound
+            // on the result size instead.
+            let mut result = HashMap::with_capacity(keys.len().min(map.len()));
+            result.extend(keys.iter().filter_map(|key| map.get(key).map(|value| (*key, *value))));
+            result
         }
         self.storage = intersect(&self.storage, &accessed_keys.storage_keys);
         self.nonces = intersect(&self.nonces, &accessed_keys.accessed_contracts);
