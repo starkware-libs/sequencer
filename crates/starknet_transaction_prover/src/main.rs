@@ -26,6 +26,7 @@ async fn main() -> anyhow::Result<()> {
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
+    use starknet_transaction_prover::server::saturation::SaturationMonitor;
     use starknet_transaction_prover::server::shutdown::spawn_signal_bridge;
     use starknet_transaction_prover::server::{
         start_server,
@@ -80,7 +81,8 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Build and start the JSON-RPC server.
-    let rpc_impl = ProvingRpcServerImpl::from_config(&config);
+    let saturation_monitor = SaturationMonitor::default();
+    let rpc_impl = ProvingRpcServerImpl::from_config(&config, saturation_monitor);
     let addr = SocketAddr::new(config.ip, config.port);
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
