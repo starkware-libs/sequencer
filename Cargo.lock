@@ -13067,6 +13067,7 @@ dependencies = [
  "bytes",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-program-runner-lib",
  "cairo-vm",
  "clap",
  "flate2",

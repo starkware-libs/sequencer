@@ -260,7 +260,7 @@ cairo-lang-sierra-to-casm = "2.19.4"
 cairo-lang-starknet-classes = "2.19.4"
 cairo-lang-utils = "2.19.4"
 cairo-native = "0.9.0-rc.7"
-cairo-program-runner-lib = "1.1.0"
+cairo-program-runner-lib = { git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
 cairo-vm = "3.2.0"
 camelpaste = "0.1.0"
 chrono = "0.4.26"

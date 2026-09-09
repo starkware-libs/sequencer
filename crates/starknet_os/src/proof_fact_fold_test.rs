@@ -15,6 +15,7 @@ use super::{
     fold_block_proof_facts,
     fold_block_root_entries,
     pack_output_digest,
+    unpack_output_digest,
     Blake2sDigestWords,
     FoldEntry,
     BLAKE2S_DIGEST_N_WORDS,
@@ -351,6 +352,19 @@ fn test_cairo_pack_and_unpack_output_digest_match_rust() {
         FOLD_ENTRY_N_WORDS,
     );
     assert_eq!(fold_entry_from_words(&unpacked_entry_words), root_entry);
+}
+
+#[test]
+fn test_unpack_output_digest_roundtrip() {
+    let proof_facts = synthetic_proof_facts(0);
+    let root_entry = fold_block_proof_facts(&[&proof_facts]);
+    let (packed_low, packed_high) = pack_output_digest(&root_entry.output_digest);
+    assert_eq!(unpack_output_digest(packed_low, packed_high), Some(root_entry.output_digest));
+
+    // A half at or above 2^128 must be rejected.
+    let felt_2_to_128 = Felt::from(2u64).pow(128u64);
+    assert_eq!(unpack_output_digest(felt_2_to_128, packed_high), None);
+    assert_eq!(unpack_output_digest(packed_low, felt_2_to_128 + packed_high), None);
 }
 
 /// One circuit hash of the vendored registry as digest words.
