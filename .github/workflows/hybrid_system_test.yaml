@@ -67,6 +67,12 @@ jobs:
       - name: Install Python Dependencies
         run: pip install -r scripts/requirements.txt
 
+      # This job has no Rust setup step, but check_test_trigger.py shells out to `cargo tree`.
+      # Runners sometimes carry a partial 1.96 toolchain (rustc present, cargo missing) that
+      # rustup's implicit auto-install does not repair. An explicit install re-adds cargo.
+      - name: Ensure Rust toolchain is complete
+        run: rustup toolchain install 1.96
+
       - name: Check for system-test-triggering changes
         id: system_check
         run: |
