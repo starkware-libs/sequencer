@@ -5,6 +5,7 @@ use std::sync::{Mutex, MutexGuard};
 use clap::Parser;
 use rstest::rstest;
 use tempfile::NamedTempFile;
+use tracing_test::traced_test;
 
 use crate::errors::ConfigError;
 use crate::server::config::{CliArgs, LogFormat, ServiceConfig, TransportMode};
@@ -343,4 +344,28 @@ fn env_var_sets_tls_key_file() {
     let args = CliArgs::parse_from(["starknet-transaction-prover"]);
 
     assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
+}
+
+/// The startup summary is the only place that writes the resolved service and
+/// prover settings to the log stream, so its redaction is what keeps credentials
+/// out of the operator's log aggregator.
+#[test]
+#[traced_test]
+fn startup_summary_logs_hosts_and_redacts_url_credentials() {
+    let mut args = base_args();
+    args.rpc_url = Some("https://user:sekret@rpc.example.com:8545/v2/api-key".to_string());
+    args.blocking_check_url = Some("https://ops:hunter2@screen.example.com/check".to_string());
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    config.log_startup_summary();
+
+    assert!(logs_contain("event=\"config_resolved\""), "must tag the event for log-based checks");
+    assert!(logs_contain("rpc.example.com"), "the host is operational context, so it is logged");
+    assert!(
+        logs_contain("screen.example.com"),
+        "the blocking-check host is operational context, safe to log"
+    );
+    for secret in ["sekret", "hunter2", "api-key"] {
+        assert!(!logs_contain(secret), "`{secret}` from a URL must never reach the log stream");
+    }
 }
