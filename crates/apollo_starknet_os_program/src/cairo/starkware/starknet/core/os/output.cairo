@@ -46,6 +46,15 @@ struct OsOutputHeader {
     use_kzg_da: felt,
     // Indicates whether previous state values are included in the state update information.
     full_output: felt,
+    // The packed Blake2s root output digest of the proof-fact fold over the privacy
+    // transactions attested by this output (see proof_fact_fold.cairo): the low and high
+    // 128-bit halves of the digest, in the Uint256 composition of
+    // `encode_felt252_data_and_calc_blake2s`. Both are zero when no transaction
+    // contributed.
+    proof_facts_root_output_low: felt,
+    proof_facts_root_output_high: felt,
+    // The number of transactions contributing proof facts to the fold.
+    n_proof_facts_transactions: felt,
 }
 
 // An L2 to L1 message header, the message payload is concatenated to the end of the header.
@@ -168,6 +177,9 @@ func serialize_output_header{output_ptr: felt*}(os_output_header: OsOutputHeader
     serialize_word(os_output_header.starknet_os_config_hash);
     serialize_word(os_output_header.use_kzg_da);
     serialize_word(os_output_header.full_output);
+    serialize_word(os_output_header.proof_facts_root_output_low);
+    serialize_word(os_output_header.proof_facts_root_output_high);
+    serialize_word(os_output_header.n_proof_facts_transactions);
 
     return ();
 }

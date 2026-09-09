@@ -49,6 +49,10 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     OsOutput,
 )
+from starkware.starknet.core.os.proof_fact_fold import (
+    ProofFactsReference,
+    fold_recorded_proof_facts,
+)
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
 
 // The main entry point of the Starknet OS.
@@ -219,11 +223,25 @@ func execute_blocks{
     }
 
     // Execute transactions.
+    let (proof_facts_references_start: ProofFactsReference*) = alloc();
     let outputs = initial_carried_outputs;
-    with contract_state_changes, contract_class_changes, outputs {
+    let proof_facts_references = proof_facts_references_start;
+    with contract_state_changes, contract_class_changes, outputs, proof_facts_references {
         execute_transactions(block_context=block_context);
     }
     let final_carried_outputs = outputs;
+
+    // Fold the proof facts recorded during execution into the block's root output digest
+    // (zeros when no transaction contributed; always so in virtual OS mode).
+    let (
+        n_proof_facts_transactions, proof_facts_root_output_low, proof_facts_root_output_high
+    ) = fold_recorded_proof_facts(
+        proof_facts_references_start=proof_facts_references_start,
+        proof_facts_references_end=proof_facts_references,
+    );
+    local n_proof_facts_transactions = n_proof_facts_transactions;
+    local proof_facts_root_output_low = proof_facts_root_output_low;
+    local proof_facts_root_output_high = proof_facts_root_output_high;
 
     // Update the state.
     %{ EnterScopeWithAliases %}
@@ -243,6 +261,9 @@ func execute_blocks{
         block_context=block_context,
         state_update_output=state_update_output,
         os_global_context=os_global_context,
+        n_proof_facts_transactions=n_proof_facts_transactions,
+        proof_facts_root_output_low=proof_facts_root_output_low,
+        proof_facts_root_output_high=proof_facts_root_output_high,
     );
     assert os_output_per_block_dst[0] = OsOutput(
         header=os_output_header,

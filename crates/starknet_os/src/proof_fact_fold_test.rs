@@ -11,6 +11,8 @@ use super::{
     compute_fold_digest,
     compute_leaf_output_digest,
     fold_block_proof_facts,
+    fold_block_root_entries,
+    pack_output_digest,
     Blake2sDigestWords,
     FoldEntry,
     BLAKE2S_DIGEST_N_WORDS,
@@ -23,6 +25,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     PointerArg,
+    ValueArg,
 };
 
 const FOLD_ENTRY_N_WORDS: usize = 2 * BLAKE2S_DIGEST_N_WORDS;
@@ -239,4 +242,89 @@ fn test_cairo_circuit_hash_constants_match_rust(
     let cairo_circuit_hash_words =
         run_cairo_function_returning_words(getter_name, &[], &[], BLAKE2S_DIGEST_N_WORDS);
     assert_eq!(cairo_circuit_hash_words, expected_circuit_hash);
+}
+
+/// Block-root entries with distinct output digests, as the combine level sees them.
+fn synthetic_block_root_entries(n_blocks: u64) -> Vec<FoldEntry> {
+    (0..n_blocks)
+        .map(|block_index| {
+            let proof_facts = synthetic_proof_facts(block_index);
+            fold_block_proof_facts(&[&proof_facts])
+        })
+        .collect()
+}
+
+/// Covers the single-entry carry (no self-fold at the combine level), a full layer, and
+/// the carry rule.
+#[rstest]
+#[case::single_block_carried(1)]
+#[case::two_blocks(2)]
+#[case::three_blocks_carry(3)]
+#[case::five_blocks_double_carry(5)]
+fn test_cairo_fold_block_root_entries_matches_rust(#[case] n_blocks: u64) {
+    let block_root_entries = synthetic_block_root_entries(n_blocks);
+    let entry_words: Vec<Felt> = block_root_entries
+        .iter()
+        .flat_map(|entry| {
+            entry
+                .circuit_hash
+                .iter()
+                .chain(entry.output_digest.iter())
+                .map(|word| Felt::from(*word))
+        })
+        .collect();
+    let cairo_root_entry_words = run_cairo_function_returning_words(
+        "fold_block_root_entries",
+        &[EndpointArg::from(Felt::from(n_blocks)), felt_array_arg(&entry_words)],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        FOLD_ENTRY_N_WORDS,
+    );
+    assert_eq!(
+        fold_entry_from_words(&cairo_root_entry_words),
+        fold_block_root_entries(block_root_entries)
+    );
+}
+
+#[test]
+fn test_cairo_pack_and_unpack_output_digest_match_rust() {
+    let proof_facts = synthetic_proof_facts(0);
+    let root_entry = fold_block_proof_facts(&[&proof_facts]);
+    let (expected_low, expected_high) = pack_output_digest(&root_entry.output_digest);
+
+    // Pack in Cairo: takes the 16-word entry, returns (low, high).
+    let entry_words: Vec<Felt> = root_entry
+        .circuit_hash
+        .iter()
+        .chain(root_entry.output_digest.iter())
+        .map(|word| Felt::from(*word))
+        .collect();
+    let expected_return_values = vec![EndpointArg::from(Felt::ZERO), EndpointArg::from(Felt::ZERO)];
+    let (_, packed_return_values, _) = initialize_and_run_cairo_0_entry_point(
+        &entrypoint_runner_config(),
+        PROOF_FACT_FOLD_BYTES,
+        "pack_output_digest",
+        &[felt_array_arg(&entry_words)],
+        &[],
+        &expected_return_values,
+        HashMap::new(),
+        None,
+    )
+    .unwrap_or_else(|error| panic!("Failed to run pack_output_digest: {error:?}"));
+    let [
+        EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_low))),
+        EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_high))),
+    ] = packed_return_values.as_slice()
+    else {
+        panic!("Expected pack_output_digest to return two felts.");
+    };
+    assert_eq!((*cairo_low, *cairo_high), (expected_low, expected_high));
+
+    // Unpack in Cairo: takes (low, high), returns the reconstituted block-root entry.
+    let unpacked_entry_words = run_cairo_function_returning_words(
+        "unpack_block_root_entry",
+        &[EndpointArg::from(expected_low), EndpointArg::from(expected_high)],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        FOLD_ENTRY_N_WORDS,
+    );
+    assert_eq!(fold_entry_from_words(&unpacked_entry_words), root_entry);
 }

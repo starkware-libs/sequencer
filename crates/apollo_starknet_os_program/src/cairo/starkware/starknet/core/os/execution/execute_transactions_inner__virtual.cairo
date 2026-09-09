@@ -7,6 +7,7 @@ from starkware.starknet.core.os.execution.transaction_impls import (
     execute_invoke_function_transaction,
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
+from starkware.starknet.core.os.proof_fact_fold import ProofFactsReference
 
 // In virtual OS mode, we only support a single INVOKE_FUNCTION transaction.
 func execute_transactions_inner{
@@ -15,6 +16,7 @@ func execute_transactions_inner{
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
+    proof_facts_references: ProofFactsReference*,
 }(block_context: BlockContext*, n_txs) {
     // Part of the VIRTUAL_SNOS0 version contract. Changes must trigger a version bump.
     with_attr error_message("Expected exactly one transaction") {

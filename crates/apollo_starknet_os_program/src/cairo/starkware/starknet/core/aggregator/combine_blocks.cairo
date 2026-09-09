@@ -1,3 +1,4 @@
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_le
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.core.os.output import (
@@ -6,6 +7,12 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     OsOutput,
     OsOutputHeader,
+)
+from starkware.starknet.core.os.proof_fact_fold import (
+    FOLD_ENTRY_N_WORDS,
+    fold_block_root_entries,
+    pack_output_digest,
+    unpack_block_root_entry,
 )
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
 from starkware.starknet.core.os.state.squash import squash_class_changes, squash_state_changes
@@ -78,6 +85,8 @@ func combine_blocks{range_check_ptr}(
     assert use_kzg_da * use_kzg_da = use_kzg_da;
     assert full_output * full_output = full_output;
 
+    // The proof-fact fold fields are over all blocks, so they are computed after the
+    // linear pass (see `combine_proof_facts_folds`); the running values are unused.
     tempvar aggregated = new OsOutput(
         header=new OsOutputHeader(
             state_update_output=first.header.state_update_output,
@@ -89,6 +98,9 @@ func combine_blocks{range_check_ptr}(
             starknet_os_config_hash=first.header.starknet_os_config_hash,
             use_kzg_da=use_kzg_da,
             full_output=full_output,
+            proof_facts_root_output_low=0,
+            proof_facts_root_output_high=0,
+            n_proof_facts_transactions=0,
         ),
         squashed_os_state_update=first.squashed_os_state_update,
         initial_carried_outputs=initial_carried_outputs,
@@ -97,6 +109,14 @@ func combine_blocks{range_check_ptr}(
 
     let res = combine_blocks_inner(aggregated=aggregated, n=n - 1, os_outputs=&os_outputs[1]);
     local res_state_update: SquashedOsStateUpdate = [res.squashed_os_state_update];
+
+    // Fold the blocks' proof-fact roots into the combined output's root output digest.
+    let (
+        local n_proof_facts_transactions,
+        local proof_facts_root_output_low,
+        local proof_facts_root_output_high,
+    ) = combine_proof_facts_folds(n=n, os_outputs=os_outputs);
+    local res_header: OsOutputHeader* = res.header;
 
     %{ SetStateUpdatePointersToNone %}
 
@@ -117,7 +137,20 @@ func combine_blocks{range_check_ptr}(
     );
 
     tempvar squashed_res = new OsOutput(
-        header=res.header,
+        header=new OsOutputHeader(
+            state_update_output=res_header.state_update_output,
+            prev_block_number=res_header.prev_block_number,
+            new_block_number=res_header.new_block_number,
+            prev_block_hash=res_header.prev_block_hash,
+            new_block_hash=res_header.new_block_hash,
+            os_program_hash=res_header.os_program_hash,
+            starknet_os_config_hash=res_header.starknet_os_config_hash,
+            use_kzg_da=res_header.use_kzg_da,
+            full_output=res_header.full_output,
+            proof_facts_root_output_low=proof_facts_root_output_low,
+            proof_facts_root_output_high=proof_facts_root_output_high,
+            n_proof_facts_transactions=n_proof_facts_transactions,
+        ),
         squashed_os_state_update=new SquashedOsStateUpdate(
             contract_state_changes=squashed_contract_state_dict,
             n_contract_state_changes=n_contract_state_changes,
@@ -146,7 +179,7 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     // Check the size of `OsOutput` and `OsOutputHeader` to ensure that if new fields are added
     // they are handled by the aggregator.
     static_assert OsOutput.SIZE == 4;
-    static_assert OsOutputHeader.SIZE == 9;
+    static_assert OsOutputHeader.SIZE == 12;
 
     // Validate fields of the inner OS output of a single task.
     assert current_header.use_kzg_da = 0;
@@ -192,6 +225,9 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
             starknet_os_config_hash=aggregated_header.starknet_os_config_hash,
             use_kzg_da=aggregated_header.use_kzg_da,
             full_output=aggregated_header.full_output,
+            proof_facts_root_output_low=0,
+            proof_facts_root_output_high=0,
+            n_proof_facts_transactions=0,
         ),
         squashed_os_state_update=new SquashedOsStateUpdate(
             contract_state_changes=aggregated_update.contract_state_changes,
@@ -206,4 +242,67 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     );
 
     return combine_blocks_inner(aggregated=new_aggregated, n=n - 1, os_outputs=&os_outputs[1]);
+}
+
+// Combines the per-block proof-fact fold results (see os/proof_fact_fold.cairo): folds
+// the root entries of the blocks with contributing transactions into a single root
+// entry, and returns its packed output digest together with the total number of
+// contributing transactions. Blocks with no contributing transactions are skipped -
+// they have no fold-tree node - and a single contributing block's root entry is carried
+// unchanged. Returns zeros when no block contributed.
+func combine_proof_facts_folds{range_check_ptr}(n: felt, os_outputs: OsOutput*) -> (
+    n_proof_facts_transactions: felt, root_output_low: felt, root_output_high: felt
+) {
+    alloc_locals;
+    let (local block_root_entries: felt*) = alloc();
+    let (n_contributing_blocks, local n_proof_facts_transactions) = collect_block_root_entries(
+        n=n, os_outputs=os_outputs, block_root_entries=block_root_entries
+    );
+    if (n_contributing_blocks == 0) {
+        return (n_proof_facts_transactions=0, root_output_low=0, root_output_high=0);
+    }
+    let (root_entry) = fold_block_root_entries(
+        n_entries=n_contributing_blocks, entries=block_root_entries
+    );
+    let (root_output_low, root_output_high) = pack_output_digest(entry=root_entry);
+    return (
+        n_proof_facts_transactions=n_proof_facts_transactions,
+        root_output_low=root_output_low,
+        root_output_high=root_output_high,
+    );
+}
+
+// Writes the root entries of the blocks with contributing transactions, consecutively at
+// `block_root_entries`, and returns the number of such blocks and the total number of
+// contributing transactions. A block with no contributing transactions must carry a zero
+// digest.
+func collect_block_root_entries{range_check_ptr}(
+    n: felt, os_outputs: OsOutput*, block_root_entries: felt*
+) -> (n_contributing_blocks: felt, n_proof_facts_transactions: felt) {
+    alloc_locals;
+    if (n == 0) {
+        return (n_contributing_blocks=0, n_proof_facts_transactions=0);
+    }
+    local header: OsOutputHeader* = os_outputs[0].header;
+    local n_block_transactions = header.n_proof_facts_transactions;
+    if (n_block_transactions == 0) {
+        assert header.proof_facts_root_output_low = 0;
+        assert header.proof_facts_root_output_high = 0;
+        return collect_block_root_entries(
+            n=n - 1, os_outputs=&os_outputs[1], block_root_entries=block_root_entries
+        );
+    }
+    let (block_root_entry) = unpack_block_root_entry(
+        low=header.proof_facts_root_output_low, high=header.proof_facts_root_output_high
+    );
+    memcpy(dst=block_root_entries, src=block_root_entry, len=FOLD_ENTRY_N_WORDS);
+    let (n_rest_contributing_blocks, n_rest_transactions) = collect_block_root_entries(
+        n=n - 1,
+        os_outputs=&os_outputs[1],
+        block_root_entries=block_root_entries + FOLD_ENTRY_N_WORDS,
+    );
+    return (
+        n_contributing_blocks=n_rest_contributing_blocks + 1,
+        n_proof_facts_transactions=n_rest_transactions + n_block_transactions,
+    );
 }

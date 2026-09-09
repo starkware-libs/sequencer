@@ -60,6 +60,10 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     os_carried_outputs_new,
 )
+from starkware.starknet.core.os.proof_fact_fold import (
+    ProofFactsReference,
+    record_proof_facts_reference,
+)
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.transaction_hash.transaction_hash import (
     CommonTxFields,
@@ -254,6 +258,7 @@ func execute_invoke_function_transaction{
     contract_state_changes: DictAccess*,
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
+    proof_facts_references: ProofFactsReference*,
 }(block_context: BlockContext*) {
     alloc_locals;
 
@@ -361,6 +366,11 @@ func execute_invoke_function_transaction{
     charge_fee(block_context=block_context, tx_execution_context=updated_tx_execution_context);
 
     %{ EndTx %}
+
+    // Record the transaction's proof facts (validated by `check_proof_facts` above) for
+    // the block's proof-fact fold. Reverted transactions are included: their proof facts
+    // are part of the block and their proofs were verified regardless of the revert.
+    record_proof_facts_reference(proof_facts_size=proof_facts_size, proof_facts=proof_facts);
 
     return ();
 }

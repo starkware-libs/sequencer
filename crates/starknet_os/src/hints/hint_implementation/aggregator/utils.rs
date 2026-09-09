@@ -271,6 +271,9 @@ pub(crate) fn write_full_os_output(
         common_os_output.starknet_os_config_hash.into(),
         Felt::ZERO.into(), // use_kzg_da field (False in the aggregator input).
         Felt::from(full_output_flag).into(),
+        common_os_output.proof_facts_root_output_low.into(),
+        common_os_output.proof_facts_root_output_high.into(),
+        Felt::from(common_os_output.n_proof_facts_transactions).into(),
     ])?;
 
     let squashed_os_state_update = vm.gen_arg(&vec![
