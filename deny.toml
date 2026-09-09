@@ -101,15 +101,24 @@ unmaintained = "workspace"
 # List of explicitly allowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
+# Every entry is either permissive or, in the case of MPL-2.0, file-level weak copyleft, so none of
+# them place a condition on the rest of the binaries built from this workspace.
 allow = [
   "0BSD",
+  "Apache-2.0 WITH LLVM-exception",
   "Apache-2.0",
   "BSD-2-Clause",
   "BSD-3-Clause",
+  "BSL-1.0",
   "CC0-1.0",
+  "CDLA-Permissive-2.0",
+  "ISC",
   "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
   "Unlicense",
   "Zlib",
+  "bzip2-1.0.6",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
