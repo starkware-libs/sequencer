@@ -3,6 +3,9 @@ from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 
 // Gets a felt that represents a 256-bit unsigned integer stored as an array of eight 32-bit unsigned integers
 // represented in little-endian notation. Returns the felt representation of the integer modulo prime.
+// Assumption: each element of `u32s` is a valid 32-bit value (in [0, 2**32)). This is not checked
+// here; the caller must guarantee it (in practice, the Blake opcode range-checks the limbs it
+// consumes).
 func felt_from_le_u32s(u32s: felt*) -> felt {
     let value = u32s[7] * 2 ** 224 + u32s[6] * 2 ** 192 + u32s[5] * 2 ** 160 + u32s[4] * 2 ** 128 +
         u32s[3] * 2 ** 96 + u32s[2] * 2 ** 64 + u32s[1] * 2 ** 32 + u32s[0];
@@ -59,6 +62,15 @@ func create_initial_state_for_blake2s() -> (initial_state: felt*) {
 }
 
 // Encodes one felt252 into eight u32s represented in little-endian order.
+//
+// The hint-provided limbs are only constrained here by
+// `felt_from_le_u32s(unpacked_u32s) == packed_value`, which holds modulo PRIME. This function does
+// NOT guarantee that:
+//   (1) each limb is a valid 32-bit value (in [0, 2**32)) - this is enforced later by the Blake
+//       opcode that consumes the limbs; or
+//   (2) the 256-bit value the limbs represent is the canonical representative in [0, PRIME-1] - a
+//       non-canonical encoding of `packed_value + k*PRIME` would also satisfy the assertion.
+// Callers that require either property must enforce it themselves.
 func naive_encode_felt252_to_u32s(packed_value: felt, unpacked_u32s: felt*) {
     %{ NaiveUnpackFelt252ToU32s %}
     // TODO(Noa): Assert that the limbs represent a number in the range [0, PRIME-1].
@@ -71,34 +83,15 @@ func naive_encode_felt252_to_u32s(packed_value: felt, unpacked_u32s: felt*) {
 
 // Encodes one `Felt` into an eight 32-bit word, then hashes the resulting byte stream
 // with Blake2s-256 and returns the 256-bit digest to a 252-bit field element `Felt`.
+// Note: the encoding is not guaranteed to be the canonical (< PRIME) representation of `item`.
 func calc_blake_hash_single{range_check_ptr: felt}(item: felt) -> (hash: felt) {
     alloc_locals;
     let (local encoded_data: felt*) = alloc();
+    // The encoding step does not range-check the limbs it writes.
     naive_encode_felt252_to_u32s(packed_value=item, unpacked_u32s=encoded_data);
     let (local blake_output: felt*) = alloc();
+    // The Blake opcode range-checks the u32 limbs it consumes.
     blake_with_opcode(len=8, data=encoded_data, out=blake_output);
     let hash = felt_from_le_u32s(u32s=blake_output);
     return (hash=hash);
-}
-
-// Encodes `n_felts` felt252 values (starting at `data`) into 8 u32 LE limbs each,
-// then hashes the resulting byte stream with Blake2s-256.
-func calc_naive_blake_hash{range_check_ptr: felt}(n_felts: felt, data: felt*) -> felt {
-    alloc_locals;
-    let (local encoded_data: felt*) = alloc();
-    naive_encode_felt252_array_to_u32s(n_felts=n_felts, data=data, encoded_data=encoded_data);
-    let (local blake_output: felt*) = alloc();
-    blake_with_opcode(len=n_felts * 8, data=encoded_data, out=blake_output);
-    let hash = felt_from_le_u32s(u32s=blake_output);
-    return hash;
-}
-
-func naive_encode_felt252_array_to_u32s(n_felts: felt, data: felt*, encoded_data: felt*) {
-    if (n_felts == 0) {
-        return ();
-    }
-    naive_encode_felt252_to_u32s(packed_value=data[0], unpacked_u32s=encoded_data);
-    return naive_encode_felt252_array_to_u32s(
-        n_felts=n_felts - 1, data=&data[1], encoded_data=&encoded_data[8]
-    );
 }
