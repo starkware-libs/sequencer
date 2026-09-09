@@ -1,46 +1,27 @@
-use std::collections::{BTreeMap, HashSet};
-use std::fs::File;
-use std::sync::LazyLock;
 use std::vec::Vec;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
 use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
 use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config::dumping::{
-    generate_optional_struct_pointer,
-    generate_struct_pointer,
-    prepend_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    ser_pointer_target_param,
-    set_pointing_param_paths,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
-};
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
-use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::ConfigError;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
-use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
 use apollo_l1_gas_price_config::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_proof_manager_config::config::ProofManagerConfig;
-use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
-use blockifier::blockifier::config::NativeClassesWhitelist;
-use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
@@ -51,186 +32,13 @@ use crate::component_execution_config::{ExpectedComponentConfig, ReactiveCompone
 use crate::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
-// The path of the configuration schema file, provided as part of the crate.
-pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
+// The path of the secrets schema file (the serialized private-parameter set), provided as part of
+// the crate.
 pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
     "crates/apollo_node/resources/config_secrets_schema.json";
-pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // TODO(Tsabary): move metrics recorder to the node level, like tracing, instead of being
 // initialized as part of the endpoint.
-
-// Configuration parameters that share the same value across multiple components.
-pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    let mut pointers = vec![
-        (
-            ser_pointer_target_param(
-                "chain_id",
-                &POINTER_TARGET_VALUE.to_string(),
-                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.static_config.block_builder_config.chain_info.chain_id",
-                "batcher_config.static_config.storage.db_config.chain_id",
-                "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.chain_id",
-                "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id",
-                "consensus_manager_config.context_config.static_config.chain_id",
-                "consensus_manager_config.network_config.chain_id",
-                "gateway_config.static_config.chain_info.chain_id",
-                "l1_events_scraper_config.chain_id",
-                "l1_gas_price_scraper_config.chain_id",
-                "mempool_p2p_config.network_config.chain_id",
-                "state_sync_config.static_config.storage_config.db_config.chain_id",
-                "state_sync_config.static_config.network_config.chain_id",
-                "state_sync_config.static_config.rpc_config.chain_id",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "eth_fee_token_address",
-                &POINTER_TARGET_VALUE.to_string(),
-                "Address of the ETH fee token.",
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
-                 eth_fee_token_address",
-                "gateway_config.static_config.chain_info.fee_token_addresses.eth_fee_token_address",
-                "state_sync_config.static_config.rpc_config.execution_config.eth_fee_contract_address",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "native_classes_whitelist",
-                &"[]".to_string(),
-                NativeClassesWhitelist::SER_PARAM_DESCRIPTION,
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.dynamic_config.native_classes_whitelist",
-                "gateway_config.dynamic_config.native_classes_whitelist",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "starknet_url",
-                &POINTER_TARGET_VALUE.to_string(),
-                "URL for communicating with Starknet.",
-            ),
-            set_pointing_param_paths(&[
-                "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url",
-                "state_sync_config.static_config.rpc_config.starknet_url",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "strk_fee_token_address",
-                &POINTER_TARGET_VALUE.to_string(),
-                "Address of the STRK fee token.",
-            ),
-            set_pointing_param_paths(&[
-                "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
-                 strk_fee_token_address",
-                "gateway_config.static_config.chain_info.fee_token_addresses.strk_fee_token_address",
-                "state_sync_config.static_config.rpc_config.execution_config.strk_fee_contract_address",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "validator_id",
-                &POINTER_TARGET_VALUE.to_string(),
-                "The ID of the validator. \
-                 Also the address of this validator as a starknet contract.",
-            ),
-            set_pointing_param_paths(&["consensus_manager_config.consensus_manager_config.dynamic_config.validator_id"]),
-        ),
-        (
-            ser_pointer_target_param(
-                "recorder_url",
-                &POINTER_TARGET_VALUE.to_string(),
-                "The URL of the Pythonic cende_recorder",
-            ),
-            set_pointing_param_paths(&[
-                "consensus_manager_config.cende_config.recorder_url",
-                "batcher_config.static_config.pre_confirmed_cende_config.recorder_url",
-                "gateway_config.static_config.recorder_url",
-                "mempool_config.static_config.recorder_url",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "validate_resource_bounds",
-                &true,
-                "Indicates that validations related to resource bounds are applied. \
-                It should be set to false during a system bootstrap.",
-            ),
-            set_pointing_param_paths(&[
-                "gateway_config.static_config.stateful_tx_validator_config.validate_resource_bounds",
-                "gateway_config.static_config.stateless_tx_validator_config.validate_resource_bounds",
-                "mempool_config.static_config.validate_resource_bounds",
-            ]),
-        ),
-        (
-            ser_pointer_target_param(
-                "max_cpu_time",
-                &600u64,
-                "Limitation of compilation cpu time (seconds).",
-            ),
-            set_pointing_param_paths(&[
-                "sierra_compiler_config.max_cpu_time",
-                "batcher_config.static_config.contract_class_manager_config.native_compiler_config.\
-                 max_cpu_time",
-                "gateway_config.static_config.contract_class_manager_config.native_compiler_config.\
-                 max_cpu_time",
-            ]),
-        ),
-    ];
-    let mut common_execution_config = generate_optional_struct_pointer::<VersionedConstantsOverrides>(
-        "versioned_constants_overrides".to_owned(),
-        None,
-        set_pointing_param_paths(&[
-            "batcher_config.static_config.block_builder_config.versioned_constants_overrides",
-            "gateway_config.static_config.stateful_tx_validator_config.\
-             versioned_constants_overrides",
-        ]),
-    );
-    pointers.append(&mut common_execution_config);
-
-    let mut common_execution_config = generate_struct_pointer(
-        "revert_config".to_owned(),
-        &RevertConfig::default(),
-        set_pointing_param_paths(&[
-            "state_sync_config.static_config.revert_config",
-            "consensus_manager_config.revert_config",
-        ]),
-    );
-    pointers.append(&mut common_execution_config);
-
-    pointers.push((
-        ser_pointer_target_param(
-            "behavior_mode",
-            &BehaviorMode::Starknet,
-            "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
-        ),
-        set_pointing_param_paths(&[
-            "consensus_manager_config.context_config.static_config.behavior_mode",
-            "gateway_config.static_config.behavior_mode",
-            "mempool_config.static_config.behavior_mode",
-        ]),
-    ));
-    pointers.push((
-        ser_pointer_target_param(
-            "validation_only",
-            &false,
-            "If true, the node validates proposed blocks but does not build proposals. Requires \
-             gateway, http_server, and mempool to be disabled.",
-        ),
-        set_pointing_param_paths(&["batcher_config.static_config.validation_only"]),
-    ));
-    pointers
-});
-
-// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param.
-pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
-    LazyLock::new(HashSet::<ParamPath>::new);
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
@@ -280,51 +88,6 @@ pub struct SequencerNodeConfig {
     pub sierra_compiler_config: Option<SierraCompilationConfig>,
     #[validate(nested)]
     pub state_sync_config: Option<StateSyncConfig>,
-}
-
-impl SerializeConfig for SequencerNodeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "validation_only",
-            &self.validation_only,
-            "If true, the node validates proposed blocks but does not build proposals. Requires \
-             gateway, http_server, and mempool to be disabled.",
-            ParamPrivacyInput::Public,
-        )]);
-        let sub_configs = vec![
-            // Infra related configs.
-            prepend_sub_config_name(self.components.dump(), "components"),
-            ser_optional_sub_config(&self.config_manager_config, "config_manager_config"),
-            prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
-            // Business-logic component configs.
-            ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
-            ser_optional_sub_config(&self.batcher_config, "batcher_config"),
-            ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
-            ser_optional_sub_config(&self.committer_config, "committer_config"),
-            ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
-            ser_optional_sub_config(&self.gateway_config, "gateway_config"),
-            ser_optional_sub_config(&self.http_server_config, "http_server_config"),
-            ser_optional_sub_config(&self.mempool_config, "mempool_config"),
-            ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
-            ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
-            ser_optional_sub_config(
-                &self.l1_gas_price_provider_config,
-                "l1_gas_price_provider_config",
-            ),
-            ser_optional_sub_config(
-                &self.l1_gas_price_scraper_config,
-                "l1_gas_price_scraper_config",
-            ),
-            ser_optional_sub_config(&self.l1_events_provider_config, "l1_events_provider_config"),
-            ser_optional_sub_config(&self.l1_events_scraper_config, "l1_events_scraper_config"),
-            ser_optional_sub_config(&self.proof_manager_config, "proof_manager_config"),
-            ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
-            ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
-        ];
-
-        dump.extend(sub_configs.into_iter().flatten());
-        dump
-    }
 }
 
 impl Default for SequencerNodeConfig {
@@ -378,29 +141,6 @@ pub struct NodeDynamicConfig {
     pub staking_manager_dynamic_config: Option<StakingManagerDynamicConfig>,
     #[validate(nested)]
     pub state_sync_dynamic_config: Option<StateSyncDynamicConfig>,
-}
-
-impl SerializeConfig for NodeDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let sub_configs = [
-            ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
-            ser_optional_sub_config(
-                &self.class_manager_dynamic_config,
-                "class_manager_dynamic_config",
-            ),
-            ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
-            ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
-            ser_optional_sub_config(&self.gateway_dynamic_config, "gateway_dynamic_config"),
-            ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
-            ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
-            ser_optional_sub_config(
-                &self.staking_manager_dynamic_config,
-                "staking_manager_dynamic_config",
-            ),
-            ser_optional_sub_config(&self.state_sync_dynamic_config, "state_sync_dynamic_config"),
-        ];
-        sub_configs.into_iter().flatten().collect()
-    }
 }
 
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {
@@ -477,11 +217,9 @@ fn validate_node_dynamic_config(config: &NodeDynamicConfig) -> Result<(), Valida
 }
 
 impl SequencerNodeConfig {
-    /// Creates a config object, using the config schema and provided resources.
+    /// Creates a config object from the native config files named by `args`.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
-        let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH)?;
-        let default_config_file = File::open(config_file_name)?;
-        load_and_process_config(default_config_file, node_command(), args, true)
+        load_and_process_config(node_command(), args, true)
     }
 
     pub fn validate_node_config(&self) -> Result<(), ConfigError> {
@@ -618,6 +356,181 @@ impl SequencerNodeConfig {
 
         self.validate_validation_only_config()?;
 
+        self.validate_pointer_groups_equal()?;
+
+        Ok(())
+    }
+
+    /// Asserts that the formerly-pointer-resolved values are equal across all present components.
+    fn validate_pointer_groups_equal(&self) -> Result<(), ConfigError> {
+        let batcher = self.batcher_config.as_ref();
+        let class_manager = self.class_manager_config.as_ref();
+        let consensus_manager = self.consensus_manager_config.as_ref();
+        let gateway = self.gateway_config.as_ref();
+        let mempool = self.mempool_config.as_ref();
+        let mempool_p2p = self.mempool_p2p_config.as_ref();
+        let sierra_compiler = self.sierra_compiler_config.as_ref();
+        let state_sync = self.state_sync_config.as_ref();
+        let l1_events_scraper = self.l1_events_scraper_config.as_ref();
+        let l1_gas_price_scraper = self.l1_gas_price_scraper_config.as_ref();
+
+        // Verify Chain ID.
+        all_present_equal(
+            "chain_id",
+            &[
+                batcher.map(|c| &c.static_config.block_builder_config.chain_info.chain_id),
+                batcher.map(|c| &c.static_config.storage.db_config.chain_id),
+                class_manager.map(|c| {
+                    &c.static_config
+                        .class_storage_config
+                        .class_hash_storage_config
+                        .db_config
+                        .chain_id
+                }),
+                consensus_manager.map(|c| {
+                    &c.consensus_manager_config.static_config.storage_config.db_config.chain_id
+                }),
+                consensus_manager.map(|c| &c.context_config.static_config.chain_id),
+                consensus_manager.map(|c| &c.network_config.chain_id),
+                gateway.map(|c| &c.static_config.chain_info.chain_id),
+                l1_events_scraper.map(|c| &c.chain_id),
+                l1_gas_price_scraper.map(|c| &c.chain_id),
+                mempool_p2p.map(|c| &c.network_config.chain_id),
+                state_sync.map(|c| &c.static_config.storage_config.db_config.chain_id),
+                state_sync.and_then(|c| {
+                    c.static_config.network_config.as_ref().map(|network| &network.chain_id)
+                }),
+                state_sync.map(|c| &c.static_config.rpc_config.chain_id),
+            ],
+        )?;
+
+        // Verify fee token addresses.
+        all_present_equal(
+            "eth_fee_token_address",
+            &[
+                batcher.map(|c| {
+                    &c.static_config
+                        .block_builder_config
+                        .chain_info
+                        .fee_token_addresses
+                        .eth_fee_token_address
+                }),
+                gateway
+                    .map(|c| &c.static_config.chain_info.fee_token_addresses.eth_fee_token_address),
+                state_sync
+                    .map(|c| &c.static_config.rpc_config.execution_config.eth_fee_contract_address),
+            ],
+        )?;
+
+        all_present_equal(
+            "strk_fee_token_address",
+            &[
+                batcher.map(|c| {
+                    &c.static_config
+                        .block_builder_config
+                        .chain_info
+                        .fee_token_addresses
+                        .strk_fee_token_address
+                }),
+                gateway.map(|c| {
+                    &c.static_config.chain_info.fee_token_addresses.strk_fee_token_address
+                }),
+                state_sync.map(|c| {
+                    &c.static_config.rpc_config.execution_config.strk_fee_contract_address
+                }),
+            ],
+        )?;
+
+        // Verify recorder URL.
+        all_present_equal(
+            "recorder_url",
+            &[
+                consensus_manager.map(|c| &c.cende_config.recorder_url),
+                batcher.map(|c| &c.static_config.pre_confirmed_cende_config.recorder_url),
+                mempool.map(|c| &c.static_config.recorder_url),
+                gateway.map(|c| &c.static_config.recorder_url),
+            ],
+        )?;
+
+        // Verify native whitelist.
+        all_present_equal(
+            "native_classes_whitelist",
+            &[
+                batcher.map(|c| &c.dynamic_config.native_classes_whitelist),
+                gateway.map(|c| &c.dynamic_config.native_classes_whitelist),
+            ],
+        )?;
+
+        // Verify validate resource bounds.
+        all_present_equal(
+            "validate_resource_bounds",
+            &[
+                gateway.map(|c| {
+                    &c.static_config.stateful_tx_validator_config.validate_resource_bounds
+                }),
+                gateway.map(|c| {
+                    &c.static_config.stateless_tx_validator_config.validate_resource_bounds
+                }),
+                mempool.map(|c| &c.static_config.validate_resource_bounds),
+            ],
+        )?;
+
+        // Verify max CPU time.
+        all_present_equal(
+            "max_cpu_time",
+            &[
+                sierra_compiler.map(|c| &c.max_cpu_time),
+                batcher.map(|c| {
+                    &c.static_config
+                        .contract_class_manager_config
+                        .native_compiler_config
+                        .max_cpu_time
+                }),
+                gateway.map(|c| {
+                    &c.static_config
+                        .contract_class_manager_config
+                        .native_compiler_config
+                        .max_cpu_time
+                }),
+            ],
+        )?;
+
+        // Verify behavior mode.
+        all_present_equal(
+            "behavior_mode",
+            &[
+                consensus_manager.map(|c| &c.context_config.static_config.behavior_mode),
+                mempool.map(|c| &c.static_config.behavior_mode),
+            ],
+        )?;
+
+        // Verify versioned constants overrides.
+        all_present_equal(
+            "versioned_constants_overrides",
+            &[
+                batcher
+                    .map(|c| &c.static_config.block_builder_config.versioned_constants_overrides),
+                gateway.map(|c| {
+                    &c.static_config.stateful_tx_validator_config.versioned_constants_overrides
+                }),
+            ],
+        )?;
+
+        // Verify revert config.
+        all_present_equal(
+            "revert_config",
+            &[
+                state_sync.map(|c| &c.static_config.revert_config),
+                consensus_manager.map(|c| &c.revert_config),
+            ],
+        )?;
+
+        // Verify validation only.
+        all_present_equal(
+            "validation_only",
+            &[Some(&self.validation_only), batcher.map(|c| &c.static_config.validation_only)],
+        )?;
+
         Ok(())
     }
 
@@ -665,6 +578,27 @@ impl SequencerNodeConfig {
         // state_sync.get_block() works without transaction_metadata (the orchestrator needs it).
         Ok(())
     }
+}
+
+/// Asserts that all present values in `values` are equal, returning an error otherwise.
+fn all_present_equal<T: PartialEq + std::fmt::Debug>(
+    label: &str,
+    values: &[Option<&T>],
+) -> Result<(), ConfigError> {
+    let present_values: Vec<&T> = values.iter().filter_map(|value| *value).collect();
+    let Some((first_value, rest_values)) = present_values.split_first() else {
+        // Empty list of present values is trivially equal.
+        return Ok(());
+    };
+    if let Some(mismatched_value) = rest_values.iter().find(|value| *value != first_value) {
+        return Err(ConfigError::ComponentConfigMismatch {
+            component_config_mismatch: format!(
+                "{label} values mismatch across components: {first_value:?} != \
+                 {mismatched_value:?}"
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// The command line interface of this node.

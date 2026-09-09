@@ -1,7 +1,8 @@
 import json
+from pathlib import Path
 
 from imports import k8s
-from src.config.loaders import NodeConfigLoader
+from src.config.native import build_native_config
 from src.constructs.base import BaseConstruct
 
 
@@ -34,43 +35,8 @@ class ConfigMapConstruct(BaseConstruct):
             raise ValueError(
                 f"config is required for service '{self.service_config.name}' but was not provided"
             )
-        if not self.service_config.config.configList:
-            raise ValueError(
-                f"config.configList is required for service '{self.service_config.name}' but was not provided"
-            )
 
-        # Load JSON configs using NodeConfigLoader
-        node_config_loader = NodeConfigLoader(
-            config_list_json_path=self.service_config.config.configList,
-        )
-        node_config = node_config_loader.load()
-
-        # sequencerConfig is now already merged from common into service_config
-        merged_sequencer_config = (
-            self.service_config.config.sequencerConfig
-            if self.service_config.config and self.service_config.config.sequencerConfig
-            else {}
-        )
-
-        # Apply merged overrides (includes validation for both unused keys and remaining placeholders)
-        if merged_sequencer_config:
-            node_config = NodeConfigLoader.apply_sequencer_overrides(
-                node_config,
-                merged_sequencer_config,
-                service_name=self.service_config.name,
-                config_list_path=self.service_config.config.configList,
-                layout=self.layout,
-                overlays=self.overlays,
-            )
-        else:
-            # If no sequencer config overrides, still validate for remaining placeholders
-            NodeConfigLoader.validate_no_remaining_placeholders(
-                node_config,
-                config_list_path=self.service_config.config.configList,
-                layout=self.layout,
-                overlays=self.overlays,
-                service_name=self.service_config.name,
-            )
+        node_config = self._build_native_node_config()
 
         config_data = json.dumps(node_config, indent=2)
 
@@ -83,3 +49,21 @@ class ConfigMapConstruct(BaseConstruct):
             ),
             data=dict(config=config_data),
         )  # Key is "config" to match node/ format, mounted as /config/sequencer/presets/config
+
+    def _build_native_node_config(self) -> dict:
+        """Produce the nested SequencerNodeConfig for this service by evaluating the leaf overlay's
+        self-contained `node.jsonnet` (which carries all applicative config via jsonnet `build()`).
+        """
+        if not self.overlays:
+            raise ValueError(
+                "--config-format native requires at least one -o/--overlay "
+                "(the leaf overlay's node.jsonnet is the config source)."
+            )
+        base_dir = Path(__file__).resolve().parents[2]
+        # The leaf `-o` overlay's dir (its dotted path under configs/jsonnet/overlays) holds
+        # node.jsonnet.
+        node_file = (
+            base_dir.joinpath("configs", "jsonnet", "overlays", *self.overlays[-1].split("."))
+            / "node.jsonnet"
+        )
+        return build_native_config(self.service_config.name, node_file)

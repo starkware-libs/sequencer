@@ -1,8 +1,5 @@
-use std::collections::BTreeMap;
 use std::future::Future;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 use apollo_storage::accessed_keys::AccessedKeysStorageWriter;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
@@ -20,43 +17,20 @@ use futures::never::Never;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RevertConfig {
-    pub revert_up_to_and_including: BlockNumber,
-    pub should_revert: bool,
-}
+/// Revert target: `Some(height)` reverts blocks up to and including that height; `None` (the
+/// default) never reverts.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(transparent)]
+pub struct RevertConfig(pub Option<BlockNumber>);
 
-impl Default for RevertConfig {
-    fn default() -> Self {
-        Self {
-            // Use u64::MAX as a placeholder to prevent setting this value to
-            // a low block number by mistake, which will cause significant revert operations.
-            revert_up_to_and_including: BlockNumber(u64::MAX),
-            should_revert: false,
-        }
-    }
-}
-
-impl SerializeConfig for RevertConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "revert_up_to_and_including",
-                &self.revert_up_to_and_including,
-                "The component will revert blocks up to this block number (including).",
-                // Use this configuration carefully to prevent significant revert operations and
-                // data loss
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "should_revert",
-                &self.should_revert,
-                "If set true, the component would revert blocks and do nothing else.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+// The newtype wraps a plain `Option<BlockNumber>` with no field-level constraints;
+// `#[derive(Validate)]` doesn't support tuple structs, so implement the (trivial) check by hand to
+// satisfy the `#[validate(nested)]` bound on the owning configs.
+impl Validate for RevertConfig {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        Ok(())
     }
 }
 

@@ -7,14 +7,13 @@ license-file.workspace = true
 description = "Configuration types for the Apollo consensus manager."
 
 [dependencies]
-apollo_config.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
 apollo_network.workspace = true
 apollo_reverts.workspace = true
 apollo_staking_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
-validator.workspace = true
+validator = { workspace = true, features = ["derive"] }
 
 [lints]
 workspace = true

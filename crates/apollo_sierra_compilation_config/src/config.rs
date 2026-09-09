@@ -1,7 +1,3 @@
-use std::collections::BTreeMap;
-
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -31,36 +27,5 @@ impl Default for SierraCompilationConfig {
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             audited_libfuncs_only: DEFAULT_AUDITED_LIBFUNCS_ONLY,
         }
-    }
-}
-
-impl SerializeConfig for SierraCompilationConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "max_bytecode_size",
-                &self.max_bytecode_size,
-                "Limitation of compiled CASM bytecode size (felts).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_cpu_time",
-                &self.max_cpu_time,
-                "Limitation of compilation cpu time (seconds).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "audited_libfuncs_only",
-                &self.audited_libfuncs_only,
-                "If true, restrict to audited libfuncs. Otherwise allow all.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_memory_usage",
-                &self.max_memory_usage,
-                "Limitation of compilation process's virtual memory (bytes).",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }

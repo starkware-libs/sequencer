@@ -1,11 +1,8 @@
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::time::Duration;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::create_validation_error;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::header::CONTENT_TYPE;
@@ -136,76 +133,6 @@ pub(crate) fn validate_keepalive_timeout_ms(
         ));
     }
     Ok(())
-}
-
-impl SerializeConfig for RemoteClientConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "retries",
-                &self.retries,
-                "The max number of retries for sending a message.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "idle_connections",
-                &self.idle_connections,
-                "The maximum number of idle connections to keep alive.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "keepalive_timeout_ms",
-                &self.keepalive_timeout_ms,
-                "The duration in milliseconds to keep an idle connection open before closing.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "initial_retry_delay_ms",
-                &self.initial_retry_delay_ms,
-                "Initial delay before first retry in milliseconds.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "attempts_per_log",
-                &self.attempts_per_log,
-                "Number of attempts between failure log messages.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_retry_interval_ms",
-                &self.max_retry_interval_ms,
-                "The maximal duration in milliseconds to wait between remote connection retries.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "connection_timeout_ms",
-                &self.connection_timeout_ms,
-                "The maximal duration in milliseconds before a client forgoes remote connection \
-                 creation attempt.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "request_timeout_ms",
-                &self.request_timeout_ms,
-                "The maximal duration in milliseconds for the full request-response cycle; \
-                 connection establishment is separate.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "set_tcp_nodelay",
-                &self.set_tcp_nodelay,
-                "Whether to set TCP_NODELAY on the client requests.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_response_body_bytes",
-                &self.max_response_body_bytes,
-                "Maximum allowed size in bytes for an incoming response body. Responses exceeding \
-                 this limit are treated as a communication failure.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and

@@ -42,11 +42,14 @@ const_format.workspace = true
 papyrus_base_layer.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet_api.workspace = true
 tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
 apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_network.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
