@@ -20,7 +20,7 @@ pub mod testing_instances;
 pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -62,10 +62,16 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
+use starknet_api::contract_class::{
+    ClassInfo,
+    EntryPointType,
+    SierraVersion,
+    DEPRECATED_CONTRACT_SIERRA_SIZE,
+};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
+pub use starknet_api::fee_token_defaults::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
@@ -84,41 +90,16 @@ use starknet_api::transaction::{
 use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
-use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
 use tokio::runtime::Handle;
 use tracing::trace;
 
 use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
 
-/// The address of the STRK fee contract on Starknet.
-const STRK_FEE_CONTRACT_ADDRESS_STR: &str =
-    "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-/// The address of the ETH fee contract on Starknet.
-const ETH_FEE_CONTRACT_ADDRESS_STR: &str =
-    "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
 
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
-
-/// The address of the STRK fee contract on Starknet.
-pub static STRK_FEE_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(
-        Felt::from_hex(STRK_FEE_CONTRACT_ADDRESS_STR)
-            .expect("Error converting strk fee contract address from hex"),
-    )
-    .expect("Error converting strk fee contract address from felt")
-});
-
-/// The address of the ETH fee contract on Starknet.
-pub static ETH_FEE_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(
-        Felt::from_hex(ETH_FEE_CONTRACT_ADDRESS_STR)
-            .expect("Error converting eth fee contract address from hex"),
-    )
-    .expect("Error converting eth fee contract address from felt")
-});
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 /// Parameters that are needed for execution.
@@ -429,9 +410,6 @@ pub type AbiSize = usize;
 
 /// The size of the sierra program.
 pub type SierraSize = usize;
-
-/// The size of the sierra program for deprecated contracts.
-pub const DEPRECATED_CONTRACT_SIERRA_SIZE: SierraSize = 0;
 
 /// The transaction input to be executed.
 // TODO(yair): This should use broadcasted transactions instead of regular transactions, but the

@@ -1,4 +1,3 @@
-use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{OsInitialReadsCollection, TransactionExecutor};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
@@ -8,7 +7,7 @@ use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::TransactionHashingData;
-use starknet_api::contract_class::{ClassInfo, SierraVersion};
+use starknet_api::contract_class::{ClassInfo, SierraVersion, DEPRECATED_CONTRACT_SIERRA_SIZE};
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
