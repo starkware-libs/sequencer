@@ -14,6 +14,8 @@ apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_node_config.workspace = true
+jrsonnet-evaluator = { workspace = true, optional = true }
+jrsonnet-stdlib = { workspace = true, optional = true }
 phf = { workspace = true, features = ["macros"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -28,6 +30,9 @@ jrsonnet-evaluator = { workspace = true }
 jrsonnet-stdlib = { workspace = true }
 tempfile.workspace = true
 url = { workspace = true, features = ["serde"] }
+
+[features]
+testing = ["dep:jrsonnet-evaluator", "dep:jrsonnet-stdlib"]
 
 [[bin]]
 name = "deployment_generator"
