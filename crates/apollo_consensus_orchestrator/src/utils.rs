@@ -438,12 +438,12 @@ pub(crate) async fn wait_for_retrospective_block_hash(
         )
         .await;
 
-        // If the block is not found, try again after the retry interval. In any other case, return
-        // the result.
+        // Retry while a client cannot answer yet: the block is not found, or state sync's feeder
+        // fallback failed transiently. In any other case, return the result.
         let state_sync_not_ready = matches!(
             result,
             Err(RetrospectiveBlockHashError::StateSyncError(StateSyncClientError::StateSyncError(
-                StateSyncError::BlockNotFound(_)
+                StateSyncError::BlockNotFound(_) | StateSyncError::ReaderClientError(_)
             )))
         );
         let batcher_not_ready = matches!(
