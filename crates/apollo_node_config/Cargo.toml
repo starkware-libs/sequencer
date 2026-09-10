@@ -42,6 +42,7 @@ const_format.workspace = true
 papyrus_base_layer.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet_api.workspace = true
 tracing.workspace = true
 validator.workspace = true
 
