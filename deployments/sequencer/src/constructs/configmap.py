@@ -60,8 +60,10 @@ class ConfigMapConstruct(BaseConstruct):
                 "(the leaf overlay's node.jsonnet is the config source)."
             )
         base_dir = Path(__file__).resolve().parents[2]
-        # The leaf `-o` overlay's dir (its dotted path under configs/overlays) holds node.jsonnet.
+        # The leaf `-o` overlay's dir (its dotted path under configs/jsonnet/overlays) holds
+        # node.jsonnet.
         node_file = (
-            base_dir.joinpath("configs", "overlays", *self.overlays[-1].split(".")) / "node.jsonnet"
+            base_dir.joinpath("configs", "jsonnet", "overlays", *self.overlays[-1].split("."))
+            / "node.jsonnet"
         )
         return build_native_config(self.service_config.name, node_file)

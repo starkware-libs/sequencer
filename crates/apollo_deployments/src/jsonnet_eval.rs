@@ -17,7 +17,7 @@ use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::service::{NodeService, NodeType};
 
-const JSONNET_DIR: &str = "crates/apollo_deployments/jsonnet";
+const JSONNET_DIR: &str = "deployments/sequencer/configs/jsonnet";
 const TOPOLOGY_PARAMS: &str = "{ chain_params: import 'testing/chain_params.libsonnet', \
                                node_params: import 'testing/node_params.libsonnet' }";
 
