@@ -105,10 +105,6 @@ impl LocalClientMetrics {
         self.response_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
 
-    pub fn get_response_time_metric(&self) -> &'static LabeledMetricHistogram {
-        self.response_times
-    }
-
     pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
         vec![self.response_times]
     }
@@ -149,14 +145,6 @@ impl RemoteClientMetrics {
     pub fn record_communication_failure(&self, duration_secs: f64, request_label: &'static str) {
         self.communication_failure_times
             .record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
-    }
-
-    pub fn get_response_time_metric(&self) -> &'static LabeledMetricHistogram {
-        self.response_times
-    }
-
-    pub fn get_communication_failure_time_metric(&self) -> &'static LabeledMetricHistogram {
-        self.communication_failure_times
     }
 
     pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
@@ -253,14 +241,6 @@ impl LocalServerMetrics {
 
     pub fn record_queueing_time(&self, duration_secs: f64, request_label: &'static str) {
         self.queueing_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
-    }
-
-    pub fn get_processing_time_metric(&self) -> &'static LabeledMetricHistogram {
-        self.processing_times
-    }
-
-    pub fn get_queueing_time_metric(&self) -> &'static LabeledMetricHistogram {
-        self.queueing_times
     }
 
     pub fn get_received_metric(&self) -> &'static MetricCounter {
