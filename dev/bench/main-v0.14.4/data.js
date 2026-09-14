@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788257133229,
+  "lastUpdate": 1789415806395,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -305,6 +305,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1509.3789061500001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d202a9c1c4f90233ac8bfbc4d6b827a7694950bb",
+          "message": "starknet_api,apollo_rpc_execution,blockifier_reexecution: move execution consts to starknet_api (#14783)\n\nblockifier_reexecution's only use of apollo_rpc_execution was three constants,\ndragging apollo_storage/apollo_infra/libmdbx into the starknet_transaction_prover\nbinary's dependency graph through an otherwise-unnecessary edge. Move\nDEPRECATED_CONTRACT_SIERRA_SIZE and the fee token address statics to starknet_api\nand have apollo_rpc_execution re-export them, so blockifier_reexecution can drop\nthe dependency entirely.\n\nSevering that edge also removes starknet_transaction_prover's only path to\napollo_infra, the sole crate enabling tracing-subscriber's \"json\" feature. The\nprover's main.rs calls fmt::layer().json() but declared only \"env-filter\", so it\nhad been compiling on a feature it never asked for; it now requests \"json\"\nitself.",
+          "timestamp": "2026-09-14T19:09:22Z",
+          "tree_id": "74c46107efbab3fc6dae2e17000f7f8ad7c3e89c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d202a9c1c4f90233ac8bfbc4d6b827a7694950bb"
+        },
+        "date": 1789415805638,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 977.24881,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1522.6845512300001,
             "unit": "ms"
           }
         ]
