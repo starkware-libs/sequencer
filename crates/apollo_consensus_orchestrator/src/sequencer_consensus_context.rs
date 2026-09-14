@@ -55,6 +55,7 @@ use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockHash,
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -89,7 +90,6 @@ use crate::cende::{
     CendeContext,
     InternalTransactionWithReceipt,
     StateCommitmentInfosAndNumber,
-    N_BLOCK_HASHES_BACK_IN_BLOB,
 };
 use crate::dynamic_gas_price::{
     compute_fee_actual,
@@ -132,8 +132,10 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
-/// Maximum number of commitment infos backfilled to the cende recorder per blob.
-const MAX_COMMITMENT_INFOS_BACKFILL: usize = 10;
+/// Maximum number of commitment infos backfilled to the cende recorder per blob: the blob's
+/// window, from its block's retrospective block `STORED_BLOCK_HASH_BUFFER` heights back to the
+/// block itself.
+const MAX_COMMITMENT_INFOS_BACKFILL: usize = 11;
 
 /// First Starknet version whose blocks have state commitment infos.
 const FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS: StarknetVersion = StarknetVersion::V0_14_4;
@@ -668,15 +670,25 @@ impl SequencerConsensusContext {
             .prev()
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
-        // Collected first: `get_block_hash` flushes finished committer results to storage,
-        // making this height's state commitment infos readable in the collection below.
-        let recent_block_hashes = self.collect_recent_block_hashes(height).await;
-        let recent_state_commitment_infos =
-            self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
-                // `finalize_decision` must not fail, so continue with an empty vector.
-                error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
+        let (recent_block_hashes, recent_state_commitment_infos): (Vec<_>, Vec<_>) = self
+            .collect_recent_block_hashes_and_state_commitment_infos(height)
+            .await
+            .unwrap_or_else(|e| {
+                // `finalize_decision` must not fail, so continue with nothing to send.
+                error!(
+                    "Failed to collect recent block hashes and state commitment infos at height \
+                     {height}: {e:?}"
+                );
                 Vec::new()
-            });
+            })
+            .into_iter()
+            .map(|(block_number, (hash, state_commitment_infos))| {
+                (
+                    BlockHashAndNumber { number: block_number, hash },
+                    StateCommitmentInfosAndNumber { state_commitment_infos, block_number },
+                )
+            })
+            .unzip();
 
         if let Err(e) = self
             .deps
@@ -747,61 +759,37 @@ impl SequencerConsensusContext {
         }
     }
 
-    /// Collects the recent block hashes from the batcher.
-    /// Returns computed block hashes in range [height - N_BLOCK_HASHES_BACK_IN_BLOB, height].
-    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
-        let mut recent_block_hashes = Vec::with_capacity(
-            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
-                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
-                + 1,
-        );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        for height in lowest_height..=height.0 {
-            let block_number = BlockNumber(height);
-            match self.deps.batcher.get_block_hash(block_number).await {
-                Ok(block_hash) => {
-                    recent_block_hashes
-                        .push(BlockHashAndNumber { number: block_number, hash: block_hash });
-                }
-                Err(err) => {
-                    // This error is expected if the block is not yet committed.
-                    if !matches!(
-                        err,
-                        BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))
-                    ) {
-                        // TODO(Nimrod): Consider handle this error differently.
-                        warn!("Failed to get block hash from batcher: {err:?}");
-                    }
-                    break;
-                }
-            }
-        }
-        recent_block_hashes
-    }
-
-    async fn collect_recent_state_commitment_infos(
+    /// Collects the block hashes and state commitment infos to send to the cende recorder, keyed
+    /// by height: the heights the recorder lacks, up to `height`, the first
+    /// `MAX_COMMITMENT_INFOS_BACKFILL` of them at most. An empty recorder gets the last
+    /// `MAX_COMMITMENT_INFOS_BACKFILL` heights, minus those predating
+    /// `FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS`.
+    async fn collect_recent_block_hashes_and_state_commitment_infos(
         &self,
         height: BlockNumber,
-    ) -> CendeAmbassadorResult<Vec<StateCommitmentInfosAndNumber>> {
-        // Send only the commitment infos the cende recorder has not stored yet, bounding the
-        // lower end by the cende recorder's commitment infos height offset.
-        let (lowest_height, cende_recorder_is_empty) =
-            match self.deps.cende_ambassador.commitment_infos_height_offset().await? {
-                Some(commitment_infos_height_offset) => (commitment_infos_height_offset.0, false),
-                // The cende recorder has stored nothing yet: fall back to block hashes window
-                // size.
-                None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
-            };
-        let mut recent_state_commitment_infos = Vec::with_capacity(MAX_COMMITMENT_INFOS_BACKFILL);
+    ) -> CendeAmbassadorResult<Vec<(BlockNumber, (BlockHash, CompressedStateCommitmentInfos))>>
+    {
+        let commitment_infos_height_offset =
+            self.deps.cende_ambassador.commitment_infos_height_offset().await?;
+        let (lowest_height, cende_recorder_is_empty) = match commitment_infos_height_offset {
+            Some(commitment_infos_height_offset) => (commitment_infos_height_offset.0, false),
+            None => {
+                let window = u64::try_from(MAX_COMMITMENT_INFOS_BACKFILL)
+                    .expect("MAX_COMMITMENT_INFOS_BACKFILL fits in u64.");
+                ((height.0 + 1).saturating_sub(window), true)
+            }
+        };
+
+        let mut collected = Vec::with_capacity(MAX_COMMITMENT_INFOS_BACKFILL);
         for block_height in lowest_height..=height.0 {
-            // Stop at the cap, so sending commitment infos won't stall block production.
-            if recent_state_commitment_infos.len() >= MAX_COMMITMENT_INFOS_BACKFILL {
+            if collected.len() >= MAX_COMMITMENT_INFOS_BACKFILL {
                 break;
             }
             let block_number = BlockNumber(block_height);
-            match self.state_commitment_infos_to_send(block_number).await {
-                Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
-                    .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+            match self.block_hash_and_state_commitment_infos_to_send(block_number).await {
+                Ok(Some(block_hash_and_state_commitment_infos)) => {
+                    collected.push((block_number, block_hash_and_state_commitment_infos));
+                }
                 Ok(None) => {
                     // Only an empty cende recorder's fallback window can reach back before
                     // FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS; a block that old has no
@@ -811,30 +799,26 @@ impl SequencerConsensusContext {
                     {
                         debug!(
                             "Block {block_number} predates \
-                             {FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS}; skipping its state \
-                             commitment infos."
+                             {FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS}; skipping it."
                         );
                         continue;
                     }
-                    // Break, rather than continue, in both cases that reach here:
-                    // - Normal production: the cende recorder is not empty, so this is the first
-                    //   block past the latest one with state commitment infos.
-                    // - The cende recorder is empty and, by the condition above, the block is not
-                    //   pre-0.14.4; it is the system's first block with state commitment infos,
-                    //   left for the next blob. Continuing would send a later height's commitment
-                    //   infos and leave a gap here.
+                    // Break, rather than continue, at the first block without infos: one not
+                    // committed yet, a gap, or an empty recorder's first block with infos. Sending
+                    // a later height would leave a gap that the recorder's offset, one past its
+                    // highest stored height, then skips for good.
                     break;
                 }
                 Err(err) => {
                     error!(
-                        "Failed to get state commitment infos from batcher for block \
-                         {block_number}: {err:?}"
+                        "Failed to get the block hash and state commitment infos of block \
+                         {block_number} from the batcher: {err:?}"
                     );
                     break;
                 }
             }
         }
-        Ok(recent_state_commitment_infos)
+        Ok(collected)
     }
 
     /// Returns whether `block_number` predates `FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS`, read
@@ -855,22 +839,30 @@ impl SequencerConsensusContext {
         }
     }
 
-    /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
-    /// `None` if the batcher has none. With `send_empty_state_commitment_infos_only` on, an empty
-    /// object stands in for the stored one, which is not read.
-    async fn state_commitment_infos_to_send(
+    /// Returns the block hash and state commitment infos of `block_number` to send to the cende
+    /// recorder, or `None` if the batcher has no state commitment infos for it. With
+    /// `send_empty_state_commitment_infos_only` on, an empty object stands in for the stored
+    /// infos, which are not read.
+    async fn block_hash_and_state_commitment_infos_to_send(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
-        if !self.config.static_config.send_empty_state_commitment_infos_only {
-            return self.deps.batcher.get_state_commitment_infos(block_number).await;
-        }
-        let has_state_commitment_infos =
-            self.deps.batcher.has_state_commitment_infos(block_number).await?;
-        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos {
-            version: STATE_COMMITMENT_INFOS_VERSION,
-            payload: CompressedPayload(Vec::new()),
-        }))
+    ) -> BatcherClientResult<Option<(BlockHash, CompressedStateCommitmentInfos)>> {
+        let state_commitment_infos =
+            if self.config.static_config.send_empty_state_commitment_infos_only {
+                self.deps.batcher.has_state_commitment_infos(block_number).await?.then(|| {
+                    CompressedStateCommitmentInfos {
+                        version: STATE_COMMITMENT_INFOS_VERSION,
+                        payload: CompressedPayload(Vec::new()),
+                    }
+                })
+            } else {
+                self.deps.batcher.get_state_commitment_infos(block_number).await?
+            };
+        let Some(state_commitment_infos) = state_commitment_infos else {
+            return Ok(None);
+        };
+        let block_hash = self.deps.batcher.get_block_hash(block_number).await?;
+        Ok(Some((block_hash, state_commitment_infos)))
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored
