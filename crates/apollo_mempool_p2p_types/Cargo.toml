@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Type definitions for Apollo mempool P2P communication."
+publish = false
 
 [lints]
 workspace = true

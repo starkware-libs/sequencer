@@ -5,6 +5,7 @@ license.workspace = true
 repository.workspace = true
 version.workspace = true
 description = "Configuration for Apollo proof manager"
+publish = false
 
 [features]
 testing = []

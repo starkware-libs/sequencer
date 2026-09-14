@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Configuration types for the Apollo L1 events provider and scraper components."
+publish = false
 
 [lints]
 workspace = true

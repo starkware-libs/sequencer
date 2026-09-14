@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Testing utilities for L1 (Ethereum) base layer interactions."
+publish = false
 
 [features]
 
