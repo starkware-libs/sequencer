@@ -5,7 +5,7 @@ import asyncio
 import json
 import subprocess
 import sys
-from typing import List
+from typing import List, Set
 
 import toml
 
@@ -60,8 +60,12 @@ def get_package_and_dependencies_in_order(crate: str) -> List[str]:
     """
     # We use the `depth` prefix to easily sort the dependencies in topological order: higher depth
     # means the crate is depended on by the crate at the lower depth.
+    # Dev-dependencies are not part of a published crate, so only follow normal and build edges;
+    # otherwise workspace-only test helpers would end up in the publish list.
     prefixed_tree = (
-        subprocess.check_output(["cargo", "tree", "-p", crate, "--prefix", "depth"])
+        subprocess.check_output(
+            ["cargo", "tree", "-p", crate, "--prefix", "depth", "-e", "normal,build"]
+        )
         .decode()
         .splitlines()
     )
@@ -81,9 +85,30 @@ def get_package_and_dependencies_in_order(crate: str) -> List[str]:
     return ordered_dependencies
 
 
+def get_publishable_crates() -> Set[str]:
+    """
+    Returns the workspace members that may be published to crates.io: those whose manifest does
+    not restrict `publish`. `cargo metadata` reports `publish` as null when unrestricted, as an
+    empty list for `publish = false`, and as a list of registries otherwise.
+    """
+    metadata = json.loads(
+        subprocess.check_output(["cargo", "metadata", "--no-deps", "--format-version", "1"])
+    )
+    return {package["name"] for package in metadata["packages"] if package["publish"] is None}
+
+
 async def publish_crate_and_dependencies(crate: str, dry_run: bool):
     dependencies = get_package_and_dependencies_in_order(crate=crate)
     assert crate == dependencies[-1], f"{crate} should be the last element of '{dependencies}'."
+
+    publishable_crates = get_publishable_crates()
+    unpublishable = [
+        dependency for dependency in dependencies if dependency not in publishable_crates
+    ]
+    assert not unpublishable, (
+        f"Crates {unpublishable} are marked `publish = false`. Drop the flag and give them a "
+        f"version in the workspace manifest before publishing {crate}."
+    )
 
     # Do not attempt to publish anything if even one of the dependencies is already published.
     await verify_unpublished(crates=dependencies)

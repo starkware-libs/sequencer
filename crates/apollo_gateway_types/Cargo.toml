@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Type definitions and interfaces for the Apollo gateway component."
+publish = false
 
 [features]
 testing = ["mockall"]

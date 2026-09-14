@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Utilities for working with TOML files in tests."
+publish = false
 
 [lints]
 workspace = true

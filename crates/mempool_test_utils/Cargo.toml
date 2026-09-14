@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Testing utilities for mempool components."
+publish = false
 
 [lints]
 workspace = true
