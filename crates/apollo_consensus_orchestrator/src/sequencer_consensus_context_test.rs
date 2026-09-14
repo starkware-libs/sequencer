@@ -52,6 +52,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
+    BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockNumber,
     GasPrice,
@@ -77,7 +78,6 @@ use crate::cende::{
     CendeAmbassadorError,
     MockCendeContext,
     StateCommitmentInfosAndNumber,
-    N_BLOCK_HASHES_BACK_IN_BLOB,
 };
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::{
@@ -987,6 +987,11 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
         .expect_get_state_commitment_infos()
         .times(1)
         .return_once(move |_| Ok(Some(returned_infos)));
+    deps.batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == HEIGHT_0)
+        .times(1)
+        .return_once(|block_number| Ok(block_hash_for(block_number.0)));
 
     deps.setup_deps_for_build(SetupDepsArgs::default());
     deps.batcher
@@ -1004,6 +1009,10 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
                     block_number: HEIGHT_0
                 }]
             );
+            assert_eq!(
+                blob_parameters.recent_block_hashes,
+                vec![BlockHashAndNumber { number: HEIGHT_0, hash: block_hash_for(HEIGHT_0.0) }]
+            );
             Ok(())
         },
     );
@@ -1013,17 +1022,18 @@ async fn decision_reached_attaches_state_commitment_infos_to_blob() {
     context.decision_reached(HEIGHT_0, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 // When `send_empty_state_commitment_infos_only` is enabled, the same heights are sent, each
-// carrying an empty object; the batcher is only asked whether it has the infos, never for their
-// content.
+// carrying an empty object instead of the batcher's state commitment infos, which are not read:
+// the batcher is only asked whether it has them, and for the block hash.
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_sends_empty_objects_when_configured() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.batcher
-        .expect_get_state_commitment_infos()
-        .returning(|_| panic!("stored state commitment infos must not be read"));
+    deps.batcher.expect_get_state_commitment_infos().never();
     deps.batcher
         .expect_has_state_commitment_infos()
         .returning(|block_number| Ok((90..=100).contains(&block_number.0)));
+    deps.batcher
+        .expect_get_block_hash()
+        .returning(|block_number| Ok(block_hash_for(block_number.0)));
     deps.cende_ambassador
         .expect_commitment_infos_height_offset()
         .times(1)
@@ -1037,14 +1047,22 @@ async fn collect_recent_state_commitment_infos_sends_empty_objects_when_configur
         },
         ..Default::default()
     });
-    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
-    let expected: Vec<_> = (98..=100)
-        .map(|height| StateCommitmentInfosAndNumber {
-            state_commitment_infos: CompressedStateCommitmentInfos {
-                version: STATE_COMMITMENT_INFOS_VERSION,
-                payload: CompressedPayload(Vec::new()),
-            },
-            block_number: BlockNumber(height),
+    let collected = context
+        .collect_recent_block_hashes_and_state_commitment_infos(BlockNumber(100))
+        .await
+        .unwrap();
+    let expected: BTreeMap<_, _> = (98..=100)
+        .map(|height| {
+            (
+                BlockNumber(height),
+                (
+                    block_hash_for(height),
+                    CompressedStateCommitmentInfos {
+                        version: STATE_COMMITMENT_INFOS_VERSION,
+                        payload: CompressedPayload(Vec::new()),
+                    },
+                ),
+            )
         })
         .collect();
     assert_eq!(collected, expected);
@@ -1057,6 +1075,11 @@ fn default_state_commitment_infos() -> CompressedStateCommitmentInfos {
     }
 }
 
+/// A block hash derived from the height, so a hash sent for the wrong height is caught.
+fn block_hash_for(height: u64) -> BlockHash {
+    BlockHash(StarkHash::from(height))
+}
+
 fn sync_block_with_version(starknet_version: StarknetVersion) -> SyncBlock {
     SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
@@ -1067,19 +1090,29 @@ fn sync_block_with_version(starknet_version: StarknetVersion) -> SyncBlock {
     }
 }
 
-/// Returns the block numbers `collect_recent_state_commitment_infos` sends for `height` when the
-/// cende recorder reports `offset`, the batcher only has stored commitment infos for heights in
-/// `committed_heights` (reporting `None` for the rest), and the chain upgraded to the first
-/// version with state commitment infos at `first_upgraded_height`.
+/// Returns the block numbers `collect_recent_block_hashes_and_state_commitment_infos` sends for
+/// `height` when the cende recorder reports `cende_offset`, the batcher has state commitment infos
+/// for `heights_with_state_commitment_infos` and the chain upgraded to the first version with them
+/// at `first_upgraded_height`. Reading any other height's block hash fails the test.
 async fn collected_heights_for(
     height: BlockNumber,
     cende_offset: Option<BlockNumber>,
-    committed_heights: Vec<u64>,
+    heights_with_state_commitment_infos: Vec<u64>,
     first_upgraded_height: u64,
 ) -> Vec<u64> {
     let (mut deps, _network) = create_test_and_network_deps();
+    let heights_with_block_hash = heights_with_state_commitment_infos.clone();
+    deps.batcher.expect_get_block_hash().returning(move |block_number| {
+        assert!(
+            heights_with_block_hash.contains(&block_number.0),
+            "the block hash of {block_number} must not be read: it has no state commitment infos"
+        );
+        Ok(block_hash_for(block_number.0))
+    });
     deps.batcher.expect_get_state_commitment_infos().returning(move |block_number| {
-        Ok(committed_heights.contains(&block_number.0).then(default_state_commitment_infos))
+        Ok(heights_with_state_commitment_infos
+            .contains(&block_number.0)
+            .then(default_state_commitment_infos))
     });
     deps.state_sync_client.expect_get_block().returning(move |block_number| {
         Ok(sync_block_with_version(if block_number.0 < first_upgraded_height {
@@ -1094,30 +1127,38 @@ async fn collected_heights_for(
         .return_once(move || Ok(cende_offset));
 
     let context = deps.build_context();
-    context
-        .collect_recent_state_commitment_infos(height)
+    let collected = context
+        .collect_recent_block_hashes_and_state_commitment_infos(height)
         .await
-        .expect("offset query should succeed")
-        .iter()
-        .map(|info| info.block_number.0)
-        .collect()
+        .expect("offset query should succeed");
+    for (block_number, (block_hash, _)) in &collected {
+        assert_eq!(*block_hash, block_hash_for(block_number.0));
+    }
+    collected.keys().map(|block_number| block_number.0).collect()
 }
 
 // `height` is fixed at 100; each case sets the cende recorder's reported offset (its next
-// produced block), the heights the batcher has stored commitment infos for (a `None` from the
-// batcher marks a gap in the stored witnesses), the first height whose Starknet version has
-// state commitment infos, and the block numbers we expect to send.
+// produced block), the heights the batcher has state commitment infos for (a missing one is a
+// height not committed yet or a gap in the infos), the first height whose Starknet version has
+// state commitment infos, and the block numbers whose hashes and infos we expect to send.
 #[rstest]
 #[case::delta_above_cende_recorder(Some(BlockNumber(98)), (90..=100).collect(), 0, vec![98, 99, 100])]
 #[case::single_new_block(Some(BlockNumber(100)), (90..=100).collect(), 0, vec![100])]
-#[case::fallback_window_when_cende_recorder_empty(None, (90..=100).collect(), 0, (90..=99).collect())]
+#[case::nothing_when_the_tip_is_not_committed_yet(Some(BlockNumber(100)), (90..=99).collect(), 0, vec![])]
 #[case::nothing_when_cende_recorder_caught_up(Some(BlockNumber(101)), (90..=100).collect(), 0, vec![])]
-#[case::empty_cende_recorder_stops_at_trailing_gap(None, (90..=95).collect(), 0, (90..=95).collect())]
+#[case::stops_at_the_first_uncommitted_height(Some(BlockNumber(98)), (90..=99).collect(), 0, vec![98, 99])]
+// The cap bounds the backfill, and a healthy recorder never lacks more: at the stop height the
+// committer, trailing by as much as the retrospective block hash allows, has just caught up, and
+// the final blob carries all 10 heights. An empty recorder gets a window of the same size.
+#[case::caps_the_backfill(Some(BlockNumber(85)), (80..=100).collect(), 0, (85..=94).collect())]
+#[case::stop_height_after_the_committer_trailed_by_the_buffer(Some(BlockNumber(91)), (80..=100).collect(), 0, (91..=100).collect())]
+#[case::fallback_window_when_cende_recorder_empty(None, (90..=100).collect(), 0, (91..=100).collect())]
+#[case::empty_cende_recorder_stops_at_trailing_gap(None, (90..=95).collect(), 0, (91..=95).collect())]
 #[case::non_empty_cende_recorder_stops_at_middle_gap(Some(BlockNumber(90)), (90..=92).chain(95..=100).collect(), 0, (90..=92).collect())]
 // Only the fallback window of an empty cende recorder can reach blocks below the upgrade height;
-// those have no commitment infos by design and are skipped wherever they appear in it. A recorder
-// that reported an offset has already stored commitment infos, so a missing object there is a real
-// gap and the version is never consulted.
+// those have no commitment infos by design and are skipped, block hash included, wherever they
+// appear in it. A recorder that reported an offset has already stored commitment infos, so a
+// missing object there is a real gap and the version is never consulted.
 #[case::empty_cende_recorder_skips_pre_upgrade_blocks(None, (93..=100).collect(), 93, (93..=100).collect())]
 #[case::non_empty_cende_recorder_breaks_on_first_gap(Some(BlockNumber(90)), (93..=100).collect(), 93, vec![])]
 #[case::all_blocks_predate_the_upgrade(None, vec![], 200, vec![])]
@@ -1126,16 +1167,47 @@ async fn collected_heights_for(
 #[case::breaks_on_the_first_missing_upgraded_block(None, (94..=100).collect(), 93, vec![])]
 #[case::breaks_on_a_gap_above_the_upgrade_height(None, (93..=95).chain(98..=100).collect(), 93, (93..=95).collect())]
 #[tokio::test]
-async fn collect_recent_state_commitment_infos_sends_expected_delta(
+async fn collect_recent_block_hashes_and_state_commitment_infos_sends_expected_delta(
     #[case] cende_offset: Option<BlockNumber>,
-    #[case] committed_heights: Vec<u64>,
+    #[case] heights_with_state_commitment_infos: Vec<u64>,
     #[case] first_upgraded_height: u64,
     #[case] expected: Vec<u64>,
 ) {
     let height = BlockNumber(100);
-    let heights =
-        collected_heights_for(height, cende_offset, committed_heights, first_upgraded_height).await;
+    let heights = collected_heights_for(
+        height,
+        cende_offset,
+        heights_with_state_commitment_infos,
+        first_upgraded_height,
+    )
+    .await;
     assert_eq!(heights, expected);
+}
+
+// A height with state commitment infos always has a block hash, so a failed block hash query is
+// an error that ends the collection; what was collected below it is still sent.
+#[tokio::test]
+async fn collect_recent_block_hashes_and_state_commitment_infos_stops_when_a_block_hash_query_fails()
+ {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .returning(|_| Ok(Some(default_state_commitment_infos())));
+    deps.batcher.expect_get_block_hash().returning(|block_number| match block_number.0 {
+        99 => Err(BatcherClientError::BatcherError(BatcherError::InternalError)),
+        height => Ok(block_hash_for(height)),
+    });
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .times(1)
+        .return_once(|| Ok(Some(BlockNumber(97))));
+
+    let context = deps.build_context();
+    let collected = context
+        .collect_recent_block_hashes_and_state_commitment_infos(BlockNumber(100))
+        .await
+        .unwrap();
+    assert_eq!(collected.keys().copied().collect::<Vec<_>>(), [BlockNumber(97), BlockNumber(98)]);
 }
 
 // A cende recorder that reported an offset has already stored commitment infos, so no block in
@@ -1152,7 +1224,10 @@ async fn collect_recent_state_commitment_infos_skips_the_version_query_when_the_
         .return_once(|| Ok(Some(BlockNumber(90))));
 
     let context = deps.build_context();
-    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
+    let collected = context
+        .collect_recent_block_hashes_and_state_commitment_infos(BlockNumber(100))
+        .await
+        .unwrap();
     assert!(collected.is_empty(), "expected the gap at height 90 to end the collection");
 }
 
@@ -1170,11 +1245,11 @@ async fn collect_recent_state_commitment_infos_stops_when_the_block_version_is_u
     deps.cende_ambassador.expect_commitment_infos_height_offset().times(1).return_once(|| Ok(None));
 
     let context = deps.build_context();
-    let collected = context.collect_recent_state_commitment_infos(BlockNumber(100)).await.unwrap();
-    assert!(
-        collected.is_empty(),
-        "expected the collection to stop at height 90, got {collected:?}"
-    );
+    let collected = context
+        .collect_recent_block_hashes_and_state_commitment_infos(BlockNumber(100))
+        .await
+        .unwrap();
+    assert!(collected.is_empty(), "expected the collection to stop at height 90");
 }
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() {
@@ -1191,7 +1266,8 @@ async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() 
     });
 
     let context = deps.build_context();
-    let result = context.collect_recent_state_commitment_infos(BlockNumber(100)).await;
+    let result =
+        context.collect_recent_block_hashes_and_state_commitment_infos(BlockNumber(100)).await;
     assert!(
         matches!(&result, Err(CendeAmbassadorError::RecorderRequestFailed { .. })),
         "expected the offset query error to propagate, got {result:?}"
@@ -1211,7 +1287,7 @@ async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() 
 )]
 #[tokio::test]
 async fn state_commitment_infos_check_at_stop_height_logs_storage_status(
-    #[case] has_infos_result: BatcherClientResult<bool>,
+    #[case] has_state_commitment_infos_result: BatcherClientResult<bool>,
     #[case] expected_log: &str,
 ) {
     let (mut deps, _network) = create_test_and_network_deps();
@@ -1219,7 +1295,7 @@ async fn state_commitment_infos_check_at_stop_height_logs_storage_status(
         .expect_has_state_commitment_infos()
         .withf(|block_number| block_number.0 == 100)
         .times(1)
-        .return_once(move |_| has_infos_result);
+        .return_once(move |_| has_state_commitment_infos_result);
 
     let context = deps.build_context();
     context.warn_on_missing_state_commitment_infos_at_stop_height(BlockNumber(100)).await;
@@ -1234,29 +1310,36 @@ async fn state_commitment_infos_check_at_stop_height_logs_storage_status(
 async fn decision_reached_at_stop_height_writes_blob_immediately() {
     const STOP_HEIGHT: BlockNumber = BlockNumber(20);
     // The hash of block n is BlockHash(n), giving each block a distinct, predictable hash.
-    let block_hash_fn = |n: u64| BlockHash(StarkHash::from(n));
-
     let (mut deps, _network) = create_test_and_network_deps();
 
     // Expectations added BEFORE setup_deps_for_validate so they are matched first (FIFO).
 
-    // Heights 10–19: already committed; get_block_hash returns immediately for both the
-    // retrospective_block_hash check (called during validate_proposal) and
-    // collect_recent_block_hashes (called during finalize_decision).
+    // Heights 10–19: already committed; get_block_hash returns immediately for the
+    // retrospective_block_hash check (called during validate_proposal).
     deps.batcher
         .expect_get_block_hash()
         .withf(|n| n.0 >= 10 && n.0 < STOP_HEIGHT.0)
-        .returning(move |n| Ok(block_hash_fn(n.0)));
+        .returning(move |n| Ok(block_hash_for(n.0)));
+    // The blob collects heights 11..=STOP_HEIGHT: the cende recorder reports it lacks height 11
+    // onwards, as far back as a healthy recorder trails, and the cap passes all of them. Their
+    // block hashes come from the get_block_hash expectations above and below.
+    deps.cende_ambassador
+        .expect_commitment_infos_height_offset()
+        .returning(|| Ok(Some(BlockNumber(11))));
+    deps.batcher
+        .expect_get_state_commitment_infos()
+        .withf(|n| n.0 >= 10 && n.0 <= STOP_HEIGHT.0)
+        .returning(|_| Ok(Some(default_state_commitment_infos())));
 
     // The retrospective_block_hash logic also queries state_sync for block 10.
     deps.state_sync_client
         .expect_get_block_hash()
         .withf(|n| n.0 == 10)
-        .return_once(move |n| Ok(block_hash_fn(n.0)));
+        .return_once(move |n| Ok(block_hash_for(n.0)));
 
     // Height STOP_HEIGHT: first 2 calls return BlockHashNotFound (batcher not yet ready),
-    // then all subsequent calls succeed — covering both wait_for_block_hash (3rd call)
-    // and the collect_recent_block_hashes pass.
+    // then all subsequent calls succeed, covering wait_for_block_hash (3rd call) and the blob
+    // collection.
     deps.batcher
         .expect_get_block_hash()
         .withf(move |n| *n == STOP_HEIGHT)
@@ -1265,7 +1348,7 @@ async fn decision_reached_at_stop_height_writes_blob_immediately() {
     deps.batcher
         .expect_get_block_hash()
         .withf(move |n| *n == STOP_HEIGHT)
-        .returning(move |n| Ok(block_hash_fn(n.0)));
+        .returning(move |n| Ok(block_hash_for(n.0)));
 
     // write_prev_height_blob must be called immediately after decision, with height STOP_HEIGHT+1.
     deps.cende_ambassador
@@ -1294,17 +1377,28 @@ async fn decision_reached_at_stop_height_writes_blob_immediately() {
 
     deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
 
-    // Verify the blob contains the block hash of the stop height.
+    // Verify the blob contains the block hash and state commitment infos of the stop height.
     deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
         move |params| {
+            let expected_heights: Vec<_> = (11..=STOP_HEIGHT.0).map(BlockNumber).collect();
             assert_eq!(
-                params.recent_block_hashes.len(),
-                usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB + 1).unwrap()
+                params.recent_block_hashes.iter().map(|bhn| bhn.number).collect::<Vec<_>>(),
+                expected_heights
+            );
+            assert_eq!(
+                params
+                    .recent_state_commitment_infos
+                    .iter()
+                    .map(|infos| infos.block_number)
+                    .collect::<Vec<_>>(),
+                expected_heights
             );
             assert!(
-                params.recent_block_hashes.last().is_some_and(
-                    |bhn| bhn.number == STOP_HEIGHT && bhn.hash == block_hash_fn(STOP_HEIGHT.0)
-                ),
+                params
+                    .recent_block_hashes
+                    .last()
+                    .is_some_and(|bhn| bhn.number == STOP_HEIGHT
+                        && bhn.hash == block_hash_for(STOP_HEIGHT.0)),
                 "Blob's recent_block_hashes should include block {STOP_HEIGHT}'s hash"
             );
             Ok(())

@@ -11,7 +11,6 @@ use apollo_consensus::types::ProposalCommitment;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
-use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -78,9 +77,6 @@ pub enum CendeAmbassadorError {
     #[error("Recorder request to {path} failed: {message}")]
     RecorderRequestFailed { path: String, message: String },
 }
-
-/// Number of recent block hashes to include in the blob.
-pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
