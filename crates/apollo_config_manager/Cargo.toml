@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Manages dynamic configuration updates and distribution across node components."
+publish = false
 
 [features]
 testing = []

@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "CLI for the committer storage benchmark."
+publish = false
 
 [lints]
 workspace = true
