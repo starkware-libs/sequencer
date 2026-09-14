@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Manages consensus operations and coordinates between consensus and other node components."
+publish = false
 
 [features]
 testing = []

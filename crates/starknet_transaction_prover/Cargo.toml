@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Standalone service that proves individual Starknet transactions using the virtual Starknet OS and Stwo prover."
+publish = false
 
 [features]
 cairo_native = ["blockifier/cairo_native"]

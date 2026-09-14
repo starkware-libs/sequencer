@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Manages cryptographic signatures for consensus messages."
+publish = false
 
 [features]
 testing = []

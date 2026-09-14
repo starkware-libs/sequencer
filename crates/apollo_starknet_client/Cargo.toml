@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "A client implementation that can communicate with Starknet."
+publish = false
 
 [features]
 testing = ["apollo_test_utils", "enum-iterator", "mockall"]
