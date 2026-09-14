@@ -163,8 +163,11 @@ WORKDIR /app
 # Copy the binary.
 COPY --from=builder /app/target/${BUILD_MODE}/starknet_transaction_prover ./target/${BUILD_MODE}/starknet_transaction_prover
 
-# Copy resources needed by the service.
-COPY --from=builder /app/crates/starknet_transaction_prover/resources ./crates/starknet_transaction_prover/resources
+# Copy resources needed by the service. Enumerated rather than copying the whole tree, so the
+# TLS fixtures under resources/test_tls/ - which include a private key - stay out of the image.
+COPY --from=builder /app/crates/starknet_transaction_prover/resources/*.json /app/crates/starknet_transaction_prover/resources/*.txt /app/crates/starknet_transaction_prover/resources/*.zip ./crates/starknet_transaction_prover/resources/
+COPY --from=builder /app/crates/starknet_transaction_prover/resources/mock_proving_rpc ./crates/starknet_transaction_prover/resources/mock_proving_rpc
+COPY --from=builder /app/crates/starknet_transaction_prover/resources/rpc_records ./crates/starknet_transaction_prover/resources/rpc_records
 
 # Copy tini for proper init handling.
 COPY --from=builder /usr/bin/tini /usr/bin/tini
