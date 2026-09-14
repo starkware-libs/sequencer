@@ -15,7 +15,8 @@ pub enum VerifyProofError {
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
     #[error(
-        "Unsupported proof version: got {actual}, expected {v2}.",
+        "Unsupported proof version: got {actual}, expected one of {v1}, {v2}.",
+        v1 = ProofVersion::V1,
         v2 = ProofVersion::V2,
     )]
     InvalidProofVersion { actual: Felt },
@@ -122,7 +123,8 @@ pub fn reconstruct_output_preimage(
 
 /// Verifies a submitted proof against the proof facts using the circuit verifier.
 ///
-/// The first element of `proof_facts` must be V2, verified via `privacy-circuit-verify-v2`.
+/// The first element of `proof_facts` selects the circuit: V1 is verified via
+/// `privacy-circuit-verify-v1` and V2 via `privacy-circuit-verify-v2`.
 pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
     // Reject empty proof payloads before running the verifier.
     if proof.is_empty() {
@@ -138,10 +140,18 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
     let proof_bytes = proof.0.to_vec();
 
     match proof_version {
-        // V0 and V1 circuits were removed. Their proof facts are still tolerated by the blockifier,
-        // gated per protocol version, so historical blocks stay replayable.
-        ProofVersion::V0 | ProofVersion::V1 => {
+        // The V0 circuit was removed. V0 proof facts are still tolerated by the blockifier, gated
+        // per protocol version, so historical blocks stay replayable.
+        ProofVersion::V0 => {
             return Err(VerifyProofError::InvalidProofVersion { actual: proof_version_felt });
+        }
+        ProofVersion::V1 => {
+            let proof_output = privacy_circuit_verify_v1::PrivacyProofOutput {
+                proof: proof_bytes,
+                output_preimage,
+            };
+            privacy_circuit_verify_v1::verify_recursive_circuit(&proof_output)
+                .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
         }
         ProofVersion::V2 => {
             let proof_output = privacy_circuit_verify_v2::PrivacyProofOutput {
