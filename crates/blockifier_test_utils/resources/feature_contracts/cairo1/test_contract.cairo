@@ -1264,6 +1264,43 @@ mod TestContract {
         assert!(outputs.get_output(mul) == u384 { limb0: 6, limb1: 0, limb2: 0, limb3: 0 });
     }
 
+    /// Evaluates a circuit with a single add gate. Uses the add_mod builtin; mul_mod is also
+    /// used because every circuit input is reduced modulo the modulus through a mul gate.
+    #[external(v0)]
+    fn test_add_mod(ref self: ContractState) {
+        let in1 = CircuitElement::<CircuitInput<0>> {};
+        let in2 = CircuitElement::<CircuitInput<1>> {};
+        let add = circuit_add(in1, in2);
+        let modulus = TryInto::<_, CircuitModulus>::try_into([7, 0, 0, 0]).unwrap();
+        let outputs = (add,)
+            .new_inputs()
+            .next([3, 0, 0, 0])
+            .next([6, 0, 0, 0])
+            .done()
+            .eval(modulus)
+            .unwrap();
+        assert!(outputs.get_output(add) == u384 { limb0: 2, limb1: 0, limb2: 0, limb3: 0 });
+    }
+
+    /// Evaluates a circuit with a single mul gate. Only mul_mod instances are written: the entry
+    /// point still declares the add_mod builtin because circuit evaluation takes both as
+    /// implicits, but with no add gates the add_mod pointer is never advanced.
+    #[external(v0)]
+    fn test_mul_mod(ref self: ContractState) {
+        let in1 = CircuitElement::<CircuitInput<0>> {};
+        let in2 = CircuitElement::<CircuitInput<1>> {};
+        let mul = circuit_mul(in1, in2);
+        let modulus = TryInto::<_, CircuitModulus>::try_into([7, 0, 0, 0]).unwrap();
+        let outputs = (mul,)
+            .new_inputs()
+            .next([3, 0, 0, 0])
+            .next([6, 0, 0, 0])
+            .done()
+            .eval(modulus)
+            .unwrap();
+        assert!(outputs.get_output(mul) == u384 { limb0: 4, limb1: 0, limb2: 0, limb3: 0 });
+    }
+
     // Add drop for these objects as they only have PanicDestruct.
     impl AddInputResultDrop<C> of Drop<core::circuit::AddInputResult<C>>;
     impl CircuitDataDrop<C> of Drop<core::circuit::CircuitData<C>>;
