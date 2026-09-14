@@ -144,6 +144,10 @@ impl<'de> Deserialize<'de> for CompressedPayload {
 }
 
 impl CompressedStateCommitmentInfos {
+    /// A current-version object with an empty payload.
+    pub const EMPTY: Self =
+        Self { version: STATE_COMMITMENT_INFOS_VERSION, payload: CompressedPayload(Vec::new()) };
+
     /// Reverses [`StateCommitmentInfos::compress`]: checks the version, zstd-decompresses, then
     /// bincode-deserializes.
     pub fn decompress(&self) -> Result<StateCommitmentInfos, StateCommitmentInfosCodecError> {
