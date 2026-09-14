@@ -1864,7 +1864,7 @@
       "name": "periodic_ping",
       "title": "Periodic Ping",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(day_of_week() == bool 0) * (hour() == bool 7) * (minute() == bool 55)",
+      "expr": "(day_of_week() == bool 0) * (hour() == bool 8) * (minute() == bool 55)",
       "conditions": [
         {
           "evaluator": {
