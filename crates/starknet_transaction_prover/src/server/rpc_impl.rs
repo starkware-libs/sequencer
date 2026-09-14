@@ -17,6 +17,10 @@ use crate::server::config::ServiceConfig;
 use crate::server::errors::{internal_server_error, service_busy};
 use crate::server::rpc_api::ProvingRpcServer;
 
+#[cfg(test)]
+#[path = "rpc_impl_test.rs"]
+mod rpc_impl_test;
+
 /// Starknet RPC specification version (matches the pinned `starknet_specs_rev`).
 pub(crate) const SPEC_VERSION: &str = "0.10.3-rc.2";
 
