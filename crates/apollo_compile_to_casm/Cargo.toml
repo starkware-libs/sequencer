@@ -5,6 +5,7 @@ name = "apollo_compile_to_casm"
 repository.workspace = true
 version.workspace = true
 description = "A utility crate for compiling Sierra code into CASM."
+publish = false
 
 [features]
 testing = []

@@ -5,6 +5,7 @@ license.workspace = true
 repository.workspace = true
 version.workspace = true
 description = "Type definitions for Sierra to CASM compilation."
+publish = false
 
 [lints]
 workspace = true
