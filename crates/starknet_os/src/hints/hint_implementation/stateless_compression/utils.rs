@@ -360,8 +360,8 @@ impl CompressionSet {
     pub fn new(values: &[Felt]) -> Self {
         let mut obj = Self {
             unique_value_buckets: Buckets::new(),
-            repeating_value_bucket: Vec::new(),
-            bucket_index_per_elm: Vec::new(),
+            repeating_value_bucket: Vec::with_capacity(values.len()),
+            bucket_index_per_elm: Vec::with_capacity(values.len()),
         };
         let repeating_values_bucket_index = N_UNIQUE_BUCKETS;
 
