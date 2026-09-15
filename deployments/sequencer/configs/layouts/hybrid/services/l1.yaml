@@ -12,14 +12,10 @@ replicas: 1
 # Config Configuration
 # See docs/CONFIGMAP_CONFIGURATION.md for all available options
 config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_l1.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
   # readOnly: true  # Whether the config map is read only. Defaults to true.
 
   sequencerConfig: {}
-  # example:
-  # sequencerConfig:
-    # components_batcher_port: 55000
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
