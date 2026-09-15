@@ -9,6 +9,8 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_multicall_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use blockifier_test_utils::fee_token_addresses::EXPECTED_STRK_FEE_TOKEN_ADDRESS;
+#[cfg(feature = "stwo_proving")]
+use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
@@ -23,6 +25,8 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{calldata, contract_address, invoke_tx_args};
+#[cfg(feature = "stwo_proving")]
+use starknet_transaction_prover::errors::{ProvingError, VirtualSnosProverError};
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
@@ -305,6 +309,55 @@ async fn prove_and_verify_multicall_tx() {
     let output = test_builder.build().await.run_virtual().prove().await;
     starknet_proof_verifier::verify_proof(output.proof_facts, output.proof)
         .expect("proof verification should succeed");
+}
+
+/// Pins the upstream proving failure. Add circuits also use mul_mod to reduce inputs.
+#[cfg(feature = "stwo_proving")]
+#[rstest]
+#[case::mul_only("test_mul_mod", vec![BuiltinName::mul_mod])]
+#[case::add_and_mul("test_add_mod", vec![BuiltinName::add_mod, BuiltinName::mul_mod])]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn prove_tx_using_mod_builtins_fails(
+    #[case] entry_point_name: &str,
+    #[case] expected_unsupported_builtins: Vec<BuiltinName>,
+) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    let calldata = create_calldata(contract_address, entry_point_name, &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let virtual_os_output = test_builder.build().await.run_virtual();
+    let builtin_instance_counter =
+        &virtual_os_output.runner_output.cairo_pie.execution_resources.builtin_instance_counter;
+
+    // Guard the premise: exactly the expected mod builtins were used.
+    for builtin_name in [BuiltinName::add_mod, BuiltinName::mul_mod] {
+        let instance_count = builtin_instance_counter.get(&builtin_name).copied().unwrap_or(0);
+        assert_eq!(
+            instance_count > 0,
+            expected_unsupported_builtins.contains(&builtin_name),
+            "unexpected {builtin_name} usage for {entry_point_name}: {instance_count} instances"
+        );
+    }
+
+    let proving_error = virtual_os_output
+        .try_prove()
+        .await
+        .expect_err("mod builtins are unsupported by the prover");
+    let VirtualSnosProverError::ProvingError(ProvingError::UnsupportedBuiltins {
+        unsupported_builtins,
+        ..
+    }) = proving_error
+    else {
+        panic!("expected an unsupported-builtins error, got {proving_error:?}");
+    };
+    let unsupported_builtin_names: Vec<BuiltinName> =
+        unsupported_builtins.iter().map(|(builtin_name, _)| *builtin_name).collect();
+    assert_eq!(unsupported_builtin_names, expected_unsupported_builtins);
 }
 
 /// Generates proof fixtures for the proof-flow integration test.

@@ -470,6 +470,7 @@ fn test_error_responses_match_spec() {
             "INVALID_TRANSACTION_INPUT",
             errors::invalid_transaction_input("test field invalid".to_string()),
         ),
+        ("UNSUPPORTED_BUILTIN", errors::unsupported_builtin("add_mod (1 instances)".to_string())),
         ("TRANSACTION_BLOCKED", errors::transaction_blocked()),
     ];
 

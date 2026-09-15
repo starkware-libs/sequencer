@@ -10,7 +10,7 @@ description = "Standalone service that proves individual Starknet transactions u
 cairo_native = ["blockifier/cairo_native"]
 # Enables in-memory stwo proving.  Requires a nightly Rust toolchain because the
 # stwo prover crate uses unstable features (array_chunks, portable_simd, …).
-stwo_proving = ["dep:privacy-prove"]
+stwo_proving = ["dep:privacy-prove", "dep:privacy-circuit-verify-v2"]
 
 [dependencies]
 anyhow.workspace = true
@@ -28,6 +28,7 @@ http.workspace = true
 http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
+privacy-circuit-verify-v2 = { workspace = true, optional = true }
 privacy-prove = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
@@ -68,7 +69,6 @@ blockifier_test_utils.workspace = true
 flate2.workspace = true
 jsonschema.workspace = true
 mockito.workspace = true
-privacy-circuit-verify-v2.workspace = true
 reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
