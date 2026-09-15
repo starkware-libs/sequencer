@@ -172,6 +172,11 @@ impl Handler {
     }
 
     /// Polls a single inbound substream that is waiting for input.
+    ///
+    /// Expects `unsent_units` to be empty on entry: that precondition is what lets a non-empty
+    /// `unsent_units` after decoding mean "this batch produced units". Returns
+    /// `ControlFlow::Break` once a batch has been buffered, or once the substream has no more
+    /// data ready, and `ControlFlow::Continue` while the caller should keep polling it.
     fn poll_single_inbound_substream_waiting_input(
         inbound_substream: &mut Option<InboundSubstreamState>,
         mut substream: Framed<Stream, PropellerCodec>,
@@ -182,8 +187,23 @@ impl Handler {
             Poll::Ready(Some(Ok(batch))) => {
                 *inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
                 Self::handle_received_batch(batch, unsent_units);
-                // Continue the loop in case there are more messages ready
-                ControlFlow::Continue(())
+                if unsent_units.is_empty() {
+                    // The batch decoded to zero valid units (e.g. all failed conversion):
+                    // keep draining, since no back-pressure has been buffered yet.
+                    ControlFlow::Continue(())
+                } else {
+                    // Stop after one batch's worth of units, even though the underlying
+                    // stream may already have further batches buffered and ready. Without
+                    // this, a peer that keeps the socket's read buffer full can have every
+                    // already-buffered batch decoded in a single `poll_inner` call, which
+                    // defeats the `unsent_units.is_empty()` gate in `poll_inner` that is
+                    // supposed to cap buffering at one batch. Wake ourselves so the reactor
+                    // re-polls promptly and drains the rest once the engine channel has
+                    // consumed this batch, instead of relying on a fresh I/O readiness event
+                    // that may never arrive if the peer already sent everything.
+                    cx.waker().wake_by_ref();
+                    ControlFlow::Break(())
+                }
             }
             Poll::Ready(Some(Err(error))) => {
                 trace!("Failed to read from inbound stream: {error}");
@@ -526,6 +546,18 @@ impl Handler {
         if self.unsent_units.is_empty() {
             for inbound_substream in self.inbound_substream.iter_mut() {
                 Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
+                // Stop at the first slot that buffered a batch, so `unsent_units` holds at most one
+                // batch worth of units exactly as its documentation claims. Continuing would let
+                // each remaining slot add a batch on top, bounding the buffer at
+                // CONCURRENT_STREAMS batches instead -- still O(1), so not a memory-exhaustion
+                // risk, but it would silently invalidate that invariant as the constant grows.
+                // TODO(AndrewL): This scan always restarts at index 0, so once CONCURRENT_STREAMS
+                // exceeds 1, a peer keeping a low-indexed substream constantly readable starves
+                // the higher-indexed ones. Resume from the slot after the last one served
+                // (round-robin) when making the substream count dynamic.
+                if !self.unsent_units.is_empty() {
+                    break;
+                }
             }
         }
 
