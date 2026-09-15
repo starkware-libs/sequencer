@@ -1,9 +1,12 @@
 use std::collections::HashSet;
+use std::io::Write;
+use std::path::PathBuf;
 
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_sierra_compilation_config::config::{
+    AllowedLibfuncsList,
     SierraCompilationConfig,
     DEFAULT_MAX_BYTECODE_SIZE,
     DEFAULT_MAX_CPU_TIME,
@@ -23,6 +26,7 @@ use pretty_assertions::assert_eq;
 use regex::Regex;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
+use tempfile::NamedTempFile;
 
 use crate::compiler::SierraToCasmCompiler;
 use crate::{RawClass, SierraCompiler};
@@ -31,7 +35,7 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    audited_libfuncs_only: false,
+    allowed_libfuncs_list: AllowedLibfuncsList::All,
 };
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
@@ -88,7 +92,7 @@ fn test_max_bytecode_size() {
         max_bytecode_size: expected_casm_bytecode_length,
         max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        allowed_libfuncs_list: AllowedLibfuncsList::All,
     });
     let casm_contract_class = compiler
         .compile(contract_class.clone())
@@ -100,7 +104,7 @@ fn test_max_bytecode_size() {
         max_bytecode_size: expected_casm_bytecode_length - 1,
         max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        allowed_libfuncs_list: AllowedLibfuncsList::All,
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
@@ -163,6 +167,70 @@ fn allowed_libfuncs_aligned_to_audited() {
     );
 }
 
+fn compiler_with_allowed_libfuncs_list(
+    allowed_libfuncs_list: AllowedLibfuncsList,
+) -> SierraToCasmCompiler {
+    SierraToCasmCompiler::new(SierraCompilationConfig {
+        allowed_libfuncs_list,
+        ..SIERRA_COMPILATION_CONFIG
+    })
+}
+
+/// Writes a list file the compiler accepts as well-formed but which allows nothing.
+fn empty_allowed_libfuncs_list_file() -> NamedTempFile {
+    let mut file = NamedTempFile::new().unwrap();
+    file.write_all(br#"{"allowed_libfuncs": {}}"#).unwrap();
+    file.flush().unwrap();
+    file
+}
+
+#[test]
+fn compile_against_the_bundled_libfuncs_list() {
+    let bundled_list_compiler = compiler_with_allowed_libfuncs_list(AllowedLibfuncsList::Bundled);
+    let expected_casm_contract = compiler().compile(get_test_contract()).unwrap();
+
+    assert_eq!(bundled_list_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
+}
+
+#[test]
+fn compile_against_a_libfuncs_list_file() {
+    let list_file = NamedTempFile::new().unwrap();
+    std::fs::write(list_file.path(), include_str!("allowed_libfuncs.json")).unwrap();
+    let list_file_compiler =
+        compiler_with_allowed_libfuncs_list(AllowedLibfuncsList::File(list_file.path().to_owned()));
+    let expected_casm_contract = compiler().compile(get_test_contract()).unwrap();
+
+    assert_eq!(list_file_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
+}
+
+#[test]
+fn compile_against_a_libfuncs_list_file_that_allows_nothing() {
+    let list_file = empty_allowed_libfuncs_list_file();
+    let empty_list_compiler =
+        compiler_with_allowed_libfuncs_list(AllowedLibfuncsList::File(list_file.path().to_owned()));
+
+    let result = empty_list_compiler.compile(get_test_contract());
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
+        if string.contains("is not allowed")
+    );
+}
+
+#[test]
+#[should_panic(expected = "Failed to read allowed libfuncs list")]
+fn missing_libfuncs_list_file_fails_on_construction() {
+    compiler_with_allowed_libfuncs_list(AllowedLibfuncsList::File(PathBuf::from(
+        "/nonexistent/allowed_libfuncs.json",
+    )));
+}
+
+#[test]
+#[should_panic(expected = "Failed to parse allowed libfuncs list")]
+fn malformed_libfuncs_list_file_fails_on_construction() {
+    let list_file = NamedTempFile::new().unwrap();
+    std::fs::write(list_file.path(), "not json").unwrap();
+    compiler_with_allowed_libfuncs_list(AllowedLibfuncsList::File(list_file.path().to_owned()));
+}
+
 #[test]
 fn test_max_memory_usage() {
     let contract_class = get_test_contract();
@@ -176,7 +244,7 @@ fn test_max_memory_usage() {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        allowed_libfuncs_list: AllowedLibfuncsList::All,
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();
     assert_eq!(executable_class, expected_executable_class);
@@ -186,7 +254,7 @@ fn test_max_memory_usage() {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: 8 * 1024 * 1024,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        allowed_libfuncs_list: AllowedLibfuncsList::All,
     });
     let compilation_result = compiler.compile(contract_class);
     let expected_error_pattern = Regex::new(r"memory allocation .*fail").unwrap();
@@ -225,7 +293,7 @@ fn memory_limit_error_message() {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: 8 * 1024 * 1024,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        allowed_libfuncs_list: AllowedLibfuncsList::All,
     });
     let contract_class = get_test_contract();
 

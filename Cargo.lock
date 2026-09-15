@@ -1166,6 +1166,7 @@ dependencies = [
  "regex",
  "serde_json",
  "starknet_api",
+ "tempfile",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -2559,7 +2560,9 @@ name = "apollo_sierra_compilation_config"
 version = "0.20.0-rc.0"
 dependencies = [
  "apollo_config",
+ "rstest",
  "serde",
+ "serde_json",
  "validator",
 ]
 
@@ -4023,6 +4026,7 @@ dependencies = [
 name = "blockifier_test_utils"
 version = "0.20.0-rc.0"
 dependencies = [
+ "apollo_compilation_utils",
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
  "digest 0.10.7",

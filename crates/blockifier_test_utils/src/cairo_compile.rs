@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+use apollo_compilation_utils::libfunc_arg::LibfuncArg;
 use apollo_infra_utils::cairo0_compiler::Cairo0Script;
 use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
@@ -42,36 +43,32 @@ fn cairo1_package_complete_marker(version: &String) -> PathBuf {
 }
 
 /// Returns the path to the allowed_libfuncs.json file.
-pub fn allowed_libfuncs_json_path() -> String {
+pub fn allowed_libfuncs_json_path() -> PathBuf {
     resolve_project_relative_path("crates/apollo_compile_to_casm/src/allowed_libfuncs.json")
         .unwrap()
-        .to_string_lossy()
-        .to_string()
 }
 
 /// Returns the path to the legacy-format allowed_libfuncs_legacy.json file (array of strings).
 ///
 /// Older compiler versions (e.g. v2.1.0, v2.7.0) cannot parse the new map-based format. This
 /// file is committed to the repo and kept in sync via an `expect_file!` test.
-pub fn allowed_libfuncs_legacy_json_path() -> String {
+pub fn allowed_libfuncs_legacy_json_path() -> PathBuf {
     resolve_project_relative_path(
         "crates/blockifier_test_utils/resources/allowed_libfuncs_legacy.json",
     )
     .unwrap()
-    .to_string_lossy()
-    .to_string()
 }
 
 /// Converts the new-format allowed_libfuncs.json (map) to the legacy format (array of strings).
 pub fn generate_allowed_libfuncs_legacy_json() -> String {
     let new_format_path = allowed_libfuncs_json_path();
     let contents = std::fs::read_to_string(&new_format_path)
-        .unwrap_or_else(|err| panic!("Failed to read {new_format_path}: {err}"));
+        .unwrap_or_else(|err| panic!("Failed to read {new_format_path:?}: {err}"));
     let parsed: serde_json::Value = serde_json::from_str(&contents)
-        .unwrap_or_else(|err| panic!("Failed to parse {new_format_path}: {err}"));
-    let libfuncs_map = parsed["allowed_libfuncs"]
-        .as_object()
-        .unwrap_or_else(|| panic!("Expected 'allowed_libfuncs' to be a map in {new_format_path}"));
+        .unwrap_or_else(|err| panic!("Failed to parse {new_format_path:?}: {err}"));
+    let libfuncs_map = parsed["allowed_libfuncs"].as_object().unwrap_or_else(|| {
+        panic!("Expected 'allowed_libfuncs' to be a map in {new_format_path:?}")
+    });
     let keys: Vec<&str> = libfuncs_map.keys().map(|k| k.as_str()).collect();
     serde_json::json!({"allowed_libfuncs": keys}).to_string()
 }
@@ -193,28 +190,6 @@ pub fn cairo0_compile(
     let stderr_output = String::from_utf8(compile_output.stderr).unwrap();
     assert!(compile_output.status.success(), "{stderr_output}");
     CompilationArtifacts::Cairo0 { casm: compile_output.stdout }
-}
-
-pub enum LibfuncArg {
-    ListName(String),
-    ListFile(String),
-}
-
-impl LibfuncArg {
-    pub fn add_to_command<'a>(&self, command: &'a mut Command) -> &'a mut Command {
-        match self {
-            Self::ListName(name) => command.args(["--allowed-libfuncs-list-name", name]),
-            Self::ListFile(file) => command.args(["--allowed-libfuncs-list-file", file]),
-        }
-    }
-
-    /// Returns the file path if this is a `ListFile` variant.
-    pub fn file_path(&self) -> &str {
-        match self {
-            Self::ListFile(path) => path,
-            Self::ListName(_) => panic!("LibfuncArg::ListName has no file path"),
-        }
-    }
 }
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.

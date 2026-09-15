@@ -98,7 +98,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "monitoring_endpoint_config.port",
     "native_classes_whitelist",
     "recorder_url",
-    "sierra_compiler_config.audited_libfuncs_only",
+    "sierra_compiler_config.allowed_libfuncs_list",
     "sierra_compiler_config.max_bytecode_size",
     "starknet_url",
     "state_sync_config.static_config.central_sync_client_config.#is_none",

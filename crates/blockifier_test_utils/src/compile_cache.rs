@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use apollo_compilation_utils::libfunc_arg::LibfuncArg;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use apollo_infra_utils::path::project_path;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -17,7 +18,6 @@ use crate::cairo_compile::{
     verify_cairo1_package,
     with_file_lock,
     CompilationArtifacts,
-    LibfuncArg,
 };
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 use crate::contracts::FeatureContract;
@@ -90,8 +90,8 @@ fn compute_cache_key(
     hasher.update(compiler_version.as_bytes());
     hasher.update(b"\x00");
     match libfunc_arg {
-        LibfuncArg::ListFile(file) => {
-            let abs = crate_root.join(file);
+        LibfuncArg::ListFile(path) => {
+            let abs = crate_root.join(path);
             let content = fs::read_to_string(&abs)
                 .unwrap_or_else(|e| panic!("Cannot read libfunc file {abs:?}: {e}"));
             hasher.update(content.as_bytes());
@@ -145,9 +145,7 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
     let source_path = crate_root.join(contract.get_source_path());
     let libfunc_arg = contract.libfunc_arg();
     let abs_libfunc_arg = match &libfunc_arg {
-        LibfuncArg::ListFile(file) => {
-            LibfuncArg::ListFile(crate_root.join(file).to_string_lossy().to_string())
-        }
+        LibfuncArg::ListFile(path) => LibfuncArg::ListFile(crate_root.join(path)),
         LibfuncArg::ListName(name) => LibfuncArg::ListName(name.clone()),
     };
 

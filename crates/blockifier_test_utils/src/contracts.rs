@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
+use apollo_compilation_utils::libfunc_arg::LibfuncArg;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
@@ -18,7 +19,6 @@ use crate::cairo_compile::{
     cairo0_compile,
     cairo1_compile,
     CompilationArtifacts,
-    LibfuncArg,
 };
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 use crate::compile_cache;
@@ -458,7 +458,7 @@ impl FeatureContract {
     pub fn libfunc_arg(&self) -> LibfuncArg {
         match self {
             Self::Experimental => {
-                LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
+                LibfuncArg::ListFile(PathBuf::from("./resources/experimental_libfuncs.json"))
             }
             Self::LegacyTestContract | Self::CairoStepsTestContract => {
                 LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())

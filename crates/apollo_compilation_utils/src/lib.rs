@@ -4,6 +4,7 @@ pub mod build_utils;
 pub mod class_utils;
 pub mod compiler_utils;
 pub mod errors;
+pub mod libfunc_arg;
 pub mod paths;
 pub mod resource_limits;
 
