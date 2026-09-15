@@ -539,11 +539,11 @@ where
     /// commit, so that a restart before the first pruning does not default the lower bound to the
     /// advanced offset, and returns it along with the deletions of the pruned heights, to be
     /// written atomically with the block.
-    fn prune_commitment_infos(
+    fn prune_commitment_infos<'a>(
         &self,
         next_offset: BlockNumber,
         metadata: &mut HashMap<ForestMetadataType, DbValue>,
-    ) -> (BlockNumber, Vec<CommitmentInfosUpdate>) {
+    ) -> (BlockNumber, Vec<CommitmentInfosUpdate<'a>>) {
         let Some(pruning_config) = &self.config.commitment_infos_pruning_config else {
             let lower_bound = self.commitment_infos_lower_bound;
             metadata.insert(
@@ -605,13 +605,20 @@ where
 
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
             CommitBlockHeightPlan::Historical { global_root } => {
-                let stored_digest = self.load_witnesses_digest(height).await?;
-                if stored_digest != Some(digest) {
-                    return Err(CommitterError::AccessedKeysDigestMismatch {
-                        height,
-                        stored: stored_digest,
-                        expected: digest,
-                    });
+                // Skip the accessed keys digest validation while
+                // `serve_read_paths_as_commit_block` is on. This allows turning the flag on
+                // without comparing the empty accessed keys it serves against the ones stored
+                // for this height. For turning the flag off, see its documentation in
+                // `CommitterConfig`.
+                if !self.config.serve_read_paths_as_commit_block {
+                    let stored_digest = self.load_witnesses_digest(height).await?;
+                    if stored_digest != Some(digest) {
+                        return Err(CommitterError::AccessedKeysDigestMismatch {
+                            height,
+                            stored: stored_digest,
+                            expected: digest,
+                        });
+                    }
                 }
                 let state_commitment_infos = self
                     .forest_storage
@@ -662,7 +669,7 @@ where
                 commitment_infos_updates.push(CommitmentInfosUpdate::Write(CommitmentInfosWrite {
                     block_number: height,
                     keys_digest: digest,
-                    commitment_infos: compressed_commitment_infos.clone(),
+                    commitment_infos: &compressed_commitment_infos,
                 }));
 
                 info!(

@@ -34,7 +34,7 @@ use crate::transaction::fields::{
     ProofFacts,
     ResourceBounds,
     ValidResourceBounds,
-    PROOF_VERSION_V1,
+    PROOF_VERSION_V2,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
@@ -416,7 +416,7 @@ impl ProofFacts {
         // These fields are not verified by the OS (they are application-related).
         let l2_to_l1_messages_segment_size = Felt::ZERO;
         proof_facts![
-            PROOF_VERSION_V1,
+            PROOF_VERSION_V2,
             VIRTUAL_SNOS,
             program_hash,
             VIRTUAL_OS_OUTPUT_VERSION,
