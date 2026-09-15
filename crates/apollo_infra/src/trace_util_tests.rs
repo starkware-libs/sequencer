@@ -12,6 +12,7 @@ use crate::trace_util::{
     get_log_directives,
     rename_error_to_message,
     set_log_level,
+    ErrorToMessageWriter,
     ReloadHandle,
 };
 
@@ -40,19 +41,16 @@ fn rename_error_to_message_renames_error_key() {
 }
 
 #[test]
-fn rename_error_to_message_preserves_other_fields() {
+fn rename_error_to_message_returns_none_when_no_error_key_present() {
+    // No "error" key at all: no rewrite needed, caller writes the buffer unchanged.
     let input = br#"{"level":"INFO","status":"ok","count":42}"#;
-    let output = rename_error_to_message(input).unwrap();
-    let output_str = String::from_utf8(output).unwrap();
-
-    assert!(output_str.contains(r#""level":"INFO""#), "got: {output_str}");
-    assert!(output_str.contains(r#""status":"ok""#), "got: {output_str}");
-    assert!(output_str.contains(r#""count":42"#), "got: {output_str}");
+    assert!(rename_error_to_message(input).is_none());
 }
 
 #[test]
 fn rename_error_to_message_returns_none_for_invalid_json() {
-    let input = b"not valid json";
+    // Contains the "error" byte pattern so it reaches the JSON parse, which then fails.
+    let input = br#"not valid json "error""#;
     assert!(rename_error_to_message(input).is_none());
 }
 
@@ -73,26 +71,44 @@ fn rename_error_to_message_only_renames_root_level_error() {
 
 #[test]
 fn rename_error_to_message_preserves_existing_message_field() {
-    // If both "error" and "message" exist, leave the object unchanged
+    // If both "error" and "message" exist, no rewrite is needed: the caller writes the buffer
+    // unchanged, which trivially preserves both fields.
     let input = br#"{"error":"the error","message":"original message"}"#;
-    let output = rename_error_to_message(input).unwrap();
-    let parsed: serde_json::Value = serde_json::from_slice(&output).unwrap();
-
-    // Both fields should remain unchanged
-    assert_eq!(parsed["message"], "original message");
-    assert_eq!(parsed["error"], "the error");
+    assert!(rename_error_to_message(input).is_none());
 }
 
 #[test]
-fn rename_error_to_message_does_not_modify_error_values() {
-    // Values equal to "error" should NOT be modified - only keys named "error"
+fn rename_error_to_message_returns_none_when_error_appears_only_as_a_value() {
+    // Values equal to "error" should NOT be modified - only keys named "error". There is no
+    // actual "error" key here, so no rewrite is needed even though the prefilter matches.
     let input = br#"{"status":"error","type":"error","level":"ERROR"}"#;
-    let output = rename_error_to_message(input).unwrap();
-    let parsed: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert!(rename_error_to_message(input).is_none());
+}
 
-    assert_eq!(parsed["status"], "error");
-    assert_eq!(parsed["type"], "error");
-    assert_eq!(parsed["level"], "ERROR");
+#[test]
+fn error_to_message_writer_passes_through_non_error_lines_unchanged() {
+    let mut buffer = Vec::new();
+    let mut writer = ErrorToMessageWriter(&mut buffer);
+
+    let plain_line: &[u8] = br#"{"level":"INFO","message":"hello"}"#;
+    let plain_line = [plain_line, b"\n"].concat();
+    let error_line: &[u8] = br#"{"level":"ERROR","error":"boom"}"#;
+    let error_line = [error_line, b"\n"].concat();
+
+    writer.write_all(&plain_line).unwrap();
+    writer.write_all(&error_line).unwrap();
+
+    let output = String::from_utf8(buffer).unwrap();
+    let mut lines = output.lines();
+
+    // The plain line has no "error" key, so it must come out byte-for-byte unchanged.
+    assert_eq!(lines.next().unwrap().as_bytes(), &plain_line[..plain_line.len() - 1]);
+
+    // The error line is still rewritten, and the two lines stay newline-separated.
+    let rewritten: serde_json::Value = serde_json::from_str(lines.next().unwrap()).unwrap();
+    assert_eq!(rewritten["message"], "boom");
+    assert!(rewritten.get("error").is_none());
+    assert!(lines.next().is_none());
 }
 
 /// A shared buffer for capturing log output.
