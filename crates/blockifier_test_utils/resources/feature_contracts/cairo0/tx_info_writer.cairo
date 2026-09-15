@@ -1,7 +1,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import call_contract, get_tx_info
+from starkware.starknet.common.syscalls import call_contract, get_tx_info, get_tx_signature
 
 // This should match the value of the offset used in `test_deprecated_tx_info`.
 const OFFSET = 0x1234;
@@ -55,6 +55,15 @@ func write{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 @l1_handler
 func l1_write{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(from_address: felt) {
     write(tx_type='L1_HANDLER', offset=OFFSET);
+    return ();
+}
+
+@l1_handler
+func l1_write_signature{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    from_address: felt
+) {
+    let (sig_len: felt, sig: felt*) = get_tx_signature();
+    signature_len.write('L1_HANDLER_SIGNATURE', sig_len + OFFSET);
     return ();
 }
 
