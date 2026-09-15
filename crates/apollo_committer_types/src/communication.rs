@@ -18,6 +18,8 @@ use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use crate::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
+    GetStateCommitmentInfosRequest,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockRequest,
     ReadPathsAndCommitBlockResponse,
     RevertBlockRequest,
@@ -52,6 +54,12 @@ pub trait CommitterClient: Send + Sync {
         &self,
         input: ReadPathsAndCommitBlockRequest,
     ) -> CommitterClientResult<ReadPathsAndCommitBlockResponse>;
+
+    /// Reads the stored state commitment infos of a range of heights.
+    async fn get_state_commitment_infos(
+        &self,
+        input: GetStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<GetStateCommitmentInfosResponse>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -64,6 +72,7 @@ pub enum CommitterRequest {
     CommitBlock(CommitBlockRequest),
     RevertBlock(RevertBlockRequest),
     ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
+    GetStateCommitmentInfos(GetStateCommitmentInfosRequest),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);
@@ -75,6 +84,7 @@ pub enum CommitterResponse {
     CommitBlock(CommitterResult<CommitBlockResponse>),
     RevertBlock(CommitterResult<RevertBlockResponse>),
     ReadPathsAndCommitBlock(CommitterResult<ReadPathsAndCommitBlockResponse>),
+    GetStateCommitmentInfos(CommitterResult<GetStateCommitmentInfosResponse>),
 }
 
 impl_debug_for_infra_requests_and_responses!(CommitterResponse);
@@ -131,6 +141,22 @@ where
             request,
             CommitterResponse,
             ReadPathsAndCommitBlock,
+            CommitterClientError,
+            CommitterError,
+            Direct
+        )
+    }
+
+    async fn get_state_commitment_infos(
+        &self,
+        input: GetStateCommitmentInfosRequest,
+    ) -> CommitterClientResult<GetStateCommitmentInfosResponse> {
+        let request = CommitterRequest::GetStateCommitmentInfos(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            CommitterResponse,
+            GetStateCommitmentInfos,
             CommitterClientError,
             CommitterError,
             Direct
