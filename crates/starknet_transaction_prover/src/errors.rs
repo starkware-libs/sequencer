@@ -1,5 +1,7 @@
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
+#[cfg(feature = "stwo_proving")]
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::TransactionHash;
@@ -96,6 +98,19 @@ pub enum ClassesProviderError {
     HintsConversionError(#[from] ProgramError),
 }
 
+/// Renders unsupported-builtin usage for [`ProvingError::UnsupportedBuiltins`], e.g.
+/// `add_mod (2 instances), mul_mod (4 instances)`.
+#[cfg(feature = "stwo_proving")]
+fn format_builtin_usage(unsupported_builtins: &[(BuiltinName, usize)]) -> String {
+    unsupported_builtins
+        .iter()
+        .map(|(builtin_name, instance_count)| {
+            format!("{} ({instance_count} instances)", builtin_name.to_str())
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Errors that can occur during proving.
 #[derive(Debug, Error)]
 pub enum ProvingError {
@@ -106,6 +121,14 @@ pub enum ProvingError {
     #[cfg(feature = "stwo_proving")]
     #[error("Proving task failed to join: {0}")]
     TaskJoin(#[source] tokio::task::JoinError),
+
+    /// A proving task panicked while the PIE used unsupported builtins.
+    #[cfg(feature = "stwo_proving")]
+    #[error(
+        "Transaction uses builtins the prover does not support: {}. Prover error: {reason}",
+        format_builtin_usage(unsupported_builtins)
+    )]
+    UnsupportedBuiltins { unsupported_builtins: Vec<(BuiltinName, usize)>, reason: String },
 }
 
 /// Error type for the virtual SNOS prover.

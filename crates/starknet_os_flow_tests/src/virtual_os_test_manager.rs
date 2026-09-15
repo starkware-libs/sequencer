@@ -6,6 +6,7 @@ use starknet_os::io::virtual_os_output::{
     VirtualOsRunnerOutput,
 };
 use starknet_os::runner::run_virtual_os;
+use starknet_transaction_prover::errors::VirtualSnosProverError;
 use starknet_transaction_prover::proving::virtual_snos_prover::{
     prove_virtual_snos_run,
     ProveTransactionResult,
@@ -34,12 +35,17 @@ impl VirtualOsTestOutput {
 
         assert_eq!(virtual_os_output, self.expected_virtual_os_output);
     }
-    pub(crate) async fn prove(self) -> ProveTransactionResult {
+    /// Proves the virtual OS run, returning the prover's error instead of panicking on it.
+    pub(crate) async fn try_prove(self) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         let runner_output = RunnerOutput {
             cairo_pie: self.runner_output.cairo_pie,
             l2_to_l1_messages: self.messages_to_l1,
         };
-        prove_virtual_snos_run(runner_output).await.expect("Proving virtual OS should not fail.")
+        prove_virtual_snos_run(runner_output).await
+    }
+
+    pub(crate) async fn prove(self) -> ProveTransactionResult {
+        self.try_prove().await.expect("Proving virtual OS should not fail.")
     }
 }
 

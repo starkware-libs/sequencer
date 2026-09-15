@@ -10,12 +10,18 @@ use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
 
+#[cfg(feature = "stwo_proving")]
+use crate::errors::ProvingError;
 use crate::errors::{
     ProofProviderError,
     RunnerError,
     VirtualBlockExecutorError,
     VirtualSnosProverError,
 };
+
+#[cfg(all(test, feature = "stwo_proving"))]
+#[path = "errors_test.rs"]
+mod errors_test;
 
 // Starknet RPC v0.10 error codes.
 
@@ -32,6 +38,11 @@ pub fn validation_failure(data: String) -> ErrorObjectOwned {
 /// Unsupported transaction type (code 1001).
 pub fn unsupported_tx_type(data: String) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(1001, "the transaction type is not supported", Some(data))
+}
+
+/// Transaction uses a builtin the prover does not support (code 1002).
+pub fn unsupported_builtin(data: String) -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(1002, "Unsupported builtin", Some(data))
 }
 
 /// Invalid transaction input (code 1000).
@@ -114,6 +125,10 @@ impl From<VirtualSnosProverError> for ErrorObjectOwned {
                 if msg.contains("Pending") { block_not_found() } else { validation_failure(msg) }
             }
             VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(*e),
+            #[cfg(feature = "stwo_proving")]
+            VirtualSnosProverError::ProvingError(
+                err @ ProvingError::UnsupportedBuiltins { .. },
+            ) => unsupported_builtin(err.to_string()),
             #[cfg(feature = "stwo_proving")]
             VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
             VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),
