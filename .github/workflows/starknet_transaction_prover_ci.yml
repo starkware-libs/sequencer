@@ -98,9 +98,12 @@ jobs:
         run: cargo clippy -p starknet_transaction_prover --no-deps --all-targets --all-features
 
       # Running tests in release mode since stwo significantly slower in debug mode.
+      # Capped at 4 threads: in-memory stwo proving is memory intensive, and running the 143 tests
+      # at the runner's default parallelism has been SIGKILLing the test binary with no test
+      # reporting a failure. The tests themselves take about 27 seconds, so the cap costs little.
       - name: Run tests in release mode
         working-directory: crates/starknet_transaction_prover
-        run: cargo test -p starknet_transaction_prover --features stwo_proving --release
+        run: cargo test -p starknet_transaction_prover --features stwo_proving --release -- --test-threads=4
         env:
           STARKNET_SPECS_DIR: /tmp/starknet-specs
 
