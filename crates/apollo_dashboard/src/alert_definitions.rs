@@ -106,7 +106,6 @@ use crate::alert_scenarios::tps::{
     get_mempool_add_tx_idle,
 };
 use crate::alert_scenarios::transaction_delays::{
-    get_high_empty_blocks_ratio_alert,
     get_http_server_avg_add_tx_latency_alert,
     get_http_server_min_add_tx_latency_alert,
     get_http_server_p95_add_tx_latency_alert,
@@ -675,7 +674,6 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_http_server_internal_error_ratio());
     alerts.push(get_gateway_low_successful_transaction_rate());
     alerts.push(get_http_server_p95_add_tx_latency_alert());
-    alerts.push(get_high_empty_blocks_ratio_alert());
     alerts.push(get_l1_gas_price_provider_insufficient_history_alert());
     alerts.push(get_l1_gas_price_scraper_success_count_alert());
     alerts.push(get_l2_gas_price_at_minimum_alert());

@@ -3214,6 +3214,16 @@
     "privacy": "Public",
     "value": true
   },
+  "gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v1": {
+    "description": "If true, allows proofs stamped with proof version V1.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2": {
+    "description": "If true, allows proofs stamped with proof version V2.",
+    "privacy": "Public",
+    "value": true
+  },
   "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
     "privacy": "Public",
