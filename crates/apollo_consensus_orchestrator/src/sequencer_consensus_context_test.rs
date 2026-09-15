@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::future::ready;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
@@ -43,6 +44,7 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::MockClock;
 use apollo_versioned_constants::VersionedConstants;
+use assert_matches::assert_matches;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
@@ -54,7 +56,9 @@ use starknet_api::block::{
     BlockHash,
     BlockHeaderWithoutHash,
     BlockNumber,
+    BlockTimestamp,
     GasPrice,
+    GasPricePerToken,
     StarknetVersion,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
@@ -2064,10 +2068,11 @@ fn test_prune_fee_proposals_window(
     assert_eq!(context.fee_proposals_window, expected_window);
 }
 
-// `initialize_fee_proposals_window` reads `[start_height - WINDOW, start_height)` from state_sync
-// and records each block's `fee_proposal_fri`. `expected_window` is the mapping the test asserts;
-// the mock answers `get_block(h)` from the same map. Genesis case (`start_height < WINDOW_SIZE`)
-// is exercised by a smaller window: the bootstrap range collapses to `[0, start_height)`.
+// `initialize_from_committed_blocks` reads `[start_height - WINDOW, start_height)` from state_sync
+// and records each block's `fee_proposal_fri`, then re-reads `start_height - 1` to seed
+// `previous_proposal_init`. `expected_window` is the mapping the test asserts; the mock answers
+// `get_block(h)` from the same map. Genesis case (`start_height < WINDOW_SIZE`) is exercised by a
+// smaller window: the bootstrap range collapses to `[0, start_height)`.
 #[rstest]
 #[case::all_some(BlockNumber(100), window_of(90..100))]
 // v0.14.2 era: every block recorded with `fee_proposal_fri = None`.
@@ -2081,13 +2086,15 @@ fn test_prune_fee_proposals_window(
 )]
 #[case::genesis_collapses_range(BlockNumber(3), window_of(0..3))]
 #[tokio::test]
-async fn test_initialize_fee_proposals_window(
+async fn test_initialize_from_committed_blocks(
     #[case] start_height: BlockNumber,
     #[case] expected_window: BTreeMap<BlockNumber, Option<GasPrice>>,
 ) {
     let mock_window = expected_window.clone();
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.state_sync_client.expect_get_block().times(expected_window.len()).returning(
+    // One read per window height, plus the re-read of `start_height - 1` that seeds
+    // `previous_proposal_init`.
+    deps.state_sync_client.expect_get_block().times(expected_window.len() + 1).returning(
         move |height| {
             let mut sync_block = SyncBlock::default();
             sync_block.block_header_without_hash.block_number = height;
@@ -2099,8 +2106,128 @@ async fn test_initialize_fee_proposals_window(
     deps.setup_default_expectations();
 
     let mut context = deps.build_context();
-    context.initialize_fee_proposals_window(start_height).await.unwrap();
+    context.initialize_from_committed_blocks(start_height).await.unwrap();
     assert_eq!(context.fee_proposals_window, expected_window);
+}
+
+// `previous_proposal_init` is the band center `clamp_eth_to_fri_rate_change` clamps around, so a
+// node restarted at tip must hold it before it votes.
+#[tokio::test]
+async fn test_initialize_from_committed_blocks_seeds_previous_block() {
+    const START_HEIGHT: BlockNumber = BlockNumber(100);
+    const PREVIOUS_TIMESTAMP: BlockTimestamp = BlockTimestamp(1_700_000_000);
+    const PREVIOUS_L1_GAS_PRICE: GasPricePerToken =
+        GasPricePerToken { price_in_wei: GasPrice(7), price_in_fri: GasPrice(11) };
+    const PREVIOUS_L1_DATA_GAS_PRICE: GasPricePerToken =
+        GasPricePerToken { price_in_wei: GasPrice(13), price_in_fri: GasPrice(17) };
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client.expect_get_block().returning(move |height| {
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        // Only `start_height - 1` carries the prices, so the assertions below cannot pass on a
+        // block read for the fee window.
+        if height == START_HEIGHT.prev().unwrap() {
+            sync_block.block_header_without_hash.timestamp = PREVIOUS_TIMESTAMP;
+            sync_block.block_header_without_hash.l1_gas_price = PREVIOUS_L1_GAS_PRICE;
+            sync_block.block_header_without_hash.l1_data_gas_price = PREVIOUS_L1_DATA_GAS_PRICE;
+        }
+        Ok(sync_block)
+    });
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_from_committed_blocks(START_HEIGHT).await.unwrap();
+
+    let previous_proposal_init = context.previous_proposal_init.unwrap();
+    assert_eq!(previous_proposal_init.timestamp, PREVIOUS_TIMESTAMP.0);
+    assert_eq!(
+        previous_proposal_init.l1_prices_wei.l1_gas_price,
+        PREVIOUS_L1_GAS_PRICE.price_in_wei
+    );
+    assert_eq!(
+        previous_proposal_init.l1_prices_wei.l1_data_gas_price,
+        PREVIOUS_L1_DATA_GAS_PRICE.price_in_wei
+    );
+    assert_eq!(
+        previous_proposal_init.l1_prices_fri.l1_gas_price,
+        PREVIOUS_L1_GAS_PRICE.price_in_fri
+    );
+    assert_eq!(
+        previous_proposal_init.l1_prices_fri.l1_data_gas_price,
+        PREVIOUS_L1_DATA_GAS_PRICE.price_in_fri
+    );
+}
+
+// The retry loop that carries a node restarted ahead of state_sync: a height that is not there
+// yet is read again, in place, until it is.
+#[tokio::test(start_paused = true)]
+async fn test_initialize_from_committed_blocks_retries_a_height_state_sync_lacks() {
+    const START_HEIGHT: BlockNumber = BlockNumber(1);
+    const NOT_READY_READS: usize = 3;
+    const RECORDED_FEE_PROPOSAL: GasPrice = GasPrice(9_000_000_000);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    let n_reads = Arc::new(AtomicUsize::new(0));
+    let n_reads_in_mock = n_reads.clone();
+    deps.state_sync_client.expect_get_block().returning(move |height| {
+        if n_reads_in_mock.fetch_add(1, Ordering::SeqCst) < NOT_READY_READS {
+            return Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(
+                height,
+            )));
+        }
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        sync_block.block_header_without_hash.fee_proposal_fri = Some(RECORDED_FEE_PROPOSAL);
+        Ok(sync_block)
+    });
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_from_committed_blocks(START_HEIGHT).await.unwrap();
+
+    // The window collapses to `[0, 1)`, so the single window height and the re-read that seeds
+    // `previous_proposal_init` are both height 0: no height is skipped over while state_sync
+    // catches up.
+    assert_eq!(
+        context.fee_proposals_window,
+        BTreeMap::from([(BlockNumber(0), Some(RECORDED_FEE_PROPOSAL))])
+    );
+    assert!(context.previous_proposal_init.is_some());
+    assert_eq!(n_reads.load(Ordering::SeqCst), NOT_READY_READS + 2);
+}
+
+// Only `BlockNotFound` is retried; any other state_sync error aborts the bootstrap rather than
+// looping, so the caller's `expect` stops the node instead of voting on a partial window.
+#[tokio::test]
+async fn test_initialize_from_committed_blocks_propagates_other_state_sync_errors() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client
+        .expect_get_block()
+        .returning(|_| Err(StateSyncClientError::StateSyncError(StateSyncError::EmptyState)));
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    let result = context.initialize_from_committed_blocks(BlockNumber(1)).await;
+
+    assert_matches!(result, Err(StateSyncClientError::StateSyncError(StateSyncError::EmptyState)));
+    assert!(context.fee_proposals_window.is_empty());
+    assert!(context.previous_proposal_init.is_none());
+}
+
+// Genesis has no previous block: `previous_proposal_init` stays `None` and no read is attempted
+// for it.
+#[tokio::test]
+async fn test_initialize_from_committed_blocks_at_genesis_leaves_previous_proposal_init_unset() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client.expect_get_block().never();
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_from_committed_blocks(BlockNumber(0)).await.unwrap();
+
+    assert!(context.previous_proposal_init.is_none());
+    assert!(context.fee_proposals_window.is_empty());
 }
 
 #[derive(Clone)]

@@ -6,7 +6,7 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -333,39 +333,56 @@ impl SequencerConsensusContext {
         self.fee_proposals_window = self.fee_proposals_window.split_off(&cutoff);
     }
 
-    /// Fill `[start_height - WINDOW, start_height)` from local state_sync storage. Must be
-    /// called before `run_consensus` so the window is populated before voting begins. Blocks
-    /// state_sync has not caught up to yet are pushed to the back of the queue and revisited —
-    /// joining consensus with a partial window would make this node disagree with caught-up
-    /// peers on `fee_actual`. Other state_sync errors propagate.
-    pub async fn initialize_fee_proposals_window(
+    /// Fill `fee_proposals_window` from `[start_height - fee_proposal_window_size, start_height)`
+    /// and `previous_proposal_init` from `start_height - 1`, both read from local state_sync
+    /// storage. Must be called before `run_consensus`: joining consensus with a partial window
+    /// would make this node disagree with caught-up peers on `fee_actual`, and joining with
+    /// `previous_proposal_init` unset would make it propose an eth to fri rate its peers clamp.
+    /// Waits for state_sync to reach each height.
+    ///
+    /// `previous_proposal_init` is also `try_sync`'s lower bound on a synced block's timestamp, so
+    /// seeding it holds the first synced block after a restart to the same monotonicity every
+    /// later one already faced.
+    pub async fn initialize_from_committed_blocks(
         &mut self,
         start_height: BlockNumber,
     ) -> StateSyncClientResult<()> {
-        const STATE_SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(500);
         let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
-        let window_end_height = start_height.0;
-        let window_start_height = window_end_height.saturating_sub(window_size);
-        let mut pending_heights: VecDeque<BlockNumber> =
-            (window_start_height..window_end_height).map(BlockNumber).collect();
-        while let Some(block_number) = pending_heights.pop_front() {
-            match self.deps.state_sync_client.get_block(block_number).await {
-                Ok(block) => self.record_fee_proposal(
-                    block_number,
-                    block.block_header_without_hash.fee_proposal_fri,
-                ),
-                Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
-                    warn!(
-                        "State sync not ready for height {block_number}; re-queueing after \
-                         {STATE_SYNC_RETRY_INTERVAL:?}"
-                    );
-                    pending_heights.push_back(block_number);
-                    tokio::time::sleep(STATE_SYNC_RETRY_INTERVAL).await;
-                }
-                Err(e) => return Err(e),
-            }
+        let window_start_height = start_height.0.saturating_sub(window_size);
+        for block_number in (window_start_height..start_height.0).map(BlockNumber) {
+            let block_header = self.committed_block_header(block_number).await?;
+            self.record_fee_proposal(block_number, block_header.fee_proposal_fri);
+        }
+        // Genesis has no previous block, so `previous_proposal_init` stays `None` and the first
+        // block's eth to fri rate is unclamped and its timestamp unbounded from below.
+        if let Some(previous_height) = start_height.prev() {
+            let block_header = self.committed_block_header(previous_height).await?;
+            self.previous_proposal_init =
+                Some(previous_proposal_init_from_block_header(&block_header));
         }
         Ok(())
+    }
+
+    /// Reads a committed block's header from local state_sync storage, waiting for state_sync to
+    /// catch up to the height. Other state_sync errors propagate.
+    async fn committed_block_header(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockHeaderWithoutHash> {
+        const STATE_SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(500);
+        loop {
+            match self.deps.state_sync_client.get_block(block_number).await {
+                Ok(block) => return Ok(block.block_header_without_hash),
+                Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+                    warn!(
+                        "State sync not ready for height {block_number}; retrying after \
+                         {STATE_SYNC_RETRY_INTERVAL:?}"
+                    );
+                    tokio::time::sleep(STATE_SYNC_RETRY_INTERVAL).await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
     }
 
     async fn start_stream(&mut self, stream_id: HeightAndRound) -> StreamSender {
