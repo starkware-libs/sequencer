@@ -1087,7 +1087,6 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
-    #[serde(default)]
     #[validate(nested)]
     pub batch_config: BatchConfig,
 }
