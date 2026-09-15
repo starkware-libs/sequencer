@@ -92,6 +92,9 @@ fn test_crates_for_publish_regression() {
 /// ```
 /// then `cargo publish -p X` will succeed, because the command ignores path dependencies without
 /// version fallbacks.
+/// Members that are not intended for publishing also carry `publish = false` in their `[package]`
+/// section; `test_members_are_unpublishable_iff_they_are_not_for_publish` keeps that flag aligned
+/// with the version field.
 #[test]
 fn test_members_have_version_iff_they_are_for_publish() {
     let members_with_version: HashSet<String> = ROOT_TOML
@@ -122,6 +125,37 @@ fn test_members_have_version_iff_they_are_for_publish() {
         "The following crates are missing a version field in the workspace Cargo.toml: \
          {published_crates_without_version:#?}.\nThe following crates have a version field but \
          are not intended for publishing: {unpublished_crates_with_version:#?}."
+    );
+}
+
+/// `publish = false` makes `cargo publish` refuse a crate and lets cargo-deny treat it as private.
+/// Every member that is not intended for publishing must carry it, and no published crate may.
+#[test]
+fn test_members_are_unpublishable_iff_they_are_not_for_publish() {
+    let unpublishable_members: HashSet<String> = MEMBER_TOMLS
+        .iter()
+        .filter_map(|(member, toml)| match toml.package.get("publish") {
+            Some(PackageEntryValue::Other(value)) if value.as_bool() == Some(false) => {
+                Some(member.clone())
+            }
+            _ => None,
+        })
+        .collect();
+    let all_members: HashSet<String> = MEMBER_TOMLS.keys().cloned().collect();
+    let members_not_for_publish: HashSet<String> =
+        all_members.difference(&*CRATES_FOR_PUBLISH).cloned().collect();
+
+    let mut unpublished_crates_missing_flag: Vec<String> =
+        members_not_for_publish.difference(&unpublishable_members).cloned().collect();
+    let mut published_crates_with_flag: Vec<String> =
+        unpublishable_members.intersection(&*CRATES_FOR_PUBLISH).cloned().collect();
+    unpublished_crates_missing_flag.sort();
+    published_crates_with_flag.sort();
+    assert!(
+        unpublished_crates_missing_flag.is_empty() && published_crates_with_flag.is_empty(),
+        "The following crates are not intended for publishing but lack `publish = false`: \
+         {unpublished_crates_missing_flag:#?}.\nThe following crates are intended for publishing \
+         but have `publish = false`: {published_crates_with_flag:#?}."
     );
 }
 

@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Tool for re-executing historical Starknet blocks to verify transaction execution correctness."
+publish = false
 
 [features]
 blockifier_regression_https_testing = []
