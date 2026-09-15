@@ -116,6 +116,10 @@ pub struct StatelessTransactionValidatorConfig {
 
     // If true, allows transactions with non-empty proof_facts or proof fields.
     pub allow_client_side_proving: bool,
+    // If true, allows proofs stamped with proof version V1.
+    pub allow_proof_version_v1: bool,
+    // If true, allows proofs stamped with proof version V2.
+    pub allow_proof_version_v2: bool,
 }
 
 impl Default for StatelessTransactionValidatorConfig {
@@ -131,6 +135,8 @@ impl Default for StatelessTransactionValidatorConfig {
             min_sierra_version: VersionId::new(1, 1, 0),
             max_sierra_version: VersionId::new(1, 9, usize::MAX),
             allow_client_side_proving: true,
+            allow_proof_version_v1: false,
+            allow_proof_version_v2: true,
             max_proof_size: 480000,
         }
     }
