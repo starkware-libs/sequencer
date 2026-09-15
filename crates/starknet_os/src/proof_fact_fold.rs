@@ -14,6 +14,62 @@ pub const BLAKE2S_DIGEST_N_WORDS: usize = 8;
 /// A Blake2s-256 digest as little-endian u32 words.
 pub type Blake2sDigestWords = [u32; BLAKE2S_DIGEST_N_WORDS];
 
+/// The leaf cairo-verifier circuit's hash, from the proving side's circuit registry:
+/// blake2s(log_blowup_factor || component_log_sizes || preprocessed_root).
+///
+/// NOTE: `canonical_small` test-registry value; to be replaced with the production
+/// registry's before production use.
+pub const LEAF_VERIFIER_CIRCUIT_HASH: Blake2sDigestWords = [
+    0xd2d85a42, 0x79697b22, 0x3a41a061, 0x011cb393, 0x7a040ec9, 0x4508f4ca, 0x42239409, 0x60f3baea,
+];
+
+/// The multiverifier circuit's hash (same format and caveat as
+/// [`LEAF_VERIFIER_CIRCUIT_HASH`]). One value covers all fold nodes: internal and root
+/// folds differ only in their Fiat-Shamir channel.
+pub const MULTIVERIFIER_CIRCUIT_HASH: Blake2sDigestWords = [
+    0xa5989715, 0x2377c07a, 0xc6d1e844, 0x54f0a04d, 0x8be65a7d, 0xfd73c261, 0x9078e728, 0x973f680f,
+];
+
+/// A fold-tree node: the hash of the circuit that proved it, and its output digest.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FoldEntry {
+    pub circuit_hash: Blake2sDigestWords,
+    pub output_digest: Blake2sDigestWords,
+}
+
+impl FoldEntry {
+    fn to_words(&self) -> Vec<u32> {
+        self.circuit_hash.iter().chain(self.output_digest.iter()).copied().collect()
+    }
+}
+
+/// Folds a block's privacy transactions' proof facts into the block's root entry.
+/// Transactions with empty proof facts must not be included.
+///
+/// # Panics
+/// If `per_transaction_proof_facts` is empty (the proving side rejects an empty leaf
+/// list) or any transaction's proof facts are shorter than 3 felts.
+pub fn fold_block_proof_facts(per_transaction_proof_facts: &[&[Felt]]) -> FoldEntry {
+    assert!(
+        !per_transaction_proof_facts.is_empty(),
+        "a block fold requires at least one transaction's proof facts"
+    );
+    let leaf_entries: Vec<FoldEntry> = per_transaction_proof_facts
+        .iter()
+        .map(|proof_facts| FoldEntry {
+            circuit_hash: LEAF_VERIFIER_CIRCUIT_HASH,
+            output_digest: compute_leaf_output_digest(proof_facts),
+        })
+        .collect();
+    fold_entries_to_root(leaf_entries)
+}
+
+/// The digest the circuit verifier outputs for the proof whose facts fold to `entry`:
+/// blake2s over its 16 words (proving side: `get_verification_output`).
+pub fn compute_fold_digest(entry: &FoldEntry) -> Blake2sDigestWords {
+    blake2s_over_u32_words(&entry.to_words())
+}
+
 /// Computes one transaction's leaf output digest:
 /// blake2s(encode_felt252s_to_u32s(proof_facts[2..])). The preimage drops the two
 /// version markers, keeping [program_hash, ...virtual OS output] - the preimage the
@@ -33,4 +89,40 @@ pub fn blake2s_over_u32_words(words: &[u32]) -> Blake2sDigestWords {
     std::array::from_fn(|word_index| {
         u32::from_le_bytes(digest_bytes[word_index * 4..(word_index + 1) * 4].try_into().unwrap())
     })
+}
+
+/// Folds layer-0 entries into the single root entry. A single entry self-folds (the
+/// multiverifier verifies the same proof in both slots).
+fn fold_entries_to_root(entries: Vec<FoldEntry>) -> FoldEntry {
+    match entries.as_slice() {
+        [single_entry] => fold_pair(single_entry, single_entry),
+        _ => fold_layers_to_root(entries),
+    }
+}
+
+/// Folds layers of adjacent pairs left to right, carrying a trailing unpaired entry
+/// unchanged, until one entry remains; a single entry is returned unchanged.
+fn fold_layers_to_root(mut layer_entries: Vec<FoldEntry>) -> FoldEntry {
+    while layer_entries.len() > 1 {
+        layer_entries = layer_entries
+            .chunks(2)
+            .map(|entry_pair| match entry_pair {
+                [left_entry, right_entry] => fold_pair(left_entry, right_entry),
+                [lone_entry] => *lone_entry,
+                _ => unreachable!("chunks(2) yields chunks of one or two entries"),
+            })
+            .collect();
+    }
+    layer_entries.pop().expect("the fold loop terminates with exactly one entry")
+}
+
+/// The parent's output digest is blake2s over the children's 32 raw u32 words (no felt
+/// encoding at fold levels); its circuit hash is the multiverifier's.
+fn fold_pair(left_entry: &FoldEntry, right_entry: &FoldEntry) -> FoldEntry {
+    FoldEntry {
+        circuit_hash: MULTIVERIFIER_CIRCUIT_HASH,
+        output_digest: blake2s_over_u32_words(
+            &[left_entry.to_words(), right_entry.to_words()].concat(),
+        ),
+    }
 }
