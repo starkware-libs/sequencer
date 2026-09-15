@@ -96,6 +96,28 @@ pub enum ClassesProviderError {
     HintsConversionError(#[from] ProgramError),
 }
 
+/// Source location recorded by the service's panic hook.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PanicLocation {
+    pub file: String,
+    pub line: u32,
+}
+
+impl std::fmt::Display for PanicLocation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}:{}", self.file, self.line)
+    }
+}
+
+/// A missing location means the capture hook did not observe the panic.
+#[cfg(feature = "stwo_proving")]
+fn format_panic_location(panic_location: &Option<PanicLocation>) -> String {
+    match panic_location {
+        Some(panic_location) => panic_location.to_string(),
+        None => "unknown location".to_string(),
+    }
+}
+
 /// Errors that can occur during proving.
 #[derive(Debug, Error)]
 pub enum ProvingError {
@@ -106,6 +128,11 @@ pub enum ProvingError {
     #[cfg(feature = "stwo_proving")]
     #[error("Proving task failed to join: {0}")]
     TaskJoin(#[source] tokio::task::JoinError),
+
+    /// A panic caught at the synchronous prover boundary.
+    #[cfg(feature = "stwo_proving")]
+    #[error("Prover panicked at {}: {message}", format_panic_location(location))]
+    ProverPanic { location: Option<PanicLocation>, message: String },
 }
 
 /// Error type for the virtual SNOS prover.

@@ -17,6 +17,10 @@ use crate::errors::{
     VirtualSnosProverError,
 };
 
+#[cfg(all(test, feature = "stwo_proving"))]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 // Starknet RPC v0.10 error codes.
 
 /// Block not found (code 24).

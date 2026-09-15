@@ -2,9 +2,9 @@ use std::panic::UnwindSafe;
 
 use tracing_test::traced_test;
 
-use crate::server::panic::install_panic_hook;
+use crate::server::panic::{install_panic_hook, take_last_panic_location};
 
-// The panic hook is global state, so a single #[test] keeps the captures serial.
+// Keep log assertions together so each payload has a single expected event.
 #[test]
 #[traced_test]
 fn logs_structured_event_with_location_payload_and_backtrace() {
@@ -14,6 +14,15 @@ fn logs_structured_event_with_location_payload_and_backtrace() {
     let static_panic_line = line!() + 1;
     catch_panic_under_hook(|| panic!("static literal"));
     let expected_location = format!("{}:{}:", file!(), static_panic_line);
+
+    let panic_location = take_last_panic_location().expect("hook must record the panic's location");
+    assert_eq!(panic_location.file, file!());
+    assert_eq!(panic_location.line, static_panic_line);
+    assert_eq!(
+        take_last_panic_location(),
+        None,
+        "take_last_panic_location must clear the recorded location"
+    );
 
     assert!(logs_contain("Service panicked"), "must log a human-readable summary");
     assert!(logs_contain("event=\"panic\""), "must tag the event for log-based alerting");
@@ -78,11 +87,8 @@ fn logs_structured_event_with_location_payload_and_backtrace() {
     });
 }
 
-/// Runs `panicking_body` with the service panic hook installed and swallows
-/// the unwind. Restores whichever hook was installed before.
+/// Leave the service hook installed for other tests that capture panic locations.
 fn catch_panic_under_hook(panicking_body: impl FnOnce() + UnwindSafe) {
-    let previous_hook = std::panic::take_hook();
     install_panic_hook();
     let _ = std::panic::catch_unwind(panicking_body);
-    std::panic::set_hook(previous_hook);
 }
