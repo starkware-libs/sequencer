@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Actions are pinned to full commit SHAs, so nothing moves them except Dependabot. It
+  # rewrites the SHA and the trailing version comment on the same line. One grouped PR
+  # per week instead of one per action.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Security advisories only; routine crate bumps stay a manual decision.
+  # `open-pull-requests-limit: 0` disables version updates without affecting security
+  # updates. `schedule` is required by the schema even so.
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    groups:
+      cargo-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+# No `pip` ecosystem: the requirements.txt files are `pip freeze` snapshots generated from
+# the sibling *-gen.txt files (see scripts/requirements-gen.txt), and editing the frozen
+# file directly would desync it from its definition.
