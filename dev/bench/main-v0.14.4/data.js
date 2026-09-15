@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789455471052,
+  "lastUpdate": 1789488584166,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -373,6 +373,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1383.27107783,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "95286058d0fb08e445d231bcb6cc4a89743ed5be",
+          "message": "apollo_rpc_types,apollo_rpc,apollo_gateway_types: extract rpc error types into apollo_rpc_types (#14784)\n\napollo_gateway_types only needed apollo_rpc for its JSON-RPC error constants,\nwhich dragged apollo_storage, blockifier, and jsonrpsee-server into\napollo_http_server and apollo_mempool_p2p through a component that has no\nother use for them. Extract the error module verbatim into a new\napollo_rpc_types crate depending only on jsonrpsee-types, and have\napollo_gateway_types depend on that instead. apollo_rpc re-exports the module\nso its own internal paths stay unchanged.",
+          "timestamp": "2026-09-15T15:45:23Z",
+          "tree_id": "9898e566851c1c82b68ab13a9d52ba3b467eaf9e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/95286058d0fb08e445d231bcb6cc4a89743ed5be"
+        },
+        "date": 1789488583533,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 913.32494288,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1360.3439101600002,
             "unit": "ms"
           }
         ]
