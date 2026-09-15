@@ -80,6 +80,10 @@ pub(crate) trait Writer<V: ValueSerde> {
 
     /// Flushes the mmap to the file.
     fn flush(&self);
+
+    /// Returns whether the mmap has unflushed writes, i.e. whether `flush` would perform an
+    /// actual `msync` if called now.
+    fn needs_flush(&self) -> bool;
 }
 
 /// A trait for reading from a memory mapped file.
@@ -230,6 +234,10 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
         if mmap_file.should_flush {
             mmap_file.flush();
         }
+    }
+
+    fn needs_flush(&self) -> bool {
+        self.mmap_file.lock().expect("Lock should not be poisoned").should_flush
     }
 }
 
