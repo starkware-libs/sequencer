@@ -13,7 +13,6 @@ testing = []
 apollo_metrics.workspace = true
 apollo_network_config.workspace = true
 apollo_network_types.workspace = true
-apollo_propeller.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
