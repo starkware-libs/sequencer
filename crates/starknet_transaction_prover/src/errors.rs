@@ -115,6 +115,13 @@ pub enum ProvingError {
 }
 
 /// Error type for the virtual SNOS prover.
+///
+/// Never log an error's `Display` text. These failures reach the operator's log aggregator, and
+/// every payload-carrying variant can embed data derived from the client's transaction:
+/// `InvalidTransactionInput` quotes the fee inputs, a reverted transaction carries its hash and
+/// revert reason, runner, output-parse and proving errors can quote transaction-derived program
+/// output, and a transport error renders the node URL with any credentials in it. Log
+/// [`Self::metric_outcome`] instead, which is a bounded label set.
 #[derive(Debug, Error)]
 pub enum VirtualSnosProverError {
     #[error("Invalid transaction type: {0}")]
