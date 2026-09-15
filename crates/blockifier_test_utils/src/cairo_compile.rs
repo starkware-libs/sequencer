@@ -1,14 +1,16 @@
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::thread;
+use std::time::Duration;
 
 use apollo_infra_utils::cairo0_compiler::Cairo0Script;
 use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
-use tracing::info;
+use tracing::{info, warn};
 
 pub enum CompilationArtifacts {
     Cairo0 { casm: Vec<u8> },
@@ -76,6 +78,12 @@ pub fn generate_allowed_libfuncs_legacy_json() -> String {
     serde_json::json!({"allowed_libfuncs": keys}).to_string()
 }
 
+/// Maximum number of attempts to download and extract the Cairo package before giving up.
+const MAX_DOWNLOAD_ATTEMPTS: u32 = 3;
+
+/// Delay before retrying a failed download, scaled by the attempt number.
+const DOWNLOAD_RETRY_BACKOFF: Duration = Duration::from_secs(2);
+
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
 fn download_cairo_package(version: &String) {
@@ -83,29 +91,95 @@ fn download_cairo_package(version: &String) {
     info!("Downloading Cairo package to {directory:?}.");
     std::fs::create_dir_all(&directory).unwrap();
 
-    // Download the artifact.
     let filename = "release-x86_64-unknown-linux-musl.tar.gz";
     let package_url =
         format!("https://github.com/starkware-libs/cairo/releases/download/v{version}/{filename}");
-    let curl_result = run_and_verify_output(Command::new("curl").args(["-L", &package_url]));
-    let mut tar_command = Command::new("tar")
-        .args(["-xz", "-C", directory.to_str().unwrap()])
-        .stdin(Stdio::piped())
+
+    let mut last_error = String::new();
+    for attempt in 1..=MAX_DOWNLOAD_ATTEMPTS {
+        match stream_download_and_extract(&package_url, &directory) {
+            Ok(()) => {
+                // Written last: acts as a commit marker so concurrent callers checking
+                // `cairo1_package_exists` never observe a half-extracted package.
+                let marker = cairo1_package_complete_marker(version);
+                fs::write(&marker, b"").unwrap_or_else(|error| {
+                    panic!("Failed to write download marker {marker:?}: {error}")
+                });
+                info!("Done.");
+                return;
+            }
+            Err(error) => {
+                last_error = error;
+                if attempt < MAX_DOWNLOAD_ATTEMPTS {
+                    warn!(
+                        "Cairo package download attempt {attempt}/{MAX_DOWNLOAD_ATTEMPTS} failed, \
+                         retrying: {last_error}"
+                    );
+                    // Discard any partial extraction so a retry never mixes leftovers from a
+                    // failed attempt with freshly extracted files. Safe because the lock file
+                    // used by `with_file_lock` lives beside this directory, not inside it.
+                    fs::remove_dir_all(&directory).unwrap_or_else(|error| {
+                        panic!("Failed to reset {directory:?} before retrying: {error}")
+                    });
+                    std::fs::create_dir_all(&directory).unwrap();
+                    thread::sleep(DOWNLOAD_RETRY_BACKOFF * attempt);
+                }
+            }
+        }
+    }
+    panic!(
+        "Failed to download Cairo package from {package_url} after {MAX_DOWNLOAD_ATTEMPTS} \
+         attempts. Last error: {last_error}"
+    );
+}
+
+/// Streams the release tarball at `package_url` directly into `tar`, extracting it into
+/// `directory`, without buffering the whole archive in memory. Returns an error instead of
+/// panicking so the caller can retry.
+fn stream_download_and_extract(package_url: &str, directory: &Path) -> Result<(), String> {
+    let mut curl_command = Command::new("curl")
+        .args(["--fail", "--silent", "--show-error", "--location", package_url])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    let tar_command_stdin = tar_command.stdin.as_mut().unwrap();
-    tar_command_stdin.write_all(&curl_result.stdout).unwrap();
-    let output = tar_command.wait_with_output().unwrap();
-    if !output.status.success() {
-        let stderr_output = String::from_utf8(output.stderr).unwrap();
-        panic!("{stderr_output}");
+    let curl_stdout = curl_command.stdout.take().unwrap();
+
+    let mut tar_command = Command::new("tar")
+        .args(["-xz", "-C", directory.to_str().unwrap()])
+        .stdin(Stdio::from(curl_stdout))
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    // Drain both stderr pipes on background threads before waiting on either child: if a child
+    // writes enough to fill its stderr pipe, waiting on it before the pipe is drained would
+    // deadlock.
+    let mut curl_stderr_pipe = curl_command.stderr.take().unwrap();
+    let curl_stderr_reader = thread::spawn(move || {
+        let mut curl_stderr = String::new();
+        curl_stderr_pipe.read_to_string(&mut curl_stderr).ok();
+        curl_stderr
+    });
+    let mut tar_stderr_pipe = tar_command.stderr.take().unwrap();
+    let tar_stderr_reader = thread::spawn(move || {
+        let mut tar_stderr = String::new();
+        tar_stderr_pipe.read_to_string(&mut tar_stderr).ok();
+        tar_stderr
+    });
+
+    let curl_status = curl_command.wait().unwrap();
+    let tar_status = tar_command.wait().unwrap();
+    let curl_stderr = curl_stderr_reader.join().unwrap();
+    let tar_stderr = tar_stderr_reader.join().unwrap();
+
+    if !curl_status.success() {
+        return Err(format!("curl failed: {curl_stderr}"));
     }
-    // Written last: acts as a commit marker so concurrent callers checking
-    // `cairo1_package_exists` never observe a half-extracted package.
-    let marker = cairo1_package_complete_marker(version);
-    fs::write(&marker, b"")
-        .unwrap_or_else(|e| panic!("Failed to write download marker {marker:?}: {e}"));
-    info!("Done.");
+    if !tar_status.success() {
+        return Err(format!("tar failed: {tar_stderr}"));
+    }
+    Ok(())
 }
 
 fn cairo1_package_exists(version: &String) -> bool {
