@@ -1066,6 +1066,10 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    // The jsonnet-built config does not emit this param, so it must fall back to the default.
+    // `#15082` set it explicitly in the deployment JSONs that `#15096` removed; those values
+    // (`enabled: false`, `batch_size: 100`) are exactly `BatchConfig::default()`.
+    #[serde(default)]
     #[validate(nested)]
     pub batch_config: BatchConfig,
 }
