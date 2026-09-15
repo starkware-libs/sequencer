@@ -13,7 +13,7 @@ use apollo_transaction_converter::TransactionConverterError;
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{AllResourceBounds, TransactionSignature};
+use starknet_api::transaction::fields::{AllResourceBounds, ProofVersion, TransactionSignature};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::debug;
@@ -91,6 +91,8 @@ pub enum StatelessTransactionValidatorError {
         "Client-side proof is too large: size {proof_size} (maximum allowed: {max_proof_size})."
     )]
     ProofTooLarge { proof_size: usize, max_proof_size: usize },
+    #[error("Proof version {proof_version} is not accepted by this gateway.")]
+    ProofVersionNotAllowed { proof_version: ProofVersion },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -115,7 +117,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. }
             | StatelessTransactionValidatorError::ClientSideProvingNotAllowed
             | StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. }
-            | StatelessTransactionValidatorError::ProofTooLarge { .. } => {
+            | StatelessTransactionValidatorError::ProofTooLarge { .. }
+            | StatelessTransactionValidatorError::ProofVersionNotAllowed { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -201,6 +204,11 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
             }
             StatelessTransactionValidatorError::ProofTooLarge { .. } => {
                 StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.PROOF_TOO_LARGE".to_string())
+            }
+            StatelessTransactionValidatorError::ProofVersionNotAllowed { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.PROOF_VERSION_NOT_ALLOWED".to_string(),
+                )
             }
         };
         StarknetError { code, message }
