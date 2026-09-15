@@ -3,13 +3,7 @@ use std::sync::{Arc, LazyLock};
 use privacy_circuit_verify_v2::utils::ProofHeader;
 use rstest::rstest;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
-use starknet_api::transaction::fields::{
-    Proof,
-    ProofFacts,
-    ProofVersion,
-    PROOF_VERSION_V0,
-    PROOF_VERSION_V1,
-};
+use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion, PROOF_VERSION_V0};
 use starknet_types_core::felt::Felt;
 
 use crate::{reconstruct_output_preimage, verify_proof, ProgramOutput, VerifyProofError};
@@ -135,13 +129,12 @@ fn verify_proof_rejects_proof_facts_too_short() {
     assert_eq!(result, Err(VerifyProofError::ProofFactsTooShort { length: 2 }));
 }
 
-/// Only V2 is verifiable: an unsupported marker, and V0 / V1 whose circuits were removed, are all
-/// rejected before reaching a verifier.
+/// Only V1 and V2 are verifiable: an unsupported marker, and V0 whose circuit was removed, are
+/// both rejected before reaching a verifier.
 #[rstest]
 #[case::unsupported(Felt::from(0xDEAD_u64))]
 #[case::v0(PROOF_VERSION_V0)]
-#[case::v1(PROOF_VERSION_V1)]
-fn verify_proof_rejects_non_v2_proof_version(#[case] version_marker: Felt) {
+fn verify_proof_rejects_unverifiable_proof_version(#[case] version_marker: Felt) {
     let (proof_facts, compressed_proof) = VALID_PROOF_FIXTURE.clone();
     let mut tampered_facts = (*proof_facts.0).clone();
     tampered_facts[0] = version_marker;

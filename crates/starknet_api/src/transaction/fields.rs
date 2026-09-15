@@ -645,8 +645,9 @@ pub const PROOF_VERSION_V2: Felt = Felt::from_hex_unchecked("0x50524f4f4632");
 
 /// Supported proof-facts version markers.
 ///
-/// V0 and V1 are retained only so historical blocks carrying those proof facts stay replayable;
-/// acceptance is gated per protocol version in the blockifier. Only V2 is verifiable.
+/// V1 and V2 are both verifiable, each against its own circuit. V0 is retained only so historical
+/// blocks carrying V0 proof facts stay replayable; its circuit was removed. Whether a version is
+/// accepted is gated per protocol version in the blockifier.
 #[cfg_attr(any(test, feature = "testing"), derive(EnumIter))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProofVersion {
