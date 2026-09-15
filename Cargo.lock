@@ -10621,7 +10621,7 @@ dependencies = [
 [[package]]
 name = "privacy-circuit-verify"
 version = "1.2.2"
-source = "git+https://github.com/starkware-libs/proving-utils?tag=v0.14.3-rust-bump#3035dd00421daa541894297bd754db6e2787807b"
+source = "git+https://github.com/starkware-libs/proving-utils?rev=3035dd00421daa541894297bd754db6e2787807b#3035dd00421daa541894297bd754db6e2787807b"
 dependencies = [
  "anyhow",
  "cairo-air 1.2.2",
