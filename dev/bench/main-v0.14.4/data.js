@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789415806395,
+  "lastUpdate": 1789455471052,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -339,6 +339,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1522.6845512300001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f971cfda4799ddfd3284c618562020951034512f",
+          "message": "workspace,apollo_starknet_os_program,blockifier,starknet_proof_verifier: accept V1 and V2 proofs (#15120)\n\nMakes the verifier, the OS and the blockifier accept proof version V1 alongside\nV2, so proofs from the previously deployed prover stay valid while V2 rolls out.\nThe in-repo transaction prover is unchanged and keeps producing V2 only.\n\n- Workspace: restores privacy-circuit-verify from proving-utils as the -v1\n  dependency, next to -v2 from proving. Purely additive: no shared dependency\n  changes version.\n- starknet_proof_verifier: verify_proof dispatches V1 to the V1 circuit and V2\n  to the V2 circuit; V0 stays rejected. try_into_proof_facts still stamps V2,\n  the only version built here.\n- Cairo OS: check_proof_facts accepts PROOF_VERSION_V1 or PROOF_VERSION_V2.\n  Only the `os` program hash changes; regenerated.\n- starknet_os: restores Const::ProofVersionV1.\n- blockifier: allowed_proof_versions for 0.14.4 becomes [V1, V2].\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-15T06:30:09Z",
+          "tree_id": "21ea940d5aff2b076deafe84987c2aa5669fcb96",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f971cfda4799ddfd3284c618562020951034512f"
+        },
+        "date": 1789455470384,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 971.8617271,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1383.27107783,
             "unit": "ms"
           }
         ]
