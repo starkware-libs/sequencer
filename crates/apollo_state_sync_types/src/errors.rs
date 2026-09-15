@@ -1,5 +1,3 @@
-use apollo_starknet_client::reader::ReaderClientError;
-use apollo_storage::StorageError;
 use futures::channel::mpsc::SendError;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -33,12 +31,6 @@ pub enum StateSyncError {
     ReaderClientError(String),
 }
 
-impl From<StorageError> for StateSyncError {
-    fn from(error: StorageError) -> Self {
-        StateSyncError::StorageError(error.to_string())
-    }
-}
-
 impl From<StarknetApiError> for StateSyncError {
     fn from(error: StarknetApiError) -> Self {
         StateSyncError::StarknetApiError(error.to_string())
@@ -48,11 +40,5 @@ impl From<StarknetApiError> for StateSyncError {
 impl From<SendError> for StateSyncError {
     fn from(error: SendError) -> Self {
         StateSyncError::SendError(error.to_string())
-    }
-}
-
-impl From<ReaderClientError> for StateSyncError {
-    fn from(error: ReaderClientError) -> Self {
-        StateSyncError::ReaderClientError(error.to_string())
     }
 }
