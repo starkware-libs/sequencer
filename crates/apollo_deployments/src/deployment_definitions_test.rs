@@ -1,17 +1,42 @@
 use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 
+<<<<<<< HEAD
+||||||| dcbc94331e
+use apollo_infra_utils::dumping::serialize_to_file;
+=======
+use apollo_config::{CONFIG_FILE_ARG, FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_infra_utils::dumping::serialize_to_file;
+>>>>>>> origin/main-v0.14.4
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::config_utils::private_parameters;
+<<<<<<< HEAD
 use serde_json::{to_value, Map};
+||||||| dcbc94331e
+use serde_json::{to_value, Map, Value};
+=======
+use apollo_node_config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_SCHEMA_PATH,
+    POINTER_TARGET_VALUE,
+};
+use serde_json::{to_value, Map, Value};
+>>>>>>> origin/main-v0.14.4
 use strum::IntoEnumIterator;
 
 use crate::deployment_definitions::ComponentConfigInService;
+<<<<<<< HEAD
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::jsonnet_tests::assert_build_deserializes;
 use crate::service::NodeType;
+||||||| dcbc94331e
+use crate::service::NodeType;
+=======
+use crate::replacers::replacer_annotation;
+use crate::service::{NodeService, NodeType};
+>>>>>>> origin/main-v0.14.4
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
@@ -31,8 +56,217 @@ fn build_hybrid_deserializes_into_node_config() {
 
 /// Verifies build('distributed', params) deserializes into SequencerNodeConfig per service.
 #[test]
+<<<<<<< HEAD
 fn build_distributed_deserializes_into_node_config() {
     assert_build_deserializes::<DistributedNodeServiceName>();
+||||||| dcbc94331e
+fn duplicate_config_entries() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    // Create a dummy secrets value and dump it as a config file.
+    let secrets_file = NamedTempFile::new().unwrap();
+    let secrets_file_path = secrets_file.path().to_str().unwrap();
+    let secrets_config_override = SecretsConfigOverride::default();
+    serialize_to_file(&to_value(&secrets_config_override).unwrap(), secrets_file_path);
+
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let deployment_file_path = node_service.replacer_deployment_file_path();
+            let deployment_file = File::open(deployment_file_path).unwrap();
+
+            let mut application_config_files: Vec<String> =
+                serde_json::from_reader(deployment_file)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    .unwrap();
+
+            // Add the secrets config file path to the config load command.
+            application_config_files.push(secrets_file_path.to_string());
+
+            let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+            for application_config_file in &application_config_files {
+                let file = File::open(application_config_file).unwrap();
+                let json_map: Map<String, Value> = serde_json::from_reader(file)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    .unwrap();
+
+                for key in json_map.keys() {
+                    key_to_files
+                        .entry(key.clone())
+                        .or_default()
+                        .insert(application_config_file.to_string());
+                }
+            }
+
+            // Report duplicated keys
+            let mut has_duplicates = false;
+            for (key, files) in &key_to_files {
+                if files.len() > 1 {
+                    has_duplicates = true;
+                    println!(
+                        "For node type {node_type} the key '{key}' was found in files: {files:?}"
+                    );
+                }
+            }
+            assert!(!has_duplicates, "Found duplicate keys in service config files.");
+        }
+    }
+=======
+fn duplicate_config_entries() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    // Create a dummy secrets value and dump it as a config file.
+    let secrets_file = NamedTempFile::new().unwrap();
+    let secrets_file_path = secrets_file.path().to_str().unwrap();
+    let secrets_config_override = SecretsConfigOverride::default();
+    serialize_to_file(&to_value(&secrets_config_override).unwrap(), secrets_file_path);
+
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let mut config_files_to_load = application_config_files(&node_service);
+
+            // Add the secrets config file path to the config load command.
+            config_files_to_load.push(secrets_file_path.to_string());
+
+            let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+            for application_config_file in &config_files_to_load {
+                for key in config_file_params(application_config_file).keys() {
+                    key_to_files
+                        .entry(key.clone())
+                        .or_default()
+                        .insert(application_config_file.to_string());
+                }
+            }
+
+            // Report duplicated keys
+            let mut has_duplicates = false;
+            for (key, files) in &key_to_files {
+                if files.len() > 1 {
+                    has_duplicates = true;
+                    println!(
+                        "For node type {node_type} the key '{key}' was found in files: {files:?}"
+                    );
+                }
+            }
+            assert!(!has_duplicates, "Found duplicate keys in service config files.");
+        }
+    }
+>>>>>>> origin/main-v0.14.4
+}
+
+/// Test that every config param a service needs is set explicitly in its application config
+/// files. A deployed pod loads them through `SequencerNodeConfig::load_and_process`, which passes
+/// `ignore_default_values = true`, so an absent param either fails deserialization at startup or
+/// silently takes a value no environment can override.
+#[test]
+fn all_config_params_are_set_in_service_configs() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let config_schema: Map<String, Value> = serde_json::from_reader(
+        File::open(resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap()).unwrap(),
+    )
+    .unwrap();
+
+    // Params carrying a `pointer_target` instead of a `value` are resolved from the param they
+    // point at, and private params come from the secrets file; neither belongs in an app config.
+    let private_params = private_parameters();
+    let required_params: BTreeSet<&String> = config_schema
+        .iter()
+        .filter(|(param_path, param)| {
+            param.get("value").is_some() && !private_params.contains(*param_path)
+        })
+        .map(|(param_path, _)| param_path)
+        .collect();
+
+    let is_none_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let mut set_params: Map<String, Value> = Map::new();
+            for application_config_file in &application_config_files(&node_service) {
+                set_params.extend(config_file_params(application_config_file));
+            }
+
+            // A `None` optional keeps only its own `#is_none` mark: `update_optional_values` drops
+            // both the params below it and its own param.
+            let disabled_params: BTreeSet<String> = set_params
+                .iter()
+                .filter(|(param_path, value)| {
+                    param_path.ends_with(&is_none_suffix) && *value == &Value::Bool(true)
+                })
+                .map(|(param_path, _)| param_path.strip_suffix(&is_none_suffix).unwrap().to_owned())
+                .collect();
+
+            let missing_params: Vec<&String> = required_params
+                .iter()
+                .copied()
+                .filter(|param_path| {
+                    !set_params.contains_key(*param_path)
+                        && !disabled_params.iter().any(|disabled| {
+                            *param_path == disabled
+                                || param_path.starts_with(&format!("{disabled}{FIELD_SEPARATOR}"))
+                        })
+                })
+                .collect();
+
+            assert!(
+                missing_params.is_empty(),
+                "Service {node_service:?} of node type {node_type} does not set \
+                 {missing_params:#?}. Add each param to the matching file under \
+                 crates/apollo_deployments/resources/app_configs and regenerate."
+            );
+        }
+    }
+}
+
+/// Test that each service's application configs load through the same entry point its pod uses.
+/// Values an environment supplies at deploy time are stubbed here: a replacer placeholder takes
+/// the schema default, and a pointer target takes a well-formed dummy of its own kind.
+#[test]
+fn all_service_configs_load() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    let config_schema: Map<String, Value> = serde_json::from_reader(
+        File::open(resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap()).unwrap(),
+    )
+    .unwrap();
+
+    let secrets_file = NamedTempFile::new().unwrap();
+    let secrets_file_path = secrets_file.path().to_str().unwrap();
+    serialize_to_file(&to_value(SecretsConfigOverride::default()).unwrap(), secrets_file_path);
+
+    for node_type in NodeType::iter() {
+        for node_service in node_type.all_service_names() {
+            let mut set_params = Map::new();
+            for application_config_file in &application_config_files(&node_service) {
+                for (param_path, value) in config_file_params(application_config_file) {
+                    let value = deploy_time_value(&param_path, value, &config_schema);
+                    set_params.insert(param_path, value);
+                }
+            }
+
+            let merged_config_file = NamedTempFile::new().unwrap();
+            let merged_config_file_path = merged_config_file.path().to_str().unwrap();
+            serialize_to_file(&Value::Object(set_params), merged_config_file_path);
+
+            let args = vec![
+                "apollo_node".to_owned(),
+                CONFIG_FILE_ARG.to_owned(),
+                merged_config_file_path.to_owned(),
+                CONFIG_FILE_ARG.to_owned(),
+                secrets_file_path.to_owned(),
+            ];
+            SequencerNodeConfig::load_and_process(args).unwrap_or_else(|error| {
+                panic!(
+                    "Service {node_service:?} of node type {node_type} failed to load its \
+                     application configs: {error:?}"
+                )
+            });
+        }
+    }
 }
 
 /// Test that the private values in the apollo node config schema match the secrets config override
@@ -114,5 +348,35 @@ fn l1_components_state_consistency() {
             l1_events_provider_indicator, l1_scraper_indicator,
             "L1 provider and scraper should either be both enabled or both disabled."
         );
+    }
+}
+
+/// The application config files a service's pod mounts, in the order the deployment lists them.
+fn application_config_files(node_service: &NodeService) -> Vec<String> {
+    let deployment_file = File::open(node_service.replacer_deployment_file_path()).unwrap();
+    serde_json::from_reader(deployment_file).unwrap()
+}
+
+fn config_file_params(application_config_file: &str) -> Map<String, Value> {
+    serde_json::from_reader(File::open(application_config_file).unwrap()).unwrap()
+}
+
+/// The value an environment supplies at deploy time in place of the placeholder the application
+/// configs carry.
+fn deploy_time_value(param_path: &str, value: Value, config_schema: &Map<String, Value>) -> Value {
+    let value = if value == Value::String(replacer_annotation(param_path)) {
+        config_schema.get(param_path).and_then(|param| param.get("value")).cloned().unwrap_or(value)
+    } else {
+        value
+    };
+
+    if value != Value::String(POINTER_TARGET_VALUE.to_owned()) {
+        return value;
+    }
+    match param_path {
+        "chain_id" => Value::String("SN_MAIN".to_owned()),
+        "recorder_url" | "starknet_url" => Value::String("http://localhost/".to_owned()),
+        // Every remaining pointer target is a contract address.
+        _ => Value::String("0x1".to_owned()),
     }
 }

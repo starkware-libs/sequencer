@@ -340,6 +340,18 @@ there was never a status.
 The logging layer never reads request bodies. Transaction calldata is private user data and stays
 out of the logs.
 
+### Shutdown
+
+`SIGTERM` and `SIGINT` start a graceful shutdown. The server stops accepting new requests and lets
+in-flight proofs drain. Two structured events mark the sequence in the log stream:
+`shutdown_started` when the drain begins, carrying the `signal` name, and `shutdown_complete` once
+the server has stopped.
+
+A second termination signal during the drain logs an `event="force_exit"` warning, also carrying
+the `signal` name, and calls `exit(1)`. That way an operator can always reclaim a stuck process.
+Once a handler exists, tokio keeps intercepting the signals process-wide, so without this path a
+follow-up Ctrl+C would do nothing.
+
 ### Panics
 
 A global panic hook catches every panic and logs one `error`-level event with `event="panic"`. The
