@@ -118,9 +118,9 @@ jobs:
         working-directory: crates/starknet_transaction_prover
         run: cargo test --release -p starknet_transaction_prover --features stwo_proving virtual_snos_prover_test -- --ignored --test-threads=1
 
-      - name: Run virtual OS multicall proving test
+      - name: Run virtual OS proving flow tests
         working-directory: crates/starknet_transaction_prover
-        run: cargo test --release -p starknet_os_flow_tests --features starknet_transaction_prover/stwo_proving prove_and_verify_multicall_tx -- --ignored --test-threads=1
+        run: cargo test --release -p starknet_os_flow_tests --features stwo_proving prove_ -- --ignored --test-threads=1
 
   # Test that the starknet_transaction_prover Docker image builds successfully.
   docker-build:

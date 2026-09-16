@@ -2,13 +2,18 @@ use std::fs;
 use std::sync::Arc;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
+use assert_matches::assert_matches;
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use privacy_circuit_verify_v2::consts::PRIVACY_TRANSACTION_COMPONENTS;
 use privacy_circuit_verify_v2::{verify_recursive_circuit, PrivacyProofOutput};
 use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
+use rstest::rstest;
 use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_proof_verifier::ProgramOutput;
 
-use crate::proving::prover::prove;
+use crate::errors::ProvingError;
+use crate::proving::prover::{classify_prover_task_error, prove, used_unsupported_builtins};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
@@ -102,4 +107,79 @@ fn resolve_transaction_converter_resource(file_name: &str) -> std::path::PathBuf
         ["crates", "apollo_transaction_converter", "resources", file_name].iter().collect();
     resolve_project_relative_path(&relative_path.to_string_lossy())
         .unwrap_or_else(|_| panic!("Failed to resolve path for {file_name}"))
+}
+
+fn read_cairo_pie_fixture() -> CairoPie {
+    let cairo_pie_path = resolve_resource_path(CAIRO_PIE_FILE);
+    CairoPie::read_zip_file(&cairo_pie_path).expect("Failed to read Cairo PIE from zip file")
+}
+
+/// Revisit the rejection tests when upstream enables either mod component.
+#[test]
+fn test_privacy_transaction_components_excludes_mod_builtins() {
+    assert!(!PRIVACY_TRANSACTION_COMPONENTS.contains(&"add_mod_builtin"));
+    assert!(!PRIVACY_TRANSACTION_COMPONENTS.contains(&"mul_mod_builtin"));
+    assert!(PRIVACY_TRANSACTION_COMPONENTS.contains(&"bitwise_builtin"));
+    assert!(PRIVACY_TRANSACTION_COMPONENTS.contains(&"poseidon_builtin"));
+}
+
+#[test]
+fn test_used_unsupported_builtins_empty_for_committed_fixture() {
+    let cairo_pie = read_cairo_pie_fixture();
+
+    assert!(used_unsupported_builtins(&cairo_pie).is_empty());
+}
+
+#[test]
+fn test_used_unsupported_builtins_reports_instance_counts_in_declared_order() {
+    let mut cairo_pie = read_cairo_pie_fixture();
+
+    cairo_pie.execution_resources.builtin_instance_counter.insert(BuiltinName::add_mod, 1);
+    assert_eq!(used_unsupported_builtins(&cairo_pie), vec![(BuiltinName::add_mod, 1)]);
+
+    cairo_pie.execution_resources.builtin_instance_counter.insert(BuiltinName::mul_mod, 2);
+    assert_eq!(
+        used_unsupported_builtins(&cairo_pie),
+        vec![(BuiltinName::add_mod, 1), (BuiltinName::mul_mod, 2)]
+    );
+}
+
+#[test]
+fn test_used_unsupported_builtins_ignores_explicit_zero_count() {
+    let mut cairo_pie = read_cairo_pie_fixture();
+
+    cairo_pie.execution_resources.builtin_instance_counter.insert(BuiltinName::mul_mod, 0);
+
+    assert!(used_unsupported_builtins(&cairo_pie).is_empty());
+}
+
+#[rstest]
+#[case::panic_with_usage(true, true)]
+#[case::panic_without_usage(true, false)]
+#[case::cancellation_with_usage(false, true)]
+#[case::cancellation_without_usage(false, false)]
+#[tokio::test]
+async fn test_classify_prover_task_error(#[case] panics: bool, #[case] used_mod_builtin: bool) {
+    let task = tokio::spawn(async move {
+        if panics {
+            panic!("prover panic");
+        }
+        std::future::pending::<()>().await;
+    });
+    if !panics {
+        task.abort();
+    }
+    let join_error = task.await.unwrap_err();
+    assert_eq!(join_error.is_panic(), panics);
+    let reason = join_error.to_string();
+    let builtins = if used_mod_builtin { vec![(BuiltinName::mul_mod, 3)] } else { Vec::new() };
+    let error = classify_prover_task_error(join_error, builtins.clone());
+    if panics && used_mod_builtin {
+        assert_matches!(error, ProvingError::UnsupportedBuiltins {
+            unsupported_builtins, reason: actual_reason,
+        } if unsupported_builtins == builtins && actual_reason == reason);
+    } else {
+        assert_matches!(error, ProvingError::TaskJoin(error)
+            if error.is_panic() == panics && error.to_string() == reason);
+    }
 }

@@ -20,7 +20,7 @@ curl -s -X POST http://localhost:3000 \
 Expected response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.3-rc.2" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.4" }
 ```
 
 ## API Reference
@@ -44,7 +44,7 @@ curl -s -X POST http://localhost:3000 \
 Response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.3-rc.2" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.4" }
 ```
 
 ### `starknet_proveTransaction`
@@ -127,14 +127,15 @@ curl -s -X POST http://localhost:3000 \
 
 ## Errors
 
-| Code     | Name                            | Cause                                                                                    |
-| -------- | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `24`     | Block not found                 | Block doesn't exist or a pending block ID was used.                                      |
-| `55`     | Account validation failed       | The transaction's `__validate__` entry point reverted. Check the `data` field.           |
-| `61`     | Unsupported transaction version | A non-Invoke transaction was sent (Declare, DeployAccount).                              |
-| `1000`   | Invalid transaction input       | Invalid request field: non-zero gas prices or tip, or other malformed input. See `data`. |
-| `-32005` | Service busy                    | At concurrent proving capacity. Retry later.                                             |
-| `-32603` | Internal error                  | Unexpected failure. The `data` field contains diagnostic information.                    |
+| Code     | Name                            | Cause                                                                                                         |
+| -------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `24`     | Block not found                 | Block doesn't exist or a pending block ID was used.                                                           |
+| `55`     | Account validation failed       | The transaction's `__validate__` entry point reverted. Check the `data` field.                                |
+| `61`     | Unsupported transaction version | A non-Invoke transaction was sent (Declare, DeployAccount).                                                   |
+| `1000`   | Invalid transaction input       | Invalid request field: non-zero gas prices or tip, or other malformed input. See `data`.                      |
+| `1002`   | Unsupported builtin             | The transaction evaluates a Cairo circuit (add_mod/mul_mod builtins) the prover cannot prove yet. See `data`. |
+| `-32005` | Service busy                    | At concurrent proving capacity. Retry later.                                                                  |
+| `-32603` | Internal error                  | Unexpected failure. The `data` field contains diagnostic information.                                         |
 
 **Example error response (code 61)**
 
@@ -369,6 +370,10 @@ serving.
 - Finalized blocks only — pending blocks are not supported as the `block_id`.
 - One transaction per request — batch proving is not available.
 - Nightly Rust required for the Stwo prover — this is handled automatically in the Docker image.
+- Transactions that evaluate Cairo circuits (`core::circuit`, using the `add_mod`/`mul_mod`
+  builtins) cannot be proven yet — the underlying AIR components are missing from the recursive
+  verifier circuit. Such a request fails after the proving attempt with error code `1002`
+  (Unsupported builtin), whose `data` names the offending builtins.
 
 ## Machine specs
 
