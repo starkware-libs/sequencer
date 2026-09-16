@@ -469,6 +469,23 @@ async fn test_reverted_l1_handler_tx(
     test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{}", contract_type));
 }
 
+#[tokio::test]
+async fn test_l1_handler_deprecated_get_tx_signature() {
+    let tx_info_writer = FeatureContract::TxInfoWriter;
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard([(tx_info_writer, calldata![])]).await;
+
+    test_builder.add_l1_handler(
+        contract_address,
+        "l1_write_signature",
+        calldata![Felt::from(0x1234)],
+        None,
+    );
+
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_default_validations();
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_deprecated_call_contract_variants() {
