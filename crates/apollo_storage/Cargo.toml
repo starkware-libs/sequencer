@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "A storage implementation for a Starknet node."
+publish = false
 
 [features]
 storage_cli = ["clap", "reqwest"]

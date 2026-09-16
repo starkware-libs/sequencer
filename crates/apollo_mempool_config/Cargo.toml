@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Configuration types for the Apollo mempool component."
+publish = false
 
 [dependencies]
 apollo_config.workspace = true

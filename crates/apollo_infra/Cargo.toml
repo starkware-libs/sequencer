@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Infrastructure components including component management and communication patterns."
+publish = false
 
 
 [features]
