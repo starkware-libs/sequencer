@@ -13,7 +13,7 @@ mod config_test;
 pub const DEFAULT_MAX_BYTECODE_SIZE: usize = 80 * 1024;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 pub const DEFAULT_MAX_CPU_TIME: u64 = 60;
-pub const DEFAULT_ALLOWED_LIBFUNCS_LIST: AllowedLibfuncsList = AllowedLibfuncsList::Audited;
+pub const DEFAULT_ALLOWED_LIBFUNCS_LIST: AllowedLibfuncsList = AllowedLibfuncsList::Bundled;
 
 /// Which libfuncs the Sierra-to-CASM compiler accepts.
 ///
