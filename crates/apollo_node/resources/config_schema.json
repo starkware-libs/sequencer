@@ -3739,10 +3739,10 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "sierra_compiler_config.audited_libfuncs_only": {
-    "description": "If true, restrict to audited libfuncs. Otherwise allow all.",
+  "sierra_compiler_config.allowed_libfuncs_list": {
+    "description": "The libfunc list to validate against: 'audited', 'all', or 'bundled'.",
     "privacy": "Public",
-    "value": true
+    "value": "audited"
   },
   "sierra_compiler_config.max_bytecode_size": {
     "description": "Limitation of compiled CASM bytecode size (felts).",

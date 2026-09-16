@@ -4,6 +4,7 @@ use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_sierra_compilation_config::config::{
+    AllowedLibfuncsList,
     SierraCompilationConfig,
     DEFAULT_MAX_BYTECODE_SIZE,
     DEFAULT_MAX_CPU_TIME,
@@ -24,14 +25,14 @@ use regex::Regex;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 
-use crate::compiler::SierraToCasmCompiler;
+use crate::compiler::{libfunc_list_arg, SierraToCasmCompiler};
 use crate::{RawClass, SierraCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    audited_libfuncs_only: false,
+    allowed_libfuncs_list: AllowedLibfuncsList::All,
 };
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
@@ -86,9 +87,7 @@ fn test_max_bytecode_size() {
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let casm_contract_class = compiler
         .compile(contract_class.clone())
@@ -98,9 +97,7 @@ fn test_max_bytecode_size() {
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
@@ -136,7 +133,7 @@ fn allowed_libfuncs_aligned_to_audited() {
     let libfuncs_list_selector = ListSelector::ListName(BUILTIN_AUDITED_LIBFUNCS_LIST.to_string());
     let expected = lookup_allowed_libfuncs_list(libfuncs_list_selector).unwrap().allowed_libfuncs;
 
-    let actual_str = include_str!("allowed_libfuncs.json");
+    let actual_str = include_str!("../resources/allowed_libfuncs.json");
     let actual = serde_json::from_str::<AllowedLibfuncs>(actual_str).unwrap().allowed_libfuncs;
 
     let pending_set: HashSet<&str> = PENDING_LIBFUNCS.iter().copied().collect();
@@ -164,6 +161,18 @@ fn allowed_libfuncs_aligned_to_audited() {
 }
 
 #[test]
+fn compile_against_the_bundled_libfuncs_list() {
+    let bundled_list_compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        allowed_libfuncs_list: AllowedLibfuncsList::Bundled,
+        ..SIERRA_COMPILATION_CONFIG
+    });
+    let expected_casm_contract = compiler().compile(get_test_contract()).unwrap();
+
+    assert_eq!(libfunc_list_arg(AllowedLibfuncsList::Bundled).0, "--allowed-libfuncs-list-file");
+    assert_eq!(bundled_list_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
+}
+
+#[test]
 fn test_max_memory_usage() {
     let contract_class = get_test_contract();
 
@@ -173,20 +182,16 @@ fn test_max_memory_usage() {
 
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();
     assert_eq!(executable_class, expected_executable_class);
 
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: 8 * 1024 * 1024,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let compilation_result = compiler.compile(contract_class);
     let expected_error_pattern = Regex::new(r"memory allocation .*fail").unwrap();
@@ -222,10 +227,8 @@ fn faulty_contract_error_message() {
 #[test]
 fn memory_limit_error_message() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: 8 * 1024 * 1024,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let contract_class = get_test_contract();
 
