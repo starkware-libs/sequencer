@@ -83,6 +83,7 @@ pub mod converters;
 pub mod dumping;
 pub mod loading;
 pub mod presentation;
+pub mod retry;
 pub mod secrets;
 #[cfg(any(feature = "testing", test))]
 /// Utilities for the produced configuration.
