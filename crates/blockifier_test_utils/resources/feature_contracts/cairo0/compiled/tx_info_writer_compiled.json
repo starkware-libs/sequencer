@@ -90,7 +90,7 @@
         "CONSTRUCTOR": [],
         "EXTERNAL": [
             {
-                "offset": 524,
+                "offset": 527,
                 "selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad"
             },
             {
@@ -635,11 +635,14 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x208b7fff7fff7ffe",
+            "0x480a7ffa7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe18",
             "0x20780017fff7ffd",
             "0x4",
             "0x10780017fff7fff",
             "0xc",
-            "0x480a7ffa7fff8000",
+            "0x48127ffd7fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480680017fff8000",
@@ -647,9 +650,9 @@
             "0x480680017fff8000",
             "0x0",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff17",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff14",
             "0x208b7fff7fff7ffe",
-            "0x480a7ffa7fff8000",
+            "0x48127ffd7fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x208b7fff7fff7ffe",
@@ -661,7 +664,7 @@
             "0x480280027ffb8000",
             "0x480280007ffd8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe8",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe5",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -912,7 +915,7 @@
                     }
                 }
             ],
-            "533": [
+            "536": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -2182,7 +2185,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 524,
+                "pc": 527,
                 "type": "function"
             },
             "__wrappers__.__execute__.Args": {

@@ -95,6 +95,7 @@ func __validate_deploy__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
 func __execute__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     call_write: felt
 ) {
+    let (sig_len: felt, sig: felt*) = get_tx_signature();
     if (call_write != 0) {
         write(tx_type=0, offset=0);
         return ();
