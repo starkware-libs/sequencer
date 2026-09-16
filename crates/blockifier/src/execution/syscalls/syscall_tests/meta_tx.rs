@@ -176,7 +176,7 @@ fn test_meta_tx_v0(
         assert_eq!(call_info.execution.gas_consumed, 0);
         expect![[r#"
             DeterministicExecutionResources {
-                n_steps: 14807,
+                n_steps: 14801,
                 n_memory_holes: 10,
                 builtin_instance_counter: {
                     "pedersen_builtin": 12,
@@ -197,7 +197,7 @@ fn test_meta_tx_v0(
                 l2_to_l1_messages: [],
                 cairo_native: false,
                 failed: false,
-                gas_consumed: 1534450,
+                gas_consumed: 1533850,
             }
         "#]]
         .assert_debug_eq(&call_info.execution);

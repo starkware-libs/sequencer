@@ -2,7 +2,7 @@ from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_nn_le
-from starkware.starknet.common.new_syscalls import ExecutionInfo, ResourceBounds, TxInfo
+from starkware.starknet.common.new_syscalls import ExecutionInfo, TxInfo
 from starkware.starknet.common.syscalls import TxInfo as DeprecatedTxInfo
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import BuiltinPointers
@@ -39,16 +39,12 @@ func fill_deprecated_tx_info(tx_info: TxInfo*, dst: DeprecatedTxInfo*) {
 func assert_deprecated_tx_fields_consistency(tx_info: TxInfo*) {
     tempvar version = tx_info.version;
     if (version * (version - 1) * (version - 2) == 0) {
-        let nullptr = cast(0, felt*);
         assert tx_info.tip = 0;
-        assert tx_info.resource_bounds_start = cast(0, ResourceBounds*);
-        assert tx_info.resource_bounds_end = cast(0, ResourceBounds*);
-        assert tx_info.paymaster_data_start = nullptr;
-        assert tx_info.paymaster_data_end = nullptr;
+        assert tx_info.resource_bounds_end = tx_info.resource_bounds_start;
+        assert tx_info.paymaster_data_end = tx_info.paymaster_data_start;
         assert tx_info.nonce_data_availability_mode = 0;
         assert tx_info.fee_data_availability_mode = 0;
-        assert tx_info.account_deployment_data_start = nullptr;
-        assert tx_info.account_deployment_data_end = nullptr;
+        assert tx_info.account_deployment_data_end = tx_info.account_deployment_data_start;
     } else {
         with_attr error_message("Invalid transaction version: {version}.") {
             assert version = 3;

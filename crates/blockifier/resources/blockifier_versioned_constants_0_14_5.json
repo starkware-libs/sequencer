@@ -364,7 +364,7 @@
             },
             "MetaTxV0": {
                 "constant": {
-                    "n_steps": 1319,
+                    "n_steps": 1313,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 20,
@@ -556,7 +556,7 @@
             },
             "L1Handler": {
                 "constant": {
-                    "n_steps": 1330,
+                    "n_steps": 1319,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 19,

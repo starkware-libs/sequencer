@@ -345,36 +345,28 @@ func execute_meta_tx_v0{
     update_pedersen_in_builtin_ptrs(pedersen_ptr=pedersen_ptr);
 
     // Prepare execution context.
-    local signature_start: felt*;
-    local signature_end: felt*;
-    if (request.signature_end - request.signature_start == 0) {
-        let (empty_signature: felt*) = alloc();
-        assert signature_start = empty_signature;
-        assert signature_end = empty_signature;
-    } else {
-        assert signature_start = request.signature_start;
-        assert signature_end = request.signature_end;
-    }
+    let (empty_span: felt*) = alloc();
+    let (empty_resource_bounds: ResourceBounds*) = alloc();
     tempvar new_tx_info = new TxInfo(
         version=0,
         account_contract_address=contract_address,
         max_fee=0,
-        signature_start=signature_start,
-        signature_end=signature_end,
+        signature_start=request.signature_start,
+        signature_end=request.signature_end,
         transaction_hash=meta_tx_hash,
         chain_id=old_tx_info.chain_id,
         nonce=0,
-        resource_bounds_start=cast(0, ResourceBounds*),
-        resource_bounds_end=cast(0, ResourceBounds*),
+        resource_bounds_start=empty_resource_bounds,
+        resource_bounds_end=empty_resource_bounds,
         tip=0,
-        paymaster_data_start=cast(0, felt*),
-        paymaster_data_end=cast(0, felt*),
+        paymaster_data_start=empty_span,
+        paymaster_data_end=empty_span,
         nonce_data_availability_mode=0,
         fee_data_availability_mode=0,
-        account_deployment_data_start=cast(0, felt*),
-        account_deployment_data_end=cast(0, felt*),
-        proof_facts_start=cast(0, felt*),
-        proof_facts_end=cast(0, felt*),
+        account_deployment_data_start=empty_span,
+        account_deployment_data_end=empty_span,
+        proof_facts_start=empty_span,
+        proof_facts_end=empty_span,
     );
 
     let (deprecated_tx_info_ptr: DeprecatedTxInfo*) = alloc();

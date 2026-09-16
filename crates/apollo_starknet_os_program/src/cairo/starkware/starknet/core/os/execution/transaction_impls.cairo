@@ -416,27 +416,28 @@ func execute_l1_handler_transaction{
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
-    let (empty_signature: felt*) = alloc();
+    let (empty_span: felt*) = alloc();
+    let (empty_resource_bounds: ResourceBounds*) = alloc();
     assert [tx_info] = TxInfo(
         version=L1_HANDLER_VERSION,
         account_contract_address=tx_execution_info.contract_address,
         max_fee=0,
-        signature_start=empty_signature,
-        signature_end=empty_signature,
+        signature_start=empty_span,
+        signature_end=empty_span,
         transaction_hash=transaction_hash,
         chain_id=chain_id,
         nonce=nonce,
-        resource_bounds_start=cast(0, ResourceBounds*),
-        resource_bounds_end=cast(0, ResourceBounds*),
+        resource_bounds_start=empty_resource_bounds,
+        resource_bounds_end=empty_resource_bounds,
         tip=0,
-        paymaster_data_start=cast(0, felt*),
-        paymaster_data_end=cast(0, felt*),
+        paymaster_data_start=empty_span,
+        paymaster_data_end=empty_span,
         nonce_data_availability_mode=0,
         fee_data_availability_mode=0,
-        account_deployment_data_start=cast(0, felt*),
-        account_deployment_data_end=cast(0, felt*),
-        proof_facts_start=cast(0, felt*),
-        proof_facts_end=cast(0, felt*),
+        account_deployment_data_start=empty_span,
+        account_deployment_data_end=empty_span,
+        proof_facts_start=empty_span,
+        proof_facts_end=empty_span,
     );
     fill_deprecated_tx_info(tx_info=tx_info, dst=tx_execution_context.deprecated_tx_info);
     assert_deprecated_tx_fields_consistency(tx_info=tx_info);

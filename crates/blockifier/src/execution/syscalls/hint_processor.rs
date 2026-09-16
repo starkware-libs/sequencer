@@ -458,18 +458,26 @@ impl<'a> SyscallHintProcessor<'a> {
             }
             TransactionInfo::Deprecated(_) => {
                 let zero_felt: MaybeRelocatable = Felt::ZERO.into();
+                let (resource_bounds_start_ptr, resource_bounds_end_ptr) =
+                    &self.allocate_data_segment(vm, &[])?;
+                let (paymaster_data_start_ptr, paymaster_data_end_ptr) =
+                    &self.allocate_data_segment(vm, &[])?;
+                let (account_deployment_data_start_ptr, account_deployment_data_end_ptr) =
+                    &self.allocate_data_segment(vm, &[])?;
+                let (proof_facts_start_ptr, proof_facts_end_ptr) =
+                    &self.allocate_data_segment(vm, &[])?;
                 tx_data.extend_from_slice(&[
-                    zero_felt.clone(), // Empty segment of resource bounds (start ptr).
-                    zero_felt.clone(), // Empty segment of resource bounds (end ptr).
+                    resource_bounds_start_ptr.into(),
+                    resource_bounds_end_ptr.into(),
                     zero_felt.clone(), // Tip.
-                    zero_felt.clone(), // Empty segment of paymaster data (start ptr).
-                    zero_felt.clone(), // Empty segment of paymaster data (end ptr).
+                    paymaster_data_start_ptr.into(),
+                    paymaster_data_end_ptr.into(),
                     zero_felt.clone(), // Nonce DA mode.
-                    zero_felt.clone(), // Fee DA mode.
-                    zero_felt.clone(), // Empty segment of account deployment data (start ptr).
-                    zero_felt.clone(), // Empty segment of account deployment data (end ptr).
-                    zero_felt.clone(), // Empty segment of proof_facts (start ptr).
-                    zero_felt,         // Empty segment of proof_facts (end ptr).
+                    zero_felt,         // Fee DA mode.
+                    account_deployment_data_start_ptr.into(),
+                    account_deployment_data_end_ptr.into(),
+                    proof_facts_start_ptr.into(),
+                    proof_facts_end_ptr.into(),
                 ]);
             }
         };
