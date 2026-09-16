@@ -13,7 +13,6 @@ use apollo_storage::global_root::GlobalRootStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
-use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
 use futures::never::Never;
@@ -146,11 +145,7 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .revert_global_root(&target_block_marker)
         .unwrap();
 
-    let txn = txn
-        .revert_accessed_keys(target_block_marker)
-        .unwrap()
-        .revert_state_commitment_infos(target_block_marker)
-        .unwrap();
+    let txn = txn.revert_accessed_keys(target_block_marker).unwrap();
 
     txn.commit().unwrap();
 }
