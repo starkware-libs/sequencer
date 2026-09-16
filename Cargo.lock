@@ -2559,6 +2559,7 @@ version = "0.20.0-rc.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "serde_json",
  "validator",
 ]
 
