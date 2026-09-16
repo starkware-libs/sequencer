@@ -40,6 +40,9 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 const PENDING_LIBFUNCS: &[&str] =
     &["sha512_process_block_syscall", "sha512_state_handle_digest", "sha512_state_handle_init"];
 
+// Libfuncs in Cairo's audited list that are deliberately kept out of allowed_libfuncs.json.
+const EXCLUDED_LIBFUNCS: &[&str] = &["coupon_buy", "coupon_call", "coupon_refund"];
+
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
 }
@@ -137,9 +140,14 @@ fn allowed_libfuncs_aligned_to_audited() {
     let actual = serde_json::from_str::<AllowedLibfuncs>(actual_str).unwrap().allowed_libfuncs;
 
     let pending_set: HashSet<&str> = PENDING_LIBFUNCS.iter().copied().collect();
+    let excluded_set: HashSet<&str> = EXCLUDED_LIBFUNCS.iter().copied().collect();
 
-    let missing: Vec<_> =
-        expected.keys().filter(|k| !actual.contains_key(k)).map(ToString::to_string).collect();
+    let missing: Vec<_> = expected
+        .keys()
+        .filter(|k| !actual.contains_key(k))
+        .map(ToString::to_string)
+        .filter(|k| !excluded_set.contains(k.as_str()))
+        .collect();
     let extra: Vec<_> = actual
         .keys()
         .filter(|k| !expected.contains_key(k))
@@ -157,6 +165,20 @@ fn allowed_libfuncs_aligned_to_audited() {
         "allowed_libfuncs.json is not aligned with the audited list.\n Missing (in audited but \
          not in json): {missing:?}\n Extra (in json but not in audited): {extra:?}\n Value \
          mismatch: {mismatched:?}"
+    );
+
+    let json_libfunc_names: HashSet<String> = actual.keys().map(ToString::to_string).collect();
+    let audited_libfunc_names: HashSet<String> = expected.keys().map(ToString::to_string).collect();
+    let excluded_libfuncs_in_json: Vec<_> =
+        EXCLUDED_LIBFUNCS.iter().copied().filter(|k| json_libfunc_names.contains(*k)).collect();
+    let excluded_libfuncs_not_audited: Vec<_> =
+        EXCLUDED_LIBFUNCS.iter().copied().filter(|k| !audited_libfunc_names.contains(*k)).collect();
+
+    assert!(
+        excluded_libfuncs_in_json.is_empty() && excluded_libfuncs_not_audited.is_empty(),
+        "EXCLUDED_LIBFUNCS is out of date.\n Excluded but present in json: \
+         {excluded_libfuncs_in_json:?}\n Excluded but no longer in the audited list (drop the \
+         entry): {excluded_libfuncs_not_audited:?}"
     );
 }
 
