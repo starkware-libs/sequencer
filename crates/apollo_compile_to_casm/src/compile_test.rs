@@ -25,7 +25,7 @@ use regex::Regex;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 
-use crate::compiler::{libfunc_list_arg, SierraToCasmCompiler};
+use crate::compiler::SierraToCasmCompiler;
 use crate::{RawClass, SierraCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
@@ -37,11 +37,19 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
 // Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["sha512_process_block_syscall", "sha512_state_handle_digest", "sha512_state_handle_init"];
+const PENDING_LIBFUNCS: &[&str] = &[];
+
+// Ample for this contract, but distinct from the default, so the positive flow below asserts that
+// an explicit limit is honoured rather than re-testing the default.
+const GENEROUS_MAX_MEMORY_USAGE: u64 = 1024 * 1024 * 1024;
 
 // Libfuncs in Cairo's audited list that are deliberately kept out of allowed_libfuncs.json.
 const EXCLUDED_LIBFUNCS: &[&str] = &["coupon_buy", "coupon_call", "coupon_refund"];
+
+// A class using an excluded libfunc. Regenerate from the sibling .cairo with:
+// starknet-compile <crate> --allowed-libfuncs-list-name all
+const EXCLUDED_LIBFUNC_CLASS_PATH: &str =
+    "crates/apollo_compile_to_casm/resources/coupon_contract.sierra.json";
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -174,6 +182,15 @@ fn allowed_libfuncs_aligned_to_audited() {
     let excluded_libfuncs_not_audited: Vec<_> =
         EXCLUDED_LIBFUNCS.iter().copied().filter(|k| !audited_libfunc_names.contains(*k)).collect();
 
+    let pending_libfuncs_already_audited: Vec<_> =
+        PENDING_LIBFUNCS.iter().copied().filter(|k| audited_libfunc_names.contains(*k)).collect();
+
+    assert!(
+        pending_libfuncs_already_audited.is_empty(),
+        "PENDING_LIBFUNCS entries are now in the audited list, drop them: \
+         {pending_libfuncs_already_audited:?}"
+    );
+
     assert!(
         excluded_libfuncs_in_json.is_empty() && excluded_libfuncs_not_audited.is_empty(),
         "EXCLUDED_LIBFUNCS is out of date.\n Excluded but present in json: \
@@ -190,12 +207,38 @@ fn compile_against_the_bundled_libfuncs_list() {
     });
     let expected_casm_contract = compiler().compile(get_test_contract()).unwrap();
 
-    assert_eq!(libfunc_list_arg(AllowedLibfuncsList::Bundled).0, "--allowed-libfuncs-list-file");
     assert_eq!(bundled_list_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
 }
 
 /// The default selects the bundled list, which has to be resolved from disk; a node that ships
 /// without it would panic on startup rather than fail a compilation.
+/// The built-in lists both permit [`EXCLUDED_LIBFUNCS`], so rejecting this class is the only
+/// behaviour that tells the bundled list apart from `Audited` and `All`.
+#[test]
+fn bundled_libfuncs_list_rejects_an_excluded_libfunc() {
+    let excluded_libfunc_class = contract_class_from_file(
+        resolve_project_relative_path(EXCLUDED_LIBFUNC_CLASS_PATH).unwrap(),
+    );
+    let audited_list_compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        allowed_libfuncs_list: AllowedLibfuncsList::Audited,
+        ..SIERRA_COMPILATION_CONFIG
+    });
+    let bundled_list_compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        allowed_libfuncs_list: AllowedLibfuncsList::Bundled,
+        ..SIERRA_COMPILATION_CONFIG
+    });
+
+    compiler().compile(excluded_libfunc_class.clone()).expect("`All` must accept the class.");
+    audited_list_compiler
+        .compile(excluded_libfunc_class.clone())
+        .expect("`Audited` must accept the class.");
+
+    let result = bundled_list_compiler.compile(excluded_libfunc_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
+        if string.contains("coupon_buy is not allowed")
+    );
+}
+
 #[test]
 fn compile_with_the_default_config() {
     let default_config_compiler = SierraToCasmCompiler::new(SierraCompilationConfig::default());
@@ -213,7 +256,7 @@ fn test_max_memory_usage() {
 
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+        max_memory_usage: GENEROUS_MAX_MEMORY_USAGE,
         ..SIERRA_COMPILATION_CONFIG
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();

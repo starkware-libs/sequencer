@@ -14,6 +14,10 @@ use tracing::info;
 
 use crate::constants::{BUNDLED_ALLOWED_LIBFUNCS_PATH, CAIRO_LANG_BINARY_NAME};
 
+#[cfg(test)]
+#[path = "compiler_test.rs"]
+mod compiler_test;
+
 #[derive(Clone)]
 pub struct SierraToCasmCompiler {
     pub config: SierraCompilationConfig,
