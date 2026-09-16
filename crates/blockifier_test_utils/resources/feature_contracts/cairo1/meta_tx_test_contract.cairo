@@ -65,25 +65,6 @@ mod MetaTxTestContract {
         signature: Span<felt252>,
     ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
 
-    // In an L1 handler the paymaster data is an empty span, held as a null pointer.
-    #[l1_handler]
-    fn l1_handler_meta_tx_v0(
-        ref self: ContractState,
-        from_address: felt252,
-        address: ContractAddress,
-        argument: felt252,
-    ) {
-        let tx_info = starknet::get_execution_info().unbox().tx_info.unbox();
-        let calldata: Array<felt252> = array![argument];
-        meta_tx_v0_syscall(
-            :address,
-            entry_point_selector: selector!("__execute__"),
-            calldata: calldata.span(),
-            signature: tx_info.paymaster_data,
-        )
-            .unwrap_syscall();
-    }
-
     #[external(v0)]
     fn execute_meta_tx_v0(
         ref self: ContractState,

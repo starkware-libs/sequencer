@@ -346,7 +346,6 @@ func execute_meta_tx_v0{
 
     // Prepare execution context.
     let (empty_span: felt*) = alloc();
-    let (empty_resource_bounds: ResourceBounds*) = alloc();
     tempvar new_tx_info = new TxInfo(
         version=0,
         account_contract_address=contract_address,
@@ -356,8 +355,8 @@ func execute_meta_tx_v0{
         transaction_hash=meta_tx_hash,
         chain_id=old_tx_info.chain_id,
         nonce=0,
-        resource_bounds_start=empty_resource_bounds,
-        resource_bounds_end=empty_resource_bounds,
+        resource_bounds_start=cast(empty_span, ResourceBounds*),
+        resource_bounds_end=cast(empty_span, ResourceBounds*),
         tip=0,
         paymaster_data_start=empty_span,
         paymaster_data_end=empty_span,

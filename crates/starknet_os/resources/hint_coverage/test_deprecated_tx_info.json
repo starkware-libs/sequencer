@@ -177,9 +177,6 @@
     "DeprecatedSyscallHint": "GetTxInfo"
   },
   {
-    "DeprecatedSyscallHint": "GetTxSignature"
-  },
-  {
     "DeprecatedSyscallHint": "StorageWrite"
   },
   {

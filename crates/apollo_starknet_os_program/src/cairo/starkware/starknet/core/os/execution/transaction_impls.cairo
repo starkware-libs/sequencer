@@ -417,7 +417,6 @@ func execute_l1_handler_transaction{
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
     let (empty_span: felt*) = alloc();
-    let (empty_resource_bounds: ResourceBounds*) = alloc();
     assert [tx_info] = TxInfo(
         version=L1_HANDLER_VERSION,
         account_contract_address=tx_execution_info.contract_address,
@@ -427,8 +426,8 @@ func execute_l1_handler_transaction{
         transaction_hash=transaction_hash,
         chain_id=chain_id,
         nonce=nonce,
-        resource_bounds_start=empty_resource_bounds,
-        resource_bounds_end=empty_resource_bounds,
+        resource_bounds_start=cast(empty_span, ResourceBounds*),
+        resource_bounds_end=cast(empty_span, ResourceBounds*),
         tip=0,
         paymaster_data_start=empty_span,
         paymaster_data_end=empty_span,

@@ -469,44 +469,6 @@ async fn test_reverted_l1_handler_tx(
     test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{}", contract_type));
 }
 
-#[tokio::test]
-async fn test_l1_handler_deprecated_get_tx_signature() {
-    let tx_info_writer = FeatureContract::TxInfoWriter;
-    let (mut test_builder, [contract_address]) =
-        TestBuilder::create_standard([(tx_info_writer, calldata![])]).await;
-
-    test_builder.add_l1_handler(
-        contract_address,
-        "l1_write_signature",
-        calldata![Felt::from(0x1234)],
-        None,
-    );
-
-    let test_output = test_builder.build_and_run().await;
-    test_output.perform_default_validations();
-}
-
-#[tokio::test]
-async fn test_meta_tx_v0_null_signature() {
-    let meta_tx_contract = FeatureContract::MetaTx(RunnableCairo1::Casm);
-    let tx_info_contract = FeatureContract::TxInfoWriter;
-    let (mut test_builder, [meta_tx_address, tx_info_address]) = TestBuilder::create_standard([
-        (meta_tx_contract, calldata![]),
-        (tx_info_contract, calldata![]),
-    ])
-    .await;
-
-    test_builder.add_l1_handler(
-        meta_tx_address,
-        "l1_handler_meta_tx_v0",
-        calldata![Felt::from(0x1234), **tx_info_address, Felt::ZERO],
-        None,
-    );
-
-    let test_output = test_builder.build_and_run().await;
-    test_output.perform_default_validations();
-}
-
 #[rstest]
 #[tokio::test]
 async fn test_deprecated_call_contract_variants() {

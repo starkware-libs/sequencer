@@ -2850,7 +2850,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    652175,
+                    651875,
                 ),
             }
         "#]]
@@ -2864,7 +2864,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    601275,
+                    600975,
                 ),
             }
         "#]]

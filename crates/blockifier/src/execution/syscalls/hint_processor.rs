@@ -458,26 +458,20 @@ impl<'a> SyscallHintProcessor<'a> {
             }
             TransactionInfo::Deprecated(_) => {
                 let zero_felt: MaybeRelocatable = Felt::ZERO.into();
-                let (resource_bounds_start_ptr, resource_bounds_end_ptr) =
-                    &self.allocate_data_segment(vm, &[])?;
-                let (paymaster_data_start_ptr, paymaster_data_end_ptr) =
-                    &self.allocate_data_segment(vm, &[])?;
-                let (account_deployment_data_start_ptr, account_deployment_data_end_ptr) =
-                    &self.allocate_data_segment(vm, &[])?;
-                let (proof_facts_start_ptr, proof_facts_end_ptr) =
-                    &self.allocate_data_segment(vm, &[])?;
+                // The spans are all empty, so a single empty segment bounds them all.
+                let (empty_span_ptr, _) = &self.allocate_data_segment(vm, &[])?;
                 tx_data.extend_from_slice(&[
-                    resource_bounds_start_ptr.into(),
-                    resource_bounds_end_ptr.into(),
-                    zero_felt.clone(), // Tip.
-                    paymaster_data_start_ptr.into(),
-                    paymaster_data_end_ptr.into(),
-                    zero_felt.clone(), // Nonce DA mode.
-                    zero_felt,         // Fee DA mode.
-                    account_deployment_data_start_ptr.into(),
-                    account_deployment_data_end_ptr.into(),
-                    proof_facts_start_ptr.into(),
-                    proof_facts_end_ptr.into(),
+                    empty_span_ptr.into(), // Resource bounds (start ptr).
+                    empty_span_ptr.into(), // Resource bounds (end ptr).
+                    zero_felt.clone(),     // Tip.
+                    empty_span_ptr.into(), // Paymaster data (start ptr).
+                    empty_span_ptr.into(), // Paymaster data (end ptr).
+                    zero_felt.clone(),     // Nonce DA mode.
+                    zero_felt,             // Fee DA mode.
+                    empty_span_ptr.into(), // Account deployment data (start ptr).
+                    empty_span_ptr.into(), // Account deployment data (end ptr).
+                    empty_span_ptr.into(), // Proof facts (start ptr).
+                    empty_span_ptr.into(), // Proof facts (end ptr).
                 ]);
             }
         };
