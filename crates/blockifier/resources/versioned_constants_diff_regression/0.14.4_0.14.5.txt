@@ -1,4 +1,4 @@
-~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1321
+~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1319
 ~ /os_resources/execute_txs_inner/Declare/n_steps: 3941
 ~ /os_resources/execute_txs_inner/DeployAccount/constant/n_steps: 4992
 ~ /os_resources/execute_txs_inner/L1Handler/constant/n_steps: 1330

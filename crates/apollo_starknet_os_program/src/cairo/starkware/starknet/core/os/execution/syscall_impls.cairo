@@ -282,15 +282,6 @@ func execute_library_call{
     );
 }
 
-// Returns the given span, held as an empty segment if it is empty, matching the blockifier.
-func normalize_empty_span(start: felt*, end: felt*) -> (start: felt*, end: felt*) {
-    if (end - start == 0) {
-        let (empty: felt*) = alloc();
-        return (start=empty, end=empty);
-    }
-    return (start=start, end=end);
-}
-
 // Executes a v0 meta transaction. Specifically, calls another contract where:
 // * The signature is replaced with the given signature.
 // * The caller is the OS (address 0).
@@ -354,11 +345,16 @@ func execute_meta_tx_v0{
     update_pedersen_in_builtin_ptrs(pedersen_ptr=pedersen_ptr);
 
     // Prepare execution context.
-    let (normalized_signature_start: felt*, normalized_signature_end: felt*) = normalize_empty_span(
-        start=request.signature_start, end=request.signature_end
-    );
-    local signature_start: felt* = normalized_signature_start;
-    local signature_end: felt* = normalized_signature_end;
+    local signature_start: felt*;
+    local signature_end: felt*;
+    if (request.signature_end - request.signature_start == 0) {
+        let (empty_signature: felt*) = alloc();
+        assert signature_start = empty_signature;
+        assert signature_end = empty_signature;
+    } else {
+        assert signature_start = request.signature_start;
+        assert signature_end = request.signature_end;
+    }
     tempvar new_tx_info = new TxInfo(
         version=0,
         account_contract_address=contract_address,
