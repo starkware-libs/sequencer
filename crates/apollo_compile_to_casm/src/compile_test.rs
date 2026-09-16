@@ -172,6 +172,15 @@ fn compile_against_the_bundled_libfuncs_list() {
     assert_eq!(bundled_list_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
 }
 
+/// The default selects the bundled list, which has to be resolved from disk; a node that ships
+/// without it would panic on startup rather than fail a compilation.
+#[test]
+fn compile_with_the_default_config() {
+    let default_config_compiler = SierraToCasmCompiler::new(SierraCompilationConfig::default());
+
+    default_config_compiler.compile(get_test_contract()).unwrap();
+}
+
 #[test]
 fn test_max_memory_usage() {
     let contract_class = get_test_contract();
