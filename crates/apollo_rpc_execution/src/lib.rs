@@ -19,15 +19,7 @@ pub mod testing_instances;
 
 pub mod objects;
 use std::cell::Cell;
-<<<<<<< HEAD
-use std::sync::{Arc, LazyLock};
-||||||| dcbc94331e
-use std::collections::BTreeMap;
-use std::sync::{Arc, LazyLock};
-=======
-use std::collections::BTreeMap;
 use std::sync::Arc;
->>>>>>> origin/main-v0.14.4
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_storage::header::HeaderStorageReader;

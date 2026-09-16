@@ -2523,7 +2523,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc_types"
-version = "0.20.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "jsonrpsee-types",
  "serde",
@@ -3968,14 +3968,6 @@ name = "blockifier_reexecution"
 version = "0.0.0"
 dependencies = [
  "apollo_compilation_utils",
-<<<<<<< HEAD
- "apollo_rpc_execution",
-||||||| dcbc94331e
- "apollo_config",
- "apollo_rpc_execution",
-=======
- "apollo_config",
->>>>>>> origin/main-v0.14.4
  "apollo_sierra_compilation_config",
  "assert_matches",
  "blockifier",
@@ -4258,24 +4250,11 @@ dependencies = [
  "starknet-curve 0.6.0",
  "starknet-ff",
  "starknet-types-core",
-<<<<<<< HEAD
- "stwo",
- "stwo-cairo-common",
- "stwo-cairo-serialize",
- "stwo-constraint-framework",
- "thiserror 2.0.18",
-||||||| dcbc94331e
- "stwo",
- "stwo-cairo-common",
- "stwo-cairo-serialize",
- "stwo-constraint-framework",
- "thiserror 2.0.17",
-=======
  "stwo 2.2.0",
  "stwo-cairo-common 1.2.2",
  "stwo-cairo-serialize 1.2.2",
  "stwo-constraint-framework 2.2.0",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tracing",
 ]
 
@@ -4299,8 +4278,7 @@ dependencies = [
  "stwo-cairo-common 2.4.0",
  "stwo-cairo-serialize 2.4.0",
  "stwo-constraint-framework 2.4.0",
- "thiserror 2.0.17",
->>>>>>> origin/main-v0.14.4
+ "thiserror 2.0.18",
  "tracing",
 ]
 
@@ -4979,7 +4957,7 @@ dependencies = [
  "sonic-rs",
  "starknet-crypto 0.8.1",
  "starknet-types-core",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "thiserror-no-std",
  "tracing",
 ]
@@ -5263,7 +5241,7 @@ dependencies = [
  "serde_json",
  "stwo 2.4.0",
  "stwo-cairo-common 2.4.0",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -5322,7 +5300,7 @@ version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=5ef951a1#5ef951a12727e3489a2ee991c580a5b925c59c69"
 dependencies = [
  "blake2",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5350,7 +5328,7 @@ version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=5ef951a1#5ef951a12727e3489a2ee991c580a5b925c59c69"
 dependencies = [
  "circuits 0.1.0",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -6439,6 +6417,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_filter"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a1c3cc8e57274ec99de65301228b537f1e4eedc1b8e0f9411c6caac8ae7308f"
+dependencies = [
+ "log",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2daee4ea451f429a58296525ddf28b45a3b64f1acf6587e2067437bb11e218d"
+dependencies = [
+ "env_filter",
+ "log",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7285,7 +7282,7 @@ dependencies = [
  "extension-trait",
  "itertools 0.14.0",
  "num-traits",
- "rand 0.9.2",
+ "rand 0.9.5",
  "random_color",
  "range-map",
  "smallvec",
@@ -7298,7 +7295,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "236c25809a9c0a0249b3488feb57744e12aa64e4f3db851980eab303719c7bdd"
 dependencies = [
- "rand 0.9.2",
+ "rand 0.9.5",
  "str_indices",
 ]
 
@@ -11495,7 +11492,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d635c5e80ae160390ac62ca027d2d06c94c1dc69e5c0a12f1e3a53664dc84966"
 dependencies = [
- "rand 0.9.2",
+ "rand 0.9.5",
 ]
 
 [[package]]
@@ -13790,7 +13787,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "hex",
  "indexmap 2.14.0",
  "itertools 0.12.1",
@@ -13830,7 +13827,7 @@ dependencies = [
  "starknet-crypto 0.6.2",
  "starknet-ff",
  "stwo-std-shims",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
 ]
@@ -13872,18 +13869,8 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
-<<<<<<< HEAD
- "stwo",
- "stwo-cairo-common",
- "thiserror 2.0.18",
-||||||| dcbc94331e
- "stwo",
- "stwo-cairo-common",
- "thiserror 2.0.17",
-=======
  "stwo 2.4.0",
  "stwo-cairo-common 2.4.0",
->>>>>>> origin/main-v0.14.4
  "tracing",
 ]
 
@@ -14011,7 +13998,7 @@ name = "stwo-constraint-framework"
 version = "2.2.0"
 source = "git+https://github.com/starkware-libs/stwo?rev=489a0f3e#489a0f3ee44a59e03944ad9aa4f3e5a91a3d3f08"
 dependencies = [
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
