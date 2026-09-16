@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789547171296,
+  "lastUpdate": 1789560191450,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -441,6 +441,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1482.39089012,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e6bd04ea721d6a9676a1e7ab93a28b4b87e47f44",
+          "message": "apollo_compile_to_casm,apollo_sierra_compilation_config: add a bundled libfunc list option (#15133)\n\nReplace `audited_libfuncs_only: bool` with `allowed_libfuncs_list`: \"audited\", \"all\", or \"bundled\"\n— the list in `apollo_compile_to_casm/resources/allowed_libfuncs.json`, shipped in the runtime\nimage next to the config schema and resolved at startup.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-16T11:45:43Z",
+          "tree_id": "9935f16cd58b806af654cd12beac99f09cca8210",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e6bd04ea721d6a9676a1e7ab93a28b4b87e47f44"
+        },
+        "date": 1789560190710,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 957.78010205,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1527.40842525,
             "unit": "ms"
           }
         ]
