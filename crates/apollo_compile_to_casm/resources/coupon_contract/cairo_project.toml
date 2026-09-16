@@ -1,0 +1,10 @@
+[crate_roots]
+coupon_contract = "src"
+
+[config.global]
+edition = "2024_07"
+
+[config.global.experimental_features]
+associated_item_constraints = false
+coupons = true
+negative_impls = false

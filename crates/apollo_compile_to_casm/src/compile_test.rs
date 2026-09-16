@@ -25,7 +25,7 @@ use regex::Regex;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 
-use crate::compiler::{libfunc_list_arg, SierraToCasmCompiler};
+use crate::compiler::SierraToCasmCompiler;
 use crate::{RawClass, SierraCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
@@ -35,16 +35,40 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     allowed_libfuncs_list: AllowedLibfuncsList::All,
 };
 
-// Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
-// Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["sha512_process_block_syscall", "sha512_state_handle_digest", "sha512_state_handle_init"];
+// Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list. Empty is the expected
+// state: entries go in when the json runs ahead, and come out when the audited list catches up.
+// The staleness assert in `allowed_libfuncs_aligned_to_audited` is what catches the latter, since
+// a since-audited entry sits in both maps and the missing/extra checks stop seeing it.
+const PENDING_LIBFUNCS: &[&str] = &[];
+
+// Ample for this contract, but distinct from the default, so the positive flow below asserts that
+// an explicit limit is honoured rather than re-testing the default.
+const GENEROUS_MAX_MEMORY_USAGE: u64 = 1024 * 1024 * 1024;
 
 // Libfuncs in Cairo's audited list that are deliberately kept out of allowed_libfuncs.json.
 const EXCLUDED_LIBFUNCS: &[&str] = &["coupon_buy", "coupon_call", "coupon_refund"];
 
+// A class using an excluded libfunc. `coupon_buy` sits behind an experimental Cairo feature that
+// has to be enabled in a crate config, so the source is the sibling crate rather than a single
+// file. Regenerate with the cairo package's starknet-compile, which
+// scripts/install_compiler_binaries.sh does not install; it lives under
+// target/bin/cairo_package__<CAIRO1_COMPILER_VERSION>/cairo/bin/.
+//
+//   starknet-compile crates/apollo_compile_to_casm/resources/coupon_contract \
+//       --allowed-libfuncs-list-name all \
+//       crates/apollo_compile_to_casm/resources/coupon_contract.sierra.json
+const EXCLUDED_LIBFUNC_CLASS_PATH: &str =
+    "crates/apollo_compile_to_casm/resources/coupon_contract.sierra.json";
+
 fn compiler() -> SierraToCasmCompiler {
-    SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
+    compiler_with_libfuncs_list(AllowedLibfuncsList::All)
+}
+
+fn compiler_with_libfuncs_list(allowed_libfuncs_list: AllowedLibfuncsList) -> SierraToCasmCompiler {
+    SierraToCasmCompiler::new(SierraCompilationConfig {
+        allowed_libfuncs_list,
+        ..SIERRA_COMPILATION_CONFIG
+    })
 }
 
 fn get_test_contract() -> CairoLangContractClass {
@@ -174,6 +198,15 @@ fn allowed_libfuncs_aligned_to_audited() {
     let excluded_libfuncs_not_audited: Vec<_> =
         EXCLUDED_LIBFUNCS.iter().copied().filter(|k| !audited_libfunc_names.contains(*k)).collect();
 
+    let pending_libfuncs_already_audited: Vec<_> =
+        PENDING_LIBFUNCS.iter().copied().filter(|k| audited_libfunc_names.contains(*k)).collect();
+
+    assert!(
+        pending_libfuncs_already_audited.is_empty(),
+        "PENDING_LIBFUNCS entries are now in the audited list, drop them: \
+         {pending_libfuncs_already_audited:?}"
+    );
+
     assert!(
         excluded_libfuncs_in_json.is_empty() && excluded_libfuncs_not_audited.is_empty(),
         "EXCLUDED_LIBFUNCS is out of date.\n Excluded but present in json: \
@@ -184,14 +217,31 @@ fn allowed_libfuncs_aligned_to_audited() {
 
 #[test]
 fn compile_against_the_bundled_libfuncs_list() {
-    let bundled_list_compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        allowed_libfuncs_list: AllowedLibfuncsList::Bundled,
-        ..SIERRA_COMPILATION_CONFIG
-    });
+    let bundled_list_compiler = compiler_with_libfuncs_list(AllowedLibfuncsList::Bundled);
     let expected_casm_contract = compiler().compile(get_test_contract()).unwrap();
 
-    assert_eq!(libfunc_list_arg(AllowedLibfuncsList::Bundled).0, "--allowed-libfuncs-list-file");
     assert_eq!(bundled_list_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
+}
+
+/// The built-in lists both permit [`EXCLUDED_LIBFUNCS`], so rejecting this class is the only
+/// behaviour that tells the bundled list apart from `Audited` and `All`.
+#[test]
+fn bundled_libfuncs_list_rejects_an_excluded_libfunc() {
+    let excluded_libfunc_class = contract_class_from_file(
+        resolve_project_relative_path(EXCLUDED_LIBFUNC_CLASS_PATH).unwrap(),
+    );
+    let audited_list_compiler = compiler_with_libfuncs_list(AllowedLibfuncsList::Audited);
+    let bundled_list_compiler = compiler_with_libfuncs_list(AllowedLibfuncsList::Bundled);
+
+    compiler().compile(excluded_libfunc_class.clone()).expect("`All` must accept the class.");
+    audited_list_compiler
+        .compile(excluded_libfunc_class.clone())
+        .expect("`Audited` must accept the class.");
+
+    let result = bundled_list_compiler.compile(excluded_libfunc_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
+        if string.contains("coupon_buy is not allowed")
+    );
 }
 
 /// The default selects the bundled list, which has to be resolved from disk; a node that ships
@@ -213,7 +263,7 @@ fn test_max_memory_usage() {
 
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+        max_memory_usage: GENEROUS_MAX_MEMORY_USAGE,
         ..SIERRA_COMPILATION_CONFIG
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();
