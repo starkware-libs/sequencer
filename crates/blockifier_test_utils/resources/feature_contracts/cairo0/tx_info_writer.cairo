@@ -55,6 +55,7 @@ func write{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 @l1_handler
 func l1_write{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(from_address: felt) {
     let (sig_len: felt, sig: felt*) = get_tx_signature();
+    signature_len.write('L1_HANDLER_SYSCALL', sig_len + OFFSET);
     write(tx_type='L1_HANDLER', offset=OFFSET);
     return ();
 }

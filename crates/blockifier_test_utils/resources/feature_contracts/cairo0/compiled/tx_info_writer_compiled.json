@@ -79,11 +79,11 @@
         "CONSTRUCTOR": [],
         "EXTERNAL": [
             {
-                "offset": 496,
+                "offset": 502,
                 "selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad"
             },
             {
-                "offset": 403,
+                "offset": 409,
                 "selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775"
             },
             {
@@ -91,17 +91,17 @@
                 "selector": "0x1fa01c26207c18282c14b44c5f0897b971e27a185537fe05a841a47d4b51454"
             },
             {
-                "offset": 431,
+                "offset": 437,
                 "selector": "0x289da278a8dc833409cabfdad1581e8e7d40e42dcaed693fa4008dcdb4963b3"
             },
             {
-                "offset": 459,
+                "offset": 465,
                 "selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895"
             }
         ],
         "L1_HANDLER": [
             {
-                "offset": 375,
+                "offset": 381,
                 "selector": "0xb402775ee52197c8a8c1d5bb29ae58fca12913f848d26fdbe09218652fbde0"
             }
         ]
@@ -483,11 +483,17 @@
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480680017fff8000",
+            "0x4c315f48414e444c45525f53595343414c4c",
+            "0x482480017ffa8000",
+            "0x1234",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff4a",
+            "0x480680017fff8000",
             "0x4c315f48414e444c4552",
             "0x480680017fff8000",
             "0x1234",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffa8",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffa2",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -497,7 +503,7 @@
             "0x480280027ffb8000",
             "0x480280007ffd8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffed",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe7",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -515,7 +521,7 @@
             "0x480680017fff8000",
             "0x1234",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff8c",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff86",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -543,7 +549,7 @@
             "0x480680017fff8000",
             "0x1234",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff70",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff6a",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -571,7 +577,7 @@
             "0x480680017fff8000",
             "0x1234",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff54",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff4e",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x2",
@@ -604,7 +610,7 @@
             "0x480680017fff8000",
             "0x0",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff33",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff2d",
             "0x208b7fff7fff7ffe",
             "0x480a7ffa7fff8000",
             "0x480a7ffb7fff8000",
@@ -779,7 +785,7 @@
                     }
                 }
             ],
-            "384": [
+            "390": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -791,13 +797,13 @@
                     "flow_tracking_data": {
                         "ap_tracking": {
                             "group": 24,
-                            "offset": 454
+                            "offset": 511
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "412": [
+            "418": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -815,7 +821,7 @@
                     }
                 }
             ],
-            "440": [
+            "446": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -833,7 +839,7 @@
                     }
                 }
             ],
-            "469": [
+            "475": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -851,7 +857,7 @@
                     }
                 }
             ],
-            "505": [
+            "511": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -883,7 +889,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 478,
+                "pc": 484,
                 "type": "function"
             },
             "__main__.__execute__.Args": {
@@ -928,7 +934,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 393,
+                "pc": 399,
                 "type": "function"
             },
             "__main__.__validate__.Args": {
@@ -973,7 +979,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 421,
+                "pc": 427,
                 "type": "function"
             },
             "__main__.__validate_declare__.Args": {
@@ -1018,7 +1024,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 449,
+                "pc": 455,
                 "type": "function"
             },
             "__main__.__validate_deploy__.Args": {
@@ -2076,7 +2082,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 496,
+                "pc": 502,
                 "type": "function"
             },
             "__wrappers__.__execute__.Args": {
@@ -2111,7 +2117,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 403,
+                "pc": 409,
                 "type": "function"
             },
             "__wrappers__.__validate__.Args": {
@@ -2146,7 +2152,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 431,
+                "pc": 437,
                 "type": "function"
             },
             "__wrappers__.__validate_declare__.Args": {
@@ -2181,7 +2187,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 459,
+                "pc": 465,
                 "type": "function"
             },
             "__wrappers__.__validate_deploy__.Args": {
@@ -2216,7 +2222,7 @@
                 "decorators": [
                     "l1_handler"
                 ],
-                "pc": 375,
+                "pc": 381,
                 "type": "function"
             },
             "__wrappers__.l1_write.Args": {

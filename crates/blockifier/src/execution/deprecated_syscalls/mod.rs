@@ -370,7 +370,6 @@ impl SyscallResponse for GetTxInfoResponse {
 
 pub type GetTxSignatureRequest = EmptyRequest;
 
-// The signature is not necessarily held as a segment.
 #[derive(Debug)]
 pub struct GetTxSignatureResponse {
     pub signature_len: usize,
