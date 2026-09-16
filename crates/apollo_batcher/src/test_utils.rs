@@ -10,6 +10,7 @@ use apollo_batcher_config::config::{
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_committer_types::committer_types::{
     CommitBlockResponse,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockResponse,
     RevertBlockResponse,
 };
@@ -312,6 +313,9 @@ impl Default for MockClients {
                     state_commitment_infos: test_state_commitment_infos(),
                 })
             })
+        });
+        committer_client_inner.expect_get_state_commitment_infos().returning(|_| {
+            Box::pin(async { Ok(GetStateCommitmentInfosResponse { state_commitment_infos: None }) })
         });
         let committer_client =
             MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));
