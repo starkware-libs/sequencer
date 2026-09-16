@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789488584166,
+  "lastUpdate": 1789547171296,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -407,6 +407,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1360.3439101600002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7a3a2d4bd7e902ea4ab871a674a0ac0de99d3b38",
+          "message": "apollo_config,apollo_starknet_client,apollo_central_sync_config: move RetryConfig to apollo_config (#14785)\n\napollo_central_sync_config's only use of apollo_starknet_client was RetryConfig,\ndragging the reqwest(blocking)/tokio-full/cairo-class-parsing chain into the\nconfig crate stack through an edge that only needed a plain value type. Move\nRetryConfig into apollo_config next to the other small reusable config value\ntypes, and have apollo_starknet_client re-export it so its own executor and\ncall sites stay unchanged.",
+          "timestamp": "2026-09-16T07:51:56Z",
+          "tree_id": "2e8c5ff44f40029f40ec1bdc428b5ccfc8a855c7",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7a3a2d4bd7e902ea4ab871a674a0ac0de99d3b38"
+        },
+        "date": 1789547170638,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 965.98617855,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1482.39089012,
             "unit": "ms"
           }
         ]
