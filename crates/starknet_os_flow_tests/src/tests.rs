@@ -2045,7 +2045,10 @@ async fn test_deprecated_tx_info() {
     }
     // The deprecated `get_tx_signature` syscall reports the same empty signature.
     contract_storage_updates.insert(
-        get_storage_var_address("signature_len", &[Felt::from_bytes_be_slice(b"L1_HANDLER_SYSCALL")]),
+        get_storage_var_address(
+            "signature_len",
+            &[Felt::from_bytes_be_slice(b"L1_HANDLER_SYSCALL")],
+        ),
         Felt::ZERO,
     );
 
