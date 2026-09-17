@@ -1,8 +1,4 @@
-use std::collections::BTreeMap;
-
 use apollo_compilation_utils::class_utils::sierra_program_as_felts_to_big_uint_as_hex;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_lang_starknet_classes::compiler_version::VersionId as CairoLangVersionId;
 use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;
 use serde::{Deserialize, Serialize};
@@ -73,30 +69,5 @@ impl PartialOrd for VersionId {
         }
 
         partial_cmp(&self.0, &other.0)
-    }
-}
-
-impl SerializeConfig for VersionId {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "major",
-                &self.0.major,
-                "The major version of the configuration.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "minor",
-                &self.0.minor,
-                "The minor version of the configuration.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "patch",
-                &self.0.patch,
-                "The patch version of the configuration.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }

@@ -668,6 +668,9 @@ impl SequencerConsensusContext {
             .prev()
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
+        // Collected first: `get_block_hash` flushes finished committer results to storage,
+        // making this height's state commitment infos readable in the collection below.
+        let recent_block_hashes = self.collect_recent_block_hashes(height).await;
         let recent_state_commitment_infos =
             self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
                 // `finalize_decision` must not fail, so continue with an empty vector.
@@ -704,7 +707,7 @@ impl SequencerConsensusContext {
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
-                recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                recent_block_hashes,
                 recent_state_commitment_infos,
                 initial_reads: central_objects.initial_reads,
                 block_hash_commitments: block_header_commitments,
