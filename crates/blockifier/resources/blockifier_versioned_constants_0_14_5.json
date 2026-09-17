@@ -127,8 +127,8 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
-            "0x53f6c9fcfd31d27279ff7d7e422b44623550a732b59fe193354a7316a96daa1",
-            "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324"
+            "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324",
+            "0x62ce6df2e75a02ae95a406ea7c8c5494e03b28ca622bd74876e9fe51cddc37c"
         ],
         "allowed_proof_versions": [
             "0x50524f4f4631",
@@ -365,7 +365,7 @@
             },
             "MetaTxV0": {
                 "constant": {
-                    "n_steps": 1307,
+                    "n_steps": 1310,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 20,
@@ -504,7 +504,7 @@
         },
         "execute_txs_inner": {
             "Declare": {
-                "n_steps": 3938,
+                "n_steps": 3941,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 92,
@@ -514,7 +514,7 @@
             },
             "DeployAccount": {
                 "constant": {
-                    "n_steps": 4989,
+                    "n_steps": 4992,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 113,
@@ -557,7 +557,7 @@
             },
             "L1Handler": {
                 "constant": {
-                    "n_steps": 1329,
+                    "n_steps": 1316,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 19,

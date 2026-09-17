@@ -416,26 +416,27 @@ func execute_l1_handler_transaction{
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
+    let (empty_span: felt*) = alloc();
     assert [tx_info] = TxInfo(
         version=L1_HANDLER_VERSION,
         account_contract_address=tx_execution_info.contract_address,
         max_fee=0,
-        signature_start=cast(0, felt*),
-        signature_end=cast(0, felt*),
+        signature_start=empty_span,
+        signature_end=empty_span,
         transaction_hash=transaction_hash,
         chain_id=chain_id,
         nonce=nonce,
-        resource_bounds_start=cast(0, ResourceBounds*),
-        resource_bounds_end=cast(0, ResourceBounds*),
+        resource_bounds_start=cast(empty_span, ResourceBounds*),
+        resource_bounds_end=cast(empty_span, ResourceBounds*),
         tip=0,
-        paymaster_data_start=cast(0, felt*),
-        paymaster_data_end=cast(0, felt*),
+        paymaster_data_start=empty_span,
+        paymaster_data_end=empty_span,
         nonce_data_availability_mode=0,
         fee_data_availability_mode=0,
-        account_deployment_data_start=cast(0, felt*),
-        account_deployment_data_end=cast(0, felt*),
-        proof_facts_start=cast(0, felt*),
-        proof_facts_end=cast(0, felt*),
+        account_deployment_data_start=empty_span,
+        account_deployment_data_end=empty_span,
+        proof_facts_start=empty_span,
+        proof_facts_end=empty_span,
     );
     fill_deprecated_tx_info(tx_info=tx_info, dst=tx_execution_context.deprecated_tx_info);
     assert_deprecated_tx_fields_consistency(tx_info=tx_info);
@@ -618,13 +619,14 @@ func execute_deploy_account_transaction{
     local tx_info: TxInfo* = constructor_execution_info.tx_info;
     local deprecated_tx_info: DeprecatedTxInfo* = constructor_execution_context.deprecated_tx_info;
 
+    let (empty_span: felt*) = alloc();
     fill_account_tx_info(
         transaction_hash=transaction_hash,
         common_tx_fields=common_tx_fields,
         account_deployment_data_size=0,
-        account_deployment_data=cast(0, felt*),
+        account_deployment_data=empty_span,
         proof_facts_size=0,
-        proof_facts=cast(0, felt*),
+        proof_facts=empty_span,
         tx_info_dst=tx_info,
         deprecated_tx_info_dst=deprecated_tx_info,
     );
@@ -747,13 +749,14 @@ func execute_declare_transaction{
     // Get the account transaction info.
     let (tx_info: TxInfo*) = alloc();
     let (deprecated_tx_info: DeprecatedTxInfo*) = alloc();
+    let (empty_proof_facts: felt*) = alloc();
     fill_account_tx_info(
         transaction_hash=transaction_hash,
         common_tx_fields=common_tx_fields,
         account_deployment_data_size=account_deployment_data_size,
         account_deployment_data=account_deployment_data,
         proof_facts_size=0,
-        proof_facts=cast(0, felt*),
+        proof_facts=empty_proof_facts,
         tx_info_dst=tx_info,
         deprecated_tx_info_dst=deprecated_tx_info,
     );
