@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 from multiprocessing import Process, Queue
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 import numbers
 import requests
@@ -16,12 +16,6 @@ from config_loader import find_workspace_root, load_and_merge_configs
 def get_services_from_configs(services: List[Dict[str, Any]]) -> List[str]:
     """Extract service names from merged configs."""
     return [s["name"] for s in services]
-
-
-def get_config_list(service_config: Dict[str, Any]) -> Optional[str]:
-    """Extract configList path from merged service config."""
-    config = service_config.get("config", {})
-    return config.get("configList")
 
 
 def get_monitoring_endpoint_port(service_config: Dict[str, Any]) -> Union[int, float]:

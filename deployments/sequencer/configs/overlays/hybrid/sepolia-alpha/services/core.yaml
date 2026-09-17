@@ -1,17 +1,1 @@
 include: configs/overlays/hybrid/common/services/core.yaml
-
-config:
-  sequencerConfig:
-    batcher_config.dynamic_config.n_concurrent_txs: 8
-    batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size: 5000
-    batcher_config.static_config.block_builder_config.execute_config.n_workers: 5
-    batcher_config.static_config.first_block_with_partial_block_hash.#is_none: false
-    batcher_config.static_config.first_block_with_partial_block_hash.block_hash: '0x578b4e2f34e4da24e7482de643b4e3435fa7e34770cdb8d71002bb19e415ffa'
-    batcher_config.static_config.first_block_with_partial_block_hash.block_number: 86311
-    batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash: '0x5c980ea7747167d2ae98fa7ef7d62f52243e924c453b4934045443d977458d3'
-    consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height: ''
-    consensus_manager_config.staking_manager_config.dynamic_config.default_committee: 0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true
-    state_sync_config.static_config.central_sync_client_config.#is_none: false
-    state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold: 0
-    state_sync_config.static_config.network_config.#is_none: true
-    state_sync_config.static_config.network_config.port: 55010

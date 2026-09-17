@@ -18,6 +18,33 @@ from echonet.logger import get_logger
 
 logger = get_logger("sequencer_manager")
 
+# Nested locations in the node config. `revert_config` copies must agree or the node refuses to boot.
+REVERT_CONFIG_PATHS = (
+    "consensus_manager_config.revert_config",
+    "state_sync_config.static_config.revert_config",
+)
+STARKNET_URL_PATHS = (
+    "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url",
+    "state_sync_config.static_config.rpc_config.starknet_url",
+)
+VALIDATOR_ID_PATH = "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id"
+# `revert_config` is null while revert is disabled, so the last target lives in this annotation.
+REVERT_MARKER_ANNOTATION = "echonet.starkware.co/revert-target"
+
+
+def _set_nested(config: JsonObject, dotted_path: str, value: object) -> None:
+    """Write `value` at `dotted_path`; a `null` intermediate (disabled component) is skipped."""
+    *parent_segments, leaf = dotted_path.split(".")
+    node = config
+    for segment in parent_segments:
+        node = node[segment]
+        if node is None:
+            return
+    if leaf not in node:
+        raise KeyError(f"{dotted_path} is not in the node config")
+    node[leaf] = value
+
+
 _BATCHER_REVERT_COMPLETION_MARKER_TEMPLATES: tuple[str, ...] = (
     "Successfully reverted Batcher's storage to height marker {target_block}.",
     "Done reverting Batcher's storage up to height {target_block}!",
@@ -110,9 +137,12 @@ class SequencerManager:
         # StatefulSet pod ordinal 0 is the one we manage in these workflows.
         return f"{self._spec.statefulset_name}-0"
 
-    def patch_node_config(self, mutator: ConfigMutator):
+    def patch_node_config(
+        self, mutator: ConfigMutator, annotations: Optional[dict[str, str]] = None
+    ):
         """
-        Read the node JSON config from the sequencer ConfigMap, mutate it in-place, and patch it back.
+        Read the node JSON config from the sequencer ConfigMap, mutate it in-place, and patch it back,
+        merging `annotations` into the ConfigMap metadata when given.
         """
         configmap_name = self._spec.configmap_name
         logger.info(f"Fetching ConfigMap '{configmap_name}' in namespace '{self._namespace}'...")
@@ -122,7 +152,9 @@ class SequencerManager:
 
         mutator(config)
 
-        body = {"data": {"config": json.dumps(config, indent=2)}}
+        body: JsonObject = {"data": {"config": json.dumps(config, indent=2)}}
+        if annotations:
+            body["metadata"] = {"annotations": annotations}
         updated = self._core_v1.patch_namespaced_config_map(
             name=configmap_name, namespace=self._namespace, body=body
         )
@@ -130,27 +162,35 @@ class SequencerManager:
         return updated
 
     def configure_revert(self, should_revert: bool):
+        target = self._read_previous_revert_marker() if should_revert else None
+
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = should_revert
+            for path in REVERT_CONFIG_PATHS:
+                _set_nested(config, path, target)
 
         return self.patch_node_config(_mutate)
 
     def configure_start_sync(self):
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = False
-            config["starknet_url"] = CONFIG.feeder.base_url
-            config["validator_id"] = "0x1"
+            for path in REVERT_CONFIG_PATHS:
+                _set_nested(config, path, None)
+            for path in STARKNET_URL_PATHS:
+                _set_nested(config, path, CONFIG.feeder.base_url)
+            _set_nested(config, VALIDATOR_ID_PATH, "0x1")
 
         return self.patch_node_config(_mutate)
 
     def configure_stop_sync(self, block_number: int):
         def _mutate(config: JsonObject) -> None:
-            config["revert_config.should_revert"] = True
-            config["revert_config.revert_up_to_and_including"] = block_number
-            config["starknet_url"] = "http://echonet:80"
-            config["validator_id"] = "0x64"
+            for path in REVERT_CONFIG_PATHS:
+                _set_nested(config, path, block_number)
+            for path in STARKNET_URL_PATHS:
+                _set_nested(config, path, "http://echonet:80")
+            _set_nested(config, VALIDATOR_ID_PATH, "0x64")
 
-        return self.patch_node_config(_mutate)
+        return self.patch_node_config(
+            _mutate, annotations={REVERT_MARKER_ANNOTATION: str(block_number)}
+        )
 
     def scale(self, replicas: int) -> None:
         stateful_set_name = self._spec.statefulset_name
@@ -314,11 +354,17 @@ class SequencerManager:
         self.scale(replicas=0)
 
     def _read_previous_revert_marker(self) -> int:
+        """The last revert target written by `configure_stop_sync`, kept across revert disable."""
         configmap = self._core_v1.read_namespaced_config_map(
             self._spec.configmap_name, self._namespace
         )
-        config: JsonObject = json.loads(configmap.data["config"])
-        return int(config["revert_config.revert_up_to_and_including"])
+        marker = (configmap.metadata.annotations or {}).get(REVERT_MARKER_ANNOTATION)
+        if marker is None:
+            raise RuntimeError(
+                f"ConfigMap '{self._spec.configmap_name}' has no {REVERT_MARKER_ANNOTATION} "
+                "annotation; run initial_revert_then_restore before resync"
+            )
+        return int(marker)
 
     def initial_revert_then_restore(self, block_number: int) -> None:
         """
