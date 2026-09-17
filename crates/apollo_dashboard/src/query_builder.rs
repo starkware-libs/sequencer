@@ -1,3 +1,4 @@
+use apollo_consensus::metrics::IS_OBSERVER;
 use apollo_metrics::metrics::MetricQueryName;
 #[cfg(test)]
 #[path = "query_builder_test.rs"]
@@ -134,4 +135,15 @@ pub(crate) fn sum_by_label(
     let filter = if filter_zeros { " > 0" } else { "" };
 
     format!("sum by ({}) ({}){}", label, inner, filter)
+}
+
+/// Drops the series emitted by observer nodes from an instant-vector expression.
+///
+/// Matches on the pod identity (not a bare `on()`) so the input may keep its per-pod, and
+/// per-bucket, series. Apply it before any aggregation that drops the `pod` label.
+pub(crate) fn exclude_observers(expr: &str) -> String {
+    format!(
+        "({expr}) and on(cluster, namespace, pod) ({} == 0)",
+        IS_OBSERVER.get_name_with_filter()
+    )
 }

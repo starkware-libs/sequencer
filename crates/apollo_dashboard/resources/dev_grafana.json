@@ -341,7 +341,7 @@
           "description": "The number of successful blob writes to Cende (10m window)",
           "type": "timeseries",
           "exprs": [
-            "increase(cende_write_blob_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+            "(increase(cende_write_blob_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) and on(cluster, namespace, pod) (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} == 0)"
           ],
           "extra_params": {
             "log_query": "\"Blob for block number\" OR \"Writing blob to Aerospike\" OR \"transactions was written to Aerospike\""
@@ -386,16 +386,16 @@
           "description": "The block number of the most recent state commitment infos sent",
           "type": "stat",
           "exprs": [
-            "cende_last_state_commitment_infos_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "(cende_last_state_commitment_infos_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) and on(cluster, namespace, pod) (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} == 0)"
           ],
           "extra_params": {}
         },
         {
           "title": "Consensus vs Cende State Commitment Infos Gap (blocks)",
-          "description": "Blocks the last state-commitment-infos blob sent trails consensus; the retrospective gate errors once it reaches STORED_BLOCK_HASH_BUFFER.",
+          "description": "Blocks the last state-commitment-infos blob sent trails consensus; the retrospective gate errors once it reaches STORED_BLOCK_HASH_BUFFER. Observer nodes are excluded.",
           "type": "timeseries",
           "exprs": [
-            "max by (namespace) (consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - max by (namespace) (cende_last_state_commitment_infos_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "max by (namespace) ((consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) and on(cluster, namespace, pod) (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) - max by (namespace) ((cende_last_state_commitment_infos_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) and on(cluster, namespace, pod) (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0))"
           ],
           "extra_params": {
             "thresholds": {
