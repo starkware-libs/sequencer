@@ -1,5 +1,5 @@
 use starknet_api::contract_class::ClassInfo;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{AddressDerivationHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction,
@@ -102,7 +102,8 @@ impl Transaction {
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
                     Some(address) => address,
-                    None => deploy_account.calculate_contract_address()?,
+                    None => deploy_account
+                        .calculate_contract_address(AddressDerivationHash::Pedersen)?,
                 };
                 ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
                     tx: deploy_account,

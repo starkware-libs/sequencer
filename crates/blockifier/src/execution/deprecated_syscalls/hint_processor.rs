@@ -20,6 +20,7 @@ use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EntryPointSelector,
@@ -617,6 +618,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
             request.class_hash,
             &request.constructor_calldata,
             deployer_address_for_calculation,
+            AddressDerivationHash::Pedersen,
         )?;
 
         // Increment the Deploy syscall's linear cost counter by the number of elements in the
