@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789477535312,
+  "lastUpdate": 1789635858272,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7683,6 +7683,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1497.1847313399999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1c4fa0261847f403fa0e2da81d412a30d56481d9",
+          "message": "Merge pull request #15135 from starkware-libs/einat/merge-main-v0.14.4-into-main-1789540861\n\nMerge main-v0.14.4 into main",
+          "timestamp": "2026-09-17T08:37:02Z",
+          "tree_id": "99134f8e7632d03be8d654eb6444a25e96254845",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1c4fa0261847f403fa0e2da81d412a30d56481d9"
+        },
+        "date": 1789635857549,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 890.2959234900001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1352.94603446,
             "unit": "ms"
           }
         ]
