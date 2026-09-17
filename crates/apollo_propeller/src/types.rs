@@ -1,6 +1,7 @@
 //! Core types for the Propeller protocol.
 
 use libp2p::identity::PeerId;
+pub use starknet_api::staking::CommitteeId;
 use thiserror::Error;
 
 use crate::padding::UnpaddingError;
@@ -34,11 +35,6 @@ pub enum Event {
     /// Message processing timed out before completion.
     MessageTimeout { committee_id: CommitteeId, publisher: PeerId, message_root: MessageRoot },
 }
-
-// TODO(andrew): add the epoch number to committee ID, so it doesn't repeat if the same members are
-// in different epochs.
-#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-pub struct CommitteeId(pub [u8; 32]);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct UnitIndex(pub u64);
