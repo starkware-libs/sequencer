@@ -21,19 +21,18 @@ use crate::forest::forest_errors::ForestResult;
 use crate::patricia_merkle_tree::tree::SortedLeafIndices;
 use crate::patricia_merkle_tree::types::{CompressedStateCommitmentInfos, StarknetForestProofs};
 
-/// The information required to write the OS-input commitment infos to the database. The payload
-/// is stored as given, so the caller compresses it (once) before handing it over.
-pub struct CommitmentInfosWrite {
+/// The information required to write the OS-input commitment infos to the database.
+pub struct CommitmentInfosWrite<'a> {
     pub block_number: BlockNumber,
     pub keys_digest: [u8; 32],
-    pub commitment_infos: CompressedStateCommitmentInfos,
+    pub commitment_infos: &'a CompressedStateCommitmentInfos,
 }
 
 /// Commitment-infos DB operation, which can be either delete or write.
 /// Expected by [ForestWriterWithMetadataAndWitnesses::write_with_metadata_and_commitment_infos],
 /// which accumulates all DB operations to guarantee atomicity.
-pub enum CommitmentInfosUpdate {
-    Write(CommitmentInfosWrite),
+pub enum CommitmentInfosUpdate<'a> {
+    Write(CommitmentInfosWrite<'a>),
     Delete(BlockNumber),
 }
 
@@ -71,7 +70,7 @@ pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send 
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
-        commitment_infos_updates: Vec<CommitmentInfosUpdate>,
+        commitment_infos_updates: Vec<CommitmentInfosUpdate<'_>>,
     ) -> SerializationResult<usize>;
 }
 

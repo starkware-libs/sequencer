@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import copy
 import json
 import sys
 import tempfile
@@ -234,8 +235,28 @@ class ConfigValuesUpdater(ABC):
         """
 
 
+def set_nested_config_value(config_data: dict[str, Any], dotted_path: str, value: Any) -> bool:
+    """Write `value` at `dotted_path` inside the nested node config; returns whether it was written.
+
+    Mirrors the node's secrets overlay: a `null` intermediate (a disabled component) is skipped, and a
+    key that does not exist raises `KeyError`, so a typo never deploys silently.
+    """
+    *parent_segments, leaf = dotted_path.split(".")
+    node = config_data
+    for depth, segment in enumerate(parent_segments):
+        if not isinstance(node, dict) or segment not in node:
+            raise KeyError(f"{'.'.join(parent_segments[: depth + 1])} is not in the node config")
+        node = node[segment]
+        if node is None:
+            return False
+    if not isinstance(node, dict) or leaf not in node:
+        raise KeyError(f"{dotted_path} is not in the node config")
+    node[leaf] = value
+    return True
+
+
 class ConstConfigValuesUpdater(ConfigValuesUpdater):
-    """Concrete implementation that applies constant configuration overrides."""
+    """Applies constant overrides, keyed by dotted path into the nested node config."""
 
     def __init__(self, config_overrides: dict[str, Any]):
         """Initialize with configuration overrides.
@@ -249,11 +270,13 @@ class ConstConfigValuesUpdater(ConfigValuesUpdater):
         self, config_data: dict[str, Any], instance_index: int
     ) -> dict[str, Any]:
         """Apply the same configuration overrides to the config data for each instance."""
-        updated_config = config_data.copy()
+        updated_config = copy.deepcopy(config_data)
 
-        for key, value in self.config_overrides.items():
-            print_colored(f"  Overriding config: {key} = {value}")
-            updated_config[key] = value
+        for dotted_path, value in self.config_overrides.items():
+            if set_nested_config_value(updated_config, dotted_path, value):
+                print_colored(f"  Overriding config: {dotted_path} = {value}")
+            else:
+                print_colored(f"  Skipping {dotted_path}: its component is disabled in this config")
 
         return updated_config
 

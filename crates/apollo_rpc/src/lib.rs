@@ -14,14 +14,11 @@ mod test_utils;
 mod v0_8;
 mod version_config;
 
-use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
 use apollo_starknet_client::reader::PendingData;
 use apollo_starknet_client::writer::StarknetGatewayClient;
@@ -98,70 +95,6 @@ impl Default for RpcConfig {
             },
             execution_config: ExecutionConfig::default(),
         }
-    }
-}
-
-impl SerializeConfig for RpcConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut self_params_dump = BTreeMap::from_iter([
-            ser_param(
-                "chain_id",
-                &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "ip",
-                &self.ip.to_string(), "The JSON RPC server ip.",
-                ParamPrivacyInput::Public
-            ),
-            ser_param(
-                "port",
-                &self.port,
-                "The JSON RPC server port.",
-                ParamPrivacyInput::Public
-            ),
-            ser_param(
-                "max_events_chunk_size",
-                &self.max_events_chunk_size,
-                "Maximum chunk size supported by the node in get_events requests.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_events_keys",
-                &self.max_events_keys,
-                "Maximum number of keys supported by the node in get_events requests.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "collect_metrics",
-                &self.collect_metrics,
-                "If true, collect metrics for the rpc.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "starknet_url",
-                &self.starknet_url,
-                "URL for communicating with Starknet in write_api methods.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-
-        self_params_dump
-            .append(&mut prepend_sub_config_name(self.execution_config.dump(), "execution_config"));
-        let mut retry_config_dump = prepend_sub_config_name(
-            self.apollo_gateway_retry_config.dump(),
-            "apollo_gateway_retry_config",
-        );
-        for param in retry_config_dump.values_mut() {
-            param.description = format!(
-                "For communicating with Starknet gateway, {}{}",
-                param.description[0..1].to_lowercase(),
-                &param.description[1..]
-            );
-        }
-        self_params_dump.append(&mut retry_config_dump);
-        self_params_dump
     }
 }
 

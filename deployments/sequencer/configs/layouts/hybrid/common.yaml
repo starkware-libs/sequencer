@@ -13,9 +13,6 @@ image:
 # Common config for all services
 config:
   sequencerConfig: {}
-  # example:
-  # sequencerConfig:
-  #   base_layer_config_starknet_contract_address: "<STARKNET_CONTRACT_ADDRESS>"
 
 # Common ports for all services
 service:
