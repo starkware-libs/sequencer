@@ -46,7 +46,7 @@ fn proof_facts_debug_decodes_snos_without_dumping_felts() {
     let debug = format!("{:?}", ProofFacts::snos_proof_facts_for_testing());
     // Decoded via the variant's derived `Debug`, not the raw-felt length fallback.
     assert!(debug.starts_with("ProofFacts(Snos(SnosProofFacts {"), "got: {debug}");
-    assert!(debug.contains("proof_version: V1"), "got: {debug}");
+    assert!(debug.contains("proof_version: V2"), "got: {debug}");
     assert!(debug.contains("block_number: BlockNumber("), "got: {debug}");
     assert!(!debug.contains("elements"), "should not hit the fallback: {debug}");
 }

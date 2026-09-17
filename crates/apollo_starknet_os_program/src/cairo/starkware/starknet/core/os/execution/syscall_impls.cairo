@@ -1016,10 +1016,12 @@ func execute_sha256_process_block{
     let state: Sha256State* = &sha256_ptr.in_state;
     assert [state] = [request.state_ptr];
 
-    // Relocate `response.state_ptr` (allocated by the syscall hint) to the next `out_state`
-    // slot in the sha256 segment (`actual_out_state`) and assert that the two pointers are equal.
-    // Also copy [state_ptr] into [actual_out_state], since finalize_sha256 reads from
-    // [actual_out_state] and the relocation happens in the opposite direction.
+    // Relocate `response.state_ptr` (a temporary segment, allocated by the syscall hint) to the
+    // next `out_state` slot in the sha256 segment (`actual_out_state`) and assert that the two
+    // pointers are equal.
+    // The hint also copies the state words into `actual_out_state` eagerly: the relocation rule
+    // above only takes effect when the VM relocates memory at the end of the run, whereas
+    // `finalize_sha256` reads the output state from the sha256 segment during execution.
     %{ RelocateSha256Segment %}
 
     assert [response] = Sha256ProcessBlockResponse(state_ptr=actual_out_state);
@@ -1065,8 +1067,12 @@ func execute_sha512_process_block{
     let state: Sha512State* = &sha512_ptr.in_state;
     assert [state] = [request.state_ptr];
 
-    // Relocate response.state_ptr (a temporary segment) to actual_out_state in the sha512
-    // segment, and copy the state so finalize_sha512 can read it.
+    // Relocate `response.state_ptr` (a temporary segment, allocated by the syscall hint) to the
+    // next `out_state` slot in the sha512 segment (`actual_out_state`) and assert that the two
+    // pointers are equal.
+    // The hint also copies the state words into `actual_out_state` eagerly: the relocation rule
+    // above only takes effect when the VM relocates memory at the end of the run, whereas
+    // `finalize_sha512` reads the output state from the sha512 segment during execution.
     %{ RelocateSha512Segment %}
 
     assert [response] = Sha512ProcessBlockResponse(state_ptr=actual_out_state);
