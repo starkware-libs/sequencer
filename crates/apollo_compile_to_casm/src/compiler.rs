@@ -8,11 +8,19 @@ use apollo_compilation_utils::resource_limits::ResourceLimits;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_sierra_compilation_config::config::{AllowedLibfuncsList, SierraCompilationConfig};
+use cairo_lang_starknet_classes::allowed_libfuncs::{
+    BUILTIN_ALL_LIBFUNCS_LIST,
+    BUILTIN_AUDITED_LIBFUNCS_LIST,
+};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use tracing::info;
 
 use crate::constants::{BUNDLED_ALLOWED_LIBFUNCS_PATH, CAIRO_LANG_BINARY_NAME};
+
+#[cfg(test)]
+#[path = "compiler_test.rs"]
+mod compiler_test;
 
 #[derive(Clone)]
 pub struct SierraToCasmCompiler {
@@ -68,8 +76,12 @@ pub(crate) fn libfunc_list_arg(
     allowed_libfuncs_list: AllowedLibfuncsList,
 ) -> (&'static str, String) {
     match allowed_libfuncs_list {
-        AllowedLibfuncsList::Audited => ("--allowed-libfuncs-list-name", "audited".to_owned()),
-        AllowedLibfuncsList::All => ("--allowed-libfuncs-list-name", "all".to_owned()),
+        AllowedLibfuncsList::Audited => {
+            ("--allowed-libfuncs-list-name", BUILTIN_AUDITED_LIBFUNCS_LIST.to_owned())
+        }
+        AllowedLibfuncsList::All => {
+            ("--allowed-libfuncs-list-name", BUILTIN_ALL_LIBFUNCS_LIST.to_owned())
+        }
         AllowedLibfuncsList::Bundled => (
             "--allowed-libfuncs-list-file",
             resolve_project_relative_path(BUNDLED_ALLOWED_LIBFUNCS_PATH)
