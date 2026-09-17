@@ -17,8 +17,9 @@ pub type Blake2sDigestWords = [u32; BLAKE2S_DIGEST_N_WORDS];
 /// The leaf cairo-verifier circuit's hash, from the proving side's circuit registry:
 /// blake2s(log_blowup_factor || component_log_sizes || preprocessed_root).
 ///
-/// NOTE: `canonical_small` test-registry value; to be replaced with the production
-/// registry's before production use.
+/// NOTE: `canonical_small` test-registry value, pinned against the vendored
+/// `resources/circuit_registry_canonical_small.json`; to be replaced - together with the
+/// registry - with the production value before production use.
 pub const LEAF_VERIFIER_CIRCUIT_HASH: Blake2sDigestWords = [
     0xd2d85a42, 0x79697b22, 0x3a41a061, 0x011cb393, 0x7a040ec9, 0x4508f4ca, 0x42239409, 0x60f3baea,
 ];
