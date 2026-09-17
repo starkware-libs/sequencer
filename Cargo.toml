@@ -75,6 +75,7 @@ members = [
   "crates/apollo_reverts",
   "crates/apollo_rpc",
   "crates/apollo_rpc_execution",
+  "crates/apollo_rpc_types",
   "crates/apollo_sierra_compilation_config",
   "crates/apollo_signature_manager",
   "crates/apollo_signature_manager_types",
@@ -151,7 +152,7 @@ apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
 apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.0.0" }
 apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.0.0" }
-apollo_config = { path = "crates/apollo_config", version = "0.0.0" }
+apollo_config.path = "crates/apollo_config"
 apollo_config_manager.path = "crates/apollo_config_manager"
 apollo_config_manager_config.path = "crates/apollo_config_manager_config"
 apollo_config_manager_types.path = "crates/apollo_config_manager_types"
@@ -204,6 +205,7 @@ apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
 apollo_rpc_execution.path = "crates/apollo_rpc_execution"
+apollo_rpc_types.path = "crates/apollo_rpc_types"
 apollo_sierra_compilation_config.path = "crates/apollo_sierra_compilation_config"
 apollo_signature_manager.path = "crates/apollo_signature_manager"
 apollo_signature_manager_types.path = "crates/apollo_signature_manager_types"
@@ -297,8 +299,11 @@ indoc = "2.0.5"
 insta = "1.29.0"
 integer-encoding = "3.0.4"
 itertools = "0.12.1"
+jrsonnet-evaluator = "0.5.0-pre98"
+jrsonnet-stdlib = "0.5.0-pre98"
 json-patch = "4.1.0"
 jsonrpsee = "0.26.0"
+jsonrpsee-types = "0.26.0"
 jsonschema = "0.17.0"
 keccak = "0.1.3"
 lazy_static = "1.5.0"
@@ -335,7 +340,8 @@ phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
 privacy-circuit-verify-v1 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", tag = "v0.14.3-rust-bump" }
+privacy-circuit-verify-v2 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving", rev = "2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving", rev = "2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
