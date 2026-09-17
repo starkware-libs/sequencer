@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
@@ -7,16 +6,8 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
     serialize_duration_as_milliseconds,
+    serialize_duration_as_seconds,
 };
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::de::{Deserializer, Error};
-use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
@@ -27,11 +18,20 @@ pub struct CendeConfig {
     pub recorder_url: Url,
 
     // Retry policy.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_seconds_to_duration",
+        serialize_with = "serialize_duration_as_seconds"
+    )]
     pub max_retry_duration_secs: Duration,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub min_retry_interval_ms: Duration,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub max_retry_interval_ms: Duration,
 }
 
@@ -48,37 +48,6 @@ impl Default for CendeConfig {
     }
 }
 
-impl SerializeConfig for CendeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "recorder_url",
-                &self.recorder_url,
-                "The URL of the Pythonic cende_recorder",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_retry_duration_secs",
-                &self.max_retry_duration_secs.as_secs(),
-                "The maximum duration (seconds) to retry the request to the recorder",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_retry_interval_ms",
-                &self.min_retry_interval_ms.as_millis(),
-                "The minimum waiting time (milliseconds) between retries",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_retry_interval_ms",
-                &self.max_retry_interval_ms.as_millis(),
-                "The maximum waiting time (milliseconds) between retries",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
@@ -89,47 +58,12 @@ pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
 const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
 
 /// Represents a minimum gas price that applies starting from a specific block height.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PricePerHeight {
     /// The block height at which this price becomes active.
     pub height: u64,
     /// The minimum gas price in fri.
     pub price: u128,
-}
-
-/// Serializes `Vec<PricePerHeight>` into the format: "height1:price1,height2:price2,height3:price3"
-pub fn serialize_price_per_height(entries: &[PricePerHeight]) -> String {
-    entries.iter().map(|e| format!("{}:{}", e.height, e.price)).collect::<Vec<_>>().join(",")
-}
-
-/// Parses `Vec<PricePerHeight>` from the format: "height1:price1,height2:price2,height3:price3"
-pub fn parse_price_per_height(s: &str) -> Result<Vec<PricePerHeight>, String> {
-    let trimmed = s.trim();
-
-    if trimmed.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    trimmed
-        .split(',')
-        .map(|entry| {
-            let entry = entry.trim();
-            let parts: Vec<&str> = entry.split(':').map(|p| p.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!(
-                    "Invalid price_per_height entry format: '{}'. Expected 'height:price'",
-                    entry
-                ));
-            }
-            let height = parts[0]
-                .parse::<u64>()
-                .map_err(|e| format!("Invalid height '{}': {}", parts[0], e))?;
-            let price = parts[1]
-                .parse::<u128>()
-                .map_err(|e| format!("Invalid price '{}': {}", parts[1], e))?;
-            Ok(PricePerHeight { height, price })
-        })
-        .collect()
 }
 
 /// Configuration for the Context struct.
@@ -139,15 +73,6 @@ pub struct ContextConfig {
     pub dynamic_config: ContextDynamicConfig,
     #[validate(nested)]
     pub static_config: ContextStaticConfig,
-}
-
-impl SerializeConfig for ContextConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
-        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
-        config
-    }
 }
 
 /// Static configuration for the Context struct.
@@ -167,14 +92,20 @@ pub struct ContextStaticConfig {
     // though has a timeout as a defensive measure to make sure the proposal doesn't live
     // forever if the Context crashes or has a bug.
     /// Safety margin in milliseconds to allow the batcher to successfully validate a proposal.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub validate_proposal_margin_millis: Duration,
     /// The fraction (0.0 - 1.0) of the total build time allocated to waiting
     /// for the retrospective block hash to be available. The remaining time is used to build the
     /// proposal.
     pub build_proposal_time_ratio_for_retrospective_block_hash: f32,
     /// The interval between retrospective block hash retries.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub behavior_mode: BehaviorMode,
     /// When adding a synced block, fetch its accessed keys from the recorder so the node can build
@@ -183,88 +114,6 @@ pub struct ContextStaticConfig {
     /// For each height whose state commitment infos are sent to the cende recorder, send an empty
     /// object instead of the one stored by the batcher.
     pub send_empty_state_commitment_infos_only: bool,
-}
-
-impl SerializeConfig for ContextStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "proposal_buffer_size",
-                &self.proposal_buffer_size,
-                "The buffer size for streaming outbound proposals.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "chain_id",
-                &self.chain_id,
-                "The chain id of the Starknet chain.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "block_timestamp_window_seconds",
-                &self.block_timestamp_window_seconds,
-                "Maximum allowed deviation (seconds) of a proposed block's timestamp from the \
-                 current time.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "l1_da_mode",
-                &self.l1_da_mode,
-                "The data availability mode, true: Blob, false: Calldata.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "builder_address",
-                &self.builder_address,
-                "The address of the contract that builds the block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "validate_proposal_margin_millis",
-                &self.validate_proposal_margin_millis.as_millis(),
-                "Safety margin (in ms) to make sure that consensus determines when to timeout \
-                 validating a proposal.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "build_proposal_time_ratio_for_retrospective_block_hash",
-                &self.build_proposal_time_ratio_for_retrospective_block_hash,
-                "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the \
-                 retrospective block hash to be available. The remaining time is used to build \
-                 the proposal.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "retrospective_block_hash_retry_interval_millis",
-                &self.retrospective_block_hash_retry_interval_millis.as_millis(),
-                "The interval between retrospective block hash retries.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend([ser_param(
-            "behavior_mode",
-            &self.behavior_mode,
-            "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.extend([
-            ser_param(
-                "fetch_accessed_keys_from_centralized",
-                &self.fetch_accessed_keys_from_centralized,
-                "Fetch accessed keys from the centralized recorder for synced blocks, enabling \
-                 local state commitment infos construction.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "send_empty_state_commitment_infos_only",
-                &self.send_empty_state_commitment_infos_only,
-                "For each height whose state commitment infos are sent to the cende recorder, \
-                 send an empty object instead of the one stored by the batcher.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump
-    }
 }
 
 impl Default for ContextStaticConfig {
@@ -323,121 +172,9 @@ pub struct ContextDynamicConfig {
     // TODO(guyn): remove this after we completely remove wei prices from block info.
     /// If given, will override the conversion rate.
     pub override_eth_to_fri_rate: Option<u128>,
-    // List of minimum L2 gas prices per block height.
-    // Format: "height1:price1,height2:price2,height3:price3"
-    #[serde(
-        deserialize_with = "deserialize_price_per_height_from_string",
-        serialize_with = "serialize_price_per_height_as_string"
-    )]
+    /// List of minimum L2 gas prices per block height, as `{ height, price }` entries.
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
-}
-
-impl SerializeConfig for ContextDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "build_proposal_margin_millis",
-                &self.build_proposal_margin_millis.as_millis(),
-                "Safety margin (in ms) to make sure that the batcher completes building the \
-                 proposal with enough time for the Fin to be checked by validators.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_l1_gas_price_wei",
-                &self.min_l1_gas_price_wei,
-                "The minimum L1 gas price in wei.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_l1_gas_price_wei",
-                &self.max_l1_gas_price_wei,
-                "The maximum L1 gas price in wei.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "min_l1_data_gas_price_wei",
-                &self.min_l1_data_gas_price_wei,
-                "The minimum L1 data gas price in wei.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_l1_data_gas_price_wei",
-                &self.max_l1_data_gas_price_wei,
-                "The maximum L1 data gas price in wei.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "l1_data_gas_price_multiplier_ppt",
-                &self.l1_data_gas_price_multiplier_ppt,
-                "Part per thousand of multiplicative factor to apply to the data gas price, to \
-                 enable fine-tuning of the price charged to end users.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "l1_gas_tip_wei",
-                &self.l1_gas_tip_wei,
-                "This additional gas is added to the L1 gas price.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "snip35_target_atto_usd_per_l2_gas",
-                &self.snip35_target_atto_usd_per_l2_gas,
-                "SNIP-35 target USD cost per L2 gas unit, in atto-USD ($0.88 per 1e9 L2 gas = \
-                 880_000_000 atto-USD).",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "compare_retrospective_block_hash",
-                &self.compare_retrospective_block_hash,
-                "Whether to compare the retrospective block hash between the Batcher and the \
-                 State Sync.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend(ser_optional_param(
-            &self.override_l2_gas_price_fri,
-            0,
-            "override_l2_gas_price_fri",
-            "Replace the L2 gas price (fri) with this value.",
-            ParamPrivacyInput::Public,
-        ));
-        dump.extend(ser_optional_param(
-            &self.override_l1_gas_price_fri,
-            0,
-            "override_l1_gas_price_fri",
-            "Replace the L1 gas price (fri) with this value.",
-            ParamPrivacyInput::Public,
-        ));
-        dump.extend(ser_optional_param(
-            &self.override_l1_data_gas_price_fri,
-            0,
-            "override_l1_data_gas_price_fri",
-            "Replace the L1 data gas price (fri) with this value.",
-            ParamPrivacyInput::Public,
-        ));
-        dump.extend(ser_optional_param(
-            &self.override_eth_to_fri_rate,
-            0,
-            "override_eth_to_fri_rate",
-            "Replace the Eth-to-Fri conversion rate with this value.",
-            ParamPrivacyInput::Public,
-        ));
-
-        // Serialize as string format "h1:v1,h2:v2" using the same function as the Serialize impl
-        let serialized = serialize_price_per_height(&self.min_l2_gas_price_per_height);
-        let (key, value) = ser_param(
-            "min_l2_gas_price_per_height",
-            &serialized,
-            "List of minimum L2 gas prices per block height in format \
-             'height1:price1,height2:price2'. Each entry specifies a height and the minimum gas \
-             price that applies from that height onwards.",
-            ParamPrivacyInput::Public,
-        );
-        dump.insert(key, value);
-
-        dump
-    }
 }
 
 impl Default for ContextDynamicConfig {
@@ -459,29 +196,6 @@ impl Default for ContextDynamicConfig {
             compare_retrospective_block_hash: true,
         }
     }
-}
-
-/// Deserializes `Vec<PricePerHeight>` from string format "height1:price1,height2:price2,...".
-pub fn deserialize_price_per_height_from_string<'de, D>(
-    de: D,
-) -> Result<Vec<PricePerHeight>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw: String = Deserialize::deserialize(de)?;
-    parse_price_per_height(&raw).map_err(Error::custom)
-}
-
-/// Serializes `Vec<PricePerHeight>` as string format "height1:price1,height2:price2,...".
-pub fn serialize_price_per_height_as_string<S>(
-    entries: &[PricePerHeight],
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let s = serialize_price_per_height(entries);
-    serializer.serialize_str(&s)
 }
 
 fn validate_dynamic_config(
