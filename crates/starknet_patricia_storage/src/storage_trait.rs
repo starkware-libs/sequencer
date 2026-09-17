@@ -1,10 +1,8 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::future::Future;
 
-use apollo_config::dumping::SerializeConfig;
-use apollo_config::{ParamPath, SerializedParam};
 use async_trait::async_trait;
 use futures::future::join_all;
 use serde::{Deserialize, Serialize, Serializer};
@@ -102,7 +100,7 @@ impl Display for NoStats {
 /// All configuration structs of storage implementations that can be used in apollo must implement
 /// this trait.
 pub trait StorageConfigTrait:
-    Clone + Debug + Serialize + PartialEq + Validate + SerializeConfig + Default + Send + Sync
+    Clone + Debug + Serialize + PartialEq + Validate + Default + Send + Sync
 {
 }
 
@@ -266,12 +264,6 @@ pub struct EmptyStorageConfig {}
 impl Validate for EmptyStorageConfig {
     fn validate(&self) -> Result<(), validator::ValidationErrors> {
         Ok(())
-    }
-}
-
-impl SerializeConfig for EmptyStorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new()
     }
 }
 

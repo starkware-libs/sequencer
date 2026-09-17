@@ -284,6 +284,61 @@ async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
 }
 
 #[tokio::test]
+async fn wait_for_retrospective_block_hash_state_sync_transient_feeder_error() {
+    let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
+        .times(2)
+        .returning(|_| Ok(RETRO_BLOCK_HASH));
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
+        .returning(|_| Ok(RETRO_BLOCK_HASH));
+    // State sync falls back to the feeder gateway for blocks it has not synced yet; the feeder
+    // fails transiently (e.g. a 500) in the first attempt.
+    test_proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
+        .times(1)
+        .returning(|_| {
+            Err(StateSyncError::ReaderClientError("Internal server error".to_string()).into())
+        });
+    test_proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
+        .times(1)
+        .returning(|_| Ok(RETRO_BLOCK_HASH));
+
+    let proposal_args: ProposalBuildArguments = test_proposal_args.into();
+    let init = get_proposal_init(&proposal_args).await;
+    let res = wait_for_retrospective_block_hash(
+        proposal_args.deps.batcher,
+        proposal_args.deps.state_sync_client,
+        &init,
+        proposal_args.deps.clock.as_ref(),
+        proposal_args.retrospective_block_hash_deadline,
+        proposal_args.retrospective_block_hash_retry_interval_millis,
+        proposal_args.compare_retrospective_block_hash,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        res,
+        Some(BlockHashAndNumber { number: RETRO_BLOCK_NUMBER, hash: RETRO_BLOCK_HASH })
+    );
+}
+
+#[tokio::test]
 async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;

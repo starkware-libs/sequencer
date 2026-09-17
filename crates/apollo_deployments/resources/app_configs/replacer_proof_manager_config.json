@@ -1,4 +1,0 @@
-{
-  "proof_manager_config.cache_size": 500,
-  "proof_manager_config.persistent_root": "/data/proofs"
-}

@@ -67,9 +67,6 @@ ENV CARGO_TOOLS_ROOT=/opt/cargo-tools
 COPY --from=builder /var/tmp/rust/tools ${CARGO_TOOLS_ROOT}
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
-# Copy apollo config schema, used when it loads its configuration.
-COPY crates/apollo_node/resources/config_schema.json crates/apollo_node/resources/config_schema.json
-
 # Create a new user "sequencer".
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \
