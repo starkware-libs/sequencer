@@ -46,6 +46,8 @@ function(chain_params)
       },
       stateless_tx_validator_config: {
         allow_client_side_proving: true,
+        allow_proof_version_v1: false,
+        allow_proof_version_v2: true,
         max_calldata_length: 5000,
         max_contract_bytecode_size: chain_params.max_contract_bytecode_size,
         max_contract_class_object_size: 4089446,

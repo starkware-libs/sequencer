@@ -24,8 +24,6 @@ struct StarknetOsConfig {
 
 // Calculates the hash of StarkNet OS config. The public keys hash is not included if there are no
 // public keys (i.e., for envs where the state diff is not encrypted).
-// The top-level hash uses Blake; the public_keys_hash field is itself a Blake digest (see
-// get_public_keys_hash) and is absorbed here as a single felt.
 func get_starknet_os_config_hash{range_check_ptr}(starknet_os_config: StarknetOsConfig*) -> (
     starknet_os_config_hash: felt
 ) {
@@ -39,8 +37,8 @@ func get_starknet_os_config_hash{range_check_ptr}(starknet_os_config: StarknetOs
         // remove the following `if`.
         if (starknet_os_config.public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH) {
             hash_update_single(item=starknet_os_config.public_keys_hash);
-            tempvar hash_state = hash_state;
         } else {
+            // Align the stack.
             tempvar hash_state = hash_state;
         }
     }

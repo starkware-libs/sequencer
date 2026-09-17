@@ -4,6 +4,9 @@ const VIRTUAL_SNOS = 'VIRTUAL_SNOS';
 // Marker indicating proof facts format version 1.
 const PROOF_VERSION_V1 = 'PROOF1';
 
+// Marker indicating proof facts format version 2.
+const PROOF_VERSION_V2 = 'PROOF2';
+
 // The version of the virtual OS output.
 //
 // === VIRTUAL_SNOS0 Version Contract ===
