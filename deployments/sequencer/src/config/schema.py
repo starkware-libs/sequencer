@@ -467,14 +467,11 @@ class PriorityClass(StrictBaseModel):
 
 
 class Config(StrictBaseModel):
-    configList: Optional[
-        str
-    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for shared config)
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
     readOnly: Optional[bool] = None  # Whether the config map mount is read-only. Defaults to True.
     sequencerConfig: Optional[
         AnyDict
-    ] = None  # Override values for sequencer config. Keys use hierarchical structure with dots (e.g., 'components.batcher.port'), values are the replacement. Automatically converted to placeholder format (dots -> hyphens) for matching.
+    ] = None  # Deprecated and ignored (the ConfigMap comes from node.jsonnet); kept so existing overlays with `sequencerConfig: {}` still validate.
 
 
 class ServiceConfig(StrictBaseModel):

@@ -1,12 +1,9 @@
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_positive;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -88,57 +85,6 @@ pub struct RemoteServerConfig {
     pub keepalive_interval_ms: u64,
     #[validate(custom(function = "validate_keepalive_timeout_ms"))]
     pub keepalive_timeout_ms: u64,
-}
-
-impl SerializeConfig for RemoteServerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "bind_ip",
-                &self.bind_ip.to_string(),
-                "Binding address of the remote component server.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_streams_per_connection",
-                &self.max_streams_per_connection,
-                "Maximal number of streams per HTTP connection.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "set_tcp_nodelay",
-                &self.set_tcp_nodelay,
-                "Whether to set TCP_NODELAY on the server responses.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_concurrency",
-                &self.max_concurrency,
-                "The maximum number of concurrent requests handling.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_request_body_bytes",
-                &self.max_request_body_bytes,
-                "Maximum allowed size in bytes for an incoming request body. Requests exceeding \
-                 this limit are rejected with 413 Payload Too Large.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "keepalive_interval_ms",
-                &self.keepalive_interval_ms,
-                "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "keepalive_timeout_ms",
-                &self.keepalive_timeout_ms,
-                "Timeout in milliseconds to wait for a keepalive ping response before closing the \
-                 connection.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for RemoteServerConfig {

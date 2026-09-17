@@ -115,7 +115,7 @@ externalSecret:
 ### `mountPath` (string, optional)
 - **Default**: `"/etc/secrets"`
 - **Description**: Path where the external secret will be mounted in the container
-- **Note**: The secret is mounted as a single file `external-secret.json` at `{mountPath}/external-secret.json`
+- **Note**: The secret is mounted as a single file `secrets.json` at `{mountPath}/secrets.json`
 - **Example**:
   ```yaml
   externalSecret:

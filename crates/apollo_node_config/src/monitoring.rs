@@ -1,8 +1,4 @@
-use std::collections::BTreeMap;
-
-use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::create_validation_error;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
@@ -11,25 +7,6 @@ use validator::{Validate, ValidationError};
 pub struct MonitoringConfig {
     pub collect_metrics: bool,
     pub collect_profiling_metrics: bool,
-}
-
-impl SerializeConfig for MonitoringConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "collect_metrics",
-                &self.collect_metrics,
-                "Indicating if metrics should be recorded.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "collect_profiling_metrics",
-                &self.collect_profiling_metrics,
-                "Indicating if profiling metrics should be collected.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for MonitoringConfig {
