@@ -139,8 +139,7 @@ func deprecated_execute_entry_point{
         %{ ExitCall %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
-        let (retdata: felt*) = alloc();
-        return (is_reverted=0, retdata_size=0, retdata=retdata);
+        return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
     }
 
     local range_check_ptr = range_check_ptr;

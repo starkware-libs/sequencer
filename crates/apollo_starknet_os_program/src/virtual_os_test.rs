@@ -19,7 +19,7 @@ fn test_virtual_os_swapped_files() {
 #[test]
 fn test_program_bytecode_lengths() {
     expect![[r#"
-        16350
+        16349
     "#]]
     .assert_debug_eq(&OS_PROGRAM.data_len());
     expect![[r#"
