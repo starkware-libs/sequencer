@@ -459,7 +459,7 @@ impl<'a> SyscallHintProcessor<'a> {
             TransactionInfo::Deprecated(_) => {
                 let zero_felt: MaybeRelocatable = Felt::ZERO.into();
                 // The spans are all empty, so a single empty segment bounds them all.
-                let (empty_span_ptr, _) = &self.allocate_data_segment(vm, &[])?;
+                let (empty_span_ptr, _) = self.allocate_data_segment(vm, &[])?;
                 tx_data.extend_from_slice(&[
                     empty_span_ptr.into(), // Resource bounds (start ptr).
                     empty_span_ptr.into(), // Resource bounds (end ptr).
