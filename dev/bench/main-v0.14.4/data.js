@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789560191450,
+  "lastUpdate": 1790066822599,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -475,6 +475,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1527.40842525,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9cf4dd8589fe2eaac6326bb1b08c4f4d24b98837",
+          "message": "workspace: upgrade cairo compiler to v2.19.5 (#15143)\n\nBumps the Rust cairo-lang-* crates and the Sierra compiler binary\nversion from 2.19.4 to 2.19.5. The bump moves the Sierra version\nfrom 1.9.3 to 1.9.4, cascading into Cairo1 class hashes and their\ndownstream fixtures: starknet_os_flow_tests fuzz-deployment addresses\nand hint-coverage fixtures, the proof-flow genesis global root and\nSTRK fee-token address, and the cende blob regression (operator and\nfee-token addresses, chain_info/preconfirmed_block).\n\nThe 2.19.5 class-hash changes alter the cende blobs, so the regression\nnow compares against a freshly uploaded generation 62 in the\napollo-central-systest-blobs bucket.\n\nThe hint-coverage fixtures gain StatelessHint(EnterScopeNewNode): the\nchanged class hashes reshape the Patricia tree, so the traversal now\nenters a new node where it previously did not. The experimental-libfuncs\nposeidon counts drop (66 -> 64, 57 -> 55) from compiler output changes\nin 2.19.5.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\nCo-authored-by: Cursor <cursoragent@cursor.com>",
+          "timestamp": "2026-09-22T08:26:51Z",
+          "tree_id": "957c500b5c4628fa398a3b79df9f1a2fc44f7b27",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9cf4dd8589fe2eaac6326bb1b08c4f4d24b98837"
+        },
+        "date": 1790066821860,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 923.68959099,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1473.0961843,
             "unit": "ms"
           }
         ]
