@@ -2,5 +2,5 @@
 ~ /os_constants/allowed_virtual_os_program_hashes/1: "0x62ce6df2e75a02ae95a406ea7c8c5494e03b28ca622bd74876e9fe51cddc37c"
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1310
 ~ /os_resources/execute_txs_inner/Declare/n_steps: 3941
-~ /os_resources/execute_txs_inner/DeployAccount/constant/n_steps: 4992
-~ /os_resources/execute_txs_inner/L1Handler/constant/n_steps: 1316
+~ /os_resources/execute_txs_inner/DeployAccount/constant/n_steps: 4995
+~ /os_resources/execute_txs_inner/L1Handler/constant/n_steps: 1319
