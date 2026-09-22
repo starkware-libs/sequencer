@@ -127,6 +127,7 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
+            "0x53f6c9fcfd31d27279ff7d7e422b44623550a732b59fe193354a7316a96daa1",
             "0x1c7be3225dfb33359b3ba9ffbe1542b7da27879b6d89f47b967e512463fd324",
             "0x12d2fa606dc3e09e2ebf9d1475564dbde513b9163e4c64f7903341cc5f91484"
         ],
