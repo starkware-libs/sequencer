@@ -5,14 +5,11 @@ use crate::errors::{ProvingError, VirtualSnosProverError};
 
 #[test]
 fn test_unsupported_builtins_display() {
-    let error = ProvingError::UnsupportedBuiltins {
-        unsupported_builtins: vec![(BuiltinName::mul_mod, 4)],
-        reason: "prover panicked".to_string(),
-    };
+    let error =
+        ProvingError::UnsupportedBuiltins { unsupported_builtins: vec![(BuiltinName::mul_mod, 4)] };
     assert_eq!(
         error.to_string(),
-        "Transaction uses builtins the prover does not support: mul_mod (4 instances). Prover \
-         error: prover panicked"
+        "Transaction uses builtins the prover does not support: mul_mod (4 instances)"
     );
 }
 
@@ -20,7 +17,6 @@ fn test_unsupported_builtins_display() {
 fn test_unsupported_builtins_maps_to_unsupported_builtin() {
     let error = VirtualSnosProverError::ProvingError(ProvingError::UnsupportedBuiltins {
         unsupported_builtins: vec![(BuiltinName::mul_mod, 4)],
-        reason: "prover panicked".to_string(),
     });
     let error_object: ErrorObjectOwned = error.into();
     assert_eq!(error_object.code(), 1002);
@@ -28,8 +24,7 @@ fn test_unsupported_builtins_maps_to_unsupported_builtin() {
     let data: String = serde_json::from_str(error_object.data().unwrap().get()).unwrap();
     assert_eq!(
         data,
-        "Transaction uses builtins the prover does not support: mul_mod (4 instances). Prover \
-         error: prover panicked"
+        "Transaction uses builtins the prover does not support: mul_mod (4 instances)"
     );
 }
 

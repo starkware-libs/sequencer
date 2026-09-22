@@ -13,7 +13,7 @@ use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_proof_verifier::ProgramOutput;
 
 use crate::errors::ProvingError;
-use crate::proving::prover::{classify_prover_task_error, prove, used_unsupported_builtins};
+use crate::proving::prover::{prove, used_unsupported_builtins};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
@@ -154,32 +154,13 @@ fn test_used_unsupported_builtins_ignores_explicit_zero_count() {
 }
 
 #[rstest]
-#[case::panic_with_usage(true, true)]
-#[case::panic_without_usage(true, false)]
-#[case::cancellation_with_usage(false, true)]
-#[case::cancellation_without_usage(false, false)]
+#[case::add_mod(BuiltinName::add_mod)]
+#[case::mul_mod(BuiltinName::mul_mod)]
 #[tokio::test]
-async fn test_classify_prover_task_error(#[case] panics: bool, #[case] used_mod_builtin: bool) {
-    let task = tokio::spawn(async move {
-        if panics {
-            panic!("prover panic");
-        }
-        std::future::pending::<()>().await;
-    });
-    if !panics {
-        task.abort();
-    }
-    let join_error = task.await.unwrap_err();
-    assert_eq!(join_error.is_panic(), panics);
-    let reason = join_error.to_string();
-    let builtins = if used_mod_builtin { vec![(BuiltinName::mul_mod, 3)] } else { Vec::new() };
-    let error = classify_prover_task_error(join_error, builtins.clone());
-    if panics && used_mod_builtin {
-        assert_matches!(error, ProvingError::UnsupportedBuiltins {
-            unsupported_builtins, reason: actual_reason,
-        } if unsupported_builtins == builtins && actual_reason == reason);
-    } else {
-        assert_matches!(error, ProvingError::TaskJoin(error)
-            if error.is_panic() == panics && error.to_string() == reason);
-    }
+async fn test_rejects_mod_builtin_usage(#[case] builtin: BuiltinName) {
+    let mut cairo_pie = read_cairo_pie_fixture();
+    cairo_pie.execution_resources.builtin_instance_counter.insert(builtin, 3);
+    let error = prove(cairo_pie, prepare_precomputes()).await.unwrap_err();
+    assert_matches!(error, ProvingError::UnsupportedBuiltins { unsupported_builtins }
+        if unsupported_builtins == vec![(builtin, 3)]);
 }

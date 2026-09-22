@@ -122,13 +122,13 @@ pub enum ProvingError {
     #[error("Proving task failed to join: {0}")]
     TaskJoin(#[source] tokio::task::JoinError),
 
-    /// A proving task panicked while the PIE used unsupported builtins.
+    /// The PIE uses builtins unsupported by the recursive prover.
     #[cfg(feature = "stwo_proving")]
     #[error(
-        "Transaction uses builtins the prover does not support: {}. Prover error: {reason}",
+        "Transaction uses builtins the prover does not support: {}",
         format_builtin_usage(unsupported_builtins)
     )]
-    UnsupportedBuiltins { unsupported_builtins: Vec<(BuiltinName, usize)>, reason: String },
+    UnsupportedBuiltins { unsupported_builtins: Vec<(BuiltinName, usize)> },
 }
 
 /// Error type for the virtual SNOS prover.

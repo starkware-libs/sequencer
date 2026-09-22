@@ -10,7 +10,6 @@ use privacy_circuit_verify_v2::consts::PRIVACY_TRANSACTION_COMPONENTS;
 use privacy_prove::{privacy_recursive_prove, RecursiveProverPrecomputes};
 use starknet_api::transaction::fields::Proof;
 use starknet_proof_verifier::ProgramOutput;
-use tokio::task::JoinError;
 
 use crate::errors::ProvingError;
 
@@ -31,11 +30,14 @@ pub(crate) async fn prove(
     precomputes: Arc<RecursiveProverPrecomputes>,
 ) -> Result<ProverOutput, ProvingError> {
     let unsupported_builtins = used_unsupported_builtins(&cairo_pie);
+    if !unsupported_builtins.is_empty() {
+        return Err(ProvingError::UnsupportedBuiltins { unsupported_builtins });
+    }
     let proof_output = tokio::task::spawn_blocking(move || {
         privacy_recursive_prove(cairo_pie, precomputes).map_err(|e| e.to_string())
     })
     .await
-    .map_err(|error| classify_prover_task_error(error, unsupported_builtins))?
+    .map_err(ProvingError::TaskJoin)?
     .map_err(ProvingError::ProverExecution)?;
 
     let proof = Proof::from(proof_output.proof);
@@ -53,17 +55,4 @@ pub(crate) fn used_unsupported_builtins(cairo_pie: &CairoPie) -> Vec<(BuiltinNam
             (count > 0).then_some((builtin, count))
         })
         .collect()
-}
-
-pub(super) fn classify_prover_task_error(
-    error: JoinError,
-    unsupported_builtins: Vec<(BuiltinName, usize)>,
-) -> ProvingError {
-    // TODO: Have privacy-prove return a typed unsupported-component error and match it here.
-    // Builtin usage alone does not establish the cause of a prover panic.
-    if error.is_panic() && !unsupported_builtins.is_empty() {
-        ProvingError::UnsupportedBuiltins { unsupported_builtins, reason: error.to_string() }
-    } else {
-        ProvingError::TaskJoin(error)
-    }
 }

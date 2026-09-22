@@ -372,7 +372,7 @@ serving.
 - Nightly Rust required for the Stwo prover — this is handled automatically in the Docker image.
 - Transactions that evaluate Cairo circuits (`core::circuit`, using the `add_mod`/`mul_mod`
   builtins) cannot be proven yet — the underlying AIR components are missing from the recursive
-  verifier circuit. Such a request fails after the proving attempt with error code `1002`
+  verifier circuit. Such a request is rejected before proof generation with error code `1002`
   (Unsupported builtin), whose `data` names the offending builtins.
 
 ## Machine specs

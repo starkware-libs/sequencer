@@ -311,7 +311,7 @@ async fn prove_and_verify_multicall_tx() {
         .expect("proof verification should succeed");
 }
 
-/// Pins the upstream proving failure. Add circuits also use mul_mod to reduce inputs.
+/// Checks service rejection and builtin diagnostics.
 #[cfg(feature = "stwo_proving")]
 #[rstest]
 #[case::mul_only("test_mul_mod", vec![BuiltinName::mul_mod])]
@@ -322,6 +322,29 @@ async fn prove_tx_using_mod_builtins_fails(
     #[case] entry_point_name: &str,
     #[case] expected_unsupported_builtins: Vec<BuiltinName>,
 ) {
+    let virtual_os_output =
+        run_mod_builtin_transaction(entry_point_name, &expected_unsupported_builtins).await;
+    let proving_error = virtual_os_output
+        .try_prove()
+        .await
+        .expect_err("mod builtins are unsupported by the prover");
+    let VirtualSnosProverError::ProvingError(ProvingError::UnsupportedBuiltins {
+        unsupported_builtins,
+        ..
+    }) = proving_error
+    else {
+        panic!("expected an unsupported-builtins error, got {proving_error:?}");
+    };
+    let unsupported_builtin_names: Vec<BuiltinName> =
+        unsupported_builtins.iter().map(|(builtin_name, _)| *builtin_name).collect();
+    assert_eq!(unsupported_builtin_names, expected_unsupported_builtins);
+}
+
+#[cfg(feature = "stwo_proving")]
+async fn run_mod_builtin_transaction(
+    entry_point_name: &str,
+    expected_unsupported_builtins: &[BuiltinName],
+) -> crate::virtual_os_test_manager::VirtualOsTestOutput {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_builder, [contract_address]) =
         TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
@@ -344,20 +367,54 @@ async fn prove_tx_using_mod_builtins_fails(
         );
     }
 
-    let proving_error = virtual_os_output
-        .try_prove()
-        .await
-        .expect_err("mod builtins are unsupported by the prover");
-    let VirtualSnosProverError::ProvingError(ProvingError::UnsupportedBuiltins {
-        unsupported_builtins,
-        ..
-    }) = proving_error
-    else {
-        panic!("expected an unsupported-builtins error, got {proving_error:?}");
-    };
-    let unsupported_builtin_names: Vec<BuiltinName> =
-        unsupported_builtins.iter().map(|(builtin_name, _)| *builtin_name).collect();
-    assert_eq!(unsupported_builtin_names, expected_unsupported_builtins);
+    virtual_os_output
+}
+
+/// Calls the upstream prover directly so service-side rejection cannot satisfy this test.
+#[cfg(feature = "stwo_proving")]
+#[rstest]
+#[case::mul_only("test_mul_mod", vec![BuiltinName::mul_mod])]
+#[case::add_and_mul("test_add_mod", vec![BuiltinName::add_mod, BuiltinName::mul_mod])]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn prove_mod_builtins_directly_fails(
+    #[case] entry_point_name: &str,
+    #[case] expected_builtins: Vec<BuiltinName>,
+) {
+    let output = run_mod_builtin_transaction(entry_point_name, &expected_builtins).await;
+    let precomputes = privacy_prove::prepare_recursive_prover_precomputes()
+        .expect("preparing prover precomputes should succeed");
+    let result = tokio::task::spawn_blocking(move || {
+        privacy_prove::privacy_recursive_prove(output.runner_output.cairo_pie, precomputes)
+            .map_err(|error| error.to_string())
+    })
+    .await;
+    match result {
+        Ok(proving_result) => assert!(proving_result.is_err(), "mod builtins must not be proven"),
+        Err(error) => assert!(error.is_panic(), "expected a prover panic, got {error}"),
+    }
+}
+
+/// Records current upstream behavior until the large prover rejects mod builtins.
+#[cfg(feature = "stwo_proving")]
+#[rstest]
+#[case::mul_only("test_mul_mod", vec![BuiltinName::mul_mod])]
+#[case::add_and_mul("test_add_mod", vec![BuiltinName::add_mod, BuiltinName::mul_mod])]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn prove_mod_builtins_large_currently_succeeds(
+    #[case] entry_point_name: &str,
+    #[case] expected_builtins: Vec<BuiltinName>,
+) {
+    let output = run_mod_builtin_transaction(entry_point_name, &expected_builtins).await;
+    let result = tokio::task::spawn_blocking(move || {
+        privacy_prove::privacy_recursive_prove_large(output.runner_output.cairo_pie)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .expect("large prover task should complete without panicking");
+    // TODO: Assert rejection when privacy_recursive_prove_large rejects mod builtins upstream.
+    result.expect("the pinned large prover currently accepts mod builtins");
 }
 
 /// Generates proof fixtures for the proof-flow integration test.

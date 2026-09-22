@@ -12,7 +12,10 @@ fuzz_test_debug = []
 long_fuzz_test = []
 # Forwards the prover's in-memory proving feature so tests can name prover error variants that
 # only exist with in-memory proving.
-stwo_proving = ["starknet_transaction_prover/stwo_proving"]
+stwo_proving = ["starknet_transaction_prover/stwo_proving", "dep:privacy-prove"]
+
+[dependencies]
+privacy-prove = { workspace = true, optional = true }
 
 [dev-dependencies]
 apollo_integration_tests.workspace = true
