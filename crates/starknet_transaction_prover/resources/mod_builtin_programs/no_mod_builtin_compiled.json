@@ -19,6 +19,15 @@
         "0x208b7fff7fff7ffe",
         "0x400380007ffb7ffc",
         "0x400380017ffb7ffd",
+        "0x480680017fff8000",
+        "0x2",
+        "0x400280027ffb7fff",
+        "0x482680017ffb8000",
+        "0x6",
+        "0x480280037ffb8000",
+        "0x208b7fff7fff7ffe",
+        "0x400380007ffb7ffc",
+        "0x400380017ffb7ffd",
         "0x482680017ffb8000",
         "0x3",
         "0x480280027ffb8000",
@@ -27,29 +36,20 @@
         "0x482680017ffc8000",
         "0x1",
         "0x208b7fff7fff7ffe",
-        "0x400380007ffb7ffc",
-        "0x400380017ffb7ffd",
-        "0x480680017fff8000",
-        "0x2",
-        "0x400280027ffb7fff",
-        "0x482680017ffb8000",
-        "0x6",
-        "0x480280037ffb8000",
-        "0x208b7fff7fff7ffe",
         "0x480a7ffa7fff8000",
         "0x480680017fff8000",
         "0x1",
         "0x480680017fff8000",
         "0x2",
         "0x1104800180018000",
-        "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe9",
+        "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff2",
         "0x480a7ffd7fff8000",
         "0x480680017fff8000",
         "0x1",
         "0x480680017fff8000",
         "0x2",
         "0x1104800180018000",
-        "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffec",
+        "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe2",
         "0x480a7ffc7fff8000",
         "0x480680017fff8000",
         "0xc",
@@ -60,7 +60,7 @@
         "0x480a7ffb7fff8000",
         "0x48127ffe7fff8000",
         "0x1104800180018000",
-        "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffdd",
+        "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe6",
         "0x48127fea7fff8000",
         "0x48127ffe7fff8000",
         "0x48127ff77fff8000",
@@ -87,7 +87,7 @@
     ],
     "debug_info": null,
     "hints": {
-        "12": [
+        "21": [
             {
                 "accessible_scopes": [
                     "starkware.cairo.common.math",
@@ -96,12 +96,12 @@
                 "code": "from starkware.cairo.common.math_utils import assert_integer\nassert_integer(ids.a)\nassert 0 <= ids.a % PRIME < range_check_builtin.bound, f'a = {ids.a} is out of range.'",
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 2,
+                        "group": 3,
                         "offset": 0
                     },
                     "reference_ids": {
-                        "starkware.cairo.common.math.assert_nn.a": 12,
-                        "starkware.cairo.common.math.assert_nn.range_check_ptr": 13
+                        "starkware.cairo.common.math.assert_nn.a": 18,
+                        "starkware.cairo.common.math.assert_nn.range_check_ptr": 19
                     }
                 }
             }
@@ -122,18 +122,6 @@
         },
         "__main__.PoseidonBuiltin": {
             "destination": "starkware.cairo.common.cairo_builtins.PoseidonBuiltin",
-            "type": "alias"
-        },
-        "__main__.assert_nn": {
-            "destination": "starkware.cairo.common.math.assert_nn",
-            "type": "alias"
-        },
-        "__main__.bitwise_and": {
-            "destination": "starkware.cairo.common.bitwise.bitwise_and",
-            "type": "alias"
-        },
-        "__main__.hash2": {
-            "destination": "starkware.cairo.common.hash.hash2",
             "type": "alias"
         },
         "__main__.main": {
@@ -350,23 +338,67 @@
             ],
             "type": "reference"
         },
-        "__main__.poseidon_hash": {
+        "__main__.use_transaction_builtins": {
+            "destination": "program_utils.use_transaction_builtins",
+            "type": "alias"
+        },
+        "program_utils.BitwiseBuiltin": {
+            "destination": "starkware.cairo.common.cairo_builtins.BitwiseBuiltin",
+            "type": "alias"
+        },
+        "program_utils.HashBuiltin": {
+            "destination": "starkware.cairo.common.cairo_builtins.HashBuiltin",
+            "type": "alias"
+        },
+        "program_utils.ModBuiltin": {
+            "destination": "starkware.cairo.common.cairo_builtins.ModBuiltin",
+            "type": "alias"
+        },
+        "program_utils.PoseidonBuiltin": {
+            "destination": "starkware.cairo.common.cairo_builtins.PoseidonBuiltin",
+            "type": "alias"
+        },
+        "program_utils.UInt384": {
+            "destination": "starkware.cairo.common.cairo_builtins.UInt384",
+            "type": "alias"
+        },
+        "program_utils.alloc": {
+            "destination": "starkware.cairo.common.alloc.alloc",
+            "type": "alias"
+        },
+        "program_utils.assert_nn": {
+            "destination": "starkware.cairo.common.math.assert_nn",
+            "type": "alias"
+        },
+        "program_utils.bitwise_and": {
+            "destination": "starkware.cairo.common.bitwise.bitwise_and",
+            "type": "alias"
+        },
+        "program_utils.get_label_location": {
+            "destination": "starkware.cairo.common.registers.get_label_location",
+            "type": "alias"
+        },
+        "program_utils.hash2": {
+            "destination": "starkware.cairo.common.hash.hash2",
+            "type": "alias"
+        },
+        "program_utils.poseidon_hash": {
             "destination": "starkware.cairo.common.builtin_poseidon.poseidon.poseidon_hash",
             "type": "alias"
         },
-        "__main__.use_transaction_builtins": {
+        "program_utils.use_transaction_builtins": {
             "decorators": [],
             "pc": 25,
             "type": "function"
         },
-        "__main__.use_transaction_builtins.Args": {
-            "full_name": "__main__.use_transaction_builtins.Args",
+        "program_utils.use_transaction_builtins.Args": {
+            "full_name": "program_utils.use_transaction_builtins.Args",
             "members": {},
             "size": 0,
             "type": "struct"
         },
-        "__main__.use_transaction_builtins.ImplicitArgs": {
-            "full_name": "__main__.use_transaction_builtins.ImplicitArgs",
+        "program_utils.use_transaction_builtins.ImplicitArgs": {
+            "full_name": "program_utils.use_transaction_builtins.ImplicitArgs",
             "members": {
                 "bitwise_ptr": {
                     "cairo_type": "starkware.cairo.common.cairo_builtins.BitwiseBuiltin*",
@@ -388,17 +420,17 @@
             "size": 4,
             "type": "struct"
         },
-        "__main__.use_transaction_builtins.Return": {
+        "program_utils.use_transaction_builtins.Return": {
             "cairo_type": "()",
             "type": "type_definition"
         },
-        "__main__.use_transaction_builtins.SIZEOF_LOCALS": {
+        "program_utils.use_transaction_builtins.SIZEOF_LOCALS": {
             "type": "const",
             "value": 0
         },
-        "__main__.use_transaction_builtins.bitwise_ptr": {
+        "program_utils.use_transaction_builtins.bitwise_ptr": {
             "cairo_type": "starkware.cairo.common.cairo_builtins.BitwiseBuiltin*",
-            "full_name": "__main__.use_transaction_builtins.bitwise_ptr",
+            "full_name": "program_utils.use_transaction_builtins.bitwise_ptr",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -419,9 +451,9 @@
             ],
             "type": "reference"
         },
-        "__main__.use_transaction_builtins.bitwise_result": {
+        "program_utils.use_transaction_builtins.bitwise_result": {
             "cairo_type": "felt",
-            "full_name": "__main__.use_transaction_builtins.bitwise_result",
+            "full_name": "program_utils.use_transaction_builtins.bitwise_result",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -434,9 +466,9 @@
             ],
             "type": "reference"
         },
-        "__main__.use_transaction_builtins.pedersen_ptr": {
+        "program_utils.use_transaction_builtins.pedersen_ptr": {
             "cairo_type": "starkware.cairo.common.cairo_builtins.HashBuiltin*",
-            "full_name": "__main__.use_transaction_builtins.pedersen_ptr",
+            "full_name": "program_utils.use_transaction_builtins.pedersen_ptr",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -457,9 +489,9 @@
             ],
             "type": "reference"
         },
-        "__main__.use_transaction_builtins.pedersen_result": {
+        "program_utils.use_transaction_builtins.pedersen_result": {
             "cairo_type": "felt",
-            "full_name": "__main__.use_transaction_builtins.pedersen_result",
+            "full_name": "program_utils.use_transaction_builtins.pedersen_result",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -472,9 +504,9 @@
             ],
             "type": "reference"
         },
-        "__main__.use_transaction_builtins.poseidon_ptr": {
+        "program_utils.use_transaction_builtins.poseidon_ptr": {
             "cairo_type": "starkware.cairo.common.cairo_builtins.PoseidonBuiltin*",
-            "full_name": "__main__.use_transaction_builtins.poseidon_ptr",
+            "full_name": "program_utils.use_transaction_builtins.poseidon_ptr",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -495,9 +527,9 @@
             ],
             "type": "reference"
         },
-        "__main__.use_transaction_builtins.poseidon_result": {
+        "program_utils.use_transaction_builtins.poseidon_result": {
             "cairo_type": "felt",
-            "full_name": "__main__.use_transaction_builtins.poseidon_result",
+            "full_name": "program_utils.use_transaction_builtins.poseidon_result",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -510,9 +542,9 @@
             ],
             "type": "reference"
         },
-        "__main__.use_transaction_builtins.range_check_ptr": {
+        "program_utils.use_transaction_builtins.range_check_ptr": {
             "cairo_type": "felt",
-            "full_name": "__main__.use_transaction_builtins.range_check_ptr",
+            "full_name": "program_utils.use_transaction_builtins.range_check_ptr",
             "references": [
                 {
                     "ap_tracking_data": {
@@ -696,7 +728,7 @@
         },
         "starkware.cairo.common.builtin_poseidon.poseidon.poseidon_hash": {
             "decorators": [],
-            "pc": 16,
+            "pc": 6,
             "type": "function"
         },
         "starkware.cairo.common.builtin_poseidon.poseidon.poseidon_hash.Args": {
@@ -739,10 +771,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 3,
+                        "group": 1,
                         "offset": 1
                     },
-                    "pc": 20,
+                    "pc": 10,
                     "value": "[cast(ap + (-1), felt*)]"
                 }
             ],
@@ -754,18 +786,18 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 3,
+                        "group": 1,
                         "offset": 0
                     },
-                    "pc": 16,
+                    "pc": 6,
                     "value": "[cast(fp + (-5), starkware.cairo.common.cairo_builtins.PoseidonBuiltin**)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 3,
+                        "group": 1,
                         "offset": 1
                     },
-                    "pc": 21,
+                    "pc": 11,
                     "value": "cast([fp + (-5)] + 6, starkware.cairo.common.cairo_builtins.PoseidonBuiltin*)"
                 }
             ],
@@ -777,10 +809,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 3,
+                        "group": 1,
                         "offset": 1
                     },
-                    "pc": 21,
+                    "pc": 11,
                     "value": "[cast([fp + (-5)] + 3, felt*)]"
                 }
             ],
@@ -792,10 +824,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 3,
+                        "group": 1,
                         "offset": 0
                     },
-                    "pc": 16,
+                    "pc": 6,
                     "value": "[cast(fp + (-4), felt*)]"
                 }
             ],
@@ -807,10 +839,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 3,
+                        "group": 1,
                         "offset": 0
                     },
-                    "pc": 16,
+                    "pc": 6,
                     "value": "[cast(fp + (-3), felt*)]"
                 }
             ],
@@ -1009,7 +1041,7 @@
         },
         "starkware.cairo.common.hash.hash2": {
             "decorators": [],
-            "pc": 6,
+            "pc": 15,
             "type": "function"
         },
         "starkware.cairo.common.hash.hash2.Args": {
@@ -1052,18 +1084,18 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 1,
+                        "group": 2,
                         "offset": 0
                     },
-                    "pc": 6,
+                    "pc": 15,
                     "value": "[cast(fp + (-5), starkware.cairo.common.cairo_builtins.HashBuiltin**)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 1,
+                        "group": 2,
                         "offset": 0
                     },
-                    "pc": 8,
+                    "pc": 17,
                     "value": "cast([fp + (-5)] + 3, starkware.cairo.common.cairo_builtins.HashBuiltin*)"
                 }
             ],
@@ -1075,10 +1107,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 1,
+                        "group": 2,
                         "offset": 0
                     },
-                    "pc": 8,
+                    "pc": 17,
                     "value": "[cast([fp + (-5)] + 2, felt*)]"
                 }
             ],
@@ -1090,10 +1122,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 1,
+                        "group": 2,
                         "offset": 0
                     },
-                    "pc": 6,
+                    "pc": 15,
                     "value": "[cast(fp + (-4), felt*)]"
                 }
             ],
@@ -1105,10 +1137,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 1,
+                        "group": 2,
                         "offset": 0
                     },
-                    "pc": 6,
+                    "pc": 15,
                     "value": "[cast(fp + (-3), felt*)]"
                 }
             ],
@@ -1163,7 +1195,7 @@
         },
         "starkware.cairo.common.math.assert_nn": {
             "decorators": [],
-            "pc": 12,
+            "pc": 21,
             "type": "function"
         },
         "starkware.cairo.common.math.assert_nn.Args": {
@@ -1202,10 +1234,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 2,
+                        "group": 3,
                         "offset": 0
                     },
-                    "pc": 12,
+                    "pc": 21,
                     "value": "[cast(fp + (-3), felt*)]"
                 }
             ],
@@ -1217,18 +1249,18 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 2,
+                        "group": 3,
                         "offset": 0
                     },
-                    "pc": 12,
+                    "pc": 21,
                     "value": "[cast(fp + (-4), felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 2,
+                        "group": 3,
                         "offset": 0
                     },
-                    "pc": 13,
+                    "pc": 22,
                     "value": "cast([fp + (-4)] + 1, felt)"
                 }
             ],
@@ -1252,6 +1284,14 @@
             },
             "size": 3,
             "type": "struct"
+        },
+        "starkware.cairo.common.registers.get_ap": {
+            "destination": "starkware.cairo.lang.compiler.lib.registers.get_ap",
+            "type": "alias"
+        },
+        "starkware.cairo.common.registers.get_fp_and_pc": {
+            "destination": "starkware.cairo.lang.compiler.lib.registers.get_fp_and_pc",
+            "type": "alias"
         }
     },
     "main_scope": "__main__",
@@ -1336,95 +1376,95 @@
                     "offset": 0
                 },
                 "pc": 6,
-                "value": "[cast(fp + (-5), starkware.cairo.common.cairo_builtins.HashBuiltin**)]"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 1,
-                    "offset": 0
-                },
-                "pc": 8,
-                "value": "[cast([fp + (-5)] + 2, felt*)]"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 1,
-                    "offset": 0
-                },
-                "pc": 8,
-                "value": "cast([fp + (-5)] + 3, starkware.cairo.common.cairo_builtins.HashBuiltin*)"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 2,
-                    "offset": 0
-                },
-                "pc": 12,
-                "value": "[cast(fp + (-3), felt*)]"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 2,
-                    "offset": 0
-                },
-                "pc": 12,
-                "value": "[cast(fp + (-4), felt*)]"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 2,
-                    "offset": 0
-                },
-                "pc": 13,
-                "value": "cast([fp + (-4)] + 1, felt)"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 3,
-                    "offset": 0
-                },
-                "pc": 16,
-                "value": "[cast(fp + (-4), felt*)]"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 3,
-                    "offset": 0
-                },
-                "pc": 16,
-                "value": "[cast(fp + (-3), felt*)]"
-            },
-            {
-                "ap_tracking_data": {
-                    "group": 3,
-                    "offset": 0
-                },
-                "pc": 16,
                 "value": "[cast(fp + (-5), starkware.cairo.common.cairo_builtins.PoseidonBuiltin**)]"
             },
             {
                 "ap_tracking_data": {
-                    "group": 3,
+                    "group": 1,
                     "offset": 1
                 },
-                "pc": 20,
+                "pc": 10,
                 "value": "[cast(ap + (-1), felt*)]"
             },
             {
                 "ap_tracking_data": {
-                    "group": 3,
+                    "group": 1,
                     "offset": 1
                 },
-                "pc": 21,
+                "pc": 11,
                 "value": "[cast([fp + (-5)] + 3, felt*)]"
             },
             {
                 "ap_tracking_data": {
-                    "group": 3,
+                    "group": 1,
                     "offset": 1
                 },
-                "pc": 21,
+                "pc": 11,
                 "value": "cast([fp + (-5)] + 6, starkware.cairo.common.cairo_builtins.PoseidonBuiltin*)"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 2,
+                    "offset": 0
+                },
+                "pc": 15,
+                "value": "[cast(fp + (-4), felt*)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 2,
+                    "offset": 0
+                },
+                "pc": 15,
+                "value": "[cast(fp + (-3), felt*)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 2,
+                    "offset": 0
+                },
+                "pc": 15,
+                "value": "[cast(fp + (-5), starkware.cairo.common.cairo_builtins.HashBuiltin**)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 2,
+                    "offset": 0
+                },
+                "pc": 17,
+                "value": "[cast([fp + (-5)] + 2, felt*)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 2,
+                    "offset": 0
+                },
+                "pc": 17,
+                "value": "cast([fp + (-5)] + 3, starkware.cairo.common.cairo_builtins.HashBuiltin*)"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 3,
+                    "offset": 0
+                },
+                "pc": 21,
+                "value": "[cast(fp + (-3), felt*)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 3,
+                    "offset": 0
+                },
+                "pc": 21,
+                "value": "[cast(fp + (-4), felt*)]"
+            },
+            {
+                "ap_tracking_data": {
+                    "group": 3,
+                    "offset": 0
+                },
+                "pc": 22,
+                "value": "cast([fp + (-4)] + 1, felt)"
             },
             {
                 "ap_tracking_data": {

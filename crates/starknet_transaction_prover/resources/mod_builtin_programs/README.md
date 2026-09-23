@@ -18,13 +18,16 @@ a fixed set of prover components, and it fails on any execution that enables a d
 non-mod builtin usage makes the `no_mod_builtin` execution enable exactly that set, so it proves
 successfully, and each mod-builtin program enables that set plus its mod-builtin component.
 
-The mod-builtin programs write the builtin instance directly instead of going through
-`core::circuit`, whose `add` gates also use `mul_mod` to reduce their inputs.
+The shared functions live in `program_utils.cairo`: `use_transaction_builtins` for the non-mod
+builtin usage, and `write_mod_builtin_instance`, which writes one mod-builtin instance directly
+instead of going through `core::circuit`, whose `add` gates also use `mul_mod` to reduce their
+inputs.
 
 ## Regenerating
 
 Compile with the `cairo-lang` version pinned in `scripts/requirements.txt`, with the Python
-environment from `scripts/requirements.txt` active:
+environment from `scripts/requirements.txt` active. Run from this directory: `cairo-compile`
+resolves the `program_utils` import from the working directory.
 
 ```bash
 cd crates/starknet_transaction_prover/resources/mod_builtin_programs

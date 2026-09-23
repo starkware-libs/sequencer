@@ -1,36 +1,14 @@
 %builtins output pedersen range_check bitwise poseidon add_mod mul_mod
 
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     HashBuiltin,
     ModBuiltin,
     PoseidonBuiltin,
-    UInt384,
 )
-from starkware.cairo.common.hash import hash2
-from starkware.cairo.common.math import assert_nn
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash
-from starkware.cairo.common.registers import get_label_location
+from program_utils import use_transaction_builtins, write_mod_builtin_instance
 
-// Uses the pedersen, range_check, bitwise and poseidon builtins so that, together with the privacy
-// bootloader, the execution enables exactly the prover components a Starknet transaction enables:
-// the small privacy prover only accepts executions that enable that component set.
-func use_transaction_builtins{
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-}() {
-    let (pedersen_result) = hash2{hash_ptr=pedersen_ptr}(1, 2);
-    let (poseidon_result) = poseidon_hash(1, 2);
-    let (bitwise_result) = bitwise_and(12, 10);
-    assert_nn(bitwise_result);
-    return ();
-}
-
-// Writes one mul_mod instance directly, computing 2 * 3 = 6 (mod 7), and leaves add_mod unused.
+// Uses mul_mod once, computing 2 * 3 = 6 (mod 7), and leaves add_mod unused.
 func main{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
@@ -41,25 +19,8 @@ func main{
     mul_mod_ptr: ModBuiltin*,
 }() {
     use_transaction_builtins();
-
-    let (values_ptr: UInt384*) = alloc();
-    assert values_ptr[0] = UInt384(d0=2, d1=0, d2=0, d3=0);
-    assert values_ptr[1] = UInt384(d0=3, d1=0, d2=0, d3=0);
-    assert values_ptr[2] = UInt384(d0=6, d1=0, d2=0, d3=0);
-
-    let (offsets_ptr) = get_label_location(offsets);
-    assert mul_mod_ptr[0] = ModBuiltin(
-        p=UInt384(d0=7, d1=0, d2=0, d3=0), values_ptr=values_ptr, offsets_ptr=offsets_ptr, n=1
-    );
-    let mul_mod_ptr = mul_mod_ptr + ModBuiltin.SIZE;
-
-    assert output_ptr[0] = values_ptr[2].d0;
+    write_mod_builtin_instance{mod_ptr=mul_mod_ptr}(result=6);
+    assert output_ptr[0] = 6;
     let output_ptr = output_ptr + 1;
     return ();
-
-    // Felt offsets of the a, b and c operands within values_ptr (a UInt384 spans 4 felts).
-    offsets:
-    dw 0;
-    dw 4;
-    dw 8;
 }
