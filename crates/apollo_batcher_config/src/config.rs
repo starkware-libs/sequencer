@@ -1,8 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 use apollo_config::converters::{
+    comma_separated_set_to_string,
+    deserialize_comma_separated_set,
     deserialize_milliseconds_to_duration,
+    serialize_comma_separated_set,
     serialize_duration_as_milliseconds,
 };
 use apollo_config::dumping::{
@@ -28,8 +31,13 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::state::StorageKey;
 use url::Url;
 use validator::{Validate, ValidationError};
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
@@ -351,6 +359,7 @@ pub struct BatcherDynamicConfig {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub view_call_timeout_millis: Duration,
+    pub storage_access_filter_config: StorageAccessFilterConfig,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -364,6 +373,7 @@ impl Default for BatcherDynamicConfig {
             results_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
             view_call_timeout_millis: Duration::from_secs(5),
+            storage_access_filter_config: StorageAccessFilterConfig::default(),
         }
     }
 }
@@ -424,7 +434,33 @@ impl SerializeConfig for BatcherDynamicConfig {
             self.storage_reader_server_dynamic_config.dump(),
             "storage_reader_server_dynamic_config",
         ));
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_access_filter_config.dump(),
+            "storage_access_filter_config",
+        ));
         dump
+    }
+}
+
+/// Restricts the storage keys that transactions may access.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct StorageAccessFilterConfig {
+    #[serde(
+        serialize_with = "serialize_comma_separated_set",
+        deserialize_with = "deserialize_comma_separated_set"
+    )]
+    pub blocked_storage_keys: BTreeSet<StorageKey>,
+}
+
+impl SerializeConfig for StorageAccessFilterConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "blocked_storage_keys",
+            &comma_separated_set_to_string(&self.blocked_storage_keys),
+            "Comma-separated storage keys, with no spaces, that transactions must not read or \
+             write, in any contract. Empty means no key is blocked.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
 
