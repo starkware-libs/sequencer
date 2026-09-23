@@ -113,6 +113,8 @@ pub enum TransactionExecutionError {
     TransactionPreValidationError(#[from] Box<TransactionPreValidationError>),
     #[error(transparent)]
     TryFromIntError(#[from] std::num::TryFromIntError),
+    #[error("{message}")]
+    RejectedByTransactionFilter { message: String },
     #[error(
         "Transaction size exceeds the maximum block capacity. Max block capacity: {}, \
          transaction size: {}.", *max_capacity, *tx_size
