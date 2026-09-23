@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::mpsc::{channel, Receiver};
@@ -547,7 +548,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, _, tx_provider, _, _, _| {
+        |_, _, _, _, tx_provider, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -572,7 +573,7 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, tx_provider, output_content_sender, _, _| {
+        move |_, _, _, _, tx_provider, output_content_sender, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
@@ -1227,6 +1228,73 @@ async fn consecutive_proposal_generation_success() {
 
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 4, 4, 0, 0);
+}
+
+#[rstest]
+#[case::no_blocked_storage_keys(BTreeSet::new())]
+#[case::blocked_storage_keys(BTreeSet::from([StorageKey::from(0x1_u8)]))]
+#[tokio::test]
+async fn block_builders_get_storage_access_filter(
+    #[case] blocked_storage_keys: BTreeSet<StorageKey>,
+) {
+    let expect_filter = !blocked_storage_keys.is_empty();
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    let propose_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(move |_, _, _, transaction_filter, _, _, _, _| {
+            transaction_filter.is_some() == expect_filter
+        })
+        .return_once(|_, _, _, _, tx_provider, output_content_sender, _, _| {
+            let block_builder = FakeProposeBlockBuilder {
+                output_content_sender: output_content_sender.unwrap(),
+                output_txs: vec![],
+                build_block_result: Some(Ok(propose_artifacts)),
+                tx_provider,
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+    let validate_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(move |_, _, _, transaction_filter, _, _, _, _| {
+            transaction_filter.is_some() == expect_filter
+        })
+        .return_once(|_, _, _, _, tx_provider, _, _, _| {
+            let block_builder = FakeValidateBlockBuilder {
+                tx_provider,
+                build_block_result: Some(Ok(validate_artifacts)),
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut mock_dependencies = MockDependencies {
+        clients: MockClients { block_builder_factory, l1_provider_client, ..Default::default() },
+        ..Default::default()
+    };
+    mock_dependencies
+        .batcher_config
+        .dynamic_config
+        .storage_access_filter_config
+        .blocked_storage_keys = blocked_storage_keys;
+    let mut batcher = create_batcher(mock_dependencies).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+    let validate_proposal_id = ProposalId(PROPOSAL_ID.0 + 1);
+    batcher.validate_block(validate_block_input(validate_proposal_id)).await.unwrap();
+    batcher
+        .finish_proposal(FinishProposalInput {
+            proposal_id: validate_proposal_id,
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+        })
+        .await
+        .unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 }
 
 #[rstest]

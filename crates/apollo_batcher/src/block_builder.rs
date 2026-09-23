@@ -26,6 +26,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
+use blockifier::blockifier::transaction_filter::SharedTransactionFilter;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -757,6 +758,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
         native_classes_whitelist: NativeClassesWhitelist,
+        transaction_filter: Option<SharedTransactionFilter>,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -781,6 +783,7 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         native_classes_whitelist: NativeClassesWhitelist,
+        transaction_filter: Option<SharedTransactionFilter>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
     {
@@ -822,6 +825,7 @@ impl BlockBuilderFactory {
             block_metadata.retrospective_block_hash,
             self.worker_pool.clone(),
             None,
+            transaction_filter,
         )?;
 
         Ok(executor)
@@ -834,6 +838,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
         native_classes_whitelist: NativeClassesWhitelist,
+        transaction_filter: Option<SharedTransactionFilter>,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -844,6 +849,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         let executor = self.preprocess_and_create_transaction_executor(
             block_metadata,
             native_classes_whitelist,
+            transaction_filter,
             runtime,
         )?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();

@@ -11,6 +11,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutionOutput,
     TransactionExecutorResult,
 };
+use crate::blockifier::transaction_filter::SharedTransactionFilter;
 use crate::bouncer::Bouncer;
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::concurrency::worker_pool::WorkerPool;
@@ -40,6 +41,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         old_block_number_and_hash: Option<BlockHashAndNumber>,
         worker_pool: Arc<WorkerPool<CachedState<S>>>,
         block_deadline: Option<Instant>,
+        transaction_filter: Option<SharedTransactionFilter>,
     ) -> StateResult<Self> {
         let mut block_state = CachedState::new(initial_state_reader);
         pre_process_block(
@@ -50,13 +52,16 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         )?;
 
         let bouncer_config = block_context.bouncer_config.clone();
-        let worker_executor = Arc::new(WorkerExecutor::initialize(
-            block_state,
-            vec![],
-            block_context.into(),
-            Mutex::new(Bouncer::new(bouncer_config)).into(),
-            block_deadline,
-        ));
+        let worker_executor = Arc::new(
+            WorkerExecutor::initialize(
+                block_state,
+                vec![],
+                block_context.into(),
+                Mutex::new(Bouncer::new(bouncer_config)).into(),
+                block_deadline,
+            )
+            .with_transaction_filter(transaction_filter),
+        );
         worker_pool.run(worker_executor.clone());
 
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
