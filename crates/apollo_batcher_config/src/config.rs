@@ -10,6 +10,7 @@ use apollo_config::converters::{
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
+    ser_optional_param,
     ser_optional_sub_config,
     ser_param,
     SerializeConfig,
@@ -31,6 +32,7 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use url::Url;
 use validator::{Validate, ValidationError};
@@ -450,17 +452,26 @@ pub struct StorageAccessFilterConfig {
         deserialize_with = "deserialize_comma_separated_set"
     )]
     pub blocked_storage_keys: BTreeSet<StorageKey>,
+    pub exempt_account_address: Option<ContractAddress>,
 }
 
 impl SerializeConfig for StorageAccessFilterConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
+        let mut dump = BTreeMap::from([ser_param(
             "blocked_storage_keys",
             &comma_separated_set_to_string(&self.blocked_storage_keys),
             "Comma-separated storage keys, with no spaces, that transactions must not read or \
              write, in any contract. Empty means no key is blocked.",
             ParamPrivacyInput::Public,
-        )])
+        )]);
+        dump.extend(ser_optional_param(
+            &self.exempt_account_address,
+            ContractAddress::default(),
+            "exempt_account_address",
+            "The account whose transactions may access blocked storage keys.",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 

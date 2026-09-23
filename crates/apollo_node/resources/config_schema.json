@@ -69,6 +69,16 @@
     "privacy": "Public",
     "value": ""
   },
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address": {
+    "description": "The account whose transactions may access blocked storage keys.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",

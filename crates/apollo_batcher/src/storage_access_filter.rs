@@ -22,15 +22,20 @@ pub(crate) fn create_storage_access_filter(
 }
 
 /// Rejects a transaction whose call tree, including inner calls, reads or writes a blocked storage
-/// key in any contract.
+/// key in any contract, unless it is sent by an exempt account.
 struct StorageAccessFilter(StorageAccessFilterConfig);
 
 impl TransactionFilter for StorageAccessFilter {
     fn check(
         &self,
-        _tx: &Transaction,
+        tx: &Transaction,
         tx_execution_info: &TransactionExecutionInfo,
     ) -> TransactionExecutionResult<()> {
+        if let Transaction::Account(account_tx) = tx {
+            if self.0.exempt_account_address == Some(account_tx.sender_address()) {
+                return Ok(());
+            }
+        }
         let accessed_blocked_storage_key = tx_execution_info
             .non_optional_call_infos()
             .flat_map(CallInfo::iter)

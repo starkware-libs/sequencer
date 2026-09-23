@@ -4,6 +4,8 @@ config:
   sequencerConfig:
     batcher_config.dynamic_config.proposer_idle_detection_delay_millis: 1500
     batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys: ""
+    batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address: "0x0"
+    batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none: true
     batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events: 5000
     batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas: 5800000000
     batcher_config.static_config.storage_reader_server_static_config.port: 55011

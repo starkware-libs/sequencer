@@ -3,6 +3,8 @@
   "batcher_config.dynamic_config.proposer_idle_detection_delay_millis": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-PROPOSER_IDLE_DETECTION_DELAY_MILLIS_$$$",
   "batcher_config.dynamic_config.results_polling_interval_millis": 10,
   "batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-STORAGE_ACCESS_FILTER_CONFIG-BLOCKED_STORAGE_KEYS_$$$",
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-STORAGE_ACCESS_FILTER_CONFIG-EXEMPT_ACCOUNT_ADDRESS_$$$",
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-STORAGE_ACCESS_FILTER_CONFIG-EXEMPT_ACCOUNT_ADDRESS-IS_NONE_$$$",
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": false,
   "batcher_config.dynamic_config.tx_polling_interval_millis": 200,
   "batcher_config.dynamic_config.validate_tx_polling_interval_millis": 10,

@@ -43,6 +43,8 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.dynamic_config.n_concurrent_txs",
     "batcher_config.dynamic_config.proposer_idle_detection_delay_millis",
     "batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys",
+    "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address",
+    "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
