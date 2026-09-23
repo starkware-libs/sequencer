@@ -943,6 +943,7 @@ dependencies = [
  "apollo_storage",
  "blockifier",
  "serde",
+ "serde_json",
  "starknet_api",
  "url",
  "validator",

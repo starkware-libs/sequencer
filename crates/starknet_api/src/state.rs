@@ -3,6 +3,7 @@
 mod state_test;
 
 use std::fmt::Debug;
+use std::str::FromStr;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint as CairoLangContractEntryPoint;
 use indexmap::IndexMap;
@@ -191,6 +192,7 @@ impl StateNumber {
     PartialOrd,
     Ord,
     derive_more::Deref,
+    derive_more::Display,
 )]
 pub struct StorageKey(pub PatriciaKey);
 
@@ -211,6 +213,13 @@ impl TryFrom<StarkHash> for StorageKey {
 impl From<u128> for StorageKey {
     fn from(val: u128) -> Self {
         StorageKey(PatriciaKey::from(val))
+    }
+}
+
+impl FromStr for StorageKey {
+    type Err = StarknetApiError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(StorageKey(s.parse()?))
     }
 }
 

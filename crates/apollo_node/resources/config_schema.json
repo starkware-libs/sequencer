@@ -64,6 +64,16 @@
     "privacy": "Public",
     "value": 10
   },
+  "batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys": {
+    "description": "Comma-separated storage keys, with no spaces, that transactions must not read or write, in any contract. Empty means no key is blocked.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.dynamic_config.storage_access_filter_config.error_message": {
+    "description": "The error of a transaction rejected for accessing a blocked storage key.",
+    "privacy": "Public",
+    "value": "Transaction accessed a blocked storage key."
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",

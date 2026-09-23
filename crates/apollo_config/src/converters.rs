@@ -24,7 +24,7 @@
 //! assert_eq!(loaded_config.dur.as_secs(), 1);
 //! ```
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Duration;
@@ -341,6 +341,22 @@ where
         return Ok(None);
     }
     Ok(Some(output))
+}
+
+/// Serializes a set into a comma-separated string of its elements.
+pub fn serialize_comma_separated_set<T: ToString>(set: &BTreeSet<T>) -> String {
+    set.iter().map(ToString::to_string).collect::<Vec<_>>().join(",")
+}
+
+/// Deserializes a comma-separated list of values implementing `FromStr` into a set. An empty
+/// string yields an empty set.
+pub fn deserialize_comma_separated_set<'de, D, T>(de: D) -> Result<BTreeSet<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr + Ord,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    Ok(deserialize_comma_separated_str(de)?.into_iter().flatten().collect())
 }
 
 /// Deserializes a sensitive `Vec<u8>` from hex string structure.
