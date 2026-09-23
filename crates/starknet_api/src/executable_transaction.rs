@@ -12,7 +12,14 @@ use thiserror::Error;
 
 use crate::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{
+    AddressDerivationHash,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::fields::{
     AccountDeploymentData,
@@ -324,7 +331,8 @@ impl DeployAccountTransaction {
         deploy_account_tx: crate::transaction::DeployAccountTransaction,
         chain_id: &ChainId,
     ) -> Result<Self, StarknetApiError> {
-        let contract_address = deploy_account_tx.calculate_contract_address()?;
+        let contract_address =
+            deploy_account_tx.calculate_contract_address(AddressDerivationHash::Pedersen)?;
         let tx_hash =
             deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
         Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
