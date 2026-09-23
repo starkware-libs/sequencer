@@ -170,6 +170,7 @@ use crate::pre_confirmed_block_writer::{
     PreconfirmedBlockWriterTrait,
 };
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
+use crate::storage_access_filter::create_storage_access_filter;
 use crate::transaction_provider::{
     ProposeTransactionProvider,
     TxProviderPhase,
@@ -473,6 +474,9 @@ impl Batcher {
                         .results_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
+                create_storage_access_filter(
+                    &self.config.dynamic_config.storage_access_filter_config,
+                ),
                 Box::new(tx_provider),
                 Some(output_tx_sender),
                 Some(pre_confirmed_tx_sender),
@@ -569,6 +573,9 @@ impl Batcher {
                         .results_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
+                create_storage_access_filter(
+                    &self.config.dynamic_config.storage_access_filter_config,
+                ),
                 Box::new(tx_provider),
                 None,
                 None,

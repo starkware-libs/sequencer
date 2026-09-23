@@ -14,6 +14,7 @@ mod pre_confirmed_block_writer_test;
 pub mod pre_confirmed_cende_client;
 #[cfg(test)]
 mod pre_confirmed_cende_client_test;
+mod storage_access_filter;
 #[cfg(test)]
 mod test_utils;
 mod transaction_executor;
