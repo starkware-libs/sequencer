@@ -10,6 +10,7 @@ use crate::config::StorageAccessFilterConfig;
 fn deserialize(blocked_storage_keys: &str) -> Result<StorageAccessFilterConfig, serde_json::Error> {
     serde_json::from_value(json!({
         "blocked_storage_keys": blocked_storage_keys,
+        "exempt_account_addresses": "",
         "error_message": "Blocked.",
     }))
 }

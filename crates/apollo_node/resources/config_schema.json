@@ -74,6 +74,11 @@
     "privacy": "Public",
     "value": "Transaction accessed a blocked storage key."
   },
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_addresses": {
+    "description": "Comma-separated account addresses, with no spaces, whose transactions may access blocked storage keys.",
+    "privacy": "Public",
+    "value": ""
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",

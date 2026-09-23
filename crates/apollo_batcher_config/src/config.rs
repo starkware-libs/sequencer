@@ -30,6 +30,7 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use url::Url;
 use validator::{Validate, ValidationError};
@@ -448,6 +449,9 @@ pub struct StorageAccessFilterConfig {
     /// is blocked.
     #[serde(deserialize_with = "deserialize_comma_separated_set")]
     pub blocked_storage_keys: BTreeSet<StorageKey>,
+    /// Accounts whose transactions may access blocked storage keys.
+    #[serde(deserialize_with = "deserialize_comma_separated_set")]
+    pub exempt_account_addresses: BTreeSet<ContractAddress>,
     /// The error of a transaction rejected for accessing a blocked storage key.
     pub error_message: String,
 }
@@ -456,6 +460,7 @@ impl Default for StorageAccessFilterConfig {
     fn default() -> Self {
         Self {
             blocked_storage_keys: BTreeSet::new(),
+            exempt_account_addresses: BTreeSet::new(),
             error_message: "Transaction accessed a blocked storage key.".to_string(),
         }
     }
@@ -469,6 +474,13 @@ impl SerializeConfig for StorageAccessFilterConfig {
                 &serialize_comma_separated_set(&self.blocked_storage_keys),
                 "Comma-separated storage keys, with no spaces, that transactions must not read or \
                  write, in any contract. Empty means no key is blocked.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "exempt_account_addresses",
+                &serialize_comma_separated_set(&self.exempt_account_addresses),
+                "Comma-separated account addresses, with no spaces, whose transactions may access \
+                 blocked storage keys.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
