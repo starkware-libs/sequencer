@@ -180,7 +180,8 @@ func execute_entry_point{
         %{ ExitCall %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
-        return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
+        let (retdata: felt*) = alloc();
+        return (is_reverted=0, retdata_size=0, retdata=retdata);
     }
 
     let entry_point_offset = compiled_class_entry_point.offset;
