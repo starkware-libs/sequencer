@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Handles blockchain revert detection and management."
+publish = false
 
 [lints]
 workspace = true

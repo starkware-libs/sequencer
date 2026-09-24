@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Reach consensus for Starknet"
+publish = false
 
 [features]
 testing = ["apollo_staking/testing", "mockall", "tempfile"]

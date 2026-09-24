@@ -1,6 +1,7 @@
 [package]
 name = "apollo_network_benchmark"
 description = "Benchmarking tool for the Apollo Network"
+publish = false
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

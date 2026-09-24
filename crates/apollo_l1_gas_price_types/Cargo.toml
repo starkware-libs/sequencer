@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Type definitions for Apollo L1 gas price tracking."
+publish = false
 
 [dependencies]
 apollo_infra.workspace = true

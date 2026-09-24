@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Main Starknet sequencer node orchestrating all components."
+publish = false
 
 [features]
 cairo_native = ["apollo_batcher/cairo_native", "apollo_gateway/cairo_native"]

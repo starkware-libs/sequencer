@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Cli for the committer package."
+publish = false
 
 [lints]
 workspace = true

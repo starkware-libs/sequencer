@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Integration tests for Starknet OS execution and state commitment flow."
+publish = false
 
 [features]
 exhaustive_fuzz_test = []
