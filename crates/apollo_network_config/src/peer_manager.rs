@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PeerManagerConfig {
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub(super) malicious_timeout_seconds: Duration,
+    pub malicious_timeout_seconds: Duration,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    pub(super) unstable_timeout_millis: Duration,
+    pub unstable_timeout_millis: Duration,
 }
 
 impl Default for PeerManagerConfig {
