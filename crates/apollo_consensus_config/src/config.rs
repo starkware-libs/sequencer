@@ -16,11 +16,11 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_storage::db::DbConfig;
 use apollo_storage::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::staking::DEFAULT_VALIDATOR_ID;
 use validator::Validate;
 
 use crate::ValidatorId;
