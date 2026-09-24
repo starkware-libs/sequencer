@@ -8,7 +8,7 @@ use apollo_config::{ParamPath, SerializedParam};
 use apollo_network_config::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
-use apollo_rpc::RpcConfig;
+use apollo_rpc_config::RpcConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
