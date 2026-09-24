@@ -1559,6 +1559,7 @@ impl Batcher {
             .expect("Failed to write commitment results to storage.");
 
         info!("Revert task result: {revert_task_result:?}");
+        self.commitment_manager.evict_reverted_height(height);
         self.validate_revert_task_result(revert_task_result, height).await;
         info!("Reverted commitment for height {height}.");
     }
@@ -1623,16 +1624,28 @@ impl Batcher {
     }
 
     pub fn get_state_commitment_infos(
-        &self,
+        &mut self,
         block_number: BlockNumber,
     ) -> BatcherResult<Option<CompressedStateCommitmentInfos>> {
+        self.get_commitment_results_and_write_to_storage()?;
+        if let Some(state_commitment_infos) =
+            self.commitment_manager.recent_state_commitment_infos_cache.get(&block_number)
+        {
+            return Ok(Some(state_commitment_infos.clone()));
+        }
+
         self.storage_reader.get_state_commitment_infos(block_number).map_err(|err| {
             error!("Failed to get state commitment infos from storage: {err}");
             BatcherError::InternalError
         })
     }
 
-    pub fn has_state_commitment_infos(&self, block_number: BlockNumber) -> BatcherResult<bool> {
+    pub fn has_state_commitment_infos(&mut self, block_number: BlockNumber) -> BatcherResult<bool> {
+        self.get_commitment_results_and_write_to_storage()?;
+        if self.commitment_manager.recent_state_commitment_infos_cache.contains(&block_number) {
+            return Ok(true);
+        }
+
         self.storage_reader.has_state_commitment_infos(block_number).map_err(|err| {
             error!("Failed to check state commitment infos existence in storage: {err}");
             BatcherError::InternalError
