@@ -28,8 +28,8 @@ Expected response:
 The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is the
 `proving-api/starknet_proving_api_openrpc.json` document in
 [starknet-specs](https://github.com/starkware-libs/starknet-specs), pinned to the revision recorded
-in `resources/starknet_specs_rev.txt`. The service also serves one HTTP-only endpoint,
-`GET /health`, described under [Observability](#observability).
+in `resources/starknet_specs_rev.txt`. The service also serves two HTTP-only endpoints,
+`GET /health` and `GET /metrics`, described under [Observability](#observability).
 
 ### `starknet_specVersion`
 
@@ -278,8 +278,8 @@ curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
 
 ## Observability
 
-Besides the JSON-RPC API, the service answers a `GET /health` probe and writes one structured log
-line per request, each carrying a request id.
+Besides the JSON-RPC API, the service answers a `GET /health` probe, serves a `GET /metrics`
+scrape, and writes one structured log line per request, each carrying a request id.
 
 ### `/health`
 
@@ -292,14 +292,25 @@ line per request, each carrying a request id.
 The endpoint is deliberately unauthenticated, so load balancers, orchestrators, and uptime checks
 can call it. The router answers probes before CORS, compression, and JSON-RPC parsing run.
 
+### `/metrics`
+
+`GET /metrics` returns every metric the service emits, in Prometheus text format. Like `/health`,
+scrapes bypass CORS and JSON-RPC parsing, and the endpoint is unauthenticated.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `prover_build_info` | gauge | `version`, `git_sha` | Always 1. Identifies the running build from a scrape. `git_sha` comes from the `GIT_SHA` docker build arg, and is `unknown` when the build doesn't pass one. |
+
+No user-controlled value becomes a label, so label cardinality stays bounded.
+
 ### Request IDs
 
 Every HTTP request carries a `request_id`. The service reuses the inbound `x-request-id` header
 when it holds a short, printable-ASCII token (max 128 bytes), and otherwise generates a UUID v4.
 It echoes that id back in the same response header, so a caller who hit a failure can quote one id
-when reporting it. Every request except a `GET /health` probe is logged with its id. Probes still
-get the header echo but no log line, because at normal probe intervals they would drown out real
-traffic.
+when reporting it. Every request except a `GET /health` probe or a `GET /metrics` scrape is logged
+with its id. Probes and scrapes still get the header echo but no log line, because at normal probe
+and scrape intervals they would drown out real traffic.
 
 The service drops hostile header values (whitespace, non-printable bytes, oversized values) and
 generates a fresh id instead. That blocks header smuggling and stops a caller from blowing up the

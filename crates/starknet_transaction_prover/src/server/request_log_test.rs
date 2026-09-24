@@ -6,6 +6,7 @@ use tower::{Layer, ServiceExt};
 use tracing_test::traced_test;
 
 use crate::server::health::HEALTH_PATH;
+use crate::server::metrics::METRICS_PATH;
 use crate::server::middleware_test_utils::{echo_request_id_service, read_body_and_headers};
 use crate::server::request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 
@@ -111,6 +112,23 @@ async fn health_probe_is_not_logged_but_still_gets_id_echo() {
     let (_body, headers) = read_body_and_headers(response).await;
     assert!(headers.contains_key(REQUEST_ID_HEADER), "id echo must still apply to probes");
     assert!(!logs_contain("http_request"), "health probes must not emit request log lines");
+}
+
+#[tokio::test]
+#[traced_test]
+async fn metrics_scrape_is_not_logged_but_still_gets_id_echo() {
+    let svc = RequestLogLayer.layer(echo_request_id_service());
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri(METRICS_PATH)
+        .body(HttpBody::new(Full::new(Bytes::new())))
+        .expect("static body is infallible");
+
+    let response = svc.oneshot(request).await.unwrap();
+
+    let (_body, headers) = read_body_and_headers(response).await;
+    assert!(headers.contains_key(REQUEST_ID_HEADER), "id echo must still apply to scrapes");
+    assert!(!logs_contain("http_request"), "metrics scrapes must not emit request log lines");
 }
 
 #[tokio::test]
