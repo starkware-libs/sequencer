@@ -13,6 +13,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     TransactionExecutorResult,
 };
+use crate::blockifier::transaction_filter::SharedTransactionFilter;
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
@@ -93,6 +94,7 @@ pub struct WorkerExecutor<S: StateReader> {
     pub bouncer: Arc<Mutex<Bouncer>>,
     pub execution_deadline: Option<Instant>,
     pub metrics: ConcurrencyMetrics,
+    pub transaction_filter: Option<SharedTransactionFilter>,
 }
 
 impl<S: StateReader> WorkerExecutor<S> {
@@ -114,7 +116,16 @@ impl<S: StateReader> WorkerExecutor<S> {
             bouncer,
             execution_deadline,
             metrics: ConcurrencyMetrics::default(),
+            transaction_filter: None,
         }
+    }
+
+    pub fn with_transaction_filter(
+        mut self,
+        transaction_filter: Option<SharedTransactionFilter>,
+    ) -> Self {
+        self.transaction_filter = transaction_filter;
+        self
     }
 
     // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
@@ -241,8 +252,14 @@ impl<S: StateReader> WorkerExecutor<S> {
         let concurrency_mode = true;
         let tx = self.tx_at(tx_index);
         let execution_start = Instant::now();
-        let execution_result =
-            tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
+        let execution_result = tx
+            .execute_raw(&mut transactional_state, &self.block_context, concurrency_mode)
+            .and_then(|tx_execution_info| match &self.transaction_filter {
+                Some(transaction_filter) => {
+                    transaction_filter.check(&tx, &tx_execution_info).map(|()| tx_execution_info)
+                }
+                None => Ok(tx_execution_info),
+            });
         let run_time = execution_start.elapsed();
 
         // Update the versioned state and store the transaction execution output.
