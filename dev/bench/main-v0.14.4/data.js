@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790169817149,
+  "lastUpdate": 1790255326005,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -543,6 +543,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1368.69877369,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ceb15c1ccc9ac2089a382f290ce086b78d4707e7",
+          "message": "apollo_batcher_config,apollo_config,starknet_api: add a storage access filter config (#15152)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-24T12:45:59Z",
+          "tree_id": "f45a89ab60cbc30043b726ca1e357fc4b04965f5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ceb15c1ccc9ac2089a382f290ce086b78d4707e7"
+        },
+        "date": 1790255325309,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 903.44534629,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1377.64225877,
             "unit": "ms"
           }
         ]
