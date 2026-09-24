@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::rc::Rc;
 use std::sync::Arc;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
+use assert_matches::assert_matches;
 use cairo_vm::cairo_run::{cairo_run, CairoRunConfig};
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
@@ -25,7 +27,8 @@ use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_proof_verifier::ProgramOutput;
 use starknet_types_core::felt::Felt;
 
-use crate::proving::prover::prove;
+use crate::errors::ProvingError;
+use crate::proving::prover::{prove, unsupported_builtin_usage};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
@@ -312,4 +315,51 @@ fn test_large_prover_proves_selected_builtin(#[case] selected_builtin: SelectedB
         .unwrap_or_else(|error| panic!("Failed to prove with {selected_builtin:?}: {error}"));
 
     verify_recursive_circuit(&proof_output).expect("Failed to verify proof");
+}
+
+#[rstest]
+#[case::ecdsa_only(vec![(BuiltinName::ecdsa, 1)], vec![(BuiltinName::ecdsa, 1)])]
+#[case::range_check96_only(
+    vec![(BuiltinName::range_check96, 4)],
+    vec![(BuiltinName::range_check96, 4)]
+)]
+#[case::add_mod_only(vec![(BuiltinName::add_mod, 2)], vec![(BuiltinName::add_mod, 2)])]
+#[case::mul_mod_only(vec![(BuiltinName::mul_mod, 3)], vec![(BuiltinName::mul_mod, 3)])]
+#[case::add_mod_and_mul_mod(
+    vec![(BuiltinName::mul_mod, 3), (BuiltinName::add_mod, 2)],
+    vec![(BuiltinName::add_mod, 2), (BuiltinName::mul_mod, 3)]
+)]
+#[case::explicit_zero_counts(vec![(BuiltinName::add_mod, 0), (BuiltinName::mul_mod, 0)], vec![])]
+#[case::supported_builtins_only(
+    vec![(BuiltinName::range_check, 5), (BuiltinName::ec_op, 1), (BuiltinName::keccak, 2)],
+    vec![]
+)]
+fn test_unsupported_builtin_usage(
+    #[case] builtin_instance_counts: Vec<(BuiltinName, usize)>,
+    #[case] expected_unsupported_builtins: Vec<(BuiltinName, usize)>,
+) {
+    let builtin_instance_counter = BTreeMap::from_iter(builtin_instance_counts);
+
+    assert_eq!(unsupported_builtin_usage(&builtin_instance_counter), expected_unsupported_builtins);
+}
+
+#[rstest]
+#[case::ecdsa(SelectedBuiltin::Ecdsa, vec![(BuiltinName::ecdsa, 1)])]
+#[case::range_check96(SelectedBuiltin::RangeCheck96, vec![(BuiltinName::range_check96, 1)])]
+#[case::add_mod(SelectedBuiltin::AddMod, vec![(BuiltinName::add_mod, 1)])]
+#[case::mul_mod(SelectedBuiltin::MulMod, vec![(BuiltinName::mul_mod, 1)])]
+#[tokio::test]
+async fn test_prove_rejects_unsupported_builtin(
+    #[case] selected_builtin: SelectedBuiltin,
+    #[case] expected_unsupported_builtins: Vec<(BuiltinName, usize)>,
+) {
+    let cairo_pie = run_builtin_usage_program(selected_builtin);
+
+    let error = prove(cairo_pie, prepare_precomputes()).await.unwrap_err();
+
+    assert_matches!(
+        error,
+        ProvingError::UnsupportedBuiltins { unsupported_builtins }
+            if unsupported_builtins == expected_unsupported_builtins
+    );
 }
