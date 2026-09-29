@@ -4917,9 +4917,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.9.0-rc.7"
+version = "0.9.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaaf48d22c1c9a0bb5aedf0a66f5b1a37f41dc3df5ce18480ce2abbed9a88657"
+checksum = "73b70c1dceaeb725deb9cb9ff61e43394d5eb0c1d3b5c4d00f4cf04f883aede0"
 dependencies = [
  "aquamarine",
  "ark-ec 0.5.0",
@@ -4937,6 +4937,7 @@ dependencies = [
  "cairo-lang-starknet",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-starknet-syscalls",
  "educe 0.5.11",
  "itertools 0.14.0",
  "keccak 0.1.5",
@@ -4950,7 +4951,6 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "rand 0.9.5",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -4986,6 +4986,16 @@ dependencies = [
  "thiserror 2.0.17",
  "thiserror-no-std",
  "tracing",
+]
+
+[[package]]
+name = "cairo-starknet-syscalls"
+version = "0.9.0-rc.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f40b20f2153d7110b1559e9d36d7a6903355e5c99929ed56f09fcd4d3dc583b"
+dependencies = [
+ "serde",
+ "starknet-types-core",
 ]
 
 [[package]]
