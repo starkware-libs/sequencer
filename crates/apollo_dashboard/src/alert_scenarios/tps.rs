@@ -89,7 +89,7 @@ pub(crate) fn get_gateway_low_successful_transaction_rate() -> Alert {
         "gateway low successful transaction rate",
         EvaluationRate::Default,
         format!(
-            "sum(increase({}[10m])) or vector(0)",
+            "sum(increase({}[10m]))",
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 5.0, AlertLogicalOp::And)],
@@ -97,4 +97,5 @@ pub(crate) fn get_gateway_low_successful_transaction_rate() -> Alert {
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(5.0)
 }

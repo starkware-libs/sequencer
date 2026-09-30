@@ -106,14 +106,16 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
 
 pub(crate) fn consensus_block_number_progress_is_slow() -> Alert {
     const ALERT_NAME: &str = "consensus_block_number_progress_is_slow";
+    // The threshold is a per-environment placeholder, so the fallback sits far above any block
+    // count a 2m window can reach instead of being tied to the threshold.
+    const NO_DATA_FALLBACK: f64 = 1_000_000.0;
+    // A real slowdown keeps the gauge present, so `increase` yields a present low value and still
+    // fires; a dead pod is caught by `consensus_block_number_stuck` and the `pod_state_*` alerts.
     Alert::new(
         ALERT_NAME,
         "Consensus block number progress is slow",
         EvaluationRate::Default,
-        format!(
-            "sum(increase({}[2m])) or vector(0)",
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
-        ),
+        format!("sum(increase({}[2m]))", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
             ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
@@ -123,4 +125,5 @@ pub(crate) fn consensus_block_number_progress_is_slow() -> Alert {
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::Applicable,
     )
+    .with_no_data_fallback(NO_DATA_FALLBACK)
 }

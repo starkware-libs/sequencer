@@ -204,7 +204,11 @@ alert_rule_object = {
     "data": [],
     "for": "5m",
     "execErrState": "Error",
-    "noDataState": "NoData",
+    # KeepLast: an empty query result holds the rule's previous state instead of raising a
+    # notifying DatasourceNoData. GMP intermittently drops whole regions from query results, so
+    # NoData flapped healthy rules; a node whose metrics really vanish is caught by
+    # namespace_metrics_absent.
+    "noDataState": "KeepLast",
     "folderUID": "",
     "ruleGroup": "",
     "annotations": {},

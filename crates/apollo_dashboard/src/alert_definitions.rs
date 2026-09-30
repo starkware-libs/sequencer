@@ -66,6 +66,7 @@ use crate::alert_scenarios::infra_alerts::{
     get_general_pod_memory_utilization_vec,
     get_general_pod_state_crashloopbackoff,
     get_general_pod_state_not_ready,
+    get_namespace_metrics_absent,
     get_periodic_ping,
 };
 use crate::alert_scenarios::l1_endpoints::get_primary_l1_endpoint_down_too_long_alerts;
@@ -151,11 +152,12 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         "consensus_decisions_reached_by_consensus_ratio",
         "Consensus decisions reached by consensus ratio",
         EvaluationRate::Default,
-        // Clamp to avoid divide by 0.
+        // Clamp to avoid divide by 0. Both counters are registered with init=0, so each term is
+        // present while the pod is up; a missing term means a gap in the query result, and the
+        // no-data fallback keeps that from reading as a ratio of 0.
         format!(
-            "(sum(increase({consensus}[10m])) or vector(0)) / \
-             clamp_min((sum(increase({sync}[10m])) or vector(0)) + \
-             (sum(increase({consensus}[10m])) or vector(0)), 1)",
+            "sum(increase({consensus}[10m])) / clamp_min(sum(increase({sync}[10m])) + \
+             sum(increase({consensus}[10m])), 1)",
             consensus = CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
             sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
         ),
@@ -164,6 +166,7 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(1.0)
 }
 
 fn get_consensus_inbound_stream_evicted_alert() -> Alert {
@@ -219,15 +222,13 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         "consensus_votes_num_sent_messages",
         "Consensus votes num sent messages",
         EvaluationRate::Default,
-        format!(
-            "sum(increase({}[20m])) or vector(0)",
-            CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
-        ),
+        format!("sum(increase({}[20m]))", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 20.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
+    .with_no_data_fallback(20.0)
 }
 
 fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
@@ -646,6 +647,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
         get_mempool_p2p_disconnections(),
+        get_namespace_metrics_absent(),
         get_native_compilation_error_increase(),
         get_periodic_ping(),
         get_staking_epoch_id_mismatch_alert(),
