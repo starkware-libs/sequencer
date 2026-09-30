@@ -153,12 +153,13 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         "consensus_decisions_reached_by_consensus_ratio",
         "Consensus decisions reached by consensus ratio",
         EvaluationRate::Default,
-        // Clamp to avoid divide by 0. Both counters are registered with init=0, so each term is
-        // present while the pod is up; a missing term means a gap in the query result, and the
-        // no-data fallback keeps that from reading as a ratio of 0.
+        // Clamp to avoid divide by 0. Only the sync term is guarded: a missing sync term counts as
+        // 0, so the ratio still drops when consensus stalls. The consensus term is left unguarded,
+        // so a gap in it empties the expression and the no-data fallback applies instead of
+        // reading as a ratio of 0.
         format!(
-            "sum(increase({consensus}[10m])) / clamp_min(sum(increase({sync}[10m])) + \
-             sum(increase({consensus}[10m])), 1)",
+            "sum(increase({consensus}[10m])) / clamp_min((sum(increase({sync}[10m])) or \
+             vector(0)) + sum(increase({consensus}[10m])), 1)",
             consensus = CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
             sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
         ),

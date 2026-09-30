@@ -37,11 +37,12 @@ pub(crate) fn get_namespace_metrics_absent() -> Alert {
         EvaluationRate::Default,
         // `absent_over_time` yields 1 only when no `up` sample exists in the window; `or vector(0)`
         // keeps the rule defined while data is present.
-        format!("absent_over_time({}[5m]) or vector(0)", UP.get_name_with_filter()),
+        format!("absent_over_time({}[1m]) or vector(0)", UP.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
-        // Query results can transiently miss a whole region; requiring 5m of consecutive absence
-        // rides those out.
-        "5m",
+        // `up` is scraped every 10s, so the 1m window is 6 missed scrapes. Query results can
+        // transiently miss a whole region regardless of window length; the 2m pending period (5
+        // consecutive 30s evaluations) is what rides those out.
+        "2m",
         AlertSeverity::Regular,
         // Not observer-guarded: `is_observer` is scraped from the same pods, so it would be absent
         // too.
