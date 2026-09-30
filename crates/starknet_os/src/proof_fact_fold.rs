@@ -16,6 +16,10 @@ pub type Blake2sDigestWords = [u32; BLAKE2S_DIGEST_N_WORDS];
 
 // TODO(Einat): the constants are all canonical_small test values; replace them with the production
 // registry values once it is generated.
+// TODO(Einat): import the circuit hashes from the proving repo's registry once it is exposed from a
+// crate, instead of copying them.
+// TODO(Einat): accept proofs from the leaf verifiers of all the registry's trace sizes, not only
+// one.
 pub const LEAF_VERIFIER_CIRCUIT_HASH: Blake2sDigestWords = [
     0xd2d85a42, 0x79697b22, 0x3a41a061, 0x011cb393, 0x7a040ec9, 0x4508f4ca, 0x42239409, 0x60f3baea,
 ];
