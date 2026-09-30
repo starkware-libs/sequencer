@@ -382,7 +382,7 @@
       "name": "consensus_block_number_progress_is_slow",
       "title": "Consensus block number progress is slow",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "expr": "(sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]))) or vector(1000000)",
       "conditions": [
         {
           "evaluator": {
@@ -486,7 +486,7 @@
       "name": "consensus_decisions_reached_by_consensus_ratio",
       "title": "Consensus decisions reached by consensus ratio",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "((sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) / clamp_min((sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) + (sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) / clamp_min(sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) + sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -928,7 +928,7 @@
       "name": "consensus_votes_num_sent_messages",
       "title": "Consensus votes num sent messages",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(20)",
       "conditions": [
         {
           "evaluator": {
@@ -1084,7 +1084,7 @@
       "name": "gateway_low_successful_transaction_rate",
       "title": "gateway low successful transaction rate",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((sum(increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(5)",
       "conditions": [
         {
           "evaluator": {
