@@ -14,8 +14,14 @@ pub const BLAKE2S_DIGEST_N_WORDS: usize = 8;
 /// A Blake2s-256 digest as little-endian u32 words.
 pub type Blake2sDigestWords = [u32; BLAKE2S_DIGEST_N_WORDS];
 
+// The circuit hashes are the leaf verifier (at trace log size 20) and multiverifier entries of the
+// proving repo's canonical_small circuit registry,
+// `crates/stwo_run_and_prove_recursive_tree/test_data/circuit_registry.json` at the pinned proving
+// rev (`2b495a36`). The same values are in the Cairo `proof_fact_fold`.
 // TODO(Einat): the constants are all canonical_small test values; replace them with the production
 // registry values once it is generated.
+// TODO(Einat): import the circuit hashes from the proving repo's registry once it is exposed from a
+// crate, instead of copying them.
 // TODO(Einat): accept proofs from the leaf verifiers of all the registry's trace sizes, not only
 // one. The multiverifier outputs each leaf's circuit hash unchecked, so the OS must check it
 // against the registry's list of leaf verifier circuit hashes.
