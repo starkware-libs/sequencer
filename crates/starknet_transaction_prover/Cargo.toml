@@ -20,6 +20,7 @@ blockifier.workspace = true
 blockifier_reexecution.workspace = true
 bytes.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-program-runner-lib.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
