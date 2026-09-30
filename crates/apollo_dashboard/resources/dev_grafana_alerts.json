@@ -1809,6 +1809,32 @@
       "severity": "$$$mempool_transaction_drop_ratio-severity$$$"
     },
     {
+      "name": "namespace_metrics_absent",
+      "title": "Namespace metrics absent",
+      "ruleGroup": "evaluation_rate_default",
+      "expr": "absent_over_time(up{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "severity": "p2"
+    },
+    {
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "evaluation_rate_default",

@@ -68,6 +68,7 @@ use crate::alert_scenarios::infra_alerts::{
     get_general_pod_memory_utilization_vec,
     get_general_pod_state_crashloopbackoff,
     get_general_pod_state_not_ready,
+    get_namespace_metrics_absent,
     get_periodic_ping,
 };
 use crate::alert_scenarios::l1_endpoints::get_primary_l1_endpoint_down_too_long_alerts;
@@ -648,6 +649,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
         get_mempool_p2p_disconnections(),
+        get_namespace_metrics_absent(),
         get_native_compilation_error_increase(),
         get_periodic_ping(),
         get_staking_epoch_id_mismatch_alert(),
