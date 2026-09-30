@@ -144,7 +144,14 @@ jobs:
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
+      # Attempted twice: the action downloads the k3d binary from GitHub with no retry of its own,
+      # so a transient upstream 503 fails the whole job at a setup step ("curl: (22) The requested
+      # URL returned error: 503" then "Failed to install k3d"). `continue-on-error` is what lets a
+      # `uses:` step be retried, and it is available here because this is a workflow step rather
+      # than a step inside a composite action.
       - name: Create k3d cluster (Local k8s)
+        id: create_k3d_cluster
+        continue-on-error: true
         uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
         with:
           # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
@@ -154,6 +161,32 @@ jobs:
           # var is overridden by the action's own empty input default.
           k3d-version: v5.5.0
           # Assumption: only one PR can run per machine at a time.
+          cluster-name: ${{ env.cluster_name }}
+          args: >-
+            --verbose
+            --agents 1
+            --no-lb
+            --wait
+            --timeout 120s
+            --registry-config registries.yaml
+
+      # The observed failure is the binary download, which leaves no cluster behind, but a first
+      # attempt that got as far as creating one would make the retry fail on an existing cluster.
+      - name: Discard a partial k3d cluster before retrying
+        if: steps.create_k3d_cluster.outcome == 'failure'
+        env:
+          CLUSTER_NAME: ${{ env.cluster_name }}
+        run: |
+          if command -v k3d > /dev/null; then
+            k3d cluster delete "${CLUSTER_NAME}" || true
+          fi
+          sleep 60
+
+      - name: Retry creating k3d cluster (Local k8s)
+        if: steps.create_k3d_cluster.outcome == 'failure'
+        uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
+        with:
+          k3d-version: v5.5.0
           cluster-name: ${{ env.cluster_name }}
           args: >-
             --verbose
