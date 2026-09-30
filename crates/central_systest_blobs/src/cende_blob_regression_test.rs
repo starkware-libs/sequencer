@@ -146,9 +146,9 @@ const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
 const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
 
 const EXPECTED_OPERATOR_ADDRESS: Expect =
-    expect!["0x01831dadbee430f3b131141f4a8668e24056ee32f3bba31df39707c5f3fa1198"];
+    expect!["0x0357a35df0c8c6991f4c07bb9e3b23016312bcda48d6b8f0f785ae57c3f60076"];
 const EXPECTED_FEE_TOKEN_ADDRESS: Expect =
-    expect!["0x043e05c1e0e2f46e3253a373f7de19f76185e3ecb3b50783ef8809904bbd8220"];
+    expect!["0x03c41e41425f155bb5516ae09bf3da1c1829de84d6eecbcbadc7e0ebb6dcf0a1"];
 static OPERATOR_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| contract_address!(EXPECTED_OPERATOR_ADDRESS.data));
 static FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
