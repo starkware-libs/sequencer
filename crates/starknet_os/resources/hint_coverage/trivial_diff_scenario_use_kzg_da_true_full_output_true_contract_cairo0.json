@@ -75,9 +75,6 @@
     "StatelessHint": "EnterScopeNode"
   },
   {
-    "StatelessHint": "EnterScopeNewNode"
-  },
-  {
     "StatelessHint": "EnterScopeNextNodeBit0"
   },
   {
