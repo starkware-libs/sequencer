@@ -460,7 +460,7 @@
       "name": "consensus_decisions_reached_by_consensus_ratio",
       "title": "Consensus decisions reached by consensus ratio",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "((sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) / clamp_min(sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) + sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
+      "expr": "((sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) / clamp_min((sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) + sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or vector(1)",
       "conditions": [
         {
           "evaluator": {
@@ -1812,7 +1812,7 @@
       "name": "namespace_metrics_absent",
       "title": "Namespace metrics absent",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "absent_over_time(up{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) or vector(0)",
+      "expr": "absent_over_time(up{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -1831,7 +1831,7 @@
           "type": "query"
         }
       ],
-      "for": "5m",
+      "for": "2m",
       "severity": "p2"
     },
     {
