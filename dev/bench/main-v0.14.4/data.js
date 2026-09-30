@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790255326005,
+  "lastUpdate": 1790759235747,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -577,6 +577,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1377.64225877,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ef75843e1452c43fcf03d3b38948960470af64b6",
+          "message": "workspace: upgrade cairo compiler to v2.19.6 (#15155)\n\nAlso bumps cairo-native to 0.9.0-rc.8 and regenerates the fixtures affected\nby the new Sierra version (1.9.5), including cende blob generation 63.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-30T08:41:25Z",
+          "tree_id": "fbec92701285280397df4a2602b788f310d11166",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ef75843e1452c43fcf03d3b38948960470af64b6"
+        },
+        "date": 1790759235047,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 994.3857365700001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1518.1315874000002,
             "unit": "ms"
           }
         ]
