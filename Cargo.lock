@@ -13535,6 +13535,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
+ "circuit-registry",
  "derive_more",
  "digest 0.10.7",
  "ethnum",

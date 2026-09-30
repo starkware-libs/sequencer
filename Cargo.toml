@@ -266,6 +266,7 @@ cairo-program-runner-lib = "1.1.0"
 cairo-vm = "3.2.0"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
+circuit-registry = { git = "https://github.com/starkware-libs/proving", rev = "2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3" }
 clap = "4.5.4"
 colored = "3"
 const_format = "0.2.30"

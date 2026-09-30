@@ -5,6 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use circuit_registry::CircuitRegistry;
 use expect_test::expect;
 use starknet_types_core::felt::Felt;
 
@@ -47,7 +48,7 @@ const GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST: Blake2sDigestWords =
 const GOLDEN_VERIFICATION_DIGEST: Blake2sDigestWords =
     [2180856259, 1333085512, 862178086, 2311453888, 551146339, 2046676941, 3386628737, 1763131494];
 
-const GATED_LEAF_PROOF_TRACE_LOG_SIZE: u64 = 20;
+const GATED_LEAF_PROOF_TRACE_LOG_SIZE: u32 = 20;
 
 fn entrypoint_runner_config() -> EntryPointRunnerConfig {
     EntryPointRunnerConfig {
@@ -151,31 +152,6 @@ fn format_steps_and_range_checks(execution_resources: &ExecutionResources) -> St
     )
 }
 
-fn registry_circuit_hashes(
-    registry: &serde_json::Value,
-    verifier_list_key: &str,
-) -> Vec<Blake2sDigestWords> {
-    registry[verifier_list_key]
-        .as_array()
-        .unwrap_or_else(|| panic!("The registry must list {verifier_list_key}."))
-        .iter()
-        .map(|verifier_entry| {
-            let circuit_hash_words: Vec<u32> = verifier_entry["circuit_hash"]
-                .as_array()
-                .expect("A circuit hash must be an array of words.")
-                .iter()
-                .map(|circuit_hash_word| {
-                    let word_hex =
-                        circuit_hash_word.as_str().expect("A circuit hash word must be a string.");
-                    u32::from_str_radix(word_hex.trim_start_matches("0x"), 16)
-                        .expect("A circuit hash word must be a hex u32.")
-                })
-                .collect();
-            circuit_hash_words.try_into().expect("A circuit hash must have exactly 8 words.")
-        })
-        .collect()
-}
-
 #[test]
 fn test_leaf_output_digest_matches_proving_side_golden() {
     assert_eq!(compute_leaf_output_digest(&GOLDEN_PROOF_FACTS), GOLDEN_LEAF_OUTPUT_DIGEST);
@@ -218,21 +194,22 @@ fn test_cairo_combine_leaf_digests_matches_rust_for_two_different_leaves() {
 
 #[test]
 fn test_circuit_hash_constants_match_vendored_registry() {
-    let registry: serde_json::Value =
+    let registry: CircuitRegistry =
         serde_json::from_str(include_str!("../resources/circuit_registry_canonical_small.json"))
-            .expect("The vendored circuit registry must be valid JSON.");
+            .expect("The vendored circuit registry must match the proving-side registry schema.");
+    // Pins the registry to exactly one leaf verifier, at the gated trace size.
+    let leaf_verifier_sizes_and_hashes: Vec<(u32, Blake2sDigestWords)> = registry
+        .leaf_verifiers
+        .iter()
+        .map(|leaf_verifier| (leaf_verifier.trace_log_size, leaf_verifier.circuit_hash.0))
+        .collect();
     assert_eq!(
-        registry_circuit_hashes(&registry, "leaf_verifiers"),
-        vec![LEAF_VERIFIER_CIRCUIT_HASH]
+        leaf_verifier_sizes_and_hashes,
+        vec![(GATED_LEAF_PROOF_TRACE_LOG_SIZE, LEAF_VERIFIER_CIRCUIT_HASH)]
     );
-    assert_eq!(
-        registry["leaf_verifiers"][0]["trace_log_size"].as_u64(),
-        Some(GATED_LEAF_PROOF_TRACE_LOG_SIZE)
-    );
-    assert_eq!(
-        registry_circuit_hashes(&registry, "multiverifiers"),
-        vec![MULTIVERIFIER_CIRCUIT_HASH]
-    );
+    let multiverifier =
+        registry.multiverifier().expect("The registry must list exactly one multiverifier.");
+    assert_eq!(multiverifier.circuit_hash.0, MULTIVERIFIER_CIRCUIT_HASH);
 }
 
 #[test]
