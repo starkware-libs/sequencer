@@ -19,6 +19,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EntryPointSelector,
@@ -824,6 +825,7 @@ impl FuzzTestContext {
             class_hash,
             &calldata![***FUZZ_ADDRESS_ORCHESTRATOR],
             ContractAddress::default(),
+            AddressDerivationHash::Pedersen,
         )
         .unwrap()
     }
