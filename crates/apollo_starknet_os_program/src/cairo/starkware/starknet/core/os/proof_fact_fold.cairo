@@ -81,6 +81,8 @@ func pack_output_digest(output_digest: felt*) -> (low: felt, high: felt) {
 }
 
 // Returns the leaf verifier's circuit hash as eight little-endian 32-bit words.
+// TODO(Einat): accept the leaf verifiers of all the registry's trace sizes, selected by a
+// range-checked index into their list: an unchecked index reads cells the prover chooses.
 func get_leaf_verifier_circuit_hash() -> (circuit_hash: felt*) {
     tempvar circuit_hash: felt* = new (
         0xd2d85a42,
