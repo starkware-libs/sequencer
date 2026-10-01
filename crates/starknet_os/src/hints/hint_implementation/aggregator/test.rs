@@ -26,8 +26,10 @@ use tempfile::NamedTempFile;
 use crate::hint_processor::aggregator_hint_processor::{
     AggregatorHintProcessor,
     AggregatorInput,
+    CircuitVerifierTaskInput,
     DataAvailability,
 };
+use crate::hints::error::OsHintError;
 use crate::hints::hint_implementation::aggregator::utils::{
     write_full_os_output,
     FullOsOutputsData,
@@ -45,7 +47,8 @@ use crate::io::os_output_types::{
     TryFromOutputIter,
     N_UPDATES_SMALL_PACKING_BOUND,
 };
-use crate::runner::{run_program, RunnerReturnObject};
+use crate::proof_fact_fold::pack_output_digest;
+use crate::runner::{run_aggregator_program, RunnerReturnObject};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -55,6 +58,10 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 use crate::test_utils::coverage::expect_hint_coverage;
+use crate::test_utils::golden_leaf::{
+    GoldenCircuitVerifierTask,
+    GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
+};
 use crate::test_utils::validations::validate_builtins;
 
 // Dummy values for the test.
@@ -289,7 +296,18 @@ impl FactTopology {
     }
 }
 
-fn multi_block0_output(full_output: bool) -> Vec<Felt> {
+/// The proof-facts fields of the header of a block without a transaction with proof facts.
+const NO_PROOF_FACTS_HEADER_FIELDS: [Felt; 3] = [Felt::ZERO; 3];
+
+/// The proof-facts fields of the header of a block whose transaction with proof facts has the
+/// golden leaf's proof facts.
+fn golden_proof_facts_header_fields() -> [Felt; 3] {
+    let (processed_proof_output_low, processed_proof_output_high) =
+        pack_output_digest(&GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST);
+    [processed_proof_output_low, processed_proof_output_high, Felt::ONE]
+}
+
+fn multi_block0_output(full_output: bool, proof_facts_header_fields: [Felt; 3]) -> Vec<Felt> {
     let partial_res = [
         vec![
             // initial_root.
@@ -311,13 +329,11 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
             Felt::ZERO,
             // full_output.
             Felt::from(full_output),
-            // processed_proof_output_low, processed_proof_output_high, n_proof_facts_transactions.
-            Felt::ZERO,
-            Felt::ZERO,
-            Felt::ZERO,
-            // Messages to L1.
-            MSG_TO_L1_0.len().into(),
         ],
+        // processed_proof_output_low, processed_proof_output_high, n_proof_facts_transactions.
+        proof_facts_header_fields.to_vec(),
+        // Messages to L1.
+        vec![MSG_TO_L1_0.len().into()],
         MSG_TO_L1_0.to_vec(),
         // Messages to L2.
         vec![MSG_TO_L2_0.len().into()],
@@ -595,7 +611,11 @@ fn combined_kzg_info(da: &[Felt]) -> Vec<Felt> {
     vec![z.into(), n_blobs.into(), x, y, evaluation_low.into(), evaluation_high.into()]
 }
 
-fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
+fn combined_output(
+    full_output: bool,
+    use_kzg_da: bool,
+    proof_facts_header_fields: [Felt; 3],
+) -> Vec<Felt> {
     let da = combined_output_da(full_output);
     [
         vec![
@@ -617,11 +637,9 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
             Felt::from(use_kzg_da),
             // full_output.
             Felt::from(full_output),
-            // processed_proof_output_low, processed_proof_output_high, n_proof_facts_transactions.
-            Felt::ZERO,
-            Felt::ZERO,
-            Felt::ZERO,
         ],
+        // processed_proof_output_low, processed_proof_output_high, n_proof_facts_transactions.
+        proof_facts_header_fields.to_vec(),
         // KZG info.
         if use_kzg_da { combined_kzg_info(&da) } else { vec![] },
         // Messages to L1.
@@ -637,8 +655,12 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
     .concat()
 }
 
-fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> {
-    let block0 = multi_block0_output(full_output);
+fn bootloader_output(
+    full_output: bool,
+    modifier: FailureModifier,
+    proof_facts_header_fields: [Felt; 3],
+) -> Vec<Felt> {
+    let block0 = multi_block0_output(full_output, proof_facts_header_fields);
     let block1 = multi_block1_output(full_output, modifier);
     [
         vec![
@@ -661,7 +683,8 @@ fn test_parse_and_output(
 ) {
     // Prepare input.
     let full_output = true;
-    let bootloader_output_data = bootloader_output(full_output, FailureModifier::None);
+    let bootloader_output_data =
+        bootloader_output(full_output, FailureModifier::None, NO_PROOF_FACTS_HEADER_FIELDS);
     let FullOsOutputsData { outputs, n_outputs, .. } =
         FullOsOutputsData::try_from_output_iter(&mut bootloader_output_data.into_iter(), None)
             .unwrap();
@@ -735,7 +758,10 @@ fn test_parse_and_output(
     };
     let output_array = output_array.iter().map(|f| f.get_int().unwrap()).collect::<Vec<Felt>>();
     if block_idx == 0 {
-        assert_eq!(output_array, multi_block0_output(full_output_result));
+        assert_eq!(
+            output_array,
+            multi_block0_output(full_output_result, NO_PROOF_FACTS_HEADER_FIELDS)
+        );
     } else {
         assert_eq!(block_idx, 1);
         assert_eq!(output_array, multi_block1_output(full_output_result, FailureModifier::None));
@@ -787,7 +813,8 @@ fn test_aggregator(
     let temp_file = NamedTempFile::new().unwrap();
     let temp_file_path = temp_file.path();
 
-    let bootloader_output_data = bootloader_output(true, modifier.clone());
+    let bootloader_output_data =
+        bootloader_output(true, modifier.clone(), NO_PROOF_FACTS_HEADER_FIELDS);
     let aggregator_input = AggregatorInput {
         bootloader_output: Some(bootloader_output_data.clone()),
         full_output,
@@ -800,14 +827,14 @@ fn test_aggregator(
         fee_token_address: Felt::ZERO,
         chain_id: Felt::ZERO,
         public_keys: None,
+        circuit_verifier_task: None,
     };
 
     // Create the aggregator hint processor.
     let mut aggregator_hint_processor =
         AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
 
-    let result =
-        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor);
+    let result = run_aggregator_program(LayoutName::all_cairo, &mut aggregator_hint_processor);
 
     if let Some(message) = error_message {
         let Err(error) = result else { panic!("Expected error '{message}', got success.") };
@@ -822,7 +849,7 @@ fn test_aggregator(
 
     validate_builtins(&mut cairo_runner);
 
-    let combined_output = combined_output(full_output, use_kzg_da);
+    let combined_output = combined_output(full_output, use_kzg_da, NO_PROOF_FACTS_HEADER_FIELDS);
     assert_eq!(
         raw_output.iter().collect::<Vec<&Felt>>(),
         bootloader_output_data.iter().chain(combined_output.iter()).collect::<Vec<_>>()
@@ -853,5 +880,65 @@ fn test_aggregator(
     expect_hint_coverage(
         &aggregator_hint_processor.unused_hints,
         &format!("test_aggregator_{full_output}_{use_kzg_da}_{modifier:?}"),
+    );
+}
+
+/// The aggregator input over `bootloader_output`, with its data availability in the calldata.
+fn calldata_aggregator_input(
+    bootloader_output: Vec<Felt>,
+    circuit_verifier_task: Option<CircuitVerifierTaskInput>,
+) -> AggregatorInput {
+    AggregatorInput {
+        bootloader_output: Some(bootloader_output),
+        full_output: true,
+        da: DataAvailability::CallData,
+        debug_mode: false,
+        fee_token_address: Felt::ZERO,
+        chain_id: Felt::ZERO,
+        public_keys: None,
+        circuit_verifier_task,
+    }
+}
+
+#[test]
+fn test_aggregator_verifies_the_processed_proof() {
+    let verifier_task = GoldenCircuitVerifierTask::decompress();
+    let bootloader_output_data =
+        bootloader_output(true, FailureModifier::None, golden_proof_facts_header_fields());
+    let mut aggregator_hint_processor = AggregatorHintProcessor::new(
+        &AGGREGATOR_PROGRAM,
+        calldata_aggregator_input(bootloader_output_data.clone(), Some(verifier_task.task_input())),
+    );
+    let RunnerReturnObject { raw_output, .. } =
+        run_aggregator_program(LayoutName::all_cairo, &mut aggregator_hint_processor).unwrap();
+    // The verifier's output does not reach the aggregator's output.
+    assert_eq!(
+        raw_output,
+        [bootloader_output_data, combined_output(true, false, golden_proof_facts_header_fields())]
+            .concat()
+    );
+    expect_hint_coverage(
+        &aggregator_hint_processor.unused_hints,
+        "test_aggregator_verifies_the_processed_proof",
+    );
+}
+
+#[test]
+fn test_aggregator_requires_a_circuit_verifier_task_for_proof_facts() {
+    let mut aggregator_hint_processor = AggregatorHintProcessor::new(
+        &AGGREGATOR_PROGRAM,
+        calldata_aggregator_input(
+            bootloader_output(true, FailureModifier::None, golden_proof_facts_header_fields()),
+            None,
+        ),
+    );
+    let Err(error) = run_aggregator_program(LayoutName::all_cairo, &mut aggregator_hint_processor)
+    else {
+        panic!("The aggregator accepted proof facts without a circuit verifier task.");
+    };
+    let error_description = error.to_string();
+    assert!(
+        error_description.contains(&OsHintError::MissingCircuitVerifierTask.to_string()),
+        "Unexpected error: {error_description}"
     );
 }

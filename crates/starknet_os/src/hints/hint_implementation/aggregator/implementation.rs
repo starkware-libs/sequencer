@@ -1,3 +1,7 @@
+use std::any::Any;
+use std::collections::HashMap;
+
+use cairo_program_runner_lib::SIMPLE_BOOTLOADER_INPUT;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, DataAvailability};
@@ -26,6 +30,27 @@ pub(crate) fn disable_da_page_creation(
     // Since this output is only used internally and will not be used in the final fact, we need to
     // disable page creation.
     hint_processor.serialize_data_availability_create_pages = false;
+    Ok(())
+}
+
+/// Enters a scope holding the simple bootloader input that runs the circuit verifier on the
+/// processed proof of the aggregated blocks' transaction with proof facts.
+pub(crate) fn enter_circuit_verifier_task_scope(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    ctx: HintContext<'_>,
+) -> OsHintResult {
+    let simple_bootloader_input: Box<dyn Any> = Box::new(
+        hint_processor
+            .input
+            .circuit_verifier_task
+            .as_ref()
+            .ok_or(OsHintError::MissingCircuitVerifierTask)?
+            .simple_bootloader_input()?,
+    );
+    ctx.exec_scopes.enter_scope(HashMap::from([(
+        SIMPLE_BOOTLOADER_INPUT.to_string(),
+        simple_bootloader_input,
+    )]));
     Ok(())
 }
 
