@@ -4,6 +4,9 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, HashBuiltin, PoseidonBuiltin
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
+from starkware.starknet.core.aggregator.verify_processed_proof import (
+    verify_aggregated_processed_proof,
+)
 from starkware.starknet.core.os.os_config.os_config import (
     StarknetOsConfig,
     get_public_keys_hash,
@@ -52,6 +55,9 @@ func main{
         use_kzg_da=use_kzg_da,
         full_output=full_output,
     );
+
+    // Verify the processed proof of the aggregated blocks' transaction with proof facts, if any.
+    verify_aggregated_processed_proof(header=combined_output.header);
 
     // Output the bootloader output of the inner OsOutput instances.
     // This represents the "input" of the aggregator, whose correctness is later verified
