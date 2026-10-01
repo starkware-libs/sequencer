@@ -89,6 +89,9 @@ func combine_blocks{range_check_ptr}(
             starknet_os_config_hash=first.header.starknet_os_config_hash,
             use_kzg_da=use_kzg_da,
             full_output=full_output,
+            processed_proof_output_low=first.header.processed_proof_output_low,
+            processed_proof_output_high=first.header.processed_proof_output_high,
+            n_proof_facts_transactions=first.header.n_proof_facts_transactions,
         ),
         squashed_os_state_update=first.squashed_os_state_update,
         initial_carried_outputs=initial_carried_outputs,
@@ -97,6 +100,11 @@ func combine_blocks{range_check_ptr}(
 
     let res = combine_blocks_inner(aggregated=aggregated, n=n - 1, os_outputs=&os_outputs[1]);
     local res_state_update: SquashedOsStateUpdate = [res.squashed_os_state_update];
+
+    // The aggregated blocks support at most one transaction with proof facts. A block without one
+    // has zeros in its proof-facts fields, so their sums are the fields of the block that has one.
+    tempvar n_proof_facts_transactions = res.header.n_proof_facts_transactions;
+    assert n_proof_facts_transactions * (n_proof_facts_transactions - 1) = 0;
 
     %{ SetStateUpdatePointersToNone %}
 
@@ -146,7 +154,7 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     // Check the size of `OsOutput` and `OsOutputHeader` to ensure that if new fields are added
     // they are handled by the aggregator.
     static_assert OsOutput.SIZE == 4;
-    static_assert OsOutputHeader.SIZE == 9;
+    static_assert OsOutputHeader.SIZE == 12;
 
     // Validate fields of the inner OS output of a single task.
     assert current_header.use_kzg_da = 0;
@@ -192,6 +200,18 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
             starknet_os_config_hash=aggregated_header.starknet_os_config_hash,
             use_kzg_da=aggregated_header.use_kzg_da,
             full_output=aggregated_header.full_output,
+            processed_proof_output_low=(
+                aggregated_header.processed_proof_output_low +
+                current_header.processed_proof_output_low
+            ),
+            processed_proof_output_high=(
+                aggregated_header.processed_proof_output_high +
+                current_header.processed_proof_output_high
+            ),
+            n_proof_facts_transactions=(
+                aggregated_header.n_proof_facts_transactions +
+                current_header.n_proof_facts_transactions
+            ),
         ),
         squashed_os_state_update=new SquashedOsStateUpdate(
             contract_state_changes=aggregated_update.contract_state_changes,
