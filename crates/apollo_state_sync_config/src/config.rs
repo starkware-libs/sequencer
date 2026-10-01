@@ -9,12 +9,12 @@ use apollo_network_config::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
 use apollo_rpc_config::RpcConfig;
-use apollo_storage::db::DbConfig;
-use apollo_storage::storage_reader_server::{
+use apollo_storage_config::db::DbConfig;
+use apollo_storage_config::storage_reader_server::{
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
-use apollo_storage::StorageConfig;
+use apollo_storage_config::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
