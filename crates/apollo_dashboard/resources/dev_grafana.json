@@ -330,6 +330,17 @@
           "extra_params": {
             "log_query": "\"maximum gas price\" OR \"below minimum gas price\""
           }
+        },
+        {
+          "title": "Eth To Fri Rate Clamped",
+          "description": "The number of blocks whose oracle eth to fri rate was pulled to the per-block change bound around the rate implied by the previous block (10m window). Not counted when the clamp does not run: the override_eth_to_fri_rate operator pin, or a previous block that implies no rate",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_eth_to_fri_rate_clamped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"away from the rate implied by the previous block\""
+          }
         }
       ],
       "collapsed": true

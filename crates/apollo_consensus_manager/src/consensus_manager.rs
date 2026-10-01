@@ -168,9 +168,9 @@ impl ConsensusManager {
         let current_height =
             self.batcher_client.get_height().await.expect("Failed to get height from batcher");
         consensus_context
-            .initialize_fee_proposals_window(current_height.height)
+            .initialize_from_committed_blocks(current_height.height)
             .await
-            .expect("Failed to bootstrap fee_proposals window");
+            .expect("Failed to bootstrap from committed blocks");
         let run_consensus_args = self.create_run_consensus_args(current_height.height);
 
         let network_task =
