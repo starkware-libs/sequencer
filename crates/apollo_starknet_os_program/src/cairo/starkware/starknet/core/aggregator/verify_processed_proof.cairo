@@ -12,6 +12,7 @@ from starkware.cairo.common.cairo_builtins import (
     SignatureBuiltin,
 )
 from starkware.cairo.common.math import split_int
+from starkware.starknet.core.os.output import OsOutputHeader
 from starkware.starknet.core.os.proof_fact_fold import (
     BLAKE2S_DIGEST_N_WORDS,
     compute_verification_digest,
@@ -28,6 +29,26 @@ const CIRCUIT_VERIFIER_PROGRAM_HASH = (
 // The output of a simple bootloader task: its size and program hash, followed by the program's
 // output, which for the circuit verifier is its verification digest.
 const VERIFIER_TASK_OUTPUT_SIZE = 2 + BLAKE2S_DIGEST_N_WORDS;
+
+// Verifies the processed proof of the aggregated blocks' transaction with proof facts, if they have
+// one, against the output digest in their combined header.
+func verify_aggregated_processed_proof{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    ec_op_ptr: EcOpBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+}(header: OsOutputHeader*) {
+    if (header.n_proof_facts_transactions == 0) {
+        return ();
+    }
+    %{ EnterCircuitVerifierTaskScope %}
+    verify_processed_proof(
+        processed_proof_output_low=header.processed_proof_output_low,
+        processed_proof_output_high=header.processed_proof_output_high,
+    );
+    %{ vm_exit_scope() %}
+    return ();
+}
 
 // Runs the circuit verifier on a processed proof as a simple bootloader task, and checks that the
 // verifier is the pinned one and that it outputs the verification digest of the processed proof

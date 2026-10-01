@@ -63,11 +63,22 @@ impl TryFrom<DeprecatedSyscallSelector> for DeprecatedSyscallHint {
     }
 }
 
+/// The module of the copied simple bootloader code, whose hints the bootloader hint processor of
+/// `cairo_program_runner_lib` runs, rather than the OS or aggregator hint processor.
+const SIMPLE_BOOTLOADER_MODULE: &str = "starkware.cairo.bootloaders.simple_bootloader.";
+
+/// The hints of the program, except the simple bootloader code's.
 fn program_hints(program: &Program) -> HashSet<String> {
     program
         .shared_program_data
         .hints_collection
         .iter_hints()
+        .filter(|hint| {
+            !hint
+                .accessible_scopes
+                .last()
+                .is_some_and(|scope| scope.starts_with(SIMPLE_BOOTLOADER_MODULE))
+        })
         .map(|hint| hint.code.clone())
         .collect()
 }
