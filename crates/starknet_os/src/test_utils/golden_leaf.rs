@@ -1,8 +1,15 @@
-//! The proving side's golden leaf: its proof facts and the digests the proving side computes from
-//! them.
+//! The proving side's golden leaf: its proof facts and digests, its processed proof, and the
+//! circuit verifier that verifies the processed proof. The processed proof was generated with
+//! `stwo_run_and_prove_recursive_tree` at proving commit `b75d21f9`, under the `canonical_small`
+//! circuit registry.
 
+use std::io;
+
+use flate2::read::GzDecoder;
 use starknet_types_core::felt::Felt;
+use tempfile::NamedTempFile;
 
+use crate::io::os_input::CircuitVerifierTaskInput;
 use crate::proof_fact_fold::Blake2sDigestWords;
 
 /// The proof facts of the proving side's golden leaf: two zero version markers, followed by the
@@ -26,3 +33,38 @@ pub const GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST: Blake2sDigestWords =
 
 pub const GOLDEN_VERIFICATION_DIGEST: Blake2sDigestWords =
     [2180856259, 1333085512, 862178086, 2311453888, 551146339, 2046676941, 3386628737, 1763131494];
+
+const CIRCUIT_VERIFIER_EXECUTABLE_GZ: &[u8] = include_bytes!(
+    "../../resources/circuit_verifier/stwo_circuit_verifier_canonical_small.executable.json.gz"
+);
+const GOLDEN_PROCESSED_PROOF_GZ: &[u8] =
+    include_bytes!("../../resources/circuit_verifier/one_leaf_root_proof.json.gz");
+
+/// The circuit verifier task on the golden leaf's processed proof. Its files stay decompressed for
+/// as long as it lives.
+pub struct GoldenCircuitVerifierTask {
+    executable_file: NamedTempFile,
+    processed_proof_file: NamedTempFile,
+}
+
+impl GoldenCircuitVerifierTask {
+    pub fn decompress() -> Self {
+        Self {
+            executable_file: gunzip_to_temp_file(CIRCUIT_VERIFIER_EXECUTABLE_GZ),
+            processed_proof_file: gunzip_to_temp_file(GOLDEN_PROCESSED_PROOF_GZ),
+        }
+    }
+
+    pub fn task_input(&self) -> CircuitVerifierTaskInput {
+        CircuitVerifierTaskInput {
+            executable_path: self.executable_file.path().to_path_buf(),
+            processed_proof_path: self.processed_proof_file.path().to_path_buf(),
+        }
+    }
+}
+
+fn gunzip_to_temp_file(compressed_bytes: &[u8]) -> NamedTempFile {
+    let mut temp_file = NamedTempFile::new().unwrap();
+    io::copy(&mut GzDecoder::new(compressed_bytes), &mut temp_file).unwrap();
+    temp_file
+}
