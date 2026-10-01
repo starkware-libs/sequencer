@@ -1,6 +1,11 @@
+use std::any::Any;
 use std::collections::HashMap;
 
-use apollo_starknet_os_program::test_programs::PROOF_FACT_FOLD_BYTES;
+use apollo_starknet_os_program::test_programs::{
+    PROOF_FACT_FOLD_BYTES,
+    VERIFY_PROCESSED_PROOF_TEST_BYTES,
+};
+use cairo_program_runner_lib::{BootloaderHintProcessor, SIMPLE_BOOTLOADER_INPUT};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -15,12 +20,16 @@ use super::{
 };
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
+    initialize_cairo_runner,
+    run_cairo_0_entrypoint_with_hint_processor,
+    Cairo0EntryPointRunnerResult,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
     PointerArg,
 };
 use crate::test_utils::golden_leaf::{
+    GoldenCircuitVerifierTask,
     GOLDEN_LEAF_OUTPUT_DIGEST,
     GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
     GOLDEN_PROOF_FACTS,
@@ -100,6 +109,43 @@ fn assert_cairo_function_writes_digest(
     .unwrap();
 }
 
+/// Runs the Cairo `verify_processed_proof` on the golden leaf's processed proof, against the packed
+/// `processed_proof_output_digest`.
+fn run_cairo_verify_processed_proof(
+    processed_proof_output_digest: &Blake2sDigestWords,
+) -> Cairo0EntryPointRunnerResult<()> {
+    let verifier_task = GoldenCircuitVerifierTask::decompress();
+    let simple_bootloader_input: Box<dyn Any> =
+        Box::new(verifier_task.task_input().simple_bootloader_input().unwrap());
+    let implicit_args = [
+        BuiltinName::output,
+        BuiltinName::pedersen,
+        BuiltinName::range_check,
+        BuiltinName::ec_op,
+        BuiltinName::poseidon,
+    ]
+    .map(ImplicitArg::Builtin);
+    let (mut cairo_runner, program, entrypoint) = initialize_cairo_runner(
+        &entrypoint_runner_config(),
+        VERIFY_PROCESSED_PROOF_TEST_BYTES,
+        "verify_processed_proof_test",
+        &implicit_args,
+        HashMap::from([(SIMPLE_BOOTLOADER_INPUT.to_string(), simple_bootloader_input)]),
+    )?;
+    let (packed_low, packed_high) = pack_output_digest(processed_proof_output_digest);
+    run_cairo_0_entrypoint_with_hint_processor(
+        entrypoint,
+        &[packed_low.into(), packed_high.into()],
+        &implicit_args,
+        &mut cairo_runner,
+        &program,
+        &entrypoint_runner_config(),
+        &[],
+        &mut BootloaderHintProcessor::new(None),
+    )?;
+    Ok(())
+}
+
 #[test]
 fn test_leaf_output_digest_matches_proving_side_golden() {
     assert_eq!(compute_leaf_output_digest(&GOLDEN_PROOF_FACTS), GOLDEN_LEAF_OUTPUT_DIGEST);
@@ -139,5 +185,27 @@ fn test_cairo_processed_proof_output_digest_matches_rust_for_two_different_leave
             &GOLDEN_LEAF_OUTPUT_DIGEST,
             &compute_leaf_output_digest(&right_proof_facts),
         ),
+    );
+}
+
+#[test]
+fn test_cairo_verify_processed_proof_accepts_its_output_digest() {
+    run_cairo_verify_processed_proof(&GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST).unwrap();
+}
+
+/// The output digest of a processed proof of other proof facts than the golden leaf's.
+#[test]
+fn test_cairo_verify_processed_proof_rejects_another_output_digest() {
+    let other_leaf_digest = compute_leaf_output_digest(&[Felt::ZERO, Felt::ZERO, Felt::ONE]);
+    let error = run_cairo_verify_processed_proof(&combine_leaf_digests(
+        &other_leaf_digest,
+        &other_leaf_digest,
+    ))
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("The processed proof does not verify against its output digest."),
+        "Unexpected error: {error}"
     );
 }
