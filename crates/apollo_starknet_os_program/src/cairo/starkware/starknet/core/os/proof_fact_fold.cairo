@@ -6,6 +6,66 @@ from starkware.starknet.core.os.virtual_os_output import ProofHeader
 const BLAKE2S_DIGEST_N_WORDS = 8;
 const PROOF_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
 
+// The proof facts of a transaction.
+struct ProofFactsReference {
+    proof_facts_size: felt,
+    proof_facts: felt*,
+}
+
+// Appends the transaction's proof facts to `proof_facts_references`, if it has any.
+func record_proof_facts_reference{proof_facts_references: ProofFactsReference*}(
+    proof_facts_size: felt, proof_facts: felt*
+) {
+    if (proof_facts_size == 0) {
+        return ();
+    }
+    assert [proof_facts_references] = ProofFactsReference(
+        proof_facts_size=proof_facts_size, proof_facts=proof_facts
+    );
+    let proof_facts_references = &proof_facts_references[1];
+    return ();
+}
+
+// Returns the number of a block's transactions with proof facts, given their references, and the
+// packed output digest of their processed proof. A block supports at most one such transaction.
+func single_processed_proof_output{range_check_ptr}(
+    proof_facts_references_start: ProofFactsReference*,
+    proof_facts_references_end: ProofFactsReference*,
+) -> (
+    n_proof_facts_transactions: felt,
+    processed_proof_output_low: felt,
+    processed_proof_output_high: felt,
+) {
+    alloc_locals;
+    if (proof_facts_references_end == proof_facts_references_start) {
+        return (
+            n_proof_facts_transactions=0,
+            processed_proof_output_low=0,
+            processed_proof_output_high=0,
+        );
+    }
+    with_attr error_message("A block supports at most one transaction with proof facts.") {
+        assert proof_facts_references_end = &proof_facts_references_start[1];
+    }
+    let (local output_digest: felt*) = alloc();
+    // The single transaction's proof fills both of the multiverifier's verifier slots.
+    compute_processed_proof_output_digest(
+        left_proof_facts_size=proof_facts_references_start.proof_facts_size,
+        left_proof_facts=proof_facts_references_start.proof_facts,
+        right_proof_facts_size=proof_facts_references_start.proof_facts_size,
+        right_proof_facts=proof_facts_references_start.proof_facts,
+        output_digest=output_digest,
+    );
+    let (processed_proof_output_low, processed_proof_output_high) = pack_output_digest(
+        output_digest=output_digest
+    );
+    return (
+        n_proof_facts_transactions=1,
+        processed_proof_output_low=processed_proof_output_low,
+        processed_proof_output_high=processed_proof_output_high,
+    );
+}
+
 // The digest functions write their digest to a pointer the caller gives, so that each digest is
 // written where it is consumed, such as into the next digest's preimage, instead of being copied.
 
