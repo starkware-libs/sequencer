@@ -1,9 +1,13 @@
 use std::any::Any;
 use std::boxed::Box;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
+use cairo_program_runner_lib::hints::types::HashFunc;
+use cairo_program_runner_lib::tasks::{create_cairo1_program_task, BootloaderTaskError};
+use cairo_program_runner_lib::{SimpleBootloaderInput, TaskSpec};
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData as Cairo0Hint,
@@ -53,6 +57,35 @@ pub struct AggregatorInput {
 impl AggregatorInput {
     pub fn log_level(&self) -> LevelFilter {
         if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
+    }
+}
+
+/// The circuit verifier task the aggregator runs as a simple bootloader task.
+#[derive(Deserialize, Debug, Clone)]
+pub struct CircuitVerifierTaskInput {
+    /// The compiled Cairo1 executable of the circuit verifier.
+    pub executable_path: PathBuf,
+    /// A JSON list of the processed proof's felts: the verifier's input.
+    pub processed_proof_path: PathBuf,
+}
+
+impl CircuitVerifierTaskInput {
+    /// The input of the simple bootloader run of `verify_processed_proof`: the verifier as the
+    /// single task, hashed with Blake.
+    pub fn simple_bootloader_input(&self) -> Result<SimpleBootloaderInput, BootloaderTaskError> {
+        let verifier_task = create_cairo1_program_task(
+            &self.executable_path,
+            None,
+            Some(self.processed_proof_path.clone()),
+        )?;
+        Ok(SimpleBootloaderInput {
+            fact_topologies_path: None,
+            single_page: true,
+            tasks: vec![TaskSpec {
+                task: Rc::new(verifier_task),
+                program_hash_function: HashFunc::Blake,
+            }],
+        })
     }
 }
 
