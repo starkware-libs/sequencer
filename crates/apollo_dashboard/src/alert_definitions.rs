@@ -238,9 +238,11 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         "cende_write_prev_height_blob_latency_too_high",
         "Cende write prev height blob latency too high",
         EvaluationRate::Default,
+        // The count term is deliberately unguarded: with `or vector(0)` a gap in it (GMP can drop
+        // one sub-expression of a response) clamps the divisor to 1e-7 and the average reads as
+        // ~1e5s. Unguarded, a gap empties the expression and the rule holds its last state.
         format!(
-            "(sum(rate({}[20m])) or vector(0)) / clamp_min(sum(rate({}[20m])) or vector(0), \
-             0.0000001)",
+            "(sum(rate({}[20m])) or vector(0)) / clamp_min(sum(rate({}[20m])), 0.0000001)",
             CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_sum_with_filter(),
             CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_count_with_filter(),
         ),
