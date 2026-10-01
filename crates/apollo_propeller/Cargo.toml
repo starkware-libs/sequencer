@@ -33,6 +33,7 @@ hex.workspace = true
 insta.workspace = true
 libp2p-swarm-test.workspace = true
 rstest.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 tokio-stream.workspace = true
 tracing-test.workspace = true
 
