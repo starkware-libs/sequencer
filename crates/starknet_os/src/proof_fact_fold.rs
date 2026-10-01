@@ -67,6 +67,17 @@ pub fn compute_verification_digest(
     )
 }
 
+/// Packs a digest of eight little-endian 32-bit words into two 128-bit felts: `low` holds words
+/// 0-3 and `high` holds words 4-7, each in little-endian order.
+pub fn pack_output_digest(output_digest: &Blake2sDigestWords) -> (Felt, Felt) {
+    let pack_half = |words: &[u32]| {
+        words.iter().rev().fold(Felt::ZERO, |packed_half, word| {
+            packed_half * Felt::from(1u64 << 32) + Felt::from(*word)
+        })
+    };
+    (pack_half(&output_digest[..4]), pack_half(&output_digest[4..]))
+}
+
 pub fn blake2s_over_u32_words(words: &[u32]) -> Blake2sDigestWords {
     let bytes: Vec<u8> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
     let digest_bytes: [u8; 32] = Blake2s256::digest(&bytes).into();
