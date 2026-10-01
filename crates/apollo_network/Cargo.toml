@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Peer-to-peer networking layer for Starknet nodes using libp2p."
+publish = false
 
 [features]
 testing = []

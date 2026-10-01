@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Provides L1 (Ethereum) message handling and event tracking for Starknet."
+publish = false
 
 [features]
 testing = [

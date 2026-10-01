@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Workspace-level tests."
+publish = false
 
 [dev-dependencies]
 expect-test.workspace = true

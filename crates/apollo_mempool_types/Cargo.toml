@@ -5,6 +5,7 @@ license.workspace = true
 repository.workspace = true
 version.workspace = true
 description = "Type definitions and interfaces for the Apollo mempool component."
+publish = false
 
 [lints]
 workspace = true

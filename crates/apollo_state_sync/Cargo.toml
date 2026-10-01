@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Synchronizes Starknet state from other nodes or data sources."
+publish = false
 
 [features]
 testing = [

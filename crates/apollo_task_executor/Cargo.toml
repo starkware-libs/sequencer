@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Task execution utilities for concurrent operations."
+publish = false
 
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

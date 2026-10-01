@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Tracks and provides L1 (Ethereum) gas prices for Starknet transaction pricing."
+publish = false
 
 [dependencies]
 apollo_batcher_types.workspace = true

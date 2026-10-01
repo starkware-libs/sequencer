@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Configuration types for the Apollo HTTP server."
+publish = false
 
 [lints]
 workspace = true
