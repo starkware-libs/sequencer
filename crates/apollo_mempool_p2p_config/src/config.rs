@@ -4,7 +4,7 @@ use std::time::Duration;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_network::NetworkConfig;
+use apollo_network_config::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 

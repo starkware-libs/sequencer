@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub use apollo_network_config::peer_manager::PeerManagerConfig;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -9,7 +10,6 @@ use peer::Peer;
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
-pub use self::config::PeerManagerConfig;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::BridgedBehaviour;
@@ -17,7 +17,6 @@ use crate::sqmr::OutboundSessionId;
 use crate::{discovery, mixed_behaviour, sqmr};
 
 pub(crate) mod behaviour_impl;
-mod config;
 pub(crate) mod peer;
 #[cfg(test)]
 mod test;
