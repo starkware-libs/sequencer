@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::serde::deserialize_program::Member;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -719,6 +720,42 @@ pub fn run_cairo_0_entrypoint<'a>(
     Vec<EndpointArg>,
     SnosHintProcessor<'a, DictStateReader>,
 )> {
+    let os_hints_config = None;
+    let mut hint_processor = SnosHintProcessor::new_for_testing(
+        state_reader,
+        program,
+        os_hints_config,
+        &EMPTY_BLOCK_INPUT,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
+    info!("Program and Hint processor created successfully.");
+    let (implicit_return_values, explicit_return_values) =
+        run_cairo_0_entrypoint_with_hint_processor(
+            entrypoint,
+            explicit_args,
+            implicit_args,
+            cairo_runner,
+            program,
+            runner_config,
+            expected_explicit_return_values,
+            &mut hint_processor,
+        )?;
+    Ok((implicit_return_values, explicit_return_values, hint_processor))
+}
+
+/// Runs a Cairo0 entry point with the given hint processor.
+/// Returns the implicit and explicit return values.
+#[allow(clippy::too_many_arguments)]
+pub fn run_cairo_0_entrypoint_with_hint_processor(
+    entrypoint: String,
+    explicit_args: &[EndpointArg],
+    implicit_args: &[ImplicitArg],
+    cairo_runner: &mut CairoRunner,
+    program: &Program,
+    runner_config: &EntryPointRunnerConfig,
+    expected_explicit_return_values: &[EndpointArg],
+    hint_processor: &mut dyn HintProcessor,
+) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
     // TODO(Amos): Perform complete validations.
     perform_basic_validations_on_explicit_args(explicit_args, program, &entrypoint)?;
     perform_basic_validations_on_implicit_args(implicit_args, program, &entrypoint, runner_config)?;
@@ -731,15 +768,6 @@ pub fn run_cairo_0_entrypoint<'a>(
         implicit_cairo_args.iter().chain(explicit_cairo_args.iter()).collect();
     info!("Converted explicit & implicit args to Cairo args.");
 
-    let os_hints_config = None;
-    let mut hint_processor = SnosHintProcessor::new_for_testing(
-        state_reader,
-        program,
-        os_hints_config,
-        &EMPTY_BLOCK_INPUT,
-    )
-    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
-    info!("Program and Hint processor created successfully.");
     let program_segment_size: Option<usize> = None;
     cairo_runner
         .run_from_entrypoint(
@@ -751,7 +779,7 @@ pub fn run_cairo_0_entrypoint<'a>(
             &entrypoint_args,
             runner_config.verify_secure,
             program_segment_size,
-            &mut hint_processor,
+            hint_processor,
         )
         .map_err(Box::new)?;
     if runner_config.validate_builtins_offset {
@@ -766,5 +794,5 @@ pub fn run_cairo_0_entrypoint<'a>(
     info!("Successfully finished running entrypoint {entrypoint}");
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;
-    Ok((implicit_return_values, explicit_return_values, hint_processor))
+    Ok((implicit_return_values, explicit_return_values))
 }
