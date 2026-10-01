@@ -52,6 +52,9 @@ pub struct AggregatorInput {
     pub fee_token_address: Felt,
     pub chain_id: Felt,
     pub public_keys: Option<Vec<Felt>>,
+    // The circuit verifier task on the processed proof of the aggregated blocks' transaction with
+    // proof facts. Required only if there is such a transaction.
+    pub circuit_verifier_task: Option<CircuitVerifierTaskInput>,
 }
 
 impl AggregatorInput {

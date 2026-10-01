@@ -12,6 +12,7 @@ use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::aggregator::implementation::{
     allocate_segments_for_messages,
     disable_da_page_creation,
+    enter_circuit_verifier_task_scope,
     get_aggregator_output,
     get_chain_id_and_fee_token_address_from_input,
     get_os_output_for_inner_blocks,
@@ -568,6 +569,7 @@ define_hint_enum!(
     AggregatorHint,
     AggregatorHintProcessor<'_>,
     (DisableDaPageCreation, disable_da_page_creation),
+    (EnterCircuitVerifierTaskScope, enter_circuit_verifier_task_scope),
     (GetOsOuputForInnerBlocks, get_os_output_for_inner_blocks),
     (GetAggregatorOutput, get_aggregator_output),
     (WriteDaSegment, write_da_segment),

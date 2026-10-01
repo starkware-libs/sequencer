@@ -1,6 +1,7 @@
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutorBaseError;
 use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::state::errors::StateError;
+use cairo_program_runner_lib::tasks::BootloaderTaskError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -46,6 +47,8 @@ pub enum OsHintError {
     BlockNumberTooSmall { stored_block_hash_buffer: Felt },
     #[error("{id:?} value {felt} is not a boolean.")]
     BooleanIdExpected { id: Ids, felt: Felt },
+    #[error("Failed to build the circuit verifier task: {0}")]
+    CircuitVerifierTask(#[from] BootloaderTaskError),
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
     #[error(transparent)]
@@ -95,6 +98,11 @@ pub enum OsHintError {
     Memory(#[from] MemoryError),
     #[error("No bytecode segment structure for class hash: {0:?}.")]
     MissingBytecodeSegmentStructure(CompiledClassHash),
+    #[error(
+        "The aggregated blocks contain a transaction with proof facts, but the aggregator input \
+         has no circuit verifier task."
+    )]
+    MissingCircuitVerifierTask,
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
     #[error("No component hashes for class hash {0:?}.")]
