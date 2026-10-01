@@ -9,7 +9,11 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
-use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
+use apollo_starknet_client::reader::{
+    ReaderClientError,
+    StarknetFeederGatewayClient,
+    StarknetReader,
+};
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
@@ -18,7 +22,7 @@ use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::{StateReader, StateStorageReader};
-use apollo_storage::{StorageReader, StorageTxn};
+use apollo_storage::{StorageError, StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
@@ -177,16 +181,20 @@ impl StateSync {
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let storage_reader = self.storage_reader.clone();
 
-        let txn = storage_reader.begin_ro_txn()?;
+        let txn = storage_reader.begin_ro_txn().map_err(map_storage_error)?;
 
         let block_header = txn
-            .get_block_header(block_number)?
+            .get_block_header(block_number)
+            .map_err(map_storage_error)?
             .ok_or(StateSyncError::BlockNotFound(block_number))?;
         let block_transactions_with_hash = txn
-            .get_block_transactions_with_hash(block_number)?
+            .get_block_transactions_with_hash(block_number)
+            .map_err(map_storage_error)?
             .ok_or(StateSyncError::BlockNotFound(block_number))?;
-        let thin_state_diff =
-            txn.get_state_diff(block_number)?.ok_or(StateSyncError::BlockNotFound(block_number))?;
+        let thin_state_diff = txn
+            .get_state_diff(block_number)
+            .map_err(map_storage_error)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
         drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
 
         let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
@@ -215,8 +223,10 @@ impl StateSync {
         let storage_reader = self.storage_reader.clone();
         let block_hash_opt = Ok::<_, StateSyncError>(
             storage_reader
-                .begin_ro_txn()?
-                .get_block_header(block_number)?
+                .begin_ro_txn()
+                .map_err(map_storage_error)?
+                .get_block_header(block_number)
+                .map_err(map_storage_error)?
                 .map(|header| header.block_hash),
         )?;
 
@@ -227,7 +237,8 @@ impl StateSync {
                 // method is faster than get_block which the sync runner uses.
                 starknet_client
                     .block_hash(block_number)
-                    .await?
+                    .await
+                    .map_err(map_reader_client_error)?
                     .ok_or(StateSyncError::BlockNotFound(block_number))
             }
             (None, None) => Err(StateSyncError::BlockNotFound(block_number)),
@@ -242,15 +253,17 @@ impl StateSync {
     ) -> StateSyncResult<Felt> {
         let storage_reader = self.storage_reader.clone();
 
-        let txn = storage_reader.begin_ro_txn()?;
+        let txn = storage_reader.begin_ro_txn().map_err(map_storage_error)?;
         verify_synced_up_to(&txn, block_number)?;
 
         let state_number = StateNumber::unchecked_right_after_block(block_number);
-        let state_reader = txn.get_state_reader()?;
+        let state_reader = txn.get_state_reader().map_err(map_storage_error)?;
 
         verify_contract_deployed(&state_reader, state_number, contract_address)?;
 
-        let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
+        let res = state_reader
+            .get_storage_at(state_number, &contract_address, &storage_key)
+            .map_err(map_storage_error)?;
 
         Ok(res)
     }
@@ -262,16 +275,17 @@ impl StateSync {
     ) -> StateSyncResult<Nonce> {
         let storage_reader = self.storage_reader.clone();
 
-        let txn = storage_reader.begin_ro_txn()?;
+        let txn = storage_reader.begin_ro_txn().map_err(map_storage_error)?;
         verify_synced_up_to(&txn, block_number)?;
 
         let state_number = StateNumber::unchecked_right_after_block(block_number);
-        let state_reader = txn.get_state_reader()?;
+        let state_reader = txn.get_state_reader().map_err(map_storage_error)?;
 
         verify_contract_deployed(&state_reader, state_number, contract_address)?;
 
         let res = state_reader
-            .get_nonce_at(state_number, &contract_address)?
+            .get_nonce_at(state_number, &contract_address)
+            .map_err(map_storage_error)?
             .ok_or(StateSyncError::ContractNotFound(contract_address))?;
 
         Ok(res)
@@ -283,30 +297,33 @@ impl StateSync {
         contract_address: ContractAddress,
     ) -> StateSyncResult<ClassHash> {
         let storage_reader = self.storage_reader.clone();
-        let txn = storage_reader.begin_ro_txn()?;
+        let txn = storage_reader.begin_ro_txn().map_err(map_storage_error)?;
         verify_synced_up_to(&txn, block_number)?;
 
         let state_number = StateNumber::unchecked_right_after_block(block_number);
-        let state_reader = txn.get_state_reader()?;
+        let state_reader = txn.get_state_reader().map_err(map_storage_error)?;
         let class_hash = state_reader
-            .get_class_hash_at(state_number, &contract_address)?
+            .get_class_hash_at(state_number, &contract_address)
+            .map_err(map_storage_error)?
             .ok_or(StateSyncError::ContractNotFound(contract_address))?;
         Ok(class_hash)
     }
 
     async fn get_latest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
         let storage_reader = self.storage_reader.clone();
-        let txn = storage_reader.begin_ro_txn()?;
+        let txn = storage_reader.begin_ro_txn().map_err(map_storage_error)?;
         let latest_block_number = latest_synced_block(&txn)?;
         Ok(latest_block_number)
     }
 
     async fn get_latest_block_header(&self) -> StateSyncResult<Option<BlockHeader>> {
         let storage_reader = self.storage_reader.clone();
-        let txn = storage_reader.begin_ro_txn()?;
+        let txn = storage_reader.begin_ro_txn().map_err(map_storage_error)?;
         let latest_block_number = latest_synced_block(&txn)?;
         match latest_block_number {
-            Some(block_number) => Ok(txn.get_block_header(block_number)?),
+            Some(block_number) => {
+                Ok(txn.get_block_header(block_number).map_err(map_storage_error)?)
+            }
             None => Ok(None),
         }
     }
@@ -322,9 +339,12 @@ impl StateSync {
     ) -> StateSyncResult<bool> {
         let storage_reader = self.storage_reader.clone();
         let class_definition_block_number_opt = storage_reader
-            .begin_ro_txn()?
-            .get_state_reader()?
-            .get_class_definition_block_number(&class_hash)?;
+            .begin_ro_txn()
+            .map_err(map_storage_error)?
+            .get_state_reader()
+            .map_err(map_storage_error)?
+            .get_class_definition_block_number(&class_hash)
+            .map_err(map_storage_error)?;
         if let Some(class_definition_block_number) = class_definition_block_number_opt {
             Ok(class_definition_block_number <= block_number)
         } else {
@@ -344,9 +364,12 @@ impl StateSync {
         let storage_reader = self.storage_reader.clone();
         // TODO(noamsp): Add unit testing for cairo0
         let deprecated_class_definition_block_number_opt = storage_reader
-            .begin_ro_txn()?
-            .get_state_reader()?
-            .get_deprecated_class_definition_block_number(&class_hash)?;
+            .begin_ro_txn()
+            .map_err(map_storage_error)?
+            .get_state_reader()
+            .map_err(map_storage_error)?
+            .get_deprecated_class_definition_block_number(&class_hash)
+            .map_err(map_storage_error)?;
 
         Ok(deprecated_class_definition_block_number_opt.is_some_and(
             |deprecated_class_definition_block_number| {
@@ -354,6 +377,14 @@ impl StateSync {
             },
         ))
     }
+}
+
+fn map_storage_error(error: StorageError) -> StateSyncError {
+    StateSyncError::StorageError(error.to_string())
+}
+
+fn map_reader_client_error(error: ReaderClientError) -> StateSyncError {
+    StateSyncError::ReaderClientError(error.to_string())
 }
 
 fn verify_synced_up_to<Mode: TransactionKind>(
@@ -372,12 +403,12 @@ fn verify_synced_up_to<Mode: TransactionKind>(
 fn latest_synced_block<Mode: TransactionKind>(
     txn: &StorageTxn<'_, Mode>,
 ) -> StateSyncResult<Option<BlockNumber>> {
-    let latest_state_block_number = txn.get_state_marker()?.prev();
+    let latest_state_block_number = txn.get_state_marker().map_err(map_storage_error)?.prev();
     if latest_state_block_number.is_none() {
         return Ok(None);
     }
 
-    let latest_transaction_block_number = txn.get_body_marker()?.prev();
+    let latest_transaction_block_number = txn.get_body_marker().map_err(map_storage_error)?.prev();
     if latest_transaction_block_number.is_none() {
         return Ok(None);
     }
@@ -395,7 +426,8 @@ fn verify_contract_deployed<Mode: TransactionKind>(
     if contract_address != BLOCK_HASH_TABLE_ADDRESS {
         // check if the contract is deployed
         state_reader
-            .get_class_hash_at(state_number, &contract_address)?
+            .get_class_hash_at(state_number, &contract_address)
+            .map_err(map_storage_error)?
             .ok_or(StateSyncError::ContractNotFound(contract_address))?;
     };
 
