@@ -19,12 +19,9 @@ pub mod testing_instances;
 
 pub mod objects;
 use std::cell::Cell;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use blockifier::blockifier::block::pre_process_block;
@@ -71,7 +68,6 @@ use starknet_api::contract_class::{
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
-pub use starknet_api::fee_token_defaults::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
@@ -96,56 +92,10 @@ use tracing::trace;
 
 use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
 
-const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
-
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
-/// Parameters that are needed for execution.
-pub struct ExecutionConfig {
-    /// The strk address to receive fees
-    pub strk_fee_contract_address: ContractAddress,
-    /// The eth address to receive fees
-    pub eth_fee_contract_address: ContractAddress,
-    /// The initial gas cost for a transaction
-    pub default_initial_gas_cost: u64,
-}
-
-impl Default for ExecutionConfig {
-    fn default() -> Self {
-        ExecutionConfig {
-            strk_fee_contract_address: *STRK_FEE_CONTRACT_ADDRESS,
-            eth_fee_contract_address: *ETH_FEE_CONTRACT_ADDRESS,
-            default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
-        }
-    }
-}
-
-impl SerializeConfig for ExecutionConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "strk_fee_contract_address",
-                &self.strk_fee_contract_address,
-                "The strk fee token address to receive fees",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "eth_fee_contract_address",
-                &self.eth_fee_contract_address,
-                "The eth fee token address to receive fees",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "default_initial_gas_cost",
-                &self.default_initial_gas_cost,
-                "The initial gas cost for a transaction",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
+pub use apollo_rpc_config::ExecutionConfig;
 
 #[allow(missing_docs)]
 /// The error type for the execution module.
