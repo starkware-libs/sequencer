@@ -1,7 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use blockifier::state::cached_state::StateMaps;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_program_runner_lib::hints::types::HashFunc;
+use cairo_program_runner_lib::tasks::{create_cairo1_program_task, BootloaderTaskError};
+use cairo_program_runner_lib::{SimpleBootloaderInput, TaskSpec};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
@@ -77,6 +82,35 @@ pub struct OsBlockInput {
     pub class_hashes_to_migrate: Vec<(ClassHash, CompiledClassHash)>,
     // The initial reads of the block.
     pub initial_reads: StateMaps,
+}
+
+/// The circuit verifier task that `verify_processed_proof` runs as a simple bootloader task.
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
+#[derive(Debug, Clone)]
+pub struct CircuitVerifierTaskInput {
+    /// The compiled Cairo1 executable of the circuit verifier.
+    pub executable_path: PathBuf,
+    /// A JSON list of the processed proof's felts.
+    pub processed_proof_path: PathBuf,
+}
+
+impl CircuitVerifierTaskInput {
+    pub fn simple_bootloader_input(&self) -> Result<SimpleBootloaderInput, BootloaderTaskError> {
+        let verifier_task = create_cairo1_program_task(
+            &self.executable_path,
+            None,
+            Some(self.processed_proof_path.clone()),
+        )?;
+        Ok(SimpleBootloaderInput {
+            fact_topologies_path: None,
+            single_page: true,
+            tasks: vec![TaskSpec {
+                task: Rc::new(verifier_task),
+                program_hash_function: HashFunc::Blake,
+            }],
+        })
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
