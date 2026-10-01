@@ -235,6 +235,15 @@ pub(crate) fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
     HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
 }
 
+pub(crate) fn test_state_commitment_infos(height: BlockNumber) -> CompressedStateCommitmentInfos {
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION,
+        payload: CompressedPayload(
+            format!("state commitment infos of block {height}").into_bytes(),
+        ),
+    }
+}
+
 pub(crate) fn test_state_diff() -> ThinStateDiff {
     ThinStateDiff {
         storage_diffs: indexmap! {
@@ -298,14 +307,11 @@ impl Default for MockClients {
         committer_client_inner.expect_revert_block().returning(|_| {
             Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
         });
-        committer_client_inner.expect_read_paths_and_commit_block().returning(|_| {
-            Box::pin(async {
+        committer_client_inner.expect_read_paths_and_commit_block().returning(|request| {
+            Box::pin(async move {
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root: GlobalRoot::default(),
-                    state_commitment_infos: CompressedStateCommitmentInfos {
-                        version: STATE_COMMITMENT_INFOS_VERSION,
-                        payload: CompressedPayload(Vec::new()),
-                    },
+                    state_commitment_infos: test_state_commitment_infos(request.commit.height),
                 })
             })
         });
