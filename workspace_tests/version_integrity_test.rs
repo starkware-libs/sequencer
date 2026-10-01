@@ -272,6 +272,27 @@ fn test_no_features_in_workspace() {
     );
 }
 
+/// A `git` dependency pinned by `tag` or `branch` is not immutable: those refs can be moved to a
+/// different commit upstream (deliberately or via a compromised repository), so a later
+/// `cargo update` can silently swap in different code with no corresponding `Cargo.toml` diff for
+/// reviewers to catch. Every git dependency must instead pin an immutable commit via `rev`.
+#[test]
+fn test_git_dependencies_pinned_to_immutable_rev() {
+    let mut unpinned_git_deps: Vec<String> = ROOT_TOML
+        .dependencies()
+        .filter_map(|(name, value)| match value {
+            DependencyValue::Object { git: Some(_), rev: None, .. } => Some(name.clone()),
+            _ => None,
+        })
+        .collect();
+    unpinned_git_deps.sort();
+    assert!(
+        unpinned_git_deps.is_empty(),
+        "The following git dependencies are not pinned to an immutable commit via `rev` (a `tag` \
+         or `branch` can be silently moved to different code upstream): {unpinned_git_deps:?}."
+    );
+}
+
 #[test]
 fn test_main_branch_is_versionless() {
     if PARENT_BRANCH.trim() == MAIN_BRANCH {

@@ -21,6 +21,8 @@ pub enum DependencyValue {
         features: Option<Vec<String>>,
         git: Option<String>,
         rev: Option<String>,
+        tag: Option<String>,
+        branch: Option<String>,
     },
 }
 
