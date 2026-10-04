@@ -93,6 +93,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
+        force_proof_verification: bool,
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)>;
 
     async fn convert_internal_rpc_tx_to_executable_tx(
@@ -271,10 +272,13 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
+        force_proof_verification: bool,
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
         let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
         let verification_handle = proof_data
-            .map(|(proof_facts, proof)| self.spawn_proof_verification(proof_facts, proof))
+            .map(|(proof_facts, proof)| {
+                self.spawn_proof_verification(proof_facts, proof, force_proof_verification)
+            })
             .transpose()?;
         Ok((internal_tx, verification_handle))
     }
@@ -412,16 +416,18 @@ impl TransactionConverter {
     }
 
     /// Runs proof verification: checks if the proof already exists, and if not, verifies it.
+    /// With `force_proof_verification`, verifies it without checking.
     /// Returns `true` if verification was performed, `false` if skipped (proof already stored).
     /// This is the shared verification logic used by both gateway and consensus flows.
     async fn run_proof_verification(
         proof_facts: ProofFacts,
         proof: Proof,
         proof_manager_client: SharedProofManagerClient,
+        force_proof_verification: bool,
     ) -> Result<bool, TransactionConverterError> {
-        let contains_proof = proof_manager_client.contains_proof(proof_facts.clone()).await?;
-
-        if contains_proof {
+        if !force_proof_verification
+            && proof_manager_client.contains_proof(proof_facts.clone()).await?
+        {
             return Ok(false);
         }
 
@@ -448,12 +454,19 @@ impl TransactionConverter {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        force_proof_verification: bool,
     ) -> TransactionConverterResult<VerificationHandle> {
         let pmc = self.proof_manager_client.clone();
         let task_proof_facts = proof_facts.clone();
         let task_proof = proof.clone();
         let verification_task = tokio::spawn(async move {
-            Self::run_proof_verification(task_proof_facts, task_proof, pmc).await?;
+            Self::run_proof_verification(
+                task_proof_facts,
+                task_proof,
+                pmc,
+                force_proof_verification,
+            )
+            .await?;
             Ok(())
         });
         Ok(VerificationHandle { proof_facts, proof, verification_task })
@@ -470,9 +483,13 @@ impl TransactionConverter {
         let pmc = self.proof_manager_client.clone();
         let proof_facts_hash = proof_facts.hash();
         tokio::spawn(async move {
-            let verified =
-                Self::run_proof_verification(proof_facts.clone(), proof.clone(), pmc.clone())
-                    .await?;
+            let verified = Self::run_proof_verification(
+                proof_facts.clone(),
+                proof.clone(),
+                pmc.clone(),
+                false,
+            )
+            .await?;
 
             if !verified {
                 return Ok(());

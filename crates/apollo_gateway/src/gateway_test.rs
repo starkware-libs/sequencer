@@ -50,7 +50,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use clap::Command;
 use mempool_test_utils::starknet_api_test_utils::{contract_class, declare_tx};
 use metrics_exporter_prometheus::PrometheusBuilder;
-use mockall::predicate::eq;
+use mockall::predicate::{always, eq};
 use rstest::{fixture, rstest};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
@@ -276,6 +276,7 @@ fn declare_args() -> DeclareTxArgsWithContractClass {
 fn setup_transaction_converter_mock(
     mock_transaction_converter: &mut MockTransactionConverterTrait,
     tx_args: &impl TestingTxArgs,
+    force_proof_verification: bool,
 ) {
     let rpc_tx = tx_args.get_rpc_tx();
     let internal_tx = tx_args.get_internal_tx();
@@ -299,8 +300,8 @@ fn setup_transaction_converter_mock(
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
-        .with(eq(rpc_tx))
-        .return_once(move |_| Ok((internal_tx, verification_handle)));
+        .with(eq(rpc_tx), eq(force_proof_verification))
+        .return_once(move |_, _| Ok((internal_tx, verification_handle)));
 
     let internal_tx = tx_args.get_internal_tx();
     let executable_tx = tx_args.get_executable_tx();
@@ -341,8 +342,8 @@ fn setup_transaction_converter_mock_with_failed_verification(
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
-        .with(eq(rpc_tx))
-        .return_once(move |_| Ok((internal_tx, verification_handle)));
+        .with(eq(rpc_tx), always())
+        .return_once(move |_, _| Ok((internal_tx, verification_handle)));
 
     // Note: Unlike in the successful case, we don't set up
     // expect_convert_internal_rpc_tx_to_executable_tx because the verification failure will
@@ -387,7 +388,11 @@ async fn setup_mock_state(
     let input_tx = tx_args.get_rpc_tx();
     let expected_internal_tx = tx_args.get_internal_tx();
 
-    setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, tx_args);
+    setup_transaction_converter_mock(
+        &mut mock_dependencies.mock_transaction_converter,
+        tx_args,
+        p2p_message_metadata.is_none(),
+    );
 
     // Setup state: fund account and store proof block hash if needed.
     let state_reader =
@@ -677,7 +682,7 @@ async fn test_transaction_converter_error(
     mock_dependencies
         .mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
-        .return_once(|_| expect_internal_rpc_tx_result);
+        .return_once(|_, _| expect_internal_rpc_tx_result);
     mock_dependencies
         .mock_transaction_converter
         .expect_convert_internal_rpc_tx_to_executable_tx()
@@ -728,7 +733,7 @@ async fn test_declare_compilation_concurrency_limit(mut mock_dependencies: MockD
     mock_dependencies
         .mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
-        .return_once(move |_| {
+        .return_once(move |_, _| {
             compilation_started_sender.send(()).unwrap();
             release_compilation_receiver.recv().unwrap();
             // Fail the conversion so the first declare short-circuits here instead of running the
@@ -900,7 +905,11 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let tx_args = invoke_args();
-    setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    setup_transaction_converter_mock(
+        &mut mock_dependencies.mock_transaction_converter,
+        &tx_args,
+        true,
+    );
     let gateway = GenericGateway::<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
@@ -958,7 +967,11 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         .return_once(|_| Err(expected_error));
 
     let tx_args = invoke_args();
-    setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    setup_transaction_converter_mock(
+        &mut mock_dependencies.mock_transaction_converter,
+        &tx_args,
+        true,
+    );
     let gateway = GenericGateway::<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,

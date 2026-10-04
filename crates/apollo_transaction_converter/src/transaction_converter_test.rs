@@ -104,8 +104,10 @@ async fn test_compiled_class_hash_mismatch() {
         CHAIN_ID_FOR_TESTS.clone(),
     );
 
-    let err =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(declare_tx).await.unwrap_err();
+    let err = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(declare_tx, false)
+        .await
+        .unwrap_err();
     let expected_code = TransactionConverterError::ValidateCompiledClassHashError(
         ValidateCompiledClassHashError::CompiledClassHashMismatch {
             computed_class_hash: other_compiled_class_hash,
@@ -127,17 +129,10 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
         proof.clone(),
     );
 
-    let mut mock_proof_manager_client = MockProofManagerClient::new();
-    mock_proof_manager_client
-        .expect_contains_proof()
-        .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
-
-    let transaction_converter = create_transaction_converter(mock_proof_manager_client);
+    let transaction_converter = create_transaction_converter(MockProofManagerClient::new());
 
     let (_internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx, true).await.unwrap();
 
     await_verification_handle(verification_handle).await;
 }
@@ -152,7 +147,7 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     let (_internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx, false).await.unwrap();
 
     assert!(verification_handle.is_none());
 }
@@ -221,8 +216,10 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    let (internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone()).await.unwrap();
+    let (internal_tx, verification_handle) = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone(), false)
+        .await
+        .unwrap();
 
     await_verification_handle(verification_handle).await;
 
@@ -255,7 +252,7 @@ async fn test_internal_rpc_to_rpc_in_echonet_mode_skips_proof_manager_lookup(
     .with_behavior_mode(BehaviorMode::Echonet);
 
     let (internal_tx, verification_handle) =
-        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap();
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx, false).await.unwrap();
     assert!(verification_handle.is_none(), "echonet must not spawn proof verification");
 
     let rpc_tx_from_internal =

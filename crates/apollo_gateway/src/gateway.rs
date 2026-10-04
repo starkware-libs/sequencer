@@ -273,7 +273,7 @@ impl<
         };
 
         let (internal_tx, executable_tx, proof_data) =
-            self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
+            self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature, !is_p2p).await?;
         drop(compilation_permit);
 
         let mut stateful_transaction_validator = self
@@ -458,17 +458,19 @@ impl<
         &self,
         tx: RpcTransaction,
         tx_signature: &TransactionSignature,
+        force_proof_verification: bool,
     ) -> Result<
         (InternalRpcTransaction, AccountTransaction, Option<(ProofFacts, Proof)>),
         StarknetError,
     > {
-        let (internal_tx, verification_handle) =
-            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
-                |e| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                    transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
-                },
-            )?;
+        let (internal_tx, verification_handle) = self
+            .transaction_converter
+            .convert_rpc_tx_to_internal_rpc_tx(tx, force_proof_verification)
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+            })?;
 
         // Await the verification task immediately.
         let proof_data = self
