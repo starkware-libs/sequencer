@@ -512,6 +512,7 @@ pub fn finalize_execution(
 ) -> Result<CallInfo, PostExecutionError> {
     finalize_runner(&mut runner, n_total_args, program_extra_data_length)?;
     syscall_handler.read_only_segments.mark_as_accessed(&mut runner)?;
+    syscall_handler.read_only_segments.validate(&runner.vm)?;
 
     let call_result = get_call_result(&runner, &syscall_handler, &tracked_resource)?;
 

@@ -126,6 +126,24 @@ mod TestContract {
 
 
     #[external(v0)]
+    fn test_call_contract_revert_and_append(
+        self: @ContractState, contract_address: ContractAddress,
+    ) {
+        // The error data is ['ENTRYPOINT_NOT_FOUND', 'ENTRYPOINT_FAILED'].
+        let mut error_data = syscalls::call_contract_syscall(
+            contract_address, selector!("bad_selector"), array![].span(),
+        )
+            .unwrap_err();
+        error_data.append(1);
+        // The three felts match the arguments of `advance_counter`.
+        assert(error_data.len() == 3, 'Unexpected data length');
+        syscalls::call_contract_syscall(
+            contract_address, selector!("advance_counter"), error_data.span(),
+        )
+            .unwrap_syscall();
+    }
+
+    #[external(v0)]
     fn call_execute_directly(
         ref self: ContractState, contract_address: ContractAddress, calldata: Array<felt252>,
     ) -> Span<felt252> {
