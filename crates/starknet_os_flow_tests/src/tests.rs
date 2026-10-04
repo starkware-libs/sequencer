@@ -2582,6 +2582,23 @@ async fn test_reverted_call() {
     test_output.expect_hint_coverage("test_reverted_call");
 }
 
+/// A caller may append to the error array of a failed call and pass it on to another call.
+#[tokio::test]
+async fn test_call_contract_revert_and_append() {
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+    let calldata = create_calldata(
+        test_contract_address,
+        "test_call_contract_revert_and_append",
+        &[**test_contract_address],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.build_and_run().await.perform_default_validations();
+}
+
 /// Tests that the OS correctly handles calls between Cairo 1.0 contracts that count resources by
 /// cairo steps and sierra gas.
 #[rstest]
