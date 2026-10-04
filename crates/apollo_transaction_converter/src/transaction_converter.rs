@@ -110,6 +110,8 @@ pub trait TransactionConverterTrait: Send + Sync {
         proof_facts: ProofFacts,
         proof: Proof,
     ) -> TransactionConverterResult<Duration>;
+
+    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof>;
 }
 
 #[derive(Clone)]
@@ -147,22 +149,6 @@ impl TransactionConverter {
             .get_sierra(class_hash)
             .await?
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
-    }
-
-    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
-        let start_time = Instant::now();
-        let proof_facts_hash = proof_facts.hash();
-        let proof = self
-            .proof_manager_client
-            .get_proof(proof_facts.clone())
-            .await?
-            .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts_hash });
-        let duration = start_time.elapsed();
-        info!(
-            "Getting the proof from the proof manager took: {duration:?} for proof facts hash: \
-             {proof_facts_hash:?}"
-        );
-        proof
     }
 
     async fn get_executable(
@@ -340,6 +326,22 @@ impl TransactionConverterTrait for TransactionConverter {
         let start = Instant::now();
         self.proof_manager_client.set_proof(proof_facts, proof).await?;
         Ok(start.elapsed())
+    }
+
+    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
+        let start_time = Instant::now();
+        let proof_facts_hash = proof_facts.hash();
+        let proof = self
+            .proof_manager_client
+            .get_proof(proof_facts.clone())
+            .await?
+            .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts_hash });
+        let duration = start_time.elapsed();
+        info!(
+            "Getting the proof from the proof manager took: {duration:?} for proof facts hash: \
+             {proof_facts_hash:?}"
+        );
+        proof
     }
 }
 
