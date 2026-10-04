@@ -109,6 +109,7 @@ use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
     register_metrics,
+    CENDE_STATE_COMMITMENT_INFOS_GAP,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     SNIP35_FEE_ACTUAL_FRI,
@@ -833,6 +834,15 @@ impl SequencerConsensusContext {
                     break;
                 }
             }
+        }
+        let latest_stored_or_sent_height = match recent_state_commitment_infos.last() {
+            Some(last) => Some(last.block_number.0),
+            // Nothing new to send: the recorder's latest stored height precedes its offset.
+            None if !cende_recorder_is_empty => lowest_height.checked_sub(1),
+            None => None,
+        };
+        if let Some(latest_height) = latest_stored_or_sent_height {
+            CENDE_STATE_COMMITMENT_INFOS_GAP.set_lossy(height.0.saturating_sub(latest_height));
         }
         Ok(recent_state_commitment_infos)
     }
