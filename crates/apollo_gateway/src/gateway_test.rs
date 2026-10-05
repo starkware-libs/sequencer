@@ -204,6 +204,14 @@ impl MockDependencies {
             .returning(|_, _| Ok(std::time::Duration::ZERO));
     }
 
+    fn expect_get_proof(&mut self, proof_facts: ProofFacts, proof: Proof) {
+        self.mock_transaction_converter
+            .expect_get_proof()
+            .once()
+            .with(eq(proof_facts))
+            .return_once(|_| Ok(proof));
+    }
+
     fn expect_set_proof(
         &mut self,
         proof_facts: ProofFacts,
@@ -412,6 +420,8 @@ async fn setup_mock_state(
             mock_dependencies
                 .expect_store_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
             if !is_p2p {
+                mock_dependencies
+                    .expect_get_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
                 mock_dependencies.expect_set_proof(
                     invoke_tx.proof_facts.clone(),
                     invoke_tx.proof.clone(),
