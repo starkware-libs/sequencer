@@ -51,6 +51,7 @@ use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -1173,8 +1174,17 @@ impl ConsensusContext for SequencerConsensusContext {
         };
 
         let next_l2_gas_price = self.calculate_next_l2_gas_price(height, finished_info.l2_gas_used);
-        let decision_reached_response =
-            self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
+        let decision_reached_response = self
+            .deps
+            .batcher
+            .decision_reached(DecisionReachedInput {
+                proposal_id,
+                fee_market_info: BlockFeeMarketInfo {
+                    fee_proposal_fri: init.fee_proposal_fri,
+                    next_l2_gas_price: next_l2_gas_price.published_price,
+                },
+            })
+            .await?;
 
         // CRITICAL: The block is now committed. This function must not fail beyond this point
         // unless the state is fully reverted, otherwise the node will be left in an
