@@ -37,11 +37,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use apollo_state_sync_types::communication::{
-    SharedStateSyncClient,
-    StateSyncClientError,
-    StateSyncClientResult,
-};
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
@@ -288,6 +284,14 @@ pub struct SequencerConsensusContextDeps {
     pub config_manager_client: Option<SharedConfigManagerClient>,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum FeeMarketBootstrapError {
+    #[error(transparent)]
+    Batcher(#[from] BatcherClientError),
+    #[error(transparent)]
+    StateSync(#[from] StateSyncClientError),
+}
+
 #[derive(thiserror::Error, PartialEq, Debug)]
 enum ReproposeError {
     #[error(transparent)]
@@ -333,15 +337,14 @@ impl SequencerConsensusContext {
         self.fee_proposals_window = self.fee_proposals_window.split_off(&cutoff);
     }
 
-    /// Fill `[start_height - WINDOW, start_height)` from local state_sync storage. Must be
-    /// called before `run_consensus` so the window is populated before voting begins. Blocks
-    /// state_sync has not caught up to yet are pushed to the back of the queue and revisited —
-    /// joining consensus with a partial window would make this node disagree with caught-up
-    /// peers on `fee_actual`. Other state_sync errors propagate.
-    pub async fn initialize_fee_proposals_window(
+    /// Restores the fee market state for `start_height`: fills the fee-proposals window
+    /// `[start_height - WINDOW, start_height)` from local state_sync storage, retrying blocks
+    /// state_sync does not have yet. Must be called before `run_consensus`, so voting never
+    /// starts with a partial window.
+    pub async fn initialize_fee_market_state(
         &mut self,
         start_height: BlockNumber,
-    ) -> StateSyncClientResult<()> {
+    ) -> Result<(), FeeMarketBootstrapError> {
         const STATE_SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(500);
         let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
         let window_end_height = start_height.0;
@@ -362,7 +365,7 @@ impl SequencerConsensusContext {
                     pending_heights.push_back(block_number);
                     tokio::time::sleep(STATE_SYNC_RETRY_INTERVAL).await;
                 }
-                Err(e) => return Err(e),
+                Err(e) => return Err(e.into()),
             }
         }
         Ok(())
@@ -565,8 +568,14 @@ impl SequencerConsensusContext {
         }
     }
 
-    fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
-        let next_l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
+    /// Adopts a committed block's `next_l2_gas_price` as the current price.
+    fn set_l2_gas_price_from_block(&mut self, next_l2_gas_price: GasPrice) {
+        // May be default for blocks older than 0.14.0, ensure min gas price is met.
+        self.l2_gas_price =
+            max(next_l2_gas_price, VersionedConstants::latest_constants().min_gas_price);
+    }
+
+    fn update_l2_gas_price(&mut self, height: BlockNumber, next_l2_gas_price: NextL2GasPrice) {
         // Only this path runs once per decided block, so the clamp counter is reported here rather
         // than inside the shared computation.
         next_l2_gas_price.record_clamping();
@@ -591,11 +600,12 @@ impl SequencerConsensusContext {
         decision_reached_response: DecisionReachedResponse,
         block_header_commitments: BlockHeaderCommitments,
         l2_gas_used: GasAmount,
+        next_l2_gas_price: NextL2GasPrice,
         wait_for_last_commitment: bool,
     ) {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
-        self.update_l2_gas_price(height, l2_gas_used);
+        self.update_l2_gas_price(height, next_l2_gas_price);
         self.record_fee_proposal(height, init.fee_proposal_fri);
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
@@ -1162,6 +1172,7 @@ impl ConsensusContext for SequencerConsensusContext {
             (init, transactions, proposal_id, finished_info)
         };
 
+        let next_l2_gas_price = self.calculate_next_l2_gas_price(height, finished_info.l2_gas_used);
         let decision_reached_response =
             self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
 
@@ -1177,6 +1188,7 @@ impl ConsensusContext for SequencerConsensusContext {
             decision_reached_response,
             finished_info.block_header_commitments.clone(),
             finished_info.l2_gas_used,
+            next_l2_gas_price,
             wait_for_last_commitment,
         )
         .await;
@@ -1210,11 +1222,7 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             Ok(block) => block,
         };
-        // May be default for blocks older than 0.14.0, ensure min gas price is met.
-        self.l2_gas_price = max(
-            sync_block.block_header_without_hash.next_l2_gas_price,
-            VersionedConstants::latest_constants().min_gas_price,
-        );
+        self.set_l2_gas_price_from_block(sync_block.block_header_without_hash.next_l2_gas_price);
 
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
