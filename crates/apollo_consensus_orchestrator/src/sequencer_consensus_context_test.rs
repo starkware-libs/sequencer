@@ -1935,7 +1935,9 @@ async fn test_dynamic_config_updates_min_gas_price() {
     context.l2_gas_price = GasPrice(CURRENT_GAS_PRICE);
 
     // Simulate gas price update with new config in effect
-    context.update_l2_gas_price(BlockNumber(TEST_HEIGHT), GasAmount(1000));
+    let next_l2_gas_price =
+        context.calculate_next_l2_gas_price(BlockNumber(TEST_HEIGHT), GasAmount(1000));
+    context.update_l2_gas_price(BlockNumber(TEST_HEIGHT), next_l2_gas_price);
 
     // Gas price should have increased gradually towards new minimum
     // Formula: new_price = min(price + price/333, min_gas_price)
@@ -2026,7 +2028,8 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
     assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
 
     // Subsequent block should gradually increase toward CONFIG_MIN_PRICE_AT_250
-    context.update_l2_gas_price(LATER_HEIGHT, GasAmount(1000));
+    let next_l2_gas_price = context.calculate_next_l2_gas_price(LATER_HEIGHT, GasAmount(1000));
+    context.update_l2_gas_price(LATER_HEIGHT, next_l2_gas_price);
 
     const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
     let expected_price =
@@ -2064,7 +2067,7 @@ fn test_prune_fee_proposals_window(
     assert_eq!(context.fee_proposals_window, expected_window);
 }
 
-// `initialize_fee_proposals_window` reads `[start_height - WINDOW, start_height)` from state_sync
+// `initialize_fee_market_state` reads `[start_height - WINDOW, start_height)` from state_sync
 // and records each block's `fee_proposal_fri`. `expected_window` is the mapping the test asserts;
 // the mock answers `get_block(h)` from the same map. Genesis case (`start_height < WINDOW_SIZE`)
 // is exercised by a smaller window: the bootstrap range collapses to `[0, start_height)`.
@@ -2081,7 +2084,7 @@ fn test_prune_fee_proposals_window(
 )]
 #[case::genesis_collapses_range(BlockNumber(3), window_of(0..3))]
 #[tokio::test]
-async fn test_initialize_fee_proposals_window(
+async fn test_initialize_fee_market_state(
     #[case] start_height: BlockNumber,
     #[case] expected_window: BTreeMap<BlockNumber, Option<GasPrice>>,
 ) {
@@ -2099,7 +2102,7 @@ async fn test_initialize_fee_proposals_window(
     deps.setup_default_expectations();
 
     let mut context = deps.build_context();
-    context.initialize_fee_proposals_window(start_height).await.unwrap();
+    context.initialize_fee_market_state(start_height).await.unwrap();
     assert_eq!(context.fee_proposals_window, expected_window);
 }
 
