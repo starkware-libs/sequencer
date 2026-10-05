@@ -53,6 +53,7 @@ use apollo_storage::accessed_keys::{
     AccessedKeysStorageWriter,
 };
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
+use apollo_storage::fee_market::{FeeMarketInfoStorageReader, FeeMarketInfoStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
@@ -104,6 +105,7 @@ use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockInfo,
     BlockNumber,
@@ -1026,6 +1028,10 @@ impl Batcher {
             Default::default(),
             storage_commitment_block_hash,
             accessed_keys.as_ref(),
+            BlockFeeMarketInfo {
+                fee_proposal_fri: block_header_without_hash.fee_proposal_fri,
+                next_l2_gas_price: block_header_without_hash.next_l2_gas_price,
+            },
         )
         .await?;
 
@@ -1089,6 +1095,7 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
             Some(&accessed_keys),
+            input.fee_market_info,
         )
         .await?;
 
@@ -1173,6 +1180,7 @@ impl Batcher {
         rejected_tx_hashes: IndexSet<TransactionHash>,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
         accessed_keys: Option<&AccessedKeys>,
+        fee_market_info: BlockFeeMarketInfo,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -1202,7 +1210,13 @@ impl Batcher {
 
         // Commit the proposal to the storage.
         self.storage_writer
-            .commit_proposal(height, state_diff, storage_commitment_block_hash, accessed_keys)
+            .commit_proposal(
+                height,
+                state_diff,
+                storage_commitment_block_hash,
+                accessed_keys,
+                fee_market_info,
+            )
             .map_err(|err| {
                 error!("Failed to commit proposal to storage: {}", err);
                 BatcherError::InternalError
@@ -1659,6 +1673,16 @@ impl Batcher {
         })
     }
 
+    pub fn get_fee_market_info(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherResult<Option<BlockFeeMarketInfo>> {
+        self.storage_reader.get_fee_market_info(block_number).map_err(|err| {
+            error!("Failed to get fee market info from storage: {err}");
+            BatcherError::InternalError
+        })
+    }
+
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -1882,6 +1906,9 @@ pub trait BatcherStorageReader: Send + Sync {
     /// Returns whether the state commitment infos for the given height are stored.
     fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool>;
 
+    fn get_fee_market_info(&self, height: BlockNumber)
+    -> StorageResult<Option<BlockFeeMarketInfo>>;
+
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -1989,6 +2016,13 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.has_state_commitment_infos(height)
     }
 
+    fn get_fee_market_info(
+        &self,
+        height: BlockNumber,
+    ) -> StorageResult<Option<BlockFeeMarketInfo>> {
+        self.begin_ro_txn()?.get_fee_market_info(height)
+    }
+
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
         height: BlockNumber,
@@ -2025,6 +2059,7 @@ pub trait BatcherStorageWriter: Send + Sync {
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
         accessed_keys: Option<&'a AccessedKeys>,
+        fee_market_info: BlockFeeMarketInfo,
     ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -2054,9 +2089,13 @@ impl BatcherStorageWriter for StorageWriter {
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
         accessed_keys: Option<&'a AccessedKeys>,
+        fee_market_info: BlockFeeMarketInfo,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
-        let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
+        let mut txn = self
+            .begin_rw_txn()?
+            .append_state_diff(height, state_diff)?
+            .set_fee_market_info(height, &fee_market_info)?;
         match storage_commitment_block_hash {
             StorageCommitmentBlockHash::ParentHash(parent_block_hash) => {
                 if let Some(parent_block_number) = height.prev() {
