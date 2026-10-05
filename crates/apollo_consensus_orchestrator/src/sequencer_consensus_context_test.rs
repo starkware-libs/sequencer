@@ -2076,10 +2076,11 @@ fn test_prune_fee_proposals_window(
     assert_eq!(context.fee_proposals_window, expected_window);
 }
 
-// `initialize_fee_market_state` reads `[start_height - WINDOW, start_height)` from state_sync
-// and records each block's `fee_proposal_fri`. `expected_window` is the mapping the test asserts;
-// the mock answers `get_block(h)` from the same map. Genesis case (`start_height < WINDOW_SIZE`)
-// is exercised by a smaller window: the bootstrap range collapses to `[0, start_height)`.
+// `initialize_fee_market_state` reads `[start_height - WINDOW, start_height)` and records each
+// block's `fee_proposal_fri`. Here the batcher has nothing persisted, so every block falls back to
+// state_sync. `expected_window` is the mapping the test asserts; the mock answers `get_block(h)`
+// from the same map. Genesis case (`start_height < WINDOW_SIZE`) is exercised by a smaller window:
+// the bootstrap range collapses to `[0, start_height)`.
 #[rstest]
 #[case::all_some(BlockNumber(100), window_of(90..100))]
 // v0.14.2 era: every block recorded with `fee_proposal_fri = None`.
@@ -2093,12 +2094,13 @@ fn test_prune_fee_proposals_window(
 )]
 #[case::genesis_collapses_range(BlockNumber(3), window_of(0..3))]
 #[tokio::test]
-async fn test_initialize_fee_market_state(
+async fn test_initialize_fee_market_state_from_state_sync(
     #[case] start_height: BlockNumber,
     #[case] expected_window: BTreeMap<BlockNumber, Option<GasPrice>>,
 ) {
     let mock_window = expected_window.clone();
     let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher.expect_get_fee_market_info().times(expected_window.len()).returning(|_| Ok(None));
     deps.state_sync_client.expect_get_block().times(expected_window.len()).returning(
         move |height| {
             let mut sync_block = SyncBlock::default();
@@ -2113,6 +2115,74 @@ async fn test_initialize_fee_market_state(
     let mut context = deps.build_context();
     context.initialize_fee_market_state(start_height).await.unwrap();
     assert_eq!(context.fee_proposals_window, expected_window);
+    // `SyncBlock::default()` carries a zero `next_l2_gas_price`, which is clamped to the minimum.
+    assert_eq!(context.l2_gas_price, VersionedConstants::latest_constants().min_gas_price);
+}
+
+// The batcher persists the fee market info of every block it commits, so after a whole-cluster
+// restart the window and `l2_gas_price` come from it even when state_sync lags behind.
+#[tokio::test]
+async fn test_initialize_fee_market_state_from_batcher() {
+    const START_HEIGHT: BlockNumber = BlockNumber(100);
+    let expected_window = window_of(90..100);
+    let next_l2_gas_price_of =
+        |height: BlockNumber| GasPrice(10_000_000_000 + u128::from(height.0));
+
+    let mock_window = expected_window.clone();
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.batcher.expect_get_fee_market_info().times(expected_window.len()).returning(
+        move |height| {
+            Ok(Some(BlockFeeMarketInfo {
+                fee_proposal_fri: *mock_window.get(&height).unwrap(),
+                next_l2_gas_price: next_l2_gas_price_of(height),
+            }))
+        },
+    );
+    deps.state_sync_client.expect_get_block().times(0);
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_fee_market_state(START_HEIGHT).await.unwrap();
+    assert_eq!(context.fee_proposals_window, expected_window);
+    assert_eq!(context.l2_gas_price, next_l2_gas_price_of(START_HEIGHT.prev().unwrap()));
+}
+
+// Upgrade case: the batcher persisted only the blocks committed since the upgrade, so the window
+// merges both sources and `l2_gas_price` comes from the batcher's record of the parent block.
+#[tokio::test]
+async fn test_initialize_fee_market_state_from_both_sources() {
+    const START_HEIGHT: BlockNumber = BlockNumber(100);
+    const FIRST_BATCHER_HEIGHT: BlockNumber = BlockNumber(95);
+    let expected_window = window_of(90..100);
+    let next_l2_gas_price_of =
+        |height: BlockNumber| GasPrice(10_000_000_000 + u128::from(height.0));
+
+    let mock_window = expected_window.clone();
+    let (mut deps, _network) = create_test_and_network_deps();
+    // The batcher is asked for every window height and answers from FIRST_BATCHER_HEIGHT on.
+    deps.batcher.expect_get_fee_market_info().times(expected_window.len()).returning(
+        move |height| {
+            Ok((height >= FIRST_BATCHER_HEIGHT).then(|| BlockFeeMarketInfo {
+                fee_proposal_fri: *mock_window.get(&height).unwrap(),
+                next_l2_gas_price: next_l2_gas_price_of(height),
+            }))
+        },
+    );
+    let mock_window = expected_window.clone();
+    // Heights [90, 95).
+    deps.state_sync_client.expect_get_block().times(5).returning(move |height| {
+        assert!(height < FIRST_BATCHER_HEIGHT);
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        sync_block.block_header_without_hash.fee_proposal_fri = *mock_window.get(&height).unwrap();
+        Ok(sync_block)
+    });
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_fee_market_state(START_HEIGHT).await.unwrap();
+    assert_eq!(context.fee_proposals_window, expected_window);
+    assert_eq!(context.l2_gas_price, next_l2_gas_price_of(START_HEIGHT.prev().unwrap()));
 }
 
 #[derive(Clone)]
