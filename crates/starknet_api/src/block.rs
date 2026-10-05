@@ -247,6 +247,16 @@ pub struct BlockHeaderWithoutHash {
     pub fee_proposal_fri: Option<GasPrice>,
 }
 
+/// The fee market values of a committed block that the consensus orchestrator needs in order to
+/// resume after a restart: the proposer's `fee_proposal_fri` feeds the fee-proposals window and
+/// `next_l2_gas_price` is the L2 gas price of the following block.
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub struct BlockFeeMarketInfo {
+    /// `None` for pre-V0_14_3 blocks.
+    pub fee_proposal_fri: Option<GasPrice>,
+    pub next_l2_gas_price: GasPrice,
+}
+
 /// The [transactions](`crate::transaction::Transaction`) and their
 /// [outputs](`crate::transaction::TransactionOutput`) in a [block](`crate::block::Block`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
