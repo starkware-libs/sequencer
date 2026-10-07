@@ -2213,7 +2213,9 @@ dependencies = [
  "metrics-exporter-prometheus",
  "nix 0.20.2",
  "papyrus_base_layer",
+ "reqwest 0.12.24",
  "rstest",
+ "starknet_api",
  "tokio",
  "tokio-util",
  "tracing",
@@ -2258,6 +2260,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "tracing",
+ "url",
  "validator",
 ]
 
