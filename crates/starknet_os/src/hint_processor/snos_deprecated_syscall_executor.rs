@@ -38,7 +38,6 @@ use blockifier::execution::deprecated_syscalls::{
     StorageWriteResponse,
 };
 use blockifier::execution::entry_point::CallEntryPoint;
-use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
@@ -322,14 +321,16 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
     ) -> Result<GetTxSignatureResponse, Self::Error> {
         let tx_info_start_ptr = Self::_get_tx_info_ptr(vm, syscall_handler)?;
-        let tx_signature_start_ptr =
-            vm.get_relocatable(get_address_of_nested_fields_from_base_address(
-                tx_info_start_ptr,
-                CairoStruct::DeprecatedTxInfo,
-                vm,
-                &["signature"],
-                syscall_handler.program,
-            )?)?;
+        let tx_signature_address = get_address_of_nested_fields_from_base_address(
+            tx_info_start_ptr,
+            CairoStruct::DeprecatedTxInfo,
+            vm,
+            &["signature"],
+            syscall_handler.program,
+        )?;
+        let tx_signature = vm
+            .get_maybe(&tx_signature_address)
+            .ok_or_else(|| MemoryError::UnknownMemoryCell(Box::new(tx_signature_address)))?;
         let tx_signature_len = *vm.get_integer(get_address_of_nested_fields_from_base_address(
             tx_info_start_ptr,
             CairoStruct::DeprecatedTxInfo,
@@ -338,11 +339,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
             syscall_handler.program,
         )?)?;
         Ok(GetTxSignatureResponse {
-            segment: ReadOnlySegment {
-                start_ptr: tx_signature_start_ptr,
-                length: felt_to_usize(&tx_signature_len)
-                    .expect("Tx signature length should fit in usize."),
-            },
+            signature_len: felt_to_usize(&tx_signature_len)
+                .expect("Tx signature length should fit in usize."),
+            signature: tx_signature,
         })
     }
 

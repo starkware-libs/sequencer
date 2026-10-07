@@ -6,11 +6,20 @@ use std::fmt::Debug;
 use std::iter::Take;
 use std::time::Duration;
 
+<<<<<<< HEAD
 use serde::{Deserialize, Serialize};
+||||||| 95286058d0
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
+=======
+pub use apollo_config::retry::RetryConfig;
+>>>>>>> origin/main-v0.14.4
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Condition, RetryIf};
 use tracing::debug;
 
+<<<<<<< HEAD
 /// A configuration for the retry mechanism.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
@@ -22,6 +31,46 @@ pub struct RetryConfig {
     pub max_retries: usize,
 }
 
+||||||| 95286058d0
+/// A configuration for the retry mechanism.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RetryConfig {
+    /// The initial waiting time in milliseconds.
+    pub retry_base_millis: u64,
+    /// The maximum waiting time in milliseconds.
+    pub retry_max_delay_millis: u64,
+    /// The maximum number of retries.
+    pub max_retries: usize,
+}
+
+impl SerializeConfig for RetryConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "retry_base_millis",
+                &self.retry_base_millis,
+                "Base waiting time after a failed request. After that, the time increases \
+                 exponentially.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "retry_max_delay_millis",
+                &self.retry_max_delay_millis,
+                "Max waiting time after a failed request.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_retries",
+                &self.max_retries,
+                "Maximum number of retries before the node stops retrying.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+=======
+>>>>>>> origin/main-v0.14.4
 /// A utility for retrying actions with a configurable backoff and error filter. Uses an
 /// [`ExponentialBackoff`] strategy.
 pub struct Retry {

@@ -1,9 +1,37 @@
+<<<<<<< HEAD
+||||||| 95286058d0
+use std::collections::BTreeMap;
+=======
+use std::collections::{BTreeMap, BTreeSet};
+>>>>>>> origin/main-v0.14.4
 use std::time::Duration;
 
 use apollo_config::converters::{
+    comma_separated_set_to_string,
+    deserialize_comma_separated_set,
     deserialize_milliseconds_to_duration,
+    serialize_comma_separated_set,
     serialize_duration_as_milliseconds,
 };
+<<<<<<< HEAD
+||||||| 95286058d0
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+=======
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+>>>>>>> origin/main-v0.14.4
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
@@ -20,8 +48,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ContractAddress;
+use starknet_api::state::StorageKey;
 use url::Url;
 use validator::{Validate, ValidationError};
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
@@ -177,6 +211,7 @@ pub struct BatcherDynamicConfig {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub view_call_timeout_millis: Duration,
+    pub storage_access_filter_config: StorageAccessFilterConfig,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -190,10 +225,170 @@ impl Default for BatcherDynamicConfig {
             results_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
             view_call_timeout_millis: Duration::from_secs(5),
+            storage_access_filter_config: StorageAccessFilterConfig::default(),
         }
     }
 }
 
+<<<<<<< HEAD
+||||||| 95286058d0
+impl SerializeConfig for BatcherDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([
+            self.native_classes_whitelist.ser_param(),
+            ser_param(
+                "n_concurrent_txs",
+                &self.n_concurrent_txs,
+                "Number of transactions in each request from the tx_provider.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "tx_polling_interval_millis",
+                &self.tx_polling_interval_millis,
+                "Time to wait (in milliseconds) between transaction requests when the previous \
+                 request returned no transactions. Applies when proposing (polls the mempool). \
+                 Kept intentionally high so txs accumulate between polls and ordering is decided \
+                 by tip/priority fee rather than by arrival latency (geographic proximity).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_tx_polling_interval_millis",
+                &self.validate_tx_polling_interval_millis,
+                "Time to wait (in milliseconds) between transaction requests when the previous \
+                 request returned no transactions. Applies when validating a proposal, where the \
+                 tx order is already fixed; a short interval reduces the delay before streamed \
+                 txs are executed.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "results_polling_interval_millis",
+                &self.results_polling_interval_millis,
+                "Time to wait (in milliseconds) between polls for completed execution results, \
+                 applied while previously added transactions are still executing. Must be in [1, \
+                 tx_polling_interval_millis].",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "proposer_idle_detection_delay_millis",
+                &self.proposer_idle_detection_delay_millis.as_millis(),
+                "Minimum time (in milliseconds) that must pass since block creation started \
+                 before checking for idle state. If this delay has passed AND no transactions are \
+                 currently being executed, the proposer will finish building the current block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "view_call_timeout_millis",
+                &self.view_call_timeout_millis.as_millis(),
+                "Maximal wall time (in milliseconds) a view entry point call may hold the \
+                 batcher's request slot, which block production shares.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_dynamic_config.dump(),
+            "storage_reader_server_dynamic_config",
+        ));
+        dump
+    }
+}
+
+=======
+impl SerializeConfig for BatcherDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([
+            self.native_classes_whitelist.ser_param(),
+            ser_param(
+                "n_concurrent_txs",
+                &self.n_concurrent_txs,
+                "Number of transactions in each request from the tx_provider.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "tx_polling_interval_millis",
+                &self.tx_polling_interval_millis,
+                "Time to wait (in milliseconds) between transaction requests when the previous \
+                 request returned no transactions. Applies when proposing (polls the mempool). \
+                 Kept intentionally high so txs accumulate between polls and ordering is decided \
+                 by tip/priority fee rather than by arrival latency (geographic proximity).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_tx_polling_interval_millis",
+                &self.validate_tx_polling_interval_millis,
+                "Time to wait (in milliseconds) between transaction requests when the previous \
+                 request returned no transactions. Applies when validating a proposal, where the \
+                 tx order is already fixed; a short interval reduces the delay before streamed \
+                 txs are executed.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "results_polling_interval_millis",
+                &self.results_polling_interval_millis,
+                "Time to wait (in milliseconds) between polls for completed execution results, \
+                 applied while previously added transactions are still executing. Must be in [1, \
+                 tx_polling_interval_millis].",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "proposer_idle_detection_delay_millis",
+                &self.proposer_idle_detection_delay_millis.as_millis(),
+                "Minimum time (in milliseconds) that must pass since block creation started \
+                 before checking for idle state. If this delay has passed AND no transactions are \
+                 currently being executed, the proposer will finish building the current block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "view_call_timeout_millis",
+                &self.view_call_timeout_millis.as_millis(),
+                "Maximal wall time (in milliseconds) a view entry point call may hold the \
+                 batcher's request slot, which block production shares.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_dynamic_config.dump(),
+            "storage_reader_server_dynamic_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_access_filter_config.dump(),
+            "storage_access_filter_config",
+        ));
+        dump
+    }
+}
+
+/// Restricts the storage keys that transactions may access.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct StorageAccessFilterConfig {
+    #[serde(
+        serialize_with = "serialize_comma_separated_set",
+        deserialize_with = "deserialize_comma_separated_set"
+    )]
+    pub blocked_storage_keys: BTreeSet<StorageKey>,
+    pub exempt_account_address: Option<ContractAddress>,
+}
+
+impl SerializeConfig for StorageAccessFilterConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([ser_param(
+            "blocked_storage_keys",
+            &comma_separated_set_to_string(&self.blocked_storage_keys),
+            "Comma-separated storage keys, with no spaces, that transactions must not read or \
+             write, in any contract. Empty means no key is blocked.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.extend(ser_optional_param(
+            &self.exempt_account_address,
+            ContractAddress::default(),
+            "exempt_account_address",
+            "The account whose transactions may access blocked storage keys.",
+            ParamPrivacyInput::Public,
+        ));
+        dump
+    }
+}
+
+>>>>>>> origin/main-v0.14.4
 /// The batcher related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_batcher_config"))]

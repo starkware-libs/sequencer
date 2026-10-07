@@ -2,7 +2,14 @@ use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 use apollo_metrics::metrics::{MetricGauge, MetricScope};
 use rstest::rstest;
 
-use crate::query_builder::{increase, sum_by_label, sum_by_pod, sum_increase, DisplayMethod};
+use crate::query_builder::{
+    exclude_observers,
+    increase,
+    sum_by_label,
+    sum_by_pod,
+    sum_increase,
+    DisplayMethod,
+};
 
 #[test]
 fn sum_increase_formats_correctly() {
@@ -45,5 +52,14 @@ fn sum_by_label_formats_correctly(#[case] display: DisplayMethod<'_>, #[case] fi
     };
     let q = sum_by_label(&m, "label1", display, filter_zeros);
     let expected = format!("sum by (label1) ({inner}){filter}");
+    assert_eq!(q, expected);
+}
+
+#[test]
+fn exclude_observers_formats_correctly() {
+    let q = exclude_observers("foo > 0");
+    let expected = format!(
+        "(foo > 0) and on(cluster, namespace, pod) (is_observer{METRIC_LABEL_FILTER} == 0)"
+    );
     assert_eq!(q, expected);
 }

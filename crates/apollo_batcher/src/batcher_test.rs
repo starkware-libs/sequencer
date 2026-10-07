@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::mpsc::{channel, Receiver};
@@ -27,7 +28,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_committer_types::committer_types::CommitBlockRequest;
+use apollo_committer_types::committer_types::{CommitBlockRequest, ReadPathsAndCommitBlockRequest};
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -144,6 +145,7 @@ use crate::test_utils::{
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
+    test_state_commitment_infos,
     test_state_diff,
     test_txs,
     verify_indexed_execution_infos,
@@ -547,7 +549,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, _, tx_provider, _, _, _| {
+        |_, _, _, _, tx_provider, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -572,7 +574,7 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, tx_provider, output_content_sender, _, _| {
+        move |_, _, _, _, tx_provider, output_content_sender, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
@@ -1230,6 +1232,73 @@ async fn consecutive_proposal_generation_success() {
 }
 
 #[rstest]
+#[case::no_blocked_storage_keys(BTreeSet::new())]
+#[case::blocked_storage_keys(BTreeSet::from([StorageKey::from(0x1_u8)]))]
+#[tokio::test]
+async fn block_builders_get_storage_access_filter(
+    #[case] blocked_storage_keys: BTreeSet<StorageKey>,
+) {
+    let expect_filter = !blocked_storage_keys.is_empty();
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    let propose_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(move |_, _, _, transaction_filter, _, _, _, _| {
+            transaction_filter.is_some() == expect_filter
+        })
+        .return_once(|_, _, _, _, tx_provider, output_content_sender, _, _| {
+            let block_builder = FakeProposeBlockBuilder {
+                output_content_sender: output_content_sender.unwrap(),
+                output_txs: vec![],
+                build_block_result: Some(Ok(propose_artifacts)),
+                tx_provider,
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+    let validate_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(move |_, _, _, transaction_filter, _, _, _, _| {
+            transaction_filter.is_some() == expect_filter
+        })
+        .return_once(|_, _, _, _, tx_provider, _, _, _| {
+            let block_builder = FakeValidateBlockBuilder {
+                tx_provider,
+                build_block_result: Some(Ok(validate_artifacts)),
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut mock_dependencies = MockDependencies {
+        clients: MockClients { block_builder_factory, l1_provider_client, ..Default::default() },
+        ..Default::default()
+    };
+    mock_dependencies
+        .batcher_config
+        .dynamic_config
+        .storage_access_filter_config
+        .blocked_storage_keys = blocked_storage_keys;
+    let mut batcher = create_batcher(mock_dependencies).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+    let validate_proposal_id = ProposalId(PROPOSAL_ID.0 + 1);
+    batcher.validate_block(validate_block_input(validate_proposal_id)).await.unwrap();
+    batcher
+        .finish_proposal(FinishProposalInput {
+            proposal_id: validate_proposal_id,
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+        })
+        .await
+        .unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+}
+
+#[rstest]
 #[tokio::test]
 async fn concurrent_proposals_generation_fail() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -1651,9 +1720,27 @@ async fn revert_block() {
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
 
+    batcher
+        .commitment_manager
+        .recent_block_hashes_cache
+        .put(LATEST_BLOCK_IN_STORAGE, BlockHash::default());
+    batcher
+        .commitment_manager
+        .recent_state_commitment_infos_cache
+        .put(LATEST_BLOCK_IN_STORAGE, test_state_commitment_infos(LATEST_BLOCK_IN_STORAGE));
+
     assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
     assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
+    assert!(
+        !batcher.commitment_manager.recent_block_hashes_cache.contains(&LATEST_BLOCK_IN_STORAGE)
+    );
+    assert!(
+        !batcher
+            .commitment_manager
+            .recent_state_commitment_infos_cache
+            .contains(&LATEST_BLOCK_IN_STORAGE)
+    );
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
@@ -2017,6 +2104,50 @@ async fn get_block_hash_after_reading_commitment_results() {
         get_number_of_items_in_channel_from_receiver(&batcher.commitment_manager.results_receiver),
         0
     );
+}
+
+#[tokio::test]
+async fn get_state_commitment_infos_after_reading_commitment_results() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| {
+            Ok((
+                Some(BlockHash::default()),
+                Some(PartialBlockHashComponents {
+                    block_number: INITIAL_HEIGHT,
+                    ..Default::default()
+                }),
+            ))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .returning(|_, _, _, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    let task = CommitterTaskInput::ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest {
+        commit: CommitBlockRequest {
+            height: INITIAL_HEIGHT,
+            state_diff: ThinStateDiff::default(),
+            state_diff_commitment: None,
+        },
+        accessed_keys: Default::default(),
+    });
+    batcher.commitment_manager.tasks_sender.send(task).await.unwrap();
+    wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
+
+    // The mock storage reader has no state commitment infos expectations, so both answers come
+    // from the cache.
+    assert_eq!(
+        batcher.get_state_commitment_infos(INITIAL_HEIGHT),
+        Ok(Some(test_state_commitment_infos(INITIAL_HEIGHT)))
+    );
+    assert_eq!(batcher.has_state_commitment_infos(INITIAL_HEIGHT), Ok(true));
 }
 
 #[tokio::test]

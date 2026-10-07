@@ -118,6 +118,12 @@ jobs:
         working-directory: crates/starknet_transaction_prover
         run: cargo test --release -p starknet_transaction_prover --features stwo_proving virtual_snos_prover_test -- --ignored --test-threads=1
 
+      # TODO(Avi): Also run the large prover mod-builtin tests (large_prover_) once a prover version
+      # bump makes the large prover reject mod builtins; they take minutes while it still proves them.
+      - name: Run small prover mod-builtin tests
+        working-directory: crates/starknet_transaction_prover
+        run: cargo test --release -p starknet_transaction_prover --features stwo_proving small_prover_ -- --ignored --test-threads=1
+
       - name: Run virtual OS multicall proving test
         working-directory: crates/starknet_transaction_prover
         run: cargo test --release -p starknet_os_flow_tests --features starknet_transaction_prover/stwo_proving prove_and_verify_multicall_tx -- --ignored --test-threads=1

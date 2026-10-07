@@ -72,6 +72,7 @@ mod config_test;
 pub mod converters;
 pub mod loading;
 pub mod presentation;
+pub mod retry;
 pub mod secrets;
 pub mod validators;
 
