@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 ETHEREUM_AVERAGE_SECONDS_PER_BLOCK = 12
 
 # Starknet L1 Core Contract address on Ethereum mainnet
@@ -34,3 +36,34 @@ ECHONET_SECRETS_FILENAME = "echonet_secrets.json"
 # Env overrides for paths (define once).
 ECHONET_ENV_KEYS_PATH = "ECHONET_KEYS_PATH"
 ECHONET_ENV_SECRETS_PATH = "ECHONET_SECRETS_PATH"
+
+
+class SequencerLayout(NamedTuple):
+    """The sequencer services echonet drives, under the names the deployment chart gives them."""
+
+    # The first one hosts the batcher and state sync, whose config and logs echonet drives.
+    statefulset_services: tuple[str, ...]
+    deployment_services: tuple[str, ...]
+    # Serves the HTTP endpoint echonet forwards transactions to.
+    http_service: str
+
+    @property
+    def workloads(self) -> tuple[tuple[str, str], ...]:
+        """(kind, name) of every sequencer workload; they are restarted together."""
+        return tuple(
+            ("statefulset", f"sequencer-{service}-statefulset")
+            for service in self.statefulset_services
+        ) + tuple(
+            ("deployment", f"sequencer-{service}-deployment")
+            for service in self.deployment_services
+        )
+
+
+# Selected by `sequencer_layout` in the echonet keys file.
+SEQUENCER_LAYOUTS = {
+    "consolidated": SequencerLayout(("node",), (), "node"),
+    "hybrid": SequencerLayout(
+        ("core", "committer"), ("gateway", "l1", "mempool", "sierracompiler"), "gateway"
+    ),
+}
+DEFAULT_SEQUENCER_LAYOUT = "consolidated"
