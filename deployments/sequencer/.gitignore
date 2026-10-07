@@ -3,3 +3,4 @@ __pycache__/
 dist/
 imports/
 configs/overlays/hybrid/env-testing
+configs/overlays/hybrid/echonet/node_secrets.json
