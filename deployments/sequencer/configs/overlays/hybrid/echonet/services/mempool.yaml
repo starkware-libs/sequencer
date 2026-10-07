@@ -1,0 +1,11 @@
+include:
+  - configs/overlays/hybrid/common/services/mempool.yaml
+  - configs/overlays/hybrid/echonet/common.yaml
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
