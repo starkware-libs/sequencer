@@ -17,7 +17,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{GasPrice, ReplayBlockMetadata};
+use starknet_api::block::{BlockNumber, GasPrice, ReplayBlockMetadata};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
@@ -61,7 +61,10 @@ pub trait MempoolClient: Send + Sync {
     ) -> MempoolClientResult<bool>;
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
-    async fn resolve_block_metadata(&self) -> MempoolClientResult<ReplayBlockMetadata>;
+    async fn resolve_block_metadata(
+        &self,
+        height: BlockNumber,
+    ) -> MempoolClientResult<ReplayBlockMetadata>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -79,7 +82,7 @@ pub enum MempoolRequest {
     // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
     UpdateGasPrice(GasPrice),
     GetMempoolSnapshot(),
-    ResolveBlockMetadata,
+    ResolveBlockMetadata(BlockNumber),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
 impl_labeled_request!(MempoolRequest, MempoolRequestLabelValue);
@@ -94,7 +97,7 @@ impl PrioritizedRequest for MempoolRequest {
             | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
             | MempoolRequest::UpdateGasPrice(_)
             | MempoolRequest::GetMempoolSnapshot()
-            | MempoolRequest::ResolveBlockMetadata => RequestPriority::Normal,
+            | MempoolRequest::ResolveBlockMetadata(_) => RequestPriority::Normal,
         }
     }
 }
@@ -219,8 +222,11 @@ where
         )
     }
 
-    async fn resolve_block_metadata(&self) -> MempoolClientResult<ReplayBlockMetadata> {
-        let request = MempoolRequest::ResolveBlockMetadata;
+    async fn resolve_block_metadata(
+        &self,
+        height: BlockNumber,
+    ) -> MempoolClientResult<ReplayBlockMetadata> {
+        let request = MempoolRequest::ResolveBlockMetadata(height);
         handle_all_response_variants!(
             self,
             request,

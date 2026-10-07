@@ -28,7 +28,7 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{GasPrice, ReplayBlockMetadata, UnixTimestamp};
+use starknet_api::block::{BlockNumber, GasPrice, ReplayBlockMetadata, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -186,8 +186,11 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    pub(crate) async fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayBlockMetadata> {
-        let BlockMetadata { timestamp, block_number } = self.mempool.resolve_block_metadata();
+    pub(crate) async fn resolve_block_metadata(
+        &mut self,
+        height: BlockNumber,
+    ) -> MempoolResult<ReplayBlockMetadata> {
+        let BlockMetadata { timestamp, block_number } = self.mempool.resolve_block_metadata(height);
         let fallback_metadata =
             ReplayBlockMetadata { timestamp, block_number, ..Default::default() };
 
@@ -315,8 +318,8 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
-            MempoolRequest::ResolveBlockMetadata => {
-                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata().await)
+            MempoolRequest::ResolveBlockMetadata(height) => {
+                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata(height).await)
             }
         }
     }

@@ -796,7 +796,8 @@ impl Batcher {
             error!("Mempool is not ready to start a new round: {err}");
             BatcherError::NotReady
         })?;
-        mempool_client.resolve_block_metadata().await.map_err(|err| {
+        let height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
+        mempool_client.resolve_block_metadata(height).await.map_err(|err| {
             error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
         })

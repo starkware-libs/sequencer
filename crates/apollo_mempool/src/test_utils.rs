@@ -310,10 +310,6 @@ pub fn get_txs_and_assert_expected(
     n_txs: usize,
     expected_txs: &[InternalRpcTransaction],
 ) {
-    // In FIFO mode, resolve_block_metadata must run before get_txs to set the proposal state
-    if mempool.is_fifo() {
-        let _ = mempool.resolve_block_metadata().timestamp;
-    }
     let txs = mempool.get_txs(n_txs).unwrap();
     assert_eq!(txs, expected_txs);
 }

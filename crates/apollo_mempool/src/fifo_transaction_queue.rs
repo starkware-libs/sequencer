@@ -6,7 +6,7 @@ use indexmap::IndexSet;
 use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue_trait::{BlockMetadata, RewindData, TransactionQueueTrait};
@@ -379,28 +379,32 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         0
     }
 
-    fn resolve_metadata(&mut self) -> BlockMetadata {
-        if self.queue.front().is_some() {
-            return self.sync_proposal_state_from_queue_front_tx();
-        }
-        // Queue is empty: reuse the previous timestamp and block number if they exist.
-        match self.current_proposal_state {
-            Some(state) => {
-                debug!(
-                    "FIFO resolve_metadata: queue empty, reusing last_timestamp={:?}, \
-                     expected_block={:?}",
-                    state.timestamp, state.expected_block_number
+    // Each Echonet block replays the source block of the same number, so `height` is authoritative.
+    fn resolve_metadata(&mut self, height: BlockNumber) -> BlockMetadata {
+        let front_tx = self.queue.front().copied();
+        let timestamp = front_tx
+            .map(|tx| tx.timestamp)
+            .or(self.current_proposal_state.map(|state| state.timestamp))
+            .unwrap_or_default();
+
+        let (expected_block_number, emit_empty_block) = match front_tx {
+            Some(tx) if tx.block_number == height => (height, false),
+            // The head txs missed their block; drain them so the queue keeps moving.
+            Some(tx) if tx.block_number < height => {
+                warn!(
+                    "FIFO resolve_metadata: head tx {} is from block {} while building block \
+                     {height}",
+                    tx.tx_reference.tx_hash, tx.block_number
                 );
-                BlockMetadata {
-                    timestamp: state.timestamp,
-                    block_number: Some(state.expected_block_number),
-                }
+                (tx.block_number, false)
             }
-            None => {
-                debug!("FIFO resolve_metadata: queue empty, no previous proposal state");
-                BlockMetadata { timestamp: 0, block_number: None }
-            }
-        }
+            // The head is from a later block, or the queue is empty.
+            _ => (height, true),
+        };
+        self.current_proposal_state =
+            Some(CurrentProposalState { timestamp, expected_block_number, emit_empty_block });
+
+        BlockMetadata { timestamp, block_number: Some(height) }
     }
 
     fn update_tx_block_metadata(&mut self, tx_hash: TransactionHash, metadata: TxBlockMetadata) {
