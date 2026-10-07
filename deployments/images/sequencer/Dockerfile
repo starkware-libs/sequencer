@@ -67,6 +67,19 @@ ENV CARGO_TOOLS_ROOT=/opt/cargo-tools
 COPY --from=builder /var/tmp/rust/tools ${CARGO_TOOLS_ROOT}
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
+<<<<<<< HEAD
+||||||| 95286058d0
+# Copy apollo config schema, used when it loads its configuration.
+COPY crates/apollo_node/resources/config_schema.json crates/apollo_node/resources/config_schema.json
+
+=======
+# Copy apollo config schema, used when it loads its configuration.
+COPY crates/apollo_node/resources/config_schema.json crates/apollo_node/resources/config_schema.json
+
+# Copy the bundled allowed-libfuncs list, used when compiling Sierra with that list selected.
+COPY crates/apollo_compile_to_casm/resources/allowed_libfuncs.json crates/apollo_compile_to_casm/resources/allowed_libfuncs.json
+
+>>>>>>> origin/main-v0.14.4
 # Create a new user "sequencer".
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \

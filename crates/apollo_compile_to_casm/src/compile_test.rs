@@ -4,6 +4,7 @@ use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_sierra_compilation_config::config::{
+    AllowedLibfuncsList,
     SierraCompilationConfig,
     DEFAULT_MAX_BYTECODE_SIZE,
     DEFAULT_MAX_CPU_TIME,
@@ -31,16 +32,39 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    audited_libfuncs_only: false,
+    allowed_libfuncs_list: AllowedLibfuncsList::All,
 };
 
-// Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
-// Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["sha512_process_block_syscall", "sha512_state_handle_digest", "sha512_state_handle_init"];
+// Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list. This list should normally
+// be empty. `allowed_libfuncs_aligned_to_audited` fails if an audited entry remains here.
+const PENDING_LIBFUNCS: &[&str] = &[];
+
+// Ample for this contract, but distinct from the default, so the positive flow below asserts that
+// an explicit limit is honoured rather than re-testing the default.
+const GENEROUS_MAX_MEMORY_USAGE: u64 = 1024 * 1024 * 1024;
+
+// Libfuncs in Cairo's audited list that are deliberately kept out of allowed_libfuncs.json.
+const EXCLUDED_LIBFUNCS: &[&str] = &["coupon_buy", "coupon_call", "coupon_refund"];
+
+// A class using an excluded libfunc. `coupon_buy` requires the crate's `coupons` feature.
+// Regenerate from the repo root:
+//
+// starknet-compile \
+//   crates/apollo_compile_to_casm/resources/coupon_contract \
+//   --allowed-libfuncs-list-name all \
+//   crates/apollo_compile_to_casm/resources/coupon_contract.sierra.json
+const EXCLUDED_LIBFUNC_CLASS_PATH: &str =
+    "crates/apollo_compile_to_casm/resources/coupon_contract.sierra.json";
 
 fn compiler() -> SierraToCasmCompiler {
-    SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
+    compiler_with_libfuncs_list(AllowedLibfuncsList::All)
+}
+
+fn compiler_with_libfuncs_list(allowed_libfuncs_list: AllowedLibfuncsList) -> SierraToCasmCompiler {
+    SierraToCasmCompiler::new(SierraCompilationConfig {
+        allowed_libfuncs_list,
+        ..SIERRA_COMPILATION_CONFIG
+    })
 }
 
 fn get_test_contract() -> CairoLangContractClass {
@@ -86,9 +110,7 @@ fn test_max_bytecode_size() {
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let casm_contract_class = compiler
         .compile(contract_class.clone())
@@ -98,9 +120,7 @@ fn test_max_bytecode_size() {
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
@@ -136,13 +156,18 @@ fn allowed_libfuncs_aligned_to_audited() {
     let libfuncs_list_selector = ListSelector::ListName(BUILTIN_AUDITED_LIBFUNCS_LIST.to_string());
     let expected = lookup_allowed_libfuncs_list(libfuncs_list_selector).unwrap().allowed_libfuncs;
 
-    let actual_str = include_str!("allowed_libfuncs.json");
+    let actual_str = include_str!("../resources/allowed_libfuncs.json");
     let actual = serde_json::from_str::<AllowedLibfuncs>(actual_str).unwrap().allowed_libfuncs;
 
     let pending_set: HashSet<&str> = PENDING_LIBFUNCS.iter().copied().collect();
+    let excluded_set: HashSet<&str> = EXCLUDED_LIBFUNCS.iter().copied().collect();
 
-    let missing: Vec<_> =
-        expected.keys().filter(|k| !actual.contains_key(k)).map(ToString::to_string).collect();
+    let missing: Vec<_> = expected
+        .keys()
+        .filter(|k| !actual.contains_key(k))
+        .map(ToString::to_string)
+        .filter(|k| !excluded_set.contains(k.as_str()))
+        .collect();
     let extra: Vec<_> = actual
         .keys()
         .filter(|k| !expected.contains_key(k))
@@ -161,6 +186,67 @@ fn allowed_libfuncs_aligned_to_audited() {
          not in json): {missing:?}\n Extra (in json but not in audited): {extra:?}\n Value \
          mismatch: {mismatched:?}"
     );
+
+    let json_libfunc_names: HashSet<String> = actual.keys().map(ToString::to_string).collect();
+    let audited_libfunc_names: HashSet<String> = expected.keys().map(ToString::to_string).collect();
+    let excluded_libfuncs_in_json: Vec<_> =
+        EXCLUDED_LIBFUNCS.iter().copied().filter(|k| json_libfunc_names.contains(*k)).collect();
+    let excluded_libfuncs_not_audited: Vec<_> =
+        EXCLUDED_LIBFUNCS.iter().copied().filter(|k| !audited_libfunc_names.contains(*k)).collect();
+
+    let pending_libfuncs_already_audited: Vec<_> =
+        PENDING_LIBFUNCS.iter().copied().filter(|k| audited_libfunc_names.contains(*k)).collect();
+
+    assert!(
+        pending_libfuncs_already_audited.is_empty(),
+        "PENDING_LIBFUNCS entries are now in the audited list, drop them: \
+         {pending_libfuncs_already_audited:?}"
+    );
+
+    assert!(
+        excluded_libfuncs_in_json.is_empty() && excluded_libfuncs_not_audited.is_empty(),
+        "EXCLUDED_LIBFUNCS is out of date.\n Excluded but present in json: \
+         {excluded_libfuncs_in_json:?}\n Excluded but no longer in the audited list (drop the \
+         entry): {excluded_libfuncs_not_audited:?}"
+    );
+}
+
+#[test]
+fn compile_against_the_bundled_libfuncs_list() {
+    let bundled_list_compiler = compiler_with_libfuncs_list(AllowedLibfuncsList::Bundled);
+    let expected_casm_contract = compiler().compile(get_test_contract()).unwrap();
+
+    assert_eq!(bundled_list_compiler.compile(get_test_contract()).unwrap(), expected_casm_contract);
+}
+
+/// The built-in lists both permit [`EXCLUDED_LIBFUNCS`], so rejecting this class is the only
+/// behaviour that tells the bundled list apart from `Audited` and `All`.
+#[test]
+fn bundled_libfuncs_list_rejects_an_excluded_libfunc() {
+    let excluded_libfunc_class = contract_class_from_file(
+        resolve_project_relative_path(EXCLUDED_LIBFUNC_CLASS_PATH).unwrap(),
+    );
+    let audited_list_compiler = compiler_with_libfuncs_list(AllowedLibfuncsList::Audited);
+    let bundled_list_compiler = compiler_with_libfuncs_list(AllowedLibfuncsList::Bundled);
+
+    compiler().compile(excluded_libfunc_class.clone()).expect("`All` must accept the class.");
+    audited_list_compiler
+        .compile(excluded_libfunc_class.clone())
+        .expect("`Audited` must accept the class.");
+
+    let result = bundled_list_compiler.compile(excluded_libfunc_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
+        if string.contains("coupon_buy is not allowed")
+    );
+}
+
+/// The default selects the bundled list, which has to be resolved from disk; a node that ships
+/// without it would panic on startup rather than fail a compilation.
+#[test]
+fn compile_with_the_default_config() {
+    let default_config_compiler = SierraToCasmCompiler::new(SierraCompilationConfig::default());
+
+    default_config_compiler.compile(get_test_contract()).unwrap();
 }
 
 #[test]
@@ -173,20 +259,16 @@ fn test_max_memory_usage() {
 
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        max_memory_usage: GENEROUS_MAX_MEMORY_USAGE,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();
     assert_eq!(executable_class, expected_executable_class);
 
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: 8 * 1024 * 1024,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let compilation_result = compiler.compile(contract_class);
     let expected_error_pattern = Regex::new(r"memory allocation .*fail").unwrap();
@@ -222,10 +304,8 @@ fn faulty_contract_error_message() {
 #[test]
 fn memory_limit_error_message() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: 8 * 1024 * 1024,
-        max_cpu_time: DEFAULT_MAX_CPU_TIME,
-        audited_libfuncs_only: false,
+        ..SIERRA_COMPILATION_CONFIG
     });
     let contract_class = get_test_contract();
 

@@ -1,4 +1,4 @@
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use deprecated_syscall_executor::{
     DeprecatedSyscallExecutorBaseError,
@@ -369,7 +369,20 @@ impl SyscallResponse for GetTxInfoResponse {
 // GetTxSignature syscall.
 
 pub type GetTxSignatureRequest = EmptyRequest;
-pub type GetTxSignatureResponse = SingleSegmentResponse;
+
+#[derive(Debug)]
+pub struct GetTxSignatureResponse {
+    pub signature_len: usize,
+    pub signature: MaybeRelocatable,
+}
+
+impl SyscallResponse for GetTxSignatureResponse {
+    fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
+        write_maybe_relocatable(vm, ptr, self.signature_len)?;
+        write_maybe_relocatable(vm, ptr, self.signature)?;
+        Ok(())
+    }
+}
 
 // LibraryCall and LibraryCallL1Handler syscalls.
 

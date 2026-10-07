@@ -8,7 +8,14 @@ description = "Configuration types for Apollo centralized state synchronization.
 
 [dependencies]
 apollo_config.workspace = true
+<<<<<<< HEAD
 apollo_starknet_client.workspace = true
+||||||| 95286058d0
+apollo_starknet_client.workspace = true
+itertools.workspace = true
+=======
+itertools.workspace = true
+>>>>>>> origin/main-v0.14.4
 serde = { workspace = true, features = ["derive"] }
 url.workspace = true
 validator.workspace = true

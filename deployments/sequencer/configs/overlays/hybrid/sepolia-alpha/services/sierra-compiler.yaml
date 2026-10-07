@@ -1,1 +1,13 @@
 include: configs/overlays/hybrid/common/services/sierra-compiler.yaml
+<<<<<<< HEAD
+||||||| 95286058d0
+
+config:
+  sequencerConfig:
+    sierra_compiler_config.audited_libfuncs_only: true
+=======
+
+config:
+  sequencerConfig:
+    sierra_compiler_config.allowed_libfuncs_list: "bundled"
+>>>>>>> origin/main-v0.14.4

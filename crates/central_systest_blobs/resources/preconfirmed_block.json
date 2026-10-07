@@ -1,0 +1,131 @@
+{
+  "block_number": 13,
+  "pre_confirmed_block": {
+    "l1_da_mode": "CALLDATA",
+    "l1_data_gas_price": {
+      "price_in_fri": "0x1",
+      "price_in_wei": "0x1"
+    },
+    "l1_gas_price": {
+      "price_in_fri": "0x1",
+      "price_in_wei": "0x1"
+    },
+    "l2_gas_price": {
+      "price_in_fri": "0x1",
+      "price_in_wei": "0x1"
+    },
+    "sequencer_address": "0x1000",
+    "starknet_version": "0.14.4",
+    "status": "PRE_CONFIRMED",
+    "timestamp": 1013,
+    "transaction_receipts": [
+      {
+        "actual_fee": "0x11ab1d",
+        "events": [
+          {
+            "data": [
+              "0x357a35df0c8c6991f4c07bb9e3b23016312bcda48d6b8f0f785ae57c3f60076",
+              "0x1000",
+              "0x11ab1d",
+              "0x0"
+            ],
+            "from_address": "0x3c41e41425f155bb5516ae09bf3da1c1829de84d6eecbcbadc7e0ebb6dcf0a1",
+            "keys": [
+              "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+            ]
+          }
+        ],
+        "execution_resources": {
+          "builtin_instance_counter": {
+            "pedersen_builtin": 4,
+            "poseidon_builtin": 14,
+            "range_check_builtin": 110
+          },
+          "data_availability": {
+            "l1_data_gas": 0,
+            "l1_gas": 1652,
+            "l2_gas": 0
+          },
+          "n_memory_holes": 0,
+          "n_steps": 4812,
+          "total_gas_consumed": {
+            "l1_data_gas": 0,
+            "l1_gas": 1652,
+            "l2_gas": 1156265
+          }
+        },
+        "execution_status": "SUCCEEDED",
+        "l2_to_l1_messages": [],
+        "transaction_hash": "0x66d6f3b66349a01fc4896bcbaeb6bef6f4ccabe6ead8fcda01c08279e04f409",
+        "transaction_index": 0
+      }
+    ],
+    "transaction_state_diffs": [
+      {
+        "declared_classes": [],
+        "deployed_contracts": [],
+        "migrated_compiled_classes": [],
+        "nonces": {
+          "0x357a35df0c8c6991f4c07bb9e3b23016312bcda48d6b8f0f785ae57c3f60076": "0xc"
+        },
+        "old_declared_contracts": [],
+        "replaced_classes": [],
+        "storage_diffs": {
+          "0x3c41e41425f155bb5516ae09bf3da1c1829de84d6eecbcbadc7e0ebb6dcf0a1": [
+            {
+              "key": "0x5a123ff96876e8dd64f12609f554a7d630d036e8cb3c94adfe4114f3224efd",
+              "value": "0xfffffffffffffffffffffffff985880b"
+            },
+            {
+              "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
+              "value": "0x67a77f4"
+            }
+          ]
+        }
+      }
+    ],
+    "transactions": [
+      {
+        "account_deployment_data": [],
+        "calldata": [
+          "0x1",
+          "0x21f9940310a0c31e044783497fa6215aeb0c11f90b62e4dfa993ecf541d8c35",
+          "0x4ea6d2b84c4aea3baab8c031143fcd1fdf95debad5f888784f8db17e1c17f4",
+          "0x2",
+          "0x130764721ba7c032f20e17b97b63cec4c92780810f69cd88e8500c44314eb3e",
+          "0x2000"
+        ],
+        "fee_data_availability_mode": 0,
+        "nonce": "0xb",
+        "nonce_data_availability_mode": 0,
+        "paymaster_data": [],
+        "proof_facts": [],
+        "resource_bounds": {
+          "L1_DATA_GAS": {
+            "max_amount": "0x186a0",
+            "max_price_per_unit": "0x3b9aca00"
+          },
+          "L1_GAS": {
+            "max_amount": "0x5f5e100",
+            "max_price_per_unit": "0x174876e800"
+          },
+          "L2_GAS": {
+            "max_amount": "0x16345785d8a0000",
+            "max_price_per_unit": "0x3b9aca00"
+          }
+        },
+        "sender_address": "0x357a35df0c8c6991f4c07bb9e3b23016312bcda48d6b8f0f785ae57c3f60076",
+        "signature": [
+          "0x19929bb2fbb8a3b0c924b60ed270a011d37e1b61eec5d53d29f772722c9bb22",
+          "0x130117d7b78f7c37ea168b515c0b95eaa498ff891cdb8e89718fd3aa70f8745"
+        ],
+        "tip": "0x0",
+        "transaction_hash": "0x66d6f3b66349a01fc4896bcbaeb6bef6f4ccabe6ead8fcda01c08279e04f409",
+        "type": "INVOKE_FUNCTION",
+        "version": "0x3"
+      }
+    ]
+  },
+  "round": 0,
+  "write_iteration": 0
+}

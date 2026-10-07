@@ -41,7 +41,7 @@ WORKDIR /app
 COPY --from=builder /app/crates/blockifier_test_utils/resources ./crates/blockifier_test_utils/resources
 # Libfuncs allow-list read during Cairo 1 cache lookups; lives outside
 # blockifier_test_utils/resources, so copy it explicitly.
-COPY --from=builder /app/crates/apollo_compile_to_casm/src/allowed_libfuncs.json ./crates/apollo_compile_to_casm/src/allowed_libfuncs.json
+COPY --from=builder /app/crates/apollo_compile_to_casm/resources/allowed_libfuncs.json ./crates/apollo_compile_to_casm/resources/allowed_libfuncs.json
 # Pre-warmed Cairo 1 compilation cache (see builder stage).
 COPY --from=builder /app/target/blockifier_test_artifacts ./target/blockifier_test_artifacts
 COPY --from=builder /app/target/debug/sequencer_node_setup ./target/debug/sequencer_node_setup
