@@ -1,0 +1,32 @@
+include:
+  - configs/overlays/hybrid/common/services/committer.yaml
+  - configs/overlays/hybrid/echonet/common.yaml
+
+# A hand-made disk seeded with the committer storage before the first start (see README.md).
+persistentVolume:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  mountPath: "/data"
+  size: "300Gi"
+  storageClass: "hyperdisk-balanced"
+  existingClaim: "sequencer-committer-data"
+
+# Same zone as sequencer-node-data, so the seeding pod can mount both disks.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values:
+                - us-central1-f
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "12Gi"
+  limits:
+    cpu: "3"
+    memory: "16Gi"
