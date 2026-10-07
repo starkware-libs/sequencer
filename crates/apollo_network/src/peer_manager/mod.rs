@@ -1,29 +1,5 @@
-<<<<<<< HEAD
 use std::collections::HashMap;
-use std::time::Duration;
-||||||| 95286058d0
-use std::collections::{BTreeMap, HashMap};
-use std::time::Duration;
-=======
-use std::collections::HashMap;
->>>>>>> origin/main-v0.14.4
 
-<<<<<<< HEAD
-use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_seconds_to_duration,
-    serialize_duration_as_milliseconds,
-    serialize_duration_as_seconds,
-};
-||||||| 95286058d0
-use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_seconds_to_duration,
-};
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-=======
->>>>>>> origin/main-v0.14.4
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -68,32 +44,6 @@ pub struct PeerManager {
     connections_for_unknown_peers: HashMap<PeerId, Vec<ConnectionId>>,
 }
 
-<<<<<<< HEAD
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct PeerManagerConfig {
-    #[serde(
-        deserialize_with = "deserialize_seconds_to_duration",
-        serialize_with = "serialize_duration_as_seconds"
-    )]
-    malicious_timeout_seconds: Duration,
-    #[serde(
-        deserialize_with = "deserialize_milliseconds_to_duration",
-        serialize_with = "serialize_duration_as_milliseconds"
-    )]
-    unstable_timeout_millis: Duration,
-}
-
-||||||| 95286058d0
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct PeerManagerConfig {
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    malicious_timeout_seconds: Duration,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    unstable_timeout_millis: Duration,
-}
-
-=======
->>>>>>> origin/main-v0.14.4
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum PeerManagerError {
     #[error("No such peer: {0}")]
@@ -104,49 +54,6 @@ pub(crate) enum PeerManagerError {
     PeerIsBlocked(PeerId),
 }
 
-<<<<<<< HEAD
-impl Default for PeerManagerConfig {
-    fn default() -> Self {
-        Self {
-            // TODO(shahak): Increase this once we're in a non-trusted setup.
-            malicious_timeout_seconds: Duration::from_secs(1),
-            unstable_timeout_millis: Duration::from_millis(1000),
-        }
-    }
-}
-
-||||||| 95286058d0
-impl Default for PeerManagerConfig {
-    fn default() -> Self {
-        Self {
-            // TODO(shahak): Increase this once we're in a non-trusted setup.
-            malicious_timeout_seconds: Duration::from_secs(1),
-            unstable_timeout_millis: Duration::from_millis(1000),
-        }
-    }
-}
-
-impl SerializeConfig for PeerManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "malicious_timeout_seconds",
-                &self.malicious_timeout_seconds.as_secs(),
-                "The duration in seconds a peer is blacklisted after being marked as malicious.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "unstable_timeout_millis",
-                &self.unstable_timeout_millis.as_millis(),
-                "The duration in milliseconds a peer blacklisted after being reported as unstable.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-=======
->>>>>>> origin/main-v0.14.4
 #[allow(dead_code)]
 impl PeerManager {
     pub(crate) fn new(config: PeerManagerConfig) -> Self {

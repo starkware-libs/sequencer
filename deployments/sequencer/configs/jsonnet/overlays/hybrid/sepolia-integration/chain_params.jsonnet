@@ -30,5 +30,5 @@ local constants = import 'lib/base_layer_constants.libsonnet';
     block_number: 35748,
     parent_block_hash: '0x77140bef51bbb4d1932f17cc5081825ff18465a1df4440ca0429a4fa80f1dc5',
   },
-  audited_libfuncs_only: false,
+  allowed_libfuncs_list: 'all',
 }

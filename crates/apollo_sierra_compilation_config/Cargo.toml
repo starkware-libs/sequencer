@@ -11,13 +11,7 @@ workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
-<<<<<<< HEAD
 validator = { workspace = true, features = ["derive"] }
-||||||| 95286058d0
-validator.workspace = true
-=======
-validator.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
->>>>>>> origin/main-v0.14.4
