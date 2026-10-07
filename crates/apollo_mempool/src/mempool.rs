@@ -17,7 +17,7 @@ use apollo_mempool_types::mempool_types::{
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
 use rand::{rng, RngExt};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -288,14 +288,14 @@ impl Mempool {
         matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet)
     }
 
-    pub(crate) fn resolve_block_metadata(&mut self) -> BlockMetadata {
+    pub(crate) fn resolve_block_metadata(&mut self, height: BlockNumber) -> BlockMetadata {
         if !self.is_fifo() {
             let timestamp = self.clock.unix_now();
             debug!("Mempool resolve_block_metadata (Fee): timestamp={}", timestamp);
             return BlockMetadata { timestamp, block_number: None };
         }
 
-        self.tx_queue.resolve_metadata()
+        self.tx_queue.resolve_metadata(height)
     }
 
     pub(crate) fn update_tx_block_metadata(
