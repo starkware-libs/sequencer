@@ -1,0 +1,12 @@
+include:
+  - configs/overlays/hybrid/common/services/gateway.yaml
+  - configs/overlays/hybrid/echonet/common.yaml
+
+# Native compilation runs in a child process capped at 15GiB, which counts toward this limit.
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "3"
+    memory: "18Gi"
