@@ -51,16 +51,18 @@ def _extract_revert_errors_by_tx_hash(block: JsonObject) -> Dict[str, str]:
     return out
 
 
-def _should_pause_forwarding(source_block_number: int) -> bool:
-    """Whether forwarding should wait for the committed tip to catch up."""
+def _committed_block_number() -> int:
+    """The sequencer's committed tip."""
     committed_block_number = shared.get_last_block()
     if committed_block_number is None:
         # Before the run's first blob, the tip is the block the sequencer was reverted to.
-        committed_block_number = (
-            shared.get_current_start_block(default_start_block=CONFIG.blocks.start_block) - 1
-        )
+        return shared.get_current_start_block(default_start_block=CONFIG.blocks.start_block) - 1
+    return committed_block_number
 
-    block_lead = source_block_number - committed_block_number
+
+def _should_pause_forwarding(source_block_number: int) -> bool:
+    """Whether forwarding should wait for the committed tip to catch up."""
+    block_lead = source_block_number - _committed_block_number()
     return block_lead > CONFIG.tx_sender.max_block_lead_before_pausing
 
 
@@ -123,8 +125,7 @@ class SenderConfig:
     sequencer_not_ready_retry_attempts: int = CONFIG.tx_sender.max_block_lead_before_pausing * 20
 
     queue_size: int = _TX_QUEUE_SIZE
-    # The producer buffers up to `queue_size` txs past the consumer, so a pending tx's block
-    # legitimately trails `current_block` by the block lead plus that many blocks.
+    # Counted in committed blocks past the tx's block, so a run of empty blocks can't trip it early.
     blocks_to_wait_before_failing_tx: int = (
         CONFIG.tx_sender.max_block_lead_before_pausing + _TX_QUEUE_SIZE
     ) * 2
@@ -359,7 +360,7 @@ class TransactionSenderService:
                             gateway_errors=gw_errors,
                             sent_tx_hashes=sent_tx_hashes,
                             echonet_only_reverts=echonet_only_reverts,
-                            current_block=block_number,
+                            committed_block_number=_committed_block_number(),
                             block_hash_mismatch_block=block_hash_mismatch_block,
                         )
                         if resync_trigger:
