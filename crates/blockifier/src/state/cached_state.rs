@@ -298,7 +298,8 @@ impl<S: StateReader> CachedState<S> {
     /// Returns the pre-block values the OS needs to replay the block: the values read during
     /// execution, extended with the class hash and nonce of every accessed contract and the
     /// compiled class hash of every accessed class (the OS reads these trie leaves even when
-    /// execution itself did not). `declared_contracts` is cleared, as the OS does not consume it.
+    /// execution itself did not). `declared_contracts` is left empty, as the OS does not consume
+    /// it.
     pub fn get_os_initial_reads(&mut self) -> StateResult<StateMaps> {
         // Back-fill write-only storage cells so their pre-block values are part of the initial
         // reads.
@@ -321,9 +322,18 @@ impl<S: StateReader> CachedState<S> {
         for class_hash in declared_class_hashes {
             self.get_compiled_class_hash(class_hash)?;
         }
-        let mut os_initial_reads = self.get_initial_reads()?;
-        os_initial_reads.declared_contracts.clear();
-        Ok(os_initial_reads)
+
+        // Clone field-by-field to avoid cloning `declared_contracts`, which a block with many
+        // declares makes large, only to discard it.
+        let cache = self.cache.borrow();
+        let initial_reads = &cache.initial_reads;
+        Ok(StateMaps {
+            nonces: initial_reads.nonces.clone(),
+            class_hashes: initial_reads.class_hashes.clone(),
+            storage: initial_reads.storage.clone(),
+            compiled_class_hashes: initial_reads.compiled_class_hashes.clone(),
+            declared_contracts: HashMap::new(),
+        })
     }
 }
 
