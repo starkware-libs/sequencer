@@ -27,6 +27,7 @@ use crate::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
+    L1_MESSAGE_SCRAPER_OVERSIZED_PAYLOAD_DROPPED_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
@@ -36,6 +37,10 @@ use crate::metrics::{
 pub mod l1_scraper_tests;
 
 type L1EventsScraperResult<T, B> = Result<T, L1EventsScraperError<B>>;
+
+/// Max number of payload felts (calldata without the leading `from_address`) an L1→L2 message may
+/// carry; the scraper drops longer messages, so this node never proposes them.
+pub const MAX_L1_HANDLER_PAYLOAD_LENGTH: usize = 20;
 
 pub struct L1EventsScraper<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     pub config: L1EventsScraperConfig,
@@ -330,6 +335,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
             .await;
 
         let l1_events = scraping_result.map_err(L1EventsScraperError::BaseLayerError)?;
+        let l1_events = drop_oversized_messages(l1_events, MAX_L1_HANDLER_PAYLOAD_LENGTH);
 
         // Used for debug. Collect the L1 tx hashes and L1 block timestamps.
         let l1_messages_info = l1_events
@@ -545,4 +551,33 @@ fn handle_client_error<BaseLayerType: BaseLayerContract + Send + Sync + Debug>(
             Err(L1EventsScraperError::NeedsRestart)
         }
     }
+}
+
+/// Drops `LogMessageToL2` events whose payload (calldata without the leading `from_address`) is
+/// longer than `max_payload_length` felts. Every other event kind passes through untouched.
+fn drop_oversized_messages(l1_events: Vec<L1Event>, max_payload_length: usize) -> Vec<L1Event> {
+    l1_events
+        .into_iter()
+        .filter(|l1_event| {
+            let L1Event::LogMessageToL2 { tx, l1_tx_hash, .. } = l1_event else {
+                return true;
+            };
+            let payload_length = tx.payload_size();
+            if payload_length <= max_payload_length {
+                return true;
+            }
+            warn!(
+                ?l1_tx_hash,
+                l1_l2_msg_hash = %tx.calc_msg_hash(),
+                to_address = %tx.contract_address,
+                entry_point_selector = %tx.entry_point_selector,
+                nonce = %tx.nonce,
+                payload_length,
+                max_payload_length,
+                "Dropping L1 handler message: payload exceeds the max L1 handler payload length."
+            );
+            L1_MESSAGE_SCRAPER_OVERSIZED_PAYLOAD_DROPPED_COUNT.increment(1);
+            false
+        })
+        .collect()
 }
