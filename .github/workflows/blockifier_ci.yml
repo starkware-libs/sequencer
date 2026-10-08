@@ -148,14 +148,13 @@ jobs:
           mkdir -p pr-${{ github.run_id }}/target
           cp -r target/criterion pr-${{ github.run_id }}/target/
 
-      # Release-branch merge PRs land intentional blockifier changes on main; allow a
-      # higher regression budget than incremental PRs (default 8%).
+      # Benchmark the current branch and compare to the previous run.
       - name: Benchmark (Feature Branch)
         working-directory: pr-${{ github.run_id }}
         run: |
           cargo run -p bench_tools -- run-and-compare \
             --package blockifier \
             --out /tmp/new_results \
-            --regression-limit ${{ contains(github.event.pull_request.title, 'Merge main-v') && 17.0 || 8.0 }} \
-            --set-absolute-time-ns-limit transfers_sequential_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
-            --set-absolute-time-ns-limit transfers_sequential_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
+            --regression-limit 8.0 \
+            --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
+            --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
