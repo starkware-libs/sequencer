@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Versioned constants for the Apollo consensus orchestrator"
+publish = false
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

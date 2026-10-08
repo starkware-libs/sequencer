@@ -5,6 +5,7 @@ license.workspace = true
 repository.workspace = true
 version.workspace = true
 description = "Transaction converter for Apollo sequencer, handling conversions between different transaction formats."
+publish = false
 
 [features]
 testing = ["apollo_class_manager_types/testing", "apollo_proof_manager_types/testing", "mockall"]

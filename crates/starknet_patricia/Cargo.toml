@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Library for computing and updating Patricia trees."
+publish = false
 
 [lints]
 workspace = true

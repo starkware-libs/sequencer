@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Protocol buffer definitions and serialization for P2P communication."
+publish = false
 
 [features]
 bin-deps = ["prost-build", "protoc-prebuilt", "tracing-subscriber"]

@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Type definitions for the Apollo config manager component."
+publish = false
 
 [lints]
 workspace = true

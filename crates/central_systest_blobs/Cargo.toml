@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Keeps blob JSONs for centralized system test, and tests for regression"
+publish = false
 
 [dev-dependencies]
 apollo_batcher = { workspace = true, features = ["testing"] }

@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Configuration aggregation for the Apollo sequencer node."
+publish = false
 
 [features]
 testing = []
