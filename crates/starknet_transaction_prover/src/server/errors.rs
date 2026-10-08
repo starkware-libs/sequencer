@@ -12,12 +12,7 @@ use jsonrpsee::types::ErrorObjectOwned;
 
 #[cfg(feature = "stwo_proving")]
 use crate::errors::ProvingError;
-use crate::errors::{
-    ProofProviderError,
-    RunnerError,
-    VirtualBlockExecutorError,
-    VirtualSnosProverError,
-};
+use crate::errors::{ProofProviderError, RunnerClientError, RunnerError, VirtualSnosProverError};
 
 #[cfg(test)]
 #[path = "errors_test.rs"]
@@ -86,32 +81,30 @@ fn out_of_gas_error(reason: &str) -> ErrorObjectOwned {
     invalid_transaction_input(format!("{reason}\n\n{OUT_OF_GAS_HINT}"))
 }
 
-/// Maps a [`RunnerError`] to a JSON-RPC error, surfacing known upstream error
-/// codes instead of hiding them behind -32603.
-fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
-    match err {
-        RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::TransactionReverted(
-            _,
-            ref reason,
-        )) if reason.contains("Out of gas") => out_of_gas_error(reason),
-        RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError {
-            code,
-            message,
-            data,
-        }) => {
-            let rpc_code = i32::try_from(code).unwrap_or(InternalError.code());
-            if rpc_code >= 0 {
-                // Positive codes are user-facing Starknet application errors — forward the
-                // upstream code, message, and any data (e.g. nonce details for code 41) as-is.
-                ErrorObjectOwned::owned(rpc_code, message, data)
-            } else {
-                // Negative codes are JSON-RPC infrastructure errors — hide behind -32603.
+/// Maps a [`RunnerError`] to a JSON-RPC error. When [`RunnerError::client_error`] returns an
+/// error, the client receives its client-facing JSON-RPC error code, 1000 for an out-of-gas revert
+/// or the forwarded upstream code. Every other failure is hidden behind -32603.
+fn runner_error_to_rpc(err: &RunnerError) -> ErrorObjectOwned {
+    match err.client_error() {
+        Some(RunnerClientError::OutOfGas { revert_reason }) => out_of_gas_error(revert_reason),
+        // Forwards the upstream code, message, and any data (e.g. nonce details for code 41).
+        Some(RunnerClientError::UpstreamApplicationError { code, message, data }) => {
+            ErrorObjectOwned::owned(code, message, data)
+        }
+        None => match err {
+            // Keeps the base text, which reports a code outside the i32 range as -32603.
+            RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError {
+                code,
+                message,
+                ..
+            }) => {
+                let rpc_code = i32::try_from(*code).unwrap_or(InternalError.code());
                 internal_server_error(format!(
                     "Upstream JSON-RPC error (code {rpc_code}): {message}"
                 ))
             }
-        }
-        other => internal_server_error(other),
+            other => internal_server_error(other),
+        },
     }
 }
 
@@ -124,7 +117,7 @@ impl From<VirtualSnosProverError> for ErrorObjectOwned {
                 // Check if it's a pending block error.
                 if msg.contains("Pending") { block_not_found() } else { validation_failure(msg) }
             }
-            VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(*e),
+            VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(&e),
             #[cfg(feature = "stwo_proving")]
             VirtualSnosProverError::ProvingError(
                 error @ ProvingError::UnsupportedBuiltins { .. },
