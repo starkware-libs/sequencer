@@ -1,7 +1,7 @@
 #![cfg(any(test, feature = "testing"))]
 mod utils;
 
-use apollo_l1_events::l1_scraper::MAX_L1_HANDLER_PAYLOAD_LENGTH;
+use apollo_l1_events_config::config::L1EventsScraperConfig;
 use apollo_l1_events_types::{
     InvalidValidationStatus,
     L1EventsProviderClient,
@@ -26,16 +26,12 @@ fn payload_of_length(payload_length: usize) -> Vec<u8> {
 async fn oversized_message_is_dropped_and_at_limit_message_is_scraped() {
     // Setup.
     let mut base_layer = setup_anvil_base_layer().await;
-    let (oversized_hash, _nonce) = send_message_from_l1_to_l2(
-        &mut base_layer,
-        &payload_of_length(MAX_L1_HANDLER_PAYLOAD_LENGTH + 1),
-    )
-    .await;
-    let (at_limit_hash, _nonce) = send_message_from_l1_to_l2(
-        &mut base_layer,
-        &payload_of_length(MAX_L1_HANDLER_PAYLOAD_LENGTH),
-    )
-    .await;
+    let max_payload_length = L1EventsScraperConfig::default().max_l1_handler_payload_length;
+    let (oversized_hash, _nonce) =
+        send_message_from_l1_to_l2(&mut base_layer, &payload_of_length(max_payload_length + 1))
+            .await;
+    let (at_limit_hash, _nonce) =
+        send_message_from_l1_to_l2(&mut base_layer, &payload_of_length(max_payload_length)).await;
 
     // Both messages are already on L1, so the scraper's initialize path scrapes them.
     let l1_events_provider_client =
