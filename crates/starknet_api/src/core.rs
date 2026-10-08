@@ -2,8 +2,6 @@
 #[path = "core_test.rs"]
 mod core_test;
 
-#[cfg(any(test, feature = "testing"))]
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -205,14 +203,6 @@ impl OsChainInfo {
         starknet_version: StarknetVersion,
     ) -> Result<Felt, StarknetApiError> {
         self.compute_os_config_hash(None, starknet_version)
-    }
-
-    #[cfg(any(test, feature = "testing"))]
-    pub fn to_hex_map(&self) -> BTreeMap<String, String> {
-        BTreeMap::from([
-            ("chain_id".to_string(), self.chain_id.as_hex()),
-            ("strk_fee_token_address".to_string(), self.strk_fee_token_address.to_string()),
-        ])
     }
 }
 
@@ -420,14 +410,6 @@ impl Nonce {
             return Err(StarknetApiError::OutOfRange { string: format!("{self:?}") });
         }
         Ok(Self(incremented))
-    }
-
-    pub fn try_decrement(&self) -> Result<Self, StarknetApiError> {
-        // Check if an underflow occurred during decrement.
-        if self.0 == Felt::ZERO {
-            return Err(StarknetApiError::OutOfRange { string: format!("{self:?}") });
-        }
-        Ok(Self(self.0 - Felt::ONE))
     }
 }
 

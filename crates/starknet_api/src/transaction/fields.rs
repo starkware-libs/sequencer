@@ -516,14 +516,6 @@ impl std::fmt::Display for AllResourceBounds {
 }
 
 impl AllResourceBounds {
-    pub fn get_bound(&self, resource: Resource) -> ResourceBounds {
-        match resource {
-            Resource::L1Gas => self.l1_gas,
-            Resource::L2Gas => self.l2_gas,
-            Resource::L1DataGas => self.l1_data_gas,
-        }
-    }
-
     pub fn to_max_amounts(&self) -> GasVector {
         GasVector {
             l1_gas: self.l1_gas.max_amount,
