@@ -20,9 +20,3 @@ runs:
     - name: Install cargo tools
       shell: bash
       run: ./scripts/install_cargo_tools.sh
-
-    # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged binaries.
-    - name: Install Anvil
-      uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
-      with:
-        version: v1.5.1

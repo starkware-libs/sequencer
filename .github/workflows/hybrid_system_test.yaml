@@ -285,10 +285,16 @@ jobs:
           echo "SENDER_ADDRESS=$SENDER_ADDRESS" >> "$GITHUB_ENV"
           echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
 
+      # Retried because a transient upstream 503 in this step previously failed 12+ jobs across
+      # 5 PRs. `continue-on-error` works here but not inside a composite action.
       - name: Install Anvil
-        uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
-        with:
-          version: v1.5.1
+        id: install_anvil
+        continue-on-error: true
+        uses: ./.github/actions/install_anvil
+
+      - name: Retry installing Anvil
+        if: steps.install_anvil.outcome == 'failure'
+        uses: ./.github/actions/install_anvil
 
       - name: Restore executable permissions
         run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
