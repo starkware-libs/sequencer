@@ -281,7 +281,8 @@ curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
 ## Observability
 
 Besides the JSON-RPC API, the service answers a `GET /health` probe, serves a `GET /metrics`
-scrape, and writes one structured log line per request, each carrying a request id.
+scrape, and writes one structured log line per HTTP request, each carrying a request id. It also
+logs one line per single JSON-RPC call and one per batch.
 
 ### `/health`
 
@@ -383,6 +384,22 @@ there was never a status.
 
 The logging layer never reads request bodies. Transaction calldata is private user data and stays
 out of the logs.
+
+### JSON-RPC log lines
+
+The `http_request` line carries no method name, and a failed JSON-RPC call still gets status 200.
+So each single call also logs one `info` line with `event="rpc_request"`, `rpc_method`, `outcome`
+(`success` or `error`), `rpc_error_code` on errors, and `latency_ms`. `rpc_method` is the method
+name only when the server registers that method, and `unknown` otherwise. No line carries params.
+A batch logs one `info` line with `event="rpc_batch"`, `batch_size`, and `latency_ms`, and its
+calls log no lines of their own. `batch_size` counts every entry, including notifications and
+entries jsonrpsee cannot parse. A notification outside a batch logs no JSON-RPC line, and
+jsonrpsee acknowledges it without running the method it names. A body that jsonrpsee cannot parse
+gets an error response and no JSON-RPC line. Over HTTP, both still get their `http_request` line.
+
+jsonrpsee handles a call or batch over HTTP inside the `http_request` span, so its line carries that
+span's `request_id` (the inner id for OHTTP traffic). Calls over a WebSocket connection, which
+jsonrpsee enables by default, carry no `request_id`.
 
 ### Startup logs
 
