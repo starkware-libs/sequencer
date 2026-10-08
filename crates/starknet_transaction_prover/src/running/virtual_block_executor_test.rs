@@ -12,6 +12,7 @@ use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
+use tracing_test::traced_test;
 
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::virtual_block_executor::{
@@ -355,4 +356,26 @@ fn test_starknet_version_or_latest_roundtrips_latest() {
 #[case::release_candidate_suffix("0.15.0-rc.1")]
 fn test_starknet_version_or_latest_rejects_invalid_version(#[case] version_string: &str) {
     assert!(starknet_version_or_latest(version_string).is_err());
+}
+
+/// The prefetch request goes to a node URL that can hold an API key and carries the transaction,
+/// so its fallback warning must log only bounded fields.
+#[test]
+#[traced_test]
+fn test_prefetch_fallback_log_omits_node_url() {
+    let executor = RpcVirtualBlockExecutor::new(
+        "http://127.0.0.1:1/v2/secret-api-key".to_string(),
+        get_chain_info(&ChainId::Mainnet, None),
+        BlockId::Latest,
+        RpcVirtualBlockExecutorConfig { prefetch_state: true, ..Default::default() },
+    );
+    // The default test invoke is V3 with all resource bounds, so prefetch sends it to the node.
+    let transaction = Transaction::Invoke(invoke_tx(invoke_tx_args!()));
+
+    let state_reader = executor.state_reader(BlockId::Latest, &[transaction]);
+
+    assert!(state_reader.is_ok(), "a failed prefetch falls back to individual RPC reads");
+    // An HTTP proxy can change the failure reason but not this message.
+    assert!(logs_contain("State prefetch via starknet_simulateTransactions failed"));
+    assert!(!logs_contain("secret-api-key"));
 }
