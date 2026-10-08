@@ -83,6 +83,7 @@ func write_leaf_proof_entry{range_check_ptr}(
 }
 
 // Writes the leaf verifier's circuit hash to `circuit_hash` as eight little-endian 32-bit words.
+// TODO(Einat): accept the leaf verifiers of all the registry's trace sizes.
 func write_leaf_verifier_circuit_hash(circuit_hash: felt*) {
     assert circuit_hash[0] = 0xd2d85a42;
     assert circuit_hash[1] = 0x79697b22;
