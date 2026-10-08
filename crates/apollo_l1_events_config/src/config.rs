@@ -136,6 +136,14 @@ pub struct L1EventsScraperConfig {
     /// request.
     #[validate(range(min = 1))]
     pub max_blocks_per_fetch: u64,
+    /// Max number of payload felts (calldata without the leading `from_address`) an L1→L2 message
+    /// may carry; the scraper drops longer messages before they reach the provider, so this node
+    /// never proposes them. Node ingestion policy, not a protocol rule, but liveness-relevant:
+    /// every validator of a network must use the same value. A proposer with a higher limit has
+    /// its proposals rejected (`NotFound`) by stricter validators, and a stricter validator falls
+    /// back to sync whenever laxer nodes commit such a message. Values above the batcher
+    /// bouncer's message-segment block capacity are a no-op.
+    pub max_l1_handler_payload_length: usize,
 }
 
 impl Default for L1EventsScraperConfig {
@@ -151,6 +159,7 @@ impl Default for L1EventsScraperConfig {
             // (~1k-10k) and the 1s base-layer timeout. Operators on permissive private RPCs may
             // raise it.
             max_blocks_per_fetch: 1000,
+            max_l1_handler_payload_length: 20,
         }
     }
 }
@@ -201,6 +210,14 @@ impl SerializeConfig for L1EventsScraperConfig {
                 "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the \
                  catch-up window so a large backlog is drained over successive polls instead of in \
                  one unbounded request.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l1_handler_payload_length",
+                &self.max_l1_handler_payload_length,
+                "Max number of payload felts (calldata without the leading from_address) an L1 to \
+                 L2 message may carry; the scraper drops longer messages. Must be identical on \
+                 every validator of the network.",
                 ParamPrivacyInput::Public,
             ),
         ])

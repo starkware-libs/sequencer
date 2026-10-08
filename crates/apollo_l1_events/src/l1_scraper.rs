@@ -38,10 +38,6 @@ pub mod l1_scraper_tests;
 
 type L1EventsScraperResult<T, B> = Result<T, L1EventsScraperError<B>>;
 
-/// Max number of payload felts (calldata without the leading `from_address`) an L1→L2 message may
-/// carry; the scraper drops longer messages, so this node never proposes them.
-pub const MAX_L1_HANDLER_PAYLOAD_LENGTH: usize = 20;
-
 pub struct L1EventsScraper<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     pub config: L1EventsScraperConfig,
     pub base_layer: BaseLayerType,
@@ -335,7 +331,8 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
             .await;
 
         let l1_events = scraping_result.map_err(L1EventsScraperError::BaseLayerError)?;
-        let l1_events = drop_oversized_messages(l1_events, MAX_L1_HANDLER_PAYLOAD_LENGTH);
+        let l1_events =
+            drop_oversized_messages(l1_events, self.config.max_l1_handler_payload_length);
 
         // Used for debug. Collect the L1 tx hashes and L1 block timestamps.
         let l1_messages_info = l1_events
