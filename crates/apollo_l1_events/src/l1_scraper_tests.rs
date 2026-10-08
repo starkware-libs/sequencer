@@ -19,12 +19,7 @@ use starknet_api::transaction::L1HandlerTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::event_identifiers_to_track;
-use crate::l1_scraper::{
-    drop_oversized_messages,
-    L1EventsScraper,
-    L1EventsScraperError,
-    MAX_L1_HANDLER_PAYLOAD_LENGTH,
-};
+use crate::l1_scraper::{drop_oversized_messages, L1EventsScraper, L1EventsScraperError};
 use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_OVERSIZED_PAYLOAD_DROPPED_COUNT,
@@ -620,8 +615,9 @@ fn limit_zero_forwards_only_empty_payloads() {
 #[tokio::test]
 async fn oversized_message_does_not_affect_other_events() {
     const LATEST_BLOCK_NUMBER: u64 = 10;
+    const MAX_PAYLOAD_LENGTH: usize = 3;
     const SMALL_PAYLOAD_LENGTH: usize = 1;
-    const OVERSIZED_PAYLOAD_LENGTH: usize = MAX_L1_HANDLER_PAYLOAD_LENGTH + 1;
+    const OVERSIZED_PAYLOAD_LENGTH: usize = MAX_PAYLOAD_LENGTH + 1;
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_scraper_metrics();
@@ -650,6 +646,7 @@ async fn oversized_message_does_not_affect_other_events() {
     let mut scraper = scraper_with_dummy().await;
     scraper.scrape_from_this_l1_block =
         Some(L1BlockReference { number: 0, hash: DUMMY_L1_BLOCK_HASH });
+    scraper.config.max_l1_handler_payload_length = MAX_PAYLOAD_LENGTH;
     scraper.base_layer = base_layer_returning_events(LATEST_BLOCK_NUMBER, scraped_events);
     scraper.l1_events_provider_client = Arc::new(l1_events_provider_client);
 
@@ -680,13 +677,14 @@ async fn oversized_message_does_not_affect_other_events() {
 async fn all_dropped_window_still_advances_cursor() {
     const MAX_BLOCKS_PER_FETCH: u64 = 1000;
     const LATEST_BLOCK_NUMBER: u64 = 10;
+    const MAX_PAYLOAD_LENGTH: usize = 3;
     const NUM_OVERSIZED_MESSAGES: u64 = 2;
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_scraper_metrics();
 
     let scraped_events = (0..NUM_OVERSIZED_MESSAGES)
-        .map(|_| log_message_to_l2_event_with_payload_length(MAX_L1_HANDLER_PAYLOAD_LENGTH + 1))
+        .map(|_| log_message_to_l2_event_with_payload_length(MAX_PAYLOAD_LENGTH + 1))
         .collect();
 
     let forwarded_events: Arc<Mutex<Vec<Event>>> = Arc::new(Mutex::new(vec![]));
@@ -701,6 +699,7 @@ async fn all_dropped_window_still_advances_cursor() {
     scraper.config.max_blocks_per_fetch = MAX_BLOCKS_PER_FETCH;
     scraper.scrape_from_this_l1_block =
         Some(L1BlockReference { number: 0, hash: DUMMY_L1_BLOCK_HASH });
+    scraper.config.max_l1_handler_payload_length = MAX_PAYLOAD_LENGTH;
     scraper.base_layer = base_layer_returning_events(LATEST_BLOCK_NUMBER, scraped_events);
     scraper.l1_events_provider_client = Arc::new(l1_events_provider_client);
 
@@ -716,12 +715,12 @@ async fn all_dropped_window_still_advances_cursor() {
 #[tokio::test]
 async fn dropped_messages_are_recounted_on_retry() {
     const LATEST_BLOCK_NUMBER: u64 = 10;
+    const MAX_PAYLOAD_LENGTH: usize = 3;
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_scraper_metrics();
 
-    let scraped_events =
-        vec![log_message_to_l2_event_with_payload_length(MAX_L1_HANDLER_PAYLOAD_LENGTH + 1)];
+    let scraped_events = vec![log_message_to_l2_event_with_payload_length(MAX_PAYLOAD_LENGTH + 1)];
 
     let mut l1_events_provider_client = MockL1EventsProviderClient::default();
     l1_events_provider_client.expect_add_events().times(1).returning(|_| {
@@ -734,6 +733,7 @@ async fn dropped_messages_are_recounted_on_retry() {
     let mut scraper = scraper_with_dummy().await;
     scraper.scrape_from_this_l1_block =
         Some(L1BlockReference { number: 0, hash: DUMMY_L1_BLOCK_HASH });
+    scraper.config.max_l1_handler_payload_length = MAX_PAYLOAD_LENGTH;
     scraper.base_layer = base_layer_returning_events(LATEST_BLOCK_NUMBER, scraped_events);
     scraper.l1_events_provider_client = Arc::new(l1_events_provider_client);
 
@@ -744,6 +744,44 @@ async fn dropped_messages_are_recounted_on_retry() {
     scraper.send_events_to_l1_events_provider().await.unwrap();
 
     assert_eq!(oversized_payload_dropped_count(&recorder), Some(2));
+}
+
+// Limit 0 is a legitimate setting (only empty payloads), so the config carries no lower bound.
+#[tokio::test]
+async fn limit_zero_through_config() {
+    const LATEST_BLOCK_NUMBER: u64 = 10;
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_scraper_metrics();
+
+    let scraped_events = vec![
+        log_message_to_l2_event_with_payload_length(0),
+        log_message_to_l2_event_with_payload_length(1),
+    ];
+
+    let forwarded_events: Arc<Mutex<Vec<Event>>> = Arc::new(Mutex::new(vec![]));
+    let forwarded_events_clone = forwarded_events.clone();
+    let mut l1_events_provider_client = MockL1EventsProviderClient::default();
+    l1_events_provider_client.expect_add_events().once().returning(move |events| {
+        *forwarded_events_clone.lock().unwrap() = events;
+        Ok(())
+    });
+
+    let mut scraper = scraper_with_dummy().await;
+    scraper.config.max_l1_handler_payload_length = 0;
+    scraper.scrape_from_this_l1_block =
+        Some(L1BlockReference { number: 0, hash: DUMMY_L1_BLOCK_HASH });
+    scraper.base_layer = base_layer_returning_events(LATEST_BLOCK_NUMBER, scraped_events);
+    scraper.l1_events_provider_client = Arc::new(l1_events_provider_client);
+
+    scraper.send_events_to_l1_events_provider().await.unwrap();
+
+    let forwarded_events = forwarded_events.lock().unwrap();
+    assert_matches!(
+        forwarded_events.as_slice(),
+        [Event::L1HandlerTransaction { l1_handler_tx, .. }] if l1_handler_tx.payload_size() == 0
+    );
+    assert_eq!(oversized_payload_dropped_count(&recorder), Some(1));
 }
 
 #[test]
