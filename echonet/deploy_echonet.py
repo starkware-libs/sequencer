@@ -27,7 +27,7 @@ import urllib.request
 from http import HTTPStatus
 from pathlib import Path
 
-from constants import ECHONET_KEYS_FILENAME
+from constants import DEFAULT_SEQUENCER_LAYOUT, ECHONET_KEYS_FILENAME, SEQUENCER_LAYOUTS
 from helpers import read_json_object
 
 logger = logging.getLogger("deploy_echonet")
@@ -349,21 +349,15 @@ def main(argv: list[str] | None = None) -> int:
     _scale_down_existing_echonet_deployments(namespace_args)
 
     # Ensure the sequencer is scaled down before deploying/updating echonet.
-    logger.info("Scaling down statefulset/sequencer-node-statefulset to 0 replicas...")
-    _run(
-        [
-            "kubectl",
-            *namespace_args,
-            "scale",
-            "statefulset",
-            "sequencer-node-statefulset",
-            "--replicas=0",
-        ]
-    )
-    logger.info("Waiting for rollout status statefulset/sequencer-node-statefulset...")
-    _run(
-        ["kubectl", *namespace_args, "rollout", "status", "statefulset/sequencer-node-statefulset"]
-    )
+    layout_name = read_json_object(keys_in_repo).get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT)
+    sequencer_workloads = [
+        f"{kind}/{name}" for kind, name in SEQUENCER_LAYOUTS[layout_name].workloads
+    ]
+    logger.info(f"Scaling down {', '.join(sequencer_workloads)} to 0 replicas...")
+    _run(["kubectl", *namespace_args, "scale", *sequencer_workloads, "--replicas=0"])
+    for workload in sequencer_workloads:
+        logger.info(f"Waiting for rollout status {workload}...")
+        _run(["kubectl", *namespace_args, "rollout", "status", workload])
 
     # Apply manifests
     logger.info("Applying manifests...")

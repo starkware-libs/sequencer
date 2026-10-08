@@ -9,11 +9,14 @@ from typing import Any, FrozenSet, Mapping, TypeAlias, TypedDict
 
 from echonet import helpers
 from echonet.constants import (
+    DEFAULT_SEQUENCER_LAYOUT,
     ECHONET_ENV_KEYS_PATH,
     ECHONET_ENV_SECRETS_PATH,
     ECHONET_KEYS_FILENAME,
     ECHONET_SECRETS_FILENAME,
     MAX_BLOCK_NUMBER,
+    SEQUENCER_LAYOUTS,
+    SequencerLayout,
 )
 
 JsonObject: TypeAlias = dict[str, Any]
@@ -128,6 +131,7 @@ class SequencerGatewayConfig:
     """Configuration for connecting to the local sequencer node gateway."""
 
     base_url_default: str
+    layout: SequencerLayout
     endpoints: SequencerGatewayEndpoints = SequencerGatewayEndpoints()
 
 
@@ -265,6 +269,9 @@ class EchonetConfig:
         start_block = int(keys["start_block"])
         blocked_senders_csv = str(keys.get("blocked_senders", ""))
         max_block_lead_before_pausing = int(keys.get("max_block_lead_before_pausing", 10))
+        sequencer_layout = SEQUENCER_LAYOUTS[
+            str(keys.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
+        ]
 
         feeder_bypass = str(secrets.get("feeder_x_throttling_bypass", "")).strip()
         feeder_headers = MappingProxyType(
@@ -286,8 +293,12 @@ class EchonetConfig:
             ),
             sequencer=SequencerGatewayConfig(
                 base_url_default=str(
-                    keys.get("sequencer_base_url_default", "http://sequencer-node-service:8080")
+                    keys.get(
+                        "sequencer_base_url_default",
+                        f"http://sequencer-{sequencer_layout.http_service}-service:8080",
+                    )
                 ),
+                layout=sequencer_layout,
             ),
             blocks=BlockRangeDefaults(
                 start_block=start_block,
