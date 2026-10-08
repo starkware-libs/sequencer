@@ -196,31 +196,14 @@ fn echonet_gateway_config() -> GatewayConfig {
 }
 
 #[test]
-fn echonet_with_remote_batcher_fails() {
-    let config = SequencerNodeConfig {
-        components: ComponentConfig {
-            batcher: ReactiveComponentExecutionConfig::remote(VALID_URL.to_string(), VALID_PORT),
-            ..Default::default()
-        },
-        gateway_config: Some(echonet_gateway_config()),
-        batcher_config: None,
-        ..Default::default()
-    };
-    let err = config.validate_node_config().unwrap_err();
-    assert!(format!("{err:?}").contains("consolidated"), "Unexpected error: {err:?}");
-}
+fn echonet_recorder_url_is_set_only_in_echonet_mode() {
+    let mut config = SequencerNodeConfig::default();
+    assert_eq!(config.echonet_recorder_url(), None);
 
-#[test]
-fn echonet_consolidated_succeeds() {
-    let mut config = SequencerNodeConfig {
-        gateway_config: Some(echonet_gateway_config()),
-        ..Default::default()
-    };
-    // `SequencerNodeConfig::default()` leaves pointer-group values (chain_id, fee tokens, ...)
-    // inconsistent across components; reconcile them so the config passes cross-component
-    // validation, isolating this test to the Echonet-specific check.
-    normalize_pointer_groups(&mut config);
-    assert!(config.validate_node_config().is_ok(), "{:?}", config.validate_node_config());
+    let gateway_config = echonet_gateway_config();
+    let expected_url = gateway_config.static_config.recorder_url.clone();
+    config.gateway_config = Some(gateway_config);
+    assert_eq!(config.echonet_recorder_url(), Some(&expected_url));
 }
 
 #[rstest]
