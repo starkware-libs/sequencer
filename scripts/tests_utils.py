@@ -22,15 +22,7 @@ DEPENDENCY_PATTERN = r"([a-zA-Z0-9_]+) [^(]* \(([^)]+)\)"
 
 def get_workspace_tree() -> Dict[str, str]:
     tree = dict()
-    # Temporarily disable rustc-wrapper for cargo tree to avoid requiring sccache.
-    # TODO(Yoav): Remove this once hybrid_system_test uses bootstrap.
-    env = os.environ.copy()
-    env["RUSTC_WRAPPER"] = ""
-    res = (
-        subprocess.check_output("cargo tree --depth 0".split(), env=env)
-        .decode("utf-8")
-        .splitlines()
-    )
+    res = subprocess.check_output("cargo tree --depth 0".split()).decode("utf-8").splitlines()
     for l in res:
         m = re.match(PATTERN, l)
         if m is not None:
@@ -65,11 +57,8 @@ def get_modified_packages(files: List[str]) -> Set[str]:
 
 
 def get_package_dependencies(package_name: str) -> Set[str]:
-    # TODO(Yoav): Remove the env override once hybrid_system_test uses bootstrap.
-    env = os.environ.copy()
-    env["RUSTC_WRAPPER"] = ""
     res = (
-        subprocess.check_output(f"cargo tree -i {package_name} --prefix none".split(), env=env)
+        subprocess.check_output(f"cargo tree -i {package_name} --prefix none".split())
         .decode("utf-8")
         .splitlines()
     )
