@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -20,8 +21,14 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ContractAddress;
+use starknet_api::state::StorageKey;
 use url::Url;
 use validator::{Validate, ValidationError};
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
@@ -177,6 +184,7 @@ pub struct BatcherDynamicConfig {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub view_call_timeout_millis: Duration,
+    pub storage_access_filter_config: StorageAccessFilterConfig,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -190,8 +198,16 @@ impl Default for BatcherDynamicConfig {
             results_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
             view_call_timeout_millis: Duration::from_secs(5),
+            storage_access_filter_config: StorageAccessFilterConfig::default(),
         }
     }
+}
+
+/// Restricts the storage keys that transactions may access.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct StorageAccessFilterConfig {
+    pub blocked_storage_keys: BTreeSet<StorageKey>,
+    pub exempt_account_address: Option<ContractAddress>,
 }
 
 /// The batcher related configuration.

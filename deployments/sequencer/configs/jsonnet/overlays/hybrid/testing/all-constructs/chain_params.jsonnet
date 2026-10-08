@@ -33,7 +33,7 @@
   n_concurrent_txs: 1,
   n_execution_workers: 1,
   committer_cache_size: 1000000,
-  audited_libfuncs_only: false,
+  allowed_libfuncs_list: 'all',
   central_sync_client_config: null,
   p2p_sync_client_config: {},
 }

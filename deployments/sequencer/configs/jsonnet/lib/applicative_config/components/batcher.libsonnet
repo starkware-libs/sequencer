@@ -5,6 +5,10 @@ function(chain_params)
       n_concurrent_txs: chain_params.n_concurrent_txs,
       native_classes_whitelist: chain_params.native_classes_whitelist,
       proposer_idle_detection_delay_millis: chain_params.proposer_idle_detection_delay_millis,
+      storage_access_filter_config: {
+        blocked_storage_keys: [],
+        exempt_account_address: null,
+      },
       storage_reader_server_dynamic_config: {
         enable: false,
       },

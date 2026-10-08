@@ -36,7 +36,7 @@
   committer_cache_size: 1000000,
   proposal_timeout_max: 15.0,
   min_gas_price: 3000000000,
-  audited_libfuncs_only: false,
+  allowed_libfuncs_list: 'all',
   compare_retrospective_block_hash: false,
   central_sync_client_config: null,
   p2p_sync_client_config: {},

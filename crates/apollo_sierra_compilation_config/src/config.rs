@@ -1,11 +1,30 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 // TODO(Noa): Reconsider the default values.
 pub const DEFAULT_MAX_BYTECODE_SIZE: usize = 80 * 1024;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 pub const DEFAULT_MAX_CPU_TIME: u64 = 60;
-pub const DEFAULT_AUDITED_LIBFUNCS_ONLY: bool = true;
+pub const DEFAULT_ALLOWED_LIBFUNCS_LIST: AllowedLibfuncsList = AllowedLibfuncsList::Bundled;
+
+/// Which libfuncs the Sierra-to-CASM compiler accepts.
+///
+/// Serialized as a single string, so it can be set through the flat deployment config.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AllowedLibfuncsList {
+    /// The compiler's built-in audited list.
+    Audited,
+    /// The compiler's built-in list of every libfunc.
+    All,
+    /// The custom list this node ships
+    /// (`apollo_compile_to_casm/resources/allowed_libfuncs.json`).
+    Bundled,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraCompilationConfig {
@@ -15,8 +34,8 @@ pub struct SierraCompilationConfig {
     pub max_memory_usage: u64,
     /// Compilation process's CPU time limit (in seconds).
     pub max_cpu_time: u64,
-    /// If true, compile with audited libfuncs only; if false, allow all libfuncs.
-    pub audited_libfuncs_only: bool,
+    /// The libfunc list the compiler validates against.
+    pub allowed_libfuncs_list: AllowedLibfuncsList,
 }
 
 impl Default for SierraCompilationConfig {
@@ -25,7 +44,7 @@ impl Default for SierraCompilationConfig {
             max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
-            audited_libfuncs_only: DEFAULT_AUDITED_LIBFUNCS_ONLY,
+            allowed_libfuncs_list: DEFAULT_ALLOWED_LIBFUNCS_LIST,
         }
     }
 }

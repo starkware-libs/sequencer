@@ -70,7 +70,7 @@
   ],
   "for": "1m",
   "execErrState": "Error",
-  "noDataState": "NoData",
+  "noDataState": "KeepLast",
   "folderUID": "",
   "ruleGroup": "mempool",
   "annotations": {},

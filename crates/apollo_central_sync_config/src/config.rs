@@ -8,8 +8,8 @@ use apollo_config::converters::{
     serialize_duration_as_milliseconds,
     serialize_duration_as_seconds,
 };
+use apollo_config::retry::RetryConfig;
 use apollo_config::secrets::Sensitive;
-use apollo_starknet_client::RetryConfig;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;

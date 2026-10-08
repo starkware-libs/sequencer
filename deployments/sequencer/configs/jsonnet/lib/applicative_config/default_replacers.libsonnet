@@ -34,7 +34,7 @@ local defaults = import '../defaults.libsonnet';
 
   transaction_ttl: 300,
 
-  audited_libfuncs_only: true,
+  allowed_libfuncs_list: 'bundled',
   max_bytecode_size: 81920,
 
   // Enable the central sync client by default.

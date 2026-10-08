@@ -14,11 +14,6 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::{
-    CompressedPayload,
-    CompressedStateCommitmentInfos,
-    STATE_COMMITMENT_INFOS_VERSION,
-};
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
@@ -37,6 +32,7 @@ use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{
     get_number_of_items_in_channel_from_receiver,
     get_number_of_items_in_channel_from_sender,
+    test_state_commitment_infos,
     test_state_diff,
     wait_for_condition,
     wait_for_n_items,
@@ -69,14 +65,11 @@ fn mock_dependencies() -> MockDependencies {
     committer_client.expect_revert_block().returning(|_| {
         Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
     });
-    committer_client.expect_read_paths_and_commit_block().returning(|_| {
-        Box::pin(async {
+    committer_client.expect_read_paths_and_commit_block().returning(|request| {
+        Box::pin(async move {
             Ok(ReadPathsAndCommitBlockResponse {
                 global_root: GlobalRoot::default(),
-                state_commitment_infos: CompressedStateCommitmentInfos {
-                    version: STATE_COMMITMENT_INFOS_VERSION,
-                    payload: CompressedPayload(Vec::new()),
-                },
+                state_commitment_infos: test_state_commitment_infos(request.commit.height),
             })
         })
     });

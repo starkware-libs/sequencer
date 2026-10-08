@@ -6,21 +6,10 @@ use std::fmt::Debug;
 use std::iter::Take;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
+pub use apollo_config::retry::RetryConfig;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Condition, RetryIf};
 use tracing::debug;
-
-/// A configuration for the retry mechanism.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub struct RetryConfig {
-    /// The initial waiting time in milliseconds.
-    pub retry_base_millis: u64,
-    /// The maximum waiting time in milliseconds.
-    pub retry_max_delay_millis: u64,
-    /// The maximum number of retries.
-    pub max_retries: usize,
-}
 
 /// A utility for retrying actions with a configurable backoff and error filter. Uses an
 /// [`ExponentialBackoff`] strategy.

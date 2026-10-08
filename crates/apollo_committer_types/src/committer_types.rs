@@ -48,3 +48,16 @@ pub struct ReadPathsAndCommitBlockResponse {
     pub global_root: GlobalRoot,
     pub state_commitment_infos: CompressedStateCommitmentInfos,
 }
+
+/// Read the stored state commitment infos of a committed height.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GetStateCommitmentInfosRequest {
+    pub height: BlockNumber,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GetStateCommitmentInfosResponse {
+    /// `None` when the height is not committed yet, or its infos were never stored or already
+    /// pruned.
+    pub state_commitment_infos: Option<CompressedStateCommitmentInfos>,
+}
