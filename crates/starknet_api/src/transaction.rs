@@ -780,6 +780,14 @@ impl L1HandlerTransaction {
     /// The transaction version is considered 0 for L1-Handler transaction for hash calculation
     /// purposes.
     pub const VERSION: TransactionVersion = TransactionVersion::ZERO;
+
+    pub fn payload_size(&self) -> usize {
+        // The calldata includes the "from" field, which is not a part of the payload.
+        // `saturating_sub` guards the empty-calldata case (which would otherwise underflow to
+        // `usize::MAX` in release): `L1HandlerTransaction` derives `Deserialize` and `Calldata`
+        // has no non-empty invariant.
+        self.calldata.0.len().saturating_sub(1)
+    }
 }
 
 impl TransactionHasher for L1HandlerTransaction {
