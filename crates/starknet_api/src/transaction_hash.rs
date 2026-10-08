@@ -3,7 +3,15 @@ use std::sync::LazyLock;
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
-use crate::core::{ascii_as_felt, ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{
+    ascii_as_felt,
+    AddressDerivationHash,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::fields::{
@@ -86,15 +94,20 @@ pub fn get_transaction_hash(
                 get_declare_transaction_v3_hash(declare_v3, chain_id, transaction_version)
             }
         },
-        Transaction::Deploy(deploy) => {
-            get_deploy_transaction_hash(deploy, chain_id, transaction_version)
-        }
+        Transaction::Deploy(deploy) => get_deploy_transaction_hash(
+            deploy,
+            chain_id,
+            transaction_version,
+            deploy.calculate_contract_address(AddressDerivationHash::Pedersen)?,
+        ),
         Transaction::DeployAccount(deploy_account) => match deploy_account {
             DeployAccountTransaction::V1(deploy_account_v1) => {
                 get_deploy_account_transaction_v1_hash(
                     deploy_account_v1,
                     chain_id,
                     transaction_version,
+                    deploy_account_v1
+                        .calculate_contract_address(AddressDerivationHash::Pedersen)?,
                 )
             }
             DeployAccountTransaction::V3(deploy_account_v3) => {
@@ -102,6 +115,8 @@ pub fn get_transaction_hash(
                     deploy_account_v3,
                     chain_id,
                     transaction_version,
+                    deploy_account_v3
+                        .calculate_contract_address(AddressDerivationHash::Pedersen)?,
                 )
             }
         },
@@ -140,7 +155,12 @@ fn get_deprecated_transaction_hashes(
         match transaction {
             Transaction::Declare(_) => vec![],
             Transaction::Deploy(deploy) => {
-                vec![get_deprecated_deploy_transaction_hash(deploy, chain_id, transaction_version)?]
+                vec![get_deprecated_deploy_transaction_hash(
+                    deploy,
+                    chain_id,
+                    transaction_version,
+                    deploy.calculate_contract_address(AddressDerivationHash::Pedersen)?,
+                )?]
             }
             Transaction::DeployAccount(_) => vec![],
             Transaction::Invoke(invoke) => match invoke {
@@ -248,16 +268,30 @@ pub(crate) fn get_deploy_transaction_hash(
     transaction: &DeployTransaction,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
+    contract_address: ContractAddress,
 ) -> Result<TransactionHash, StarknetApiError> {
-    get_common_deploy_transaction_hash(transaction, chain_id, false, transaction_version)
+    get_common_deploy_transaction_hash(
+        transaction,
+        chain_id,
+        false,
+        transaction_version,
+        contract_address,
+    )
 }
 
 fn get_deprecated_deploy_transaction_hash(
     transaction: &DeployTransaction,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
+    contract_address: ContractAddress,
 ) -> Result<TransactionHash, StarknetApiError> {
-    get_common_deploy_transaction_hash(transaction, chain_id, true, transaction_version)
+    get_common_deploy_transaction_hash(
+        transaction,
+        chain_id,
+        true,
+        transaction_version,
+        contract_address,
+    )
 }
 
 fn get_common_deploy_transaction_hash(
@@ -265,9 +299,8 @@ fn get_common_deploy_transaction_hash(
     chain_id: &ChainId,
     is_deprecated: bool,
     transaction_version: &TransactionVersion,
+    contract_address: ContractAddress,
 ) -> Result<TransactionHash, StarknetApiError> {
-    let contract_address = transaction.calculate_contract_address()?;
-
     Ok(TransactionHash(
         HashChain::new()
         .chain(&DEPLOY)
@@ -667,14 +700,13 @@ pub(crate) fn get_deploy_account_transaction_v1_hash(
     transaction: &DeployAccountTransactionV1,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
+    contract_address: ContractAddress,
 ) -> Result<TransactionHash, StarknetApiError> {
     let calldata_hash = HashChain::new()
         .chain(&transaction.class_hash.0)
         .chain(&transaction.contract_address_salt.0)
         .chain_iter(transaction.constructor_calldata.0.iter())
         .get_pedersen_hash();
-
-    let contract_address = transaction.calculate_contract_address()?;
 
     Ok(TransactionHash(
         HashChain::new()
@@ -706,14 +738,12 @@ pub(crate) trait DeployAccountTransactionV3Trait {
     fn contract_address_salt(&self) -> &ContractAddressSalt;
 }
 
-pub(crate) fn get_deploy_account_transaction_v3_hash<
-    T: DeployAccountTransactionV3Trait + CalculateContractAddress,
->(
+pub(crate) fn get_deploy_account_transaction_v3_hash<T: DeployAccountTransactionV3Trait>(
     transaction: &T,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
+    contract_address: ContractAddress,
 ) -> Result<TransactionHash, StarknetApiError> {
-    let contract_address = transaction.calculate_contract_address()?;
     let tip_resource_bounds_hash =
         get_tip_resource_bounds_hash(&transaction.resource_bounds(), transaction.tip())?;
     let paymaster_data_hash =
