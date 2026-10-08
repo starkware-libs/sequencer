@@ -257,7 +257,8 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
     /// Behavior:
     /// - `Blocked`: abort the background proof and return `TransactionBlocked`.
     /// - `Allowed`: await the background proof and return its result.
-    /// - `Inconclusive` or timeout: apply the configured fail-open/fail-close policy.
+    /// - `Inconclusive` or timeout: apply the configured fail-open/fail-close policy. Fail-close
+    ///   aborts the background proof and returns `BlockingCheckUnavailable`.
     ///
     /// Trade-off: when the blocking check service is slow (e.g. elliptic is slow, network
     /// issues, or the elliptic proxy is still starting up), this flow may deny transactions
@@ -286,29 +287,29 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
 
         // A transaction allowed via the fail-open policy (inconclusive check or
         // timeout) carries no additional_data.
-        let (allow, additional_data) = match check_outcome {
+        let check_decision = match check_outcome {
             Ok(BlockingCheckResult::Blocked) => {
                 info!("Transaction blocked by external check");
-                (false, None)
+                Err(VirtualSnosProverError::TransactionBlocked)
             }
             Ok(BlockingCheckResult::Allowed(additional_data)) => {
                 info!("Transaction allowed by external check");
-                (true, additional_data)
+                Ok(additional_data)
+            }
+            Ok(BlockingCheckResult::Inconclusive) if client.fail_open => {
+                info!(fail_open = true, "Blocking check inconclusive");
+                Ok(None)
+            }
+            Err(_) if client.fail_open => {
+                info!(fail_open = true, "Blocking check timed out");
+                Ok(None)
             }
             Ok(BlockingCheckResult::Inconclusive) => {
-                info!(fail_open = client.fail_open, "Blocking check inconclusive");
-                (client.fail_open, None)
+                Err(reject_unavailable_blocking_check("inconclusive"))
             }
-            Err(_) => {
-                info!(fail_open = client.fail_open, "Blocking check timed out");
-                (client.fail_open, None)
-            }
+            Err(_) => Err(reject_unavailable_blocking_check("timeout")),
         };
-
-        if !allow {
-            prove_handle.abort();
-            return Err(VirtualSnosProverError::TransactionBlocked);
-        }
+        let additional_data = check_decision.inspect_err(|_err| prove_handle.abort())?;
 
         let mut result = match prove_handle.await {
             Ok(prove_result) => prove_result?,
@@ -359,6 +360,14 @@ fn record_prove_transaction_metrics<T>(
         .record(total_duration.as_secs_f64());
     metrics::counter!(names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome).increment(1);
     outcome
+}
+
+/// Logs the fail-close rejection of a transaction whose blocking check gave no verdict, and
+/// returns its error. Callers pass `reason` as `timeout` or `inconclusive`, a bounded code that is
+/// safe to log.
+fn reject_unavailable_blocking_check(reason: &'static str) -> VirtualSnosProverError {
+    warn!(event = "blocking_check_unavailable", reason);
+    VirtualSnosProverError::BlockingCheckUnavailable
 }
 
 /// Proves a Virtual Starknet OS run fdirectly from a `RunnerOutput`.
