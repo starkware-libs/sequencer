@@ -58,6 +58,12 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "proof_fact_fold",
         None,
     ));
+    task_set.spawn(compile_and_output_program(
+        out_dir.clone(),
+        "starkware/starknet/core/os/verify_processed_proof_test.cairo",
+        "verify_processed_proof_test",
+        None,
+    ));
     task_set.join_all().await;
 }
 
