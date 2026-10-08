@@ -76,7 +76,7 @@ pub trait TransactionQueueTrait: Send + Sync {
 
     // Returns the metadata of the block about to be built and may update queue-internal state.
     // Default implementation is for queues that don't use timestamp gating.
-    fn resolve_metadata(&mut self) -> BlockMetadata {
+    fn resolve_metadata(&mut self, _height: BlockNumber) -> BlockMetadata {
         BlockMetadata { timestamp: 0, block_number: None }
     }
 
