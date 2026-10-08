@@ -29,6 +29,7 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
+use crate::server::rpc_log::prover_rpc_middleware;
 use crate::server::{HttpMetricsLayer, RequestLogLayer, RequestSpanLayer, ServerLayers};
 
 #[cfg(test)]
@@ -118,6 +119,7 @@ fn spawn_accept_loop<PrepareStream, PrepareStreamFuture, ServedStream>(
     // See `prover_http_middleware!` for the full layer-order rationale.
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
+        .set_rpc_middleware(prover_rpc_middleware(&methods))
         .set_http_middleware(prover_http_middleware!(
             health_layer,
             metrics_layer,
