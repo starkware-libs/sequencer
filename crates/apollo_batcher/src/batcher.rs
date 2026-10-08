@@ -35,7 +35,10 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_committer_types::committer_types::RevertBlockResponse;
+use apollo_committer_types::committer_types::{
+    GetStateCommitmentInfosRequest,
+    RevertBlockResponse,
+};
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -89,6 +92,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -1659,6 +1663,49 @@ impl Batcher {
         })
     }
 
+    /// Warms the state commitment infos cache from the committer with the heights in
+    /// `[storage_height - STORED_BLOCK_HASH_BUFFER, commitment task offset)`: the recent heights
+    /// whose global roots are already in storage. From the offset up, the missing commitment tasks
+    /// fill the cache with their results. The heights are requested one at a time to bound the
+    /// size of each response. A height the committer fails to serve is logged and skipped; the
+    /// batcher runs without it, and a request for it may stall until it is served.
+    async fn load_recent_state_commitment_infos(&mut self, storage_height: BlockNumber) {
+        let start_height = BlockNumber(storage_height.0.saturating_sub(STORED_BLOCK_HASH_BUFFER));
+        let end_height = self.commitment_manager.get_commitment_task_offset();
+        if start_height >= end_height {
+            // The committer is at its maximal lag, or the node is fed by sync; the missing
+            // commitment tasks fill the cache instead.
+            if storage_height > BlockNumber(0) {
+                warn!(
+                    "Skipping the state commitment infos warm-up: the committer is at height \
+                     {end_height}, {} blocks behind the storage height {storage_height}.",
+                    storage_height.0 - end_height.0
+                );
+            }
+            return;
+        }
+        for height in start_height.iter_up_to(end_height) {
+            let request = GetStateCommitmentInfosRequest { height };
+            let response = match self.committer_client.get_state_commitment_infos(request).await {
+                Ok(response) => response,
+                Err(err) => {
+                    warn!(
+                        "Failed to load the state commitment infos of height {height} from the \
+                         committer: {err:?}."
+                    );
+                    continue;
+                }
+            };
+            if let Some(infos) = response.state_commitment_infos {
+                self.commitment_manager.recent_state_commitment_infos_cache.put(height, infos);
+            }
+        }
+        info!(
+            "Loaded the state commitment infos the committer holds for heights [{start_height}, \
+             {end_height})."
+        );
+    }
+
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -2188,6 +2235,7 @@ impl ComponentStarter for Batcher {
 
         register_metrics(storage_height, global_root_height);
 
+        self.load_recent_state_commitment_infos(storage_height).await;
         self.commitment_manager
             .add_missing_commitment_tasks(
                 storage_height,
