@@ -20,7 +20,7 @@ use tokio_retry::strategy::ExponentialBackoff;
 /// ```rust
 /// use std::time::Duration;
 ///
-/// use apollo_network::discovery::{DiscoveryConfig, RetryConfig};
+/// use apollo_network_config::discovery::{DiscoveryConfig, RetryConfig};
 ///
 /// let config = DiscoveryConfig {
 ///     bootstrap_dial_retry_config: RetryConfig {
@@ -85,7 +85,7 @@ impl SerializeConfig for DiscoveryConfig {
 /// ```rust
 /// use std::time::Duration;
 ///
-/// use apollo_network::discovery::RetryConfig;
+/// use apollo_network_config::discovery::RetryConfig;
 ///
 /// // Aggressive retry (fast but more network usage)
 /// let aggressive = RetryConfig {
