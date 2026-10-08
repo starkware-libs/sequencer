@@ -85,6 +85,7 @@ pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
 pub mod consensus;
+pub mod fee_market;
 pub mod global_root;
 pub mod global_root_marker;
 #[allow(missing_docs)]
@@ -152,7 +153,13 @@ use mmap_file::{
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::block::{
+    BlockFeeMarketInfo,
+    BlockHash,
+    BlockNumber,
+    BlockSignature,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -257,6 +264,7 @@ fn open_storage_internal(
             .create_simple_table("deprecated_declared_classes_block")?,
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
+        fee_market_infos: db_writer.create_simple_table("fee_market_infos")?,
         headers: db_writer.create_simple_table("headers")?,
         last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
@@ -970,6 +978,7 @@ struct_field_names! {
         // TODO(dvir): consider use here also the CommonPrefix table type.
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
+        fee_market_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockFeeMarketInfo>, SimpleTable>,
         // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
         headers: TableIdentifier<BlockNumber, VersionWrapper<StorageBlockHeader, 1>, SimpleTable>,
         last_voted_marker: TableIdentifier<(), VersionZeroWrapper<LastVotedMarker>, SimpleTable>,
