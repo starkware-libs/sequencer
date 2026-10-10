@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
@@ -108,7 +109,7 @@ pub(crate) fn set_bit<S: StateReader>(
 pub(crate) fn set_ap_to_descend(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let descent_map: &DescentMap = exec_scopes.get_ref(Scope::DescentMap.into())?;
+    let descent_map: &Arc<DescentMap> = exec_scopes.get_ref(Scope::DescentMap.into())?;
 
     let height = SubTreeHeight(Ids::Height.fetch_as(vm, ids_data, ap_tracking)?);
 
@@ -271,7 +272,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
     let descent_map = patricia_guess_descents(height, &node, &preimage_map, prev_root, new_root)?;
 
     exec_scopes.insert_value(Scope::Node.into(), node);
-    exec_scopes.insert_value(Scope::DescentMap.into(), descent_map);
+    exec_scopes.insert_value(Scope::DescentMap.into(), Arc::new(descent_map));
 
     // We do not build `common_args` as it is a Python trick to enter new scopes with a
     // dict destructuring one-liner as the dict references itself. Neat trick that does not
@@ -287,7 +288,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
 fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes) -> OsHintResult {
     // No need to insert the preimage map into the scope, as we extract it directly
     // from the execution helper.
-    let descent_map: DescentMap = exec_scopes.get(Scope::DescentMap.into())?;
+    let descent_map: Arc<DescentMap> = exec_scopes.get(Scope::DescentMap.into())?;
     let new_scope = HashMap::from([
         (Scope::Node.into(), any_box!(node)),
         (Scope::DescentMap.into(), any_box!(descent_map)),
@@ -295,6 +296,23 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
     exec_scopes.enter_scope(new_scope);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entering_scope_shares_descent_map() {
+        let mut exec_scopes = ExecutionScopes::new();
+        let descent_map = Arc::new(DescentMap::new());
+        exec_scopes.insert_value(Scope::DescentMap.into(), Arc::clone(&descent_map));
+
+        enter_scope_specific_node(UpdateTree::None, &mut exec_scopes).unwrap();
+
+        let scoped_map: &Arc<DescentMap> = exec_scopes.get_ref(Scope::DescentMap.into()).unwrap();
+        assert!(Arc::ptr_eq(&descent_map, scoped_map));
+    }
 }
 
 pub(crate) fn enter_scope_node(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
