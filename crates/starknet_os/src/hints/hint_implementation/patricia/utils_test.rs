@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use num_bigint::BigUint;
@@ -104,8 +105,8 @@ fn build_full_tree(height: SubTreeHeight, path: Path) -> UpdateTree {
     }
 
     UpdateTree::InnerNode(InnerNode::Both(
-        Box::new(build_full_tree(SubTreeHeight(height.0 - 1), path.turn_left().unwrap())),
-        Box::new(build_full_tree(SubTreeHeight(height.0 - 1), path.turn_right().unwrap())),
+        Arc::new(build_full_tree(SubTreeHeight(height.0 - 1), path.turn_left().unwrap())),
+        Arc::new(build_full_tree(SubTreeHeight(height.0 - 1), path.turn_right().unwrap())),
     ))
 }
 
@@ -126,14 +127,14 @@ fn test_build_update_tree() {
 
     // expected_update_tree = (((None, 12), None), ((1000, None), (30, None)))
     let expected_update_tree = UpdateTree::InnerNode(InnerNode::Both(
-        Box::new(UpdateTree::InnerNode(InnerNode::Left(Box::new(UpdateTree::InnerNode(
-            InnerNode::Right(Box::new(UpdateTree::Leaf(HashOutput(Felt::from(12))))),
+        Arc::new(UpdateTree::InnerNode(InnerNode::Left(Arc::new(UpdateTree::InnerNode(
+            InnerNode::Right(Arc::new(UpdateTree::Leaf(HashOutput(Felt::from(12))))),
         ))))),
-        Box::new(UpdateTree::InnerNode(InnerNode::Both(
-            Box::new(UpdateTree::InnerNode(InnerNode::Left(Box::new(UpdateTree::Leaf(
+        Arc::new(UpdateTree::InnerNode(InnerNode::Both(
+            Arc::new(UpdateTree::InnerNode(InnerNode::Left(Arc::new(UpdateTree::Leaf(
                 HashOutput(Felt::from(1000)),
             ))))),
-            Box::new(UpdateTree::InnerNode(InnerNode::Left(Box::new(UpdateTree::Leaf(
+            Arc::new(UpdateTree::InnerNode(InnerNode::Left(Arc::new(UpdateTree::Leaf(
                 HashOutput(Felt::from(30)),
             ))))),
         ))),
@@ -148,7 +149,7 @@ fn test_inner_node() {
     let leaf_right = HashOutput(Felt::from(3000));
 
     // Left node.
-    let inner_node = InnerNode::Left(Box::new(UpdateTree::Leaf(leaf_left)));
+    let inner_node = InnerNode::Left(Arc::new(UpdateTree::Leaf(leaf_left)));
     let (left_child, right_child) = inner_node.get_children();
     let case = inner_node.case();
     assert_matches!(left_child, UpdateTree::Leaf(value) if value.0 == leaf_left.0);
@@ -156,7 +157,7 @@ fn test_inner_node() {
     assert_matches!(case, DecodeNodeCase::Left);
 
     // Right node.
-    let inner_node = InnerNode::Right(Box::new(UpdateTree::Leaf(leaf_right)));
+    let inner_node = InnerNode::Right(Arc::new(UpdateTree::Leaf(leaf_right)));
     let (left_child, right_child) = inner_node.get_children();
     let case = inner_node.case();
     assert_eq!(left_child, &UpdateTree::None);
@@ -165,8 +166,8 @@ fn test_inner_node() {
 
     // Two children.
     let inner_node = InnerNode::Both(
-        Box::new(UpdateTree::Leaf(leaf_left)),
-        Box::new(UpdateTree::Leaf(leaf_right)),
+        Arc::new(UpdateTree::Leaf(leaf_left)),
+        Arc::new(UpdateTree::Leaf(leaf_right)),
     );
     let (left_child, right_child) = inner_node.get_children();
     let case = inner_node.case();

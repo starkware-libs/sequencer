@@ -401,8 +401,8 @@ pub(crate) fn enter_scope_descend_edge(
         };
 
         new_node = match inner_node {
-            InnerNode::Left(left) => *left,
-            InnerNode::Right(right) => *right,
+            InnerNode::Left(left) => Arc::unwrap_or_clone(left),
+            InnerNode::Right(right) => Arc::unwrap_or_clone(right),
             InnerNode::Both(_, _) => return Err(OsHintError::ExpectedSingleChild(i)),
         }
     }
