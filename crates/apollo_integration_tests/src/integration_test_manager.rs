@@ -54,7 +54,6 @@ use crate::monitoring_utils::{
     await_batcher_block,
     await_block,
     await_sync_block,
-    await_txs_accepted,
     get_consensus_decisions_reached,
     sequencer_num_accepted_txs,
     verify_txs_accepted,
@@ -751,14 +750,6 @@ impl IntegrationTestManager {
         self.rpc_verify_class_declared(BLOCK_TO_WAIT_FOR_DECLARE).await;
     }
 
-    pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
-        self.perform_action_on_all_running_nodes(|running_node| {
-            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            await_txs_accepted(monitoring_client, running_node.get_node_index(), target_n_txs)
-        })
-        .await;
-    }
-
     /// This function tests and verifies the integration of the transaction flow.
     ///
     /// # Parameters
@@ -1040,11 +1031,6 @@ impl IntegrationTestManager {
             sequencer_num_accepted_txs(monitoring_client).await
         })
         .await
-    }
-
-    /// This function returns the number of accepted transactions on all running nodes.
-    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
-        self.get_num_accepted_txs_on_running_nodes(&self.get_running_node_indices()).await
     }
 
     pub async fn assert_no_reverted_txs_on_all_running_nodes(&self) {
