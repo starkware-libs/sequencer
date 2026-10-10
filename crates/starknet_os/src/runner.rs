@@ -54,8 +54,10 @@ pub(crate) fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
 ) -> Result<RunnerReturnObject, StarknetOsError> {
     // Init CairoRunConfig.
     // TODO(Einat): Set trace_enabled to false once blake opcodes are counted in the VM.
+    // Cairo PIE construction reads the VM's segmented memory directly. Building dense relocated
+    // memory here only duplicates the completed VM state and causes a large end-of-run RSS spike.
     let cairo_run_config =
-        CairoRunConfig { layout, relocate_mem: true, trace_enabled: true, ..Default::default() };
+        CairoRunConfig { layout, relocate_mem: false, trace_enabled: true, ..Default::default() };
     let allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or(false);
 
     // Init cairo runner.
