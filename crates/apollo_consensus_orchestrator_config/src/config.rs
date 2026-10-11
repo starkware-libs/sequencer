@@ -85,8 +85,8 @@ const ETH_FACTOR: u128 = u128::pow(10, 18);
 // Default SNIP-35 target USD cost per L2 gas unit: $0.88 per 1e9 L2 gas = 880_000_000 atto-USD.
 pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
 
-// This matches the min_gas_price in orchestrator_versioned_constants_0_14_1.json (0x1dcd65000).
-const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
+// This matches the min_gas_price in orchestrator_versioned_constants_0_14_4.json (0xb2d05e00).
+const MIN_ALLOWED_GAS_PRICE: u128 = 3_000_000_000;
 
 /// Represents a minimum gas price that applies starting from a specific block height.
 #[derive(Debug, Clone, PartialEq)]
@@ -498,7 +498,7 @@ fn validate_dynamic_config(
     for entry in &config.min_l2_gas_price_per_height {
         if entry.price < MIN_ALLOWED_GAS_PRICE {
             return Err(validator::ValidationError::new(
-                "all prices in min_l2_gas_price_per_height must be at least 8 gwei (8000000000 \
+                "all prices in min_l2_gas_price_per_height must be at least 3 gwei (3000000000 \
                  fri)",
             ));
         }

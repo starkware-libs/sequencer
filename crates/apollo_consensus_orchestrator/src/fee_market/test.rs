@@ -251,8 +251,8 @@ fn test_price_constants_match_the_shipped_values() {
 
 #[test]
 fn test_l2_gas_price_cap_tracks_the_minimum() {
-    assert_eq!(l2_gas_price_cap(GasPrice(10_000_000_000)), GasPrice(100_000_000_000));
-    assert_eq!(l2_gas_price_cap(GasPrice(20_000_000_000)), GasPrice(200_000_000_000));
+    assert_eq!(l2_gas_price_cap(GasPrice(10_000_000_000)), GasPrice(170_000_000_000));
+    assert_eq!(l2_gas_price_cap(GasPrice(20_000_000_000)), GasPrice(340_000_000_000));
 }
 
 #[test]

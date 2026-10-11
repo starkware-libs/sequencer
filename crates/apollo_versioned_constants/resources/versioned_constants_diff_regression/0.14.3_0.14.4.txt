@@ -1,1 +1,2 @@
-
+~ /max_gas_price_multiplier: 17
+~ /min_gas_price: "0xb2d05e00"
