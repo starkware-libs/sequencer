@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791708336057,
+  "lastUpdate": 1791729893992,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -679,6 +679,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1181.58201813,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb7deb338ce4c5a87ecce97a29803928e5e87881",
+          "message": "starknet_api,apollo_l1_events: drop L1 handler messages whose payload exceeds a const limit (#15188)\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-11T14:28:33Z",
+          "tree_id": "ce9fade1680ab09c3ef1ecf68e68e625420eafa7",
+          "url": "https://github.com/starkware-libs/sequencer/commit/fb7deb338ce4c5a87ecce97a29803928e5e87881"
+        },
+        "date": 1791729893443,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 884.18581762,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1322.67883155,
             "unit": "ms"
           }
         ]
