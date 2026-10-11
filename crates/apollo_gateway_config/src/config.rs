@@ -216,7 +216,7 @@ impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
-            min_gas_price: 8_000_000_000,
+            min_gas_price: 3_000_000_000,
             max_l2_gas_amount: 1_210_000_000,
             max_calldata_length: 5000,
             max_signature_length: 4000,

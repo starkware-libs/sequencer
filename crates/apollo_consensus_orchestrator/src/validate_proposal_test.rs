@@ -54,9 +54,12 @@ use crate::utils::{expected_version_constant_commitment, make_gas_price_params, 
 
 /// The default-test proposal commitment that the validator computes when:
 /// - the batcher returns `partial_block_hash == StarkHash::ZERO` (test default), and
-/// - the init carries `fee_proposal_fri == Some(8 gwei)` (test default per `proposal_init`).
+/// - the init carries `fee_proposal_fri == Some(min_gas_price)` (test default per `proposal_init`).
 fn test_validate_expected_commitment() -> ConsensusProposalCommitment {
-    proposal_commitment_from(PartialBlockHash::default(), Some(GasPrice(8_000_000_000)))
+    proposal_commitment_from(
+        PartialBlockHash::default(),
+        Some(VersionedConstants::latest_constants().min_gas_price),
+    )
 }
 use crate::validate_proposal::{
     is_proposal_init_valid,

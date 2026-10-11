@@ -166,7 +166,7 @@ fn test_context_dynamic_config_validation_valid() {
 fn test_context_dynamic_config_validation_price_below_minimum() {
     let config = ContextDynamicConfig {
         min_l2_gas_price_per_height: vec![
-            PricePerHeight { height: 100, price: 500_000_000 }, // Below 8 gwei
+            PricePerHeight { height: 100, price: 500_000_000 }, // Below 3 gwei
         ],
         ..Default::default()
     };
@@ -204,7 +204,7 @@ fn test_context_dynamic_config_validation_duplicate_heights() {
 fn test_context_dynamic_config_validation_price_at_minimum() {
     let config = ContextDynamicConfig {
         min_l2_gas_price_per_height: vec![
-            PricePerHeight { height: 100, price: 8_000_000_000 }, // Exactly 8 gwei
+            PricePerHeight { height: 100, price: 3_000_000_000 }, // Exactly 3 gwei
         ],
         ..Default::default()
     };

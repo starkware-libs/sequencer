@@ -256,10 +256,10 @@ fn test_malicious_low_fee_proposal_rejected() {
 // Just below the cap, so only the upper edge is pulled in.
 #[case::upper_edge_capped(
     GasPrice(TEST_MAX_L2_GAS_PRICE.0 - 1_000_000),
-    (79_839_321_357, TEST_MAX_L2_GAS_PRICE.0)
+    (50_897_205_588, TEST_MAX_L2_GAS_PRICE.0)
 )]
 // Exactly at the cap: `upper` is capped, `lower` is still below it.
-#[case::at_cap(TEST_MAX_L2_GAS_PRICE, (79_840_319_361, TEST_MAX_L2_GAS_PRICE.0))]
+#[case::at_cap(TEST_MAX_L2_GAS_PRICE, (50_898_203_592, TEST_MAX_L2_GAS_PRICE.0))]
 // Ten times the cap: both edges collapse to a point.
 #[case::band_collapses_above_cap(
     GasPrice(TEST_MAX_L2_GAS_PRICE.0 * 10),

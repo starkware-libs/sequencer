@@ -120,10 +120,13 @@ use crate::utils::{apply_fee_transformations, make_gas_price_params};
 static TEST_PROPOSAL_COMMITMENT: LazyLock<ProposalCommitment> = LazyLock::new(|| {
     // Default test setup: empty fee_proposals_window → `compute_fee_actual` returns `None` →
     // `compute_proposer_fee_proposal` falls back to `self.l2_gas_price` (default
-    // `min_gas_price` = 8 gwei = 8_000_000_000 FRI). The orchestrator chains this value into
-    // the proposal commitment via `proposal_commitment_from`. The `proposal_init` test helper
-    // produces an init with `fee_proposal_fri = Some(8 gwei)` to match what the proposer emits.
-    proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(GasPrice(8_000_000_000)))
+    // `min_gas_price`). The orchestrator chains this value into the proposal commitment via
+    // `proposal_commitment_from`. The `proposal_init` test helper produces an init with
+    // `fee_proposal_fri = Some(min_gas_price)` to match what the proposer emits.
+    proposal_commitment_from(
+        PARTIAL_BLOCK_HASH,
+        Some(VersionedConstants::latest_constants().min_gas_price),
+    )
 });
 const HEIGHT_0: BlockNumber = BlockNumber(0);
 const HEIGHT_1: BlockNumber = BlockNumber(1);
@@ -1965,7 +1968,7 @@ async fn test_first_height_uses_configured_min_l2_gas_price_for_height() {
     const CONFIG_HEIGHT_2: u64 = 200;
     const CONFIG_PRICE_2: u128 = 20_000_000_000;
     const STARTUP_HEIGHT: u64 = 250;
-    const LOW_STARTUP_PRICE: u128 = 8_000_000_000;
+    const LOW_STARTUP_PRICE: u128 = 3_000_000_000;
 
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
@@ -2278,7 +2281,7 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
     }
     deps.setup_default_expectations();
     let mut context = deps.build_context();
-    // Mainnet's configured minimum puts the cap at 150 gwei; the 8 gwei fallback would cap below
+    // A 15 gwei configured minimum puts the cap at 255 gwei; the 3 gwei fallback would cap below
     // this scenario's targets.
     context.config.dynamic_config.min_l2_gas_price_per_height =
         vec![PricePerHeight { height: 0, price: 15_000_000_000 }];
