@@ -158,6 +158,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
+use strum::EnumCount;
 use tracing::{debug, info, trace, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
@@ -242,6 +243,7 @@ fn open_storage_internal(
     }
 
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
+    remove_legacy_state_commitment_infos(&mut db_writer, &storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
         block_signatures: db_writer.create_simple_table("block_signatures")?,
@@ -1160,6 +1162,12 @@ struct FileHandlers<Mode: TransactionKind> {
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
 }
 
+/// The serialized `OffsetKind` discriminant of the removed state commitment infos file.
+const LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND: [u8; 1] = [7];
+// The current variants take the discriminants below the legacy one, so a new variant would take
+// it: adding one fails to compile until `remove_legacy_state_commitment_infos` is deleted.
+const _: () = assert!(OffsetKind::COUNT <= 7);
+
 impl FileHandlers<RW> {
     // Appends a thin state diff to the corresponding file and returns its location.
     #[latency_histogram("storage_file_handler_append_state_diff_latency_seconds", true)]
@@ -1294,6 +1302,34 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 }
 
+// TODO(yoavGrs): Remove once all environments have been upgraded past the state commitment infos
+// removal.
+/// Removes the state commitment infos table, file and file offset that a storage created before
+/// they moved to the committer still holds.
+fn remove_legacy_state_commitment_infos(
+    db_writer: &mut DbWriter,
+    db_config: &DbConfig,
+) -> StorageResult<()> {
+    if db_writer.drop_table_if_exists("state_commitment_infos")? {
+        info!("Dropped the legacy state_commitment_infos table.");
+    }
+    let file_offsets =
+        db_writer.create_simple_table::<[u8; 1], NoVersionValueWrapper<usize>>("file_offsets")?;
+    let txn = db_writer.begin_persistent_rw_txn()?;
+    let markers_table = txn.txn().open_table(&file_offsets)?;
+    if markers_table.get(txn.txn(), &LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND)?.is_some() {
+        markers_table.delete(txn.txn(), &LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND)?;
+        txn.commit()?;
+        info!("Removed the legacy state commitment infos file offset.");
+    }
+    let file_path = db_config.path().join("state_commitment_infos.dat");
+    if file_path.exists() {
+        fs::remove_file(&file_path)?;
+        info!("Removed the legacy state commitment infos file {}.", file_path.display());
+    }
+    Ok(())
+}
+
 fn open_storage_files(
     db_config: &DbConfig,
     mmap_file_config: MmapFileConfig,
@@ -1353,7 +1389,7 @@ fn open_storage_files(
 }
 
 /// Represents a kind of mmap file.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, EnumCount)]
 pub enum OffsetKind {
     /// A thin state diff file.
     ThinStateDiff,
