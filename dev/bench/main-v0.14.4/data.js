@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790759235747,
+  "lastUpdate": 1791705491227,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -611,6 +611,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1518.1315874000002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5a2f1efb1de019d72baddd1f6a743fb8f8a6d7a",
+          "message": "apollo_storage,apollo_batcher,apollo_reverts: remove state commitment infos from storage (#15068)",
+          "timestamp": "2026-10-11T07:39:06Z",
+          "tree_id": "fd43e015faa544c6c3edcef71fbfd3efbc81434e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d5a2f1efb1de019d72baddd1f6a743fb8f8a6d7a"
+        },
+        "date": 1791705490734,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.03431149,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1370.29221334,
             "unit": "ms"
           }
         ]
