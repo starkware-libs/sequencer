@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791705491227,
+  "lastUpdate": 1791708336057,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -645,6 +645,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1370.29221334,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6d801558e02bf97b35034a8f9dda100b8a2fadb3",
+          "message": "apollo_storage: drop the legacy state commitment infos table and file at startup (#15075)\n\napollo_storage: remove the legacy state commitment infos file offset at startup",
+          "timestamp": "2026-10-11T08:20:32Z",
+          "tree_id": "b5c7fd426982ac4fc53b69d17762fc13b54e2b2b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6d801558e02bf97b35034a8f9dda100b8a2fadb3"
+        },
+        "date": 1791708335545,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 773.16304948,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1181.58201813,
             "unit": "ms"
           }
         ]
