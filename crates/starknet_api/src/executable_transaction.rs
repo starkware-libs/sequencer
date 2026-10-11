@@ -397,11 +397,7 @@ impl L1HandlerTransaction {
     }
 
     pub fn payload_size(&self) -> usize {
-        // The calldata includes the "from" field, which is not a part of the payload.
-        // `saturating_sub` guards the empty-calldata case (which would otherwise underflow to
-        // `usize::MAX` in release): `L1HandlerTransaction` derives `Deserialize` and `Calldata`
-        // has no non-empty invariant.
-        self.tx.calldata.0.len().saturating_sub(1)
+        self.tx.payload_size()
     }
 }
 
