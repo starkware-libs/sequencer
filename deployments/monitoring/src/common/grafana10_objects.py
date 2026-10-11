@@ -203,7 +203,11 @@ alert_rule_object = {
     "condition": "B",
     "data": [],
     "for": "5m",
-    "execErrState": "Error",
+    # KeepLast: a failed query evaluation holds the rule's previous state instead of raising a
+    # notifying DatasourceError, which fires immediately and ignores `for`. A GMP outage or
+    # throttling otherwise turns into one page per rule; datasource health must be covered by a
+    # separate signal (e.g. a heartbeat) since failed evaluations no longer notify.
+    "execErrState": "KeepLast",
     # KeepLast: an empty query result holds the rule's previous state instead of raising a
     # notifying DatasourceNoData. GMP intermittently drops whole regions from query results, so
     # NoData flapped healthy rules; a node whose metrics really vanish is caught by

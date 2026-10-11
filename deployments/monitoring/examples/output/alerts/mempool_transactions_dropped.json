@@ -69,7 +69,7 @@
     }
   ],
   "for": "1m",
-  "execErrState": "Error",
+  "execErrState": "KeepLast",
   "noDataState": "KeepLast",
   "folderUID": "",
   "ruleGroup": "mempool",
