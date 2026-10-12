@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
-    AccessedKeys,
     CommitBlockRequest,
     CommitBlockResponse,
     GetStateCommitmentInfosRequest,
@@ -587,15 +586,6 @@ where
             accessed_keys,
         }: ReadPathsAndCommitBlockRequest,
     ) -> CommitterResult<ReadPathsAndCommitBlockResponse> {
-        let accessed_keys = if self.config.serve_read_paths_as_commit_block {
-            info!(
-                "serve_read_paths_as_commit_block is on; treating the accessed keys of block \
-                 number {height} as an empty set."
-            );
-            AccessedKeys::default()
-        } else {
-            accessed_keys
-        };
         let mut leaves_request = LeavesRequest::from(&accessed_keys);
         info!(
             "read_paths_and_commit_block: height {height}, accessed keys len {}, state diff len {}",
@@ -607,20 +597,13 @@ where
 
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
             CommitBlockHeightPlan::Historical { global_root } => {
-                // Skip the accessed keys digest validation while
-                // `serve_read_paths_as_commit_block` is on. This allows turning the flag on
-                // without comparing the empty accessed keys it serves against the ones stored
-                // for this height. For turning the flag off, see its documentation in
-                // `CommitterConfig`.
-                if !self.config.serve_read_paths_as_commit_block {
-                    let stored_digest = self.load_witnesses_digest(height).await?;
-                    if stored_digest != Some(digest) {
-                        return Err(CommitterError::AccessedKeysDigestMismatch {
-                            height,
-                            stored: stored_digest,
-                            expected: digest,
-                        });
-                    }
+                let stored_digest = self.load_witnesses_digest(height).await?;
+                if stored_digest != Some(digest) {
+                    return Err(CommitterError::AccessedKeysDigestMismatch {
+                        height,
+                        stored: stored_digest,
+                        expected: digest,
+                    });
                 }
                 let state_commitment_infos = self
                     .forest_storage
