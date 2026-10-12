@@ -35,6 +35,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
                     self.has_state_commitment_infos(block_number),
                 )
             }
+            BatcherRequest::GetFeeMarketInfo(block_number) => {
+                BatcherResponse::GetFeeMarketInfo(self.get_fee_market_info(block_number))
+            }
             BatcherRequest::GetCurrentHeight => {
                 BatcherResponse::GetCurrentHeight(self.get_height().await)
             }

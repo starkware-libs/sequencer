@@ -81,6 +81,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -333,6 +334,10 @@ fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
     state_diffs
 }
 
+fn test_fee_market_info() -> BlockFeeMarketInfo {
+    BlockFeeMarketInfo { fee_proposal_fri: Some(GasPrice(17)), next_l2_gas_price: GasPrice(23) }
+}
+
 /// Expects a single `commit_proposal` call with the given arguments; `expect_accessed_keys`
 /// states whether accessed keys should be written with the state diff.
 fn expect_commit_proposal_once(
@@ -341,21 +346,29 @@ fn expect_commit_proposal_once(
     expected_state_diff: ThinStateDiff,
     expected_storage_commitment_block_hash: StorageCommitmentBlockHash,
     expect_accessed_keys: bool,
+    expected_fee_market_info: BlockFeeMarketInfo,
 ) {
     storage_writer
         .expect_commit_proposal()
         .times(1)
-        .withf(move |height, state_diff, storage_commitment_block_hash, accessed_keys| {
-            *height == expected_height
-                && *state_diff == expected_state_diff
-                && *storage_commitment_block_hash == expected_storage_commitment_block_hash
-                && accessed_keys.is_some() == expect_accessed_keys
-        })
-        .returning(|_, _, _, _| Ok(()));
+        .withf(
+            move |height,
+                  state_diff,
+                  storage_commitment_block_hash,
+                  accessed_keys,
+                  fee_market_info| {
+                *height == expected_height
+                    && *state_diff == expected_state_diff
+                    && *storage_commitment_block_hash == expected_storage_commitment_block_hash
+                    && accessed_keys.is_some() == expect_accessed_keys
+                    && *fee_market_info == expected_fee_market_info
+            },
+        )
+        .returning(|_, _, _, _, _| Ok(()));
 }
 
 fn expect_commit_proposal_success(storage_writer: &mut MockBatcherStorageWriter) {
-    storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
+    storage_writer.expect_commit_proposal().returning(|_, _, _, _, _| Ok(()));
 }
 
 fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &ThinStateDiff) {
@@ -366,6 +379,7 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
             state_diff.clone(),
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
             None,
+            test_fee_market_info(),
         )
         .expect("set_state_diff failed");
 }
@@ -548,7 +562,12 @@ async fn batcher_propose_and_commit_block(
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await
+    batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(),
+        })
+        .await
 }
 
 fn mock_create_builder_for_validate_block(
@@ -1436,6 +1455,14 @@ async fn add_sync_block(
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number,
+        starknet_version,
+        fee_proposal_fri: Some(GasPrice(17)),
+        next_l2_gas_price: GasPrice(23),
+        ..Default::default()
+    };
+
     let mut storage_writer = MockBatcherStorageWriter::new();
     expect_commit_proposal_once(
         &mut storage_writer,
@@ -1443,6 +1470,7 @@ async fn add_sync_block(
         test_state_diff(),
         storage_commitment_block_hash,
         accessed_keys.is_some(),
+        (&block_header_without_hash).into(),
     );
 
     mock_clients
@@ -1474,11 +1502,7 @@ async fn add_sync_block(
     let n_synced_transactions = l1_transaction_hashes.len();
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number,
-            starknet_version,
-            ..Default::default()
-        },
+        block_header_without_hash,
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         block_header_commitments,
@@ -1607,6 +1631,14 @@ async fn add_sync_block_for_first_new_block() {
         .times(1)
         .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()), eq(DUMMY_BLOCK_HASH))
         .returning(|_, _| Ok(()));
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+        starknet_version: StarknetVersion::LATEST,
+        parent_hash: DUMMY_BLOCK_HASH,
+        fee_proposal_fri: Some(GasPrice(17)),
+        next_l2_gas_price: GasPrice(23),
+        ..Default::default()
+    };
     expect_commit_proposal_once(
         &mut mock_dependencies.storage_writer,
         FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
@@ -1616,6 +1648,7 @@ async fn add_sync_block_for_first_new_block() {
             ..Default::default()
         }),
         false,
+        (&block_header_without_hash).into(),
     );
 
     mock_dependencies
@@ -1633,12 +1666,7 @@ async fn add_sync_block_for_first_new_block() {
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-            starknet_version: StarknetVersion::LATEST,
-            parent_hash: DUMMY_BLOCK_HASH,
-            ..Default::default()
-        },
+        block_header_without_hash,
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
@@ -1830,6 +1858,7 @@ async fn decision_reached() {
         expected_artifacts.thin_state_diff(),
         StorageCommitmentBlockHash::Partial(expected_partial_block_hash),
         true,
+        test_fee_market_info(),
     );
 
     mock_dependencies
@@ -1885,8 +1914,12 @@ async fn decision_reached_no_executed_proposal() {
     let mut batcher = create_batcher(MockDependencies::default()).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
-    let decision_reached_result =
-        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
+    let decision_reached_result = batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(),
+        })
+        .await;
     assert_eq!(decision_reached_result, Err(expected_error));
 }
 
@@ -2372,7 +2405,13 @@ async fn validation_only_decision_reached_skips_mempool_notification() {
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     // decision_reached must succeed and not call mempool_client.commit_block.
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(),
+        })
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
