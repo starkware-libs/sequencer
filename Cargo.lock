@@ -1254,6 +1254,7 @@ dependencies = [
  "apollo_node_config",
  "apollo_staking_config",
  "apollo_state_sync_config",
+ "apollo_versioned_constants",
  "async-trait",
  "notify",
  "serde_json",
@@ -1467,6 +1468,7 @@ name = "apollo_consensus_orchestrator_config"
 version = "0.20.0-rc.1"
 dependencies = [
  "apollo_config",
+ "apollo_versioned_constants",
  "serde",
  "starknet_api",
  "url",
@@ -1584,6 +1586,7 @@ version = "0.20.0-rc.1"
 dependencies = [
  "apollo_compilation_utils",
  "apollo_config",
+ "apollo_versioned_constants",
  "blockifier",
  "cairo-lang-starknet-classes",
  "serde",

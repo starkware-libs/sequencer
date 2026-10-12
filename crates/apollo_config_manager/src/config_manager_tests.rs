@@ -21,6 +21,8 @@ use apollo_infra::component_server::{
 };
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
+use apollo_versioned_constants::VersionedConstants;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 use validator::Validate;
@@ -165,9 +167,10 @@ fn test_context_dynamic_config_validation_valid() {
 #[test]
 fn test_context_dynamic_config_validation_price_below_minimum() {
     let config = ContextDynamicConfig {
-        min_l2_gas_price_per_height: vec![
-            PricePerHeight { height: 100, price: 500_000_000 }, // Below 3 gwei
-        ],
+        min_l2_gas_price_per_height: vec![PricePerHeight {
+            height: 100,
+            price: VersionedConstants::latest_constants().min_gas_price.0 - 1,
+        }],
         ..Default::default()
     };
 
@@ -203,9 +206,10 @@ fn test_context_dynamic_config_validation_duplicate_heights() {
 #[test]
 fn test_context_dynamic_config_validation_price_at_minimum() {
     let config = ContextDynamicConfig {
-        min_l2_gas_price_per_height: vec![
-            PricePerHeight { height: 100, price: 3_000_000_000 }, // Exactly 3 gwei
-        ],
+        min_l2_gas_price_per_height: vec![PricePerHeight {
+            height: 100,
+            price: VersionedConstants::latest_constants().min_gas_price.0,
+        }],
         ..Default::default()
     };
 

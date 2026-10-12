@@ -15,10 +15,12 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_versioned_constants::VersionedConstants;
 use serde::de::{Deserializer, Error};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use url::Url;
 use validator::Validate;
 
@@ -84,9 +86,6 @@ const ETH_FACTOR: u128 = u128::pow(10, 18);
 
 // Default SNIP-35 target USD cost per L2 gas unit: $0.88 per 1e9 L2 gas = 880_000_000 atto-USD.
 pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
-
-// This matches the min_gas_price in orchestrator_versioned_constants_0_14_4.json (0xb2d05e00).
-const MIN_ALLOWED_GAS_PRICE: u128 = 3_000_000_000;
 
 /// Represents a minimum gas price that applies starting from a specific block height.
 #[derive(Debug, Clone, PartialEq)]
@@ -494,12 +493,19 @@ fn validate_dynamic_config(
         ));
     }
 
-    // Check that all prices are above the minimum
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price.0;
     for entry in &config.min_l2_gas_price_per_height {
-        if entry.price < MIN_ALLOWED_GAS_PRICE {
+        if entry.price < min_gas_price {
             return Err(validator::ValidationError::new(
-                "all prices in min_l2_gas_price_per_height must be at least 3 gwei (3000000000 \
-                 fri)",
+                "min_l2_gas_price_per_height below the versioned constants min_gas_price",
+            )
+            .with_message(
+                format!(
+                    "price {} at height {} is below the versioned constants min_gas_price \
+                     {min_gas_price}",
+                    entry.price, entry.height
+                )
+                .into(),
             ));
         }
     }

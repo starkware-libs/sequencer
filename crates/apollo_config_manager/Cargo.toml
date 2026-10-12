@@ -39,6 +39,7 @@ validator.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_node_config = { workspace = true, features = ["testing"] }
+apollo_versioned_constants.workspace = true
 starknet_api.workspace = true
 tempfile.workspace = true
 tracing-test.workspace = true
