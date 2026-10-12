@@ -8,6 +8,7 @@ description = "Configuration types for the Apollo consensus orchestrator."
 
 [dependencies]
 apollo_config.workspace = true
+apollo_versioned_constants.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 url = { workspace = true, features = ["serde"] }
