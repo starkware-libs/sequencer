@@ -3404,6 +3404,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "l1_events_scraper_config.max_l1_handler_payload_length": {
+    "description": "Max number of payload felts (calldata without the leading from_address) an L1 to L2 message may carry; the scraper drops longer messages. Must be identical on every validator of the network.",
+    "privacy": "Public",
+    "value": 20
+  },
   "l1_events_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
