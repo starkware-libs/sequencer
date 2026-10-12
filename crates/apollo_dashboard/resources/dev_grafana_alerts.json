@@ -2173,32 +2173,6 @@
       "severity": "p3"
     },
     {
-      "name": "state_sync_lag",
-      "title": "State sync lag",
-      "ruleGroup": "evaluation_rate_default",
-      "expr": "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              5.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "severity": "$$$state_sync_lag-severity$$$"
-    },
-    {
       "name": "state_sync_remote_server_number_of_connections",
       "title": "state_sync - Remote server number of connections exceeds 80",
       "ruleGroup": "evaluation_rate_default",
