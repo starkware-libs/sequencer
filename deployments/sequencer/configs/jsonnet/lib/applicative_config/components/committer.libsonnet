@@ -24,6 +24,5 @@ function(chain_params)
       },
     },
     commit_duration_warn_threshold_millis: 3000,
-    serve_read_paths_as_commit_block: false,
     verify_state_diff_hash: true,
   }
