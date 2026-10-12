@@ -341,9 +341,10 @@ impl SequencerConsensusContext {
     }
 
     /// Restores the fee market state for `start_height`: fills the fee-proposals window
-    /// `[start_height - WINDOW, start_height)` from local state_sync storage, retrying blocks
-    /// state_sync does not have yet. Must be called before `run_consensus`, so voting never
-    /// starts with a partial window.
+    /// `[start_height - WINDOW, start_height)` and sets `l2_gas_price` from block
+    /// `start_height - 1`. Reads the batcher first and falls back to state_sync, retrying blocks
+    /// state_sync does not have yet. Must be called before `run_consensus`, so voting never starts
+    /// with a partial window.
     pub async fn initialize_fee_market_state(
         &mut self,
         start_height: BlockNumber,
@@ -352,13 +353,21 @@ impl SequencerConsensusContext {
         let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
         let window_end_height = start_height.0;
         let window_start_height = window_end_height.saturating_sub(window_size);
-        let mut pending_heights: VecDeque<BlockNumber> =
-            (window_start_height..window_end_height).map(BlockNumber).collect();
+        let mut pending_heights = VecDeque::new();
+        for block_number in (window_start_height..window_end_height).map(BlockNumber) {
+            match self.deps.batcher.get_fee_market_info(block_number).await? {
+                Some(fee_market_info) => {
+                    self.restore_fee_market_info(block_number, start_height, fee_market_info)
+                }
+                None => pending_heights.push_back(block_number),
+            }
+        }
         while let Some(block_number) = pending_heights.pop_front() {
             match self.deps.state_sync_client.get_block(block_number).await {
-                Ok(block) => self.record_fee_proposal(
+                Ok(block) => self.restore_fee_market_info(
                     block_number,
-                    block.block_header_without_hash.fee_proposal_fri,
+                    start_height,
+                    (&block.block_header_without_hash).into(),
                 ),
                 Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
                     warn!(
@@ -371,7 +380,23 @@ impl SequencerConsensusContext {
                 Err(e) => return Err(e.into()),
             }
         }
+
         Ok(())
+    }
+
+    /// Records a bootstrapped block's `fee_proposal_fri` in the window. The parent of
+    /// `start_height` also sets `l2_gas_price`: its `next_l2_gas_price` is the price consensus
+    /// charges at `start_height`.
+    fn restore_fee_market_info(
+        &mut self,
+        block_number: BlockNumber,
+        start_height: BlockNumber,
+        fee_market_info: BlockFeeMarketInfo,
+    ) {
+        self.record_fee_proposal(block_number, fee_market_info.fee_proposal_fri);
+        if block_number.unchecked_next() == start_height {
+            self.set_l2_gas_price_from_block(fee_market_info.next_l2_gas_price);
+        }
     }
 
     async fn start_stream(&mut self, stream_id: HeightAndRound) -> StreamSender {
@@ -1310,8 +1335,8 @@ impl ConsensusContext for SequencerConsensusContext {
         // First height or a new (higher) height.
         if self.current_height.is_none_or(|h| height > h) {
             self.update_dynamic_config().await;
-            // On first height: initialize l2_gas_price to the configured minimum for this height,
-            // ensuring correct startup after restart/revert.
+            // On first height: the bootstrap seeded l2_gas_price from the previous block; make sure
+            // it is at least the configured minimum for this height.
             if self.current_height.is_none() {
                 let min_gas_price_for_height = get_min_gas_price_for_height(
                     height,
