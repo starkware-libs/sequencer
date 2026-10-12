@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791729893992,
+  "lastUpdate": 1791796465138,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -713,6 +713,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1322.67883155,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f27f295abdef5de9c805fbc680da729fe585e542",
+          "message": "apollo_gateway_config,apollo_consensus_orchestrator_config: min gas price from versioned constants (#15200)\n\nThe L2 gas price floor lived in three copies that had to move together: the\nversioned constants `min_gas_price`, the `MIN_ALLOWED_GAS_PRICE` validator\nconstant and the default of the gateway stateless validator `min_gas_price`\nconfig. The validator constant is replaced by a runtime read of\n`VersionedConstants::latest_constants().min_gas_price`, which the orchestrator\nalready uses, and the gateway config default is derived from the same value.\nThe gateway field stays so each environment can still override the floor.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-12T08:42:47Z",
+          "tree_id": "0b8283e70cb62085d084ee49a0547e2917486087",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f27f295abdef5de9c805fbc680da729fe585e542"
+        },
+        "date": 1791796464464,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1132.8422402200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1613.98310188,
             "unit": "ms"
           }
         ]
