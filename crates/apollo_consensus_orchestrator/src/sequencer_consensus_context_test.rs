@@ -51,6 +51,7 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
@@ -857,10 +858,19 @@ async fn decision_reached_sends_correct_values() {
     deps.clock = Arc::new(clock);
 
     // 2. Decision reached setup starts.
-    deps.batcher
-        .expect_decision_reached()
-        .times(1)
-        .return_once(move |_| Ok(DecisionReachedResponse::default()));
+    // The batcher persists the proposer's `fee_proposal_fri` and the next price with the block;
+    // with build defaults (empty fee-proposals window, no gas used) both are `min_gas_price`.
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price;
+    deps.batcher.expect_decision_reached().times(1).return_once(move |input| {
+        assert_eq!(
+            input.fee_market_info,
+            BlockFeeMarketInfo {
+                fee_proposal_fri: Some(min_gas_price),
+                next_l2_gas_price: min_gas_price,
+            }
+        );
+        Ok(DecisionReachedResponse::default())
+    });
 
     // This is the actual part of the test that checks the values are correct.
     // TODO(guy.f): Add expectations and validations for all the other values being written.
