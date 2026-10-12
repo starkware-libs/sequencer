@@ -19,6 +19,7 @@ use num_bigint::BigUint;
 use parity_scale_codec::{Decode, Encode};
 use primitive_types::H160;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockNumber,
     BlockSignature,
@@ -161,6 +162,10 @@ auto_storage_serde! {
         pub l1_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
         pub l1_data_gas: ResourceBounds,
+    }
+    pub struct BlockFeeMarketInfo {
+        pub fee_proposal_fri: Option<GasPrice>,
+        pub next_l2_gas_price: GasPrice,
     }
     pub struct BlockHash(pub StarkHash);
     pub struct StorageBlockHeader {

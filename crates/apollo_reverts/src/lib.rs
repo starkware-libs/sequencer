@@ -9,6 +9,7 @@ use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
+use apollo_storage::fee_market::FeeMarketInfoStorageWriter;
 use apollo_storage::global_root::GlobalRootStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
@@ -145,7 +146,11 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .revert_global_root(&target_block_marker)
         .unwrap();
 
-    let txn = txn.revert_accessed_keys(target_block_marker).unwrap();
+    let txn = txn
+        .revert_accessed_keys(target_block_marker)
+        .unwrap()
+        .revert_fee_market_info(target_block_marker)
+        .unwrap();
 
     txn.commit().unwrap();
 }

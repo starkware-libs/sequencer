@@ -43,6 +43,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     Block,
     BlockBody,
+    BlockFeeMarketInfo,
     BlockHash,
     BlockHeader,
     BlockHeaderWithoutHash,
@@ -445,6 +446,10 @@ auto_impl_get_test_instance! {
         pub l1_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
         pub l1_data_gas: ResourceBounds,
+    }
+    pub struct BlockFeeMarketInfo {
+        pub fee_proposal_fri: Option<GasPrice>,
+        pub next_l2_gas_price: GasPrice,
     }
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
