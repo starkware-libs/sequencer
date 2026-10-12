@@ -26,9 +26,8 @@ const CIRCUIT_VERIFIER_PROGRAM_HASH = (
 // The output of a simple bootloader task: its size and program hash and verifier output digest.
 const VERIFIER_TASK_OUTPUT_SIZE = 2 + BLAKE2S_DIGEST_N_WORDS;
 
-// Runs the circuit verifier, as a simple bootloader task, on the processed proof of a
-// transaction's proof facts, which fill both of the multiverifier's verifier slots.
-// TODO(Einat): modify the function to take a tree of proof facts instead of just one.
+// Runs the circuit verifier, as a simple bootloader task, on the processed proof: the proof of the
+// root of a proof tree, whose entry (circuit hash and output digest) is `root_entry`.
 func verify_processed_proof{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
@@ -40,7 +39,7 @@ func verify_processed_proof{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(proof_facts_size: felt, proof_facts: felt*) {
+}(root_entry: felt*) {
     alloc_locals;
     // Write the output the simple bootloader must produce: the number of tasks, followed by the
     // verifier task's size, program hash and output, which is the verification digest.
@@ -49,11 +48,7 @@ func verify_processed_proof{
     assert verifier_bootloader_output[1] = VERIFIER_TASK_OUTPUT_SIZE;
     assert verifier_bootloader_output[2] = CIRCUIT_VERIFIER_PROGRAM_HASH;
     compute_verification_digest(
-        left_proof_facts_size=proof_facts_size,
-        left_proof_facts=proof_facts,
-        right_proof_facts_size=proof_facts_size,
-        right_proof_facts=proof_facts,
-        verification_digest=&verifier_bootloader_output[3],
+        root_entry=root_entry, verification_digest=&verifier_bootloader_output[3]
     );
 
     // The bootloader types the signature and range_check96 builtin pointers differently than the

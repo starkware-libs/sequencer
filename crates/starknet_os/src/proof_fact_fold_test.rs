@@ -49,31 +49,39 @@ fn felt_array_arg(felts: &[Felt]) -> EndpointArg {
     ))
 }
 
-/// Runs the Cairo `compute_verification_digest` on two transactions' proof facts, giving it a
-/// pointer to `expected_digest` to write the verification digest to. Cairo memory is write-once, so
-/// the run fails unless the function writes `expected_digest`.
+/// Runs the Cairo `compute_verification_digest` on a root entry, giving it a pointer to
+/// `expected_digest` to write the verification digest to. Cairo memory is write-once, so the run
+/// fails unless the function writes `expected_digest`.
 fn assert_cairo_verification_digest(
-    left_proof_facts: &[Felt],
-    right_proof_facts: &[Felt],
+    root_circuit_hash: &Blake2sDigestWords,
+    root_output_digest: &Blake2sDigestWords,
     expected_digest: &Blake2sDigestWords,
 ) {
+    let root_entry: Vec<Felt> =
+        root_circuit_hash.iter().chain(root_output_digest).map(|word| Felt::from(*word)).collect();
     initialize_and_run_cairo_0_entry_point(
         &entrypoint_runner_config(),
         PROOF_FACT_FOLD_BYTES,
         "compute_verification_digest",
-        &[
-            EndpointArg::from(left_proof_facts.len()),
-            felt_array_arg(left_proof_facts),
-            EndpointArg::from(right_proof_facts.len()),
-            felt_array_arg(right_proof_facts),
-            felt_array_arg(&expected_digest.map(Felt::from)),
-        ],
+        &[felt_array_arg(&root_entry), felt_array_arg(&expected_digest.map(Felt::from))],
         &[ImplicitArg::Builtin(BuiltinName::range_check)],
         &[],
         HashMap::new(),
         None,
     )
     .unwrap();
+}
+
+/// The `TxProofFacts*` argument of the given transactions' proof facts.
+fn tx_proof_facts_arg(proof_facts_list: &[&[Felt]]) -> EndpointArg {
+    EndpointArg::Pointer(PointerArg::Composed(
+        proof_facts_list
+            .iter()
+            .flat_map(|proof_facts| {
+                [EndpointArg::from(proof_facts.len()), felt_array_arg(proof_facts)]
+            })
+            .collect(),
+    ))
 }
 
 /// The flattened single-leaf tree.
@@ -91,11 +99,6 @@ fn run_cairo_proof_tree_root_entry(
     n_tx_proof_facts: usize,
     expected_root_output_digest: &Blake2sDigestWords,
 ) -> Cairo0EntryPointRunnerResult<()> {
-    let tx_proof_facts = (0..n_tx_proof_facts)
-        .flat_map(|_| {
-            [EndpointArg::from(GOLDEN_PROOF_FACTS.len()), felt_array_arg(&GOLDEN_PROOF_FACTS)]
-        })
-        .collect();
     let expected_root_entry: Vec<Felt> = MULTIVERIFIER_CIRCUIT_HASH
         .iter()
         .chain(expected_root_output_digest)
@@ -109,7 +112,7 @@ fn run_cairo_proof_tree_root_entry(
             EndpointArg::from(flat_tree.len()),
             felt_array_arg(&flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>()),
             EndpointArg::from(n_tx_proof_facts),
-            EndpointArg::Pointer(PointerArg::Composed(tx_proof_facts)),
+            tx_proof_facts_arg(&vec![GOLDEN_PROOF_FACTS.as_slice(); n_tx_proof_facts]),
             felt_array_arg(&expected_root_entry),
         ],
         &[ImplicitArg::Builtin(BuiltinName::range_check)],
@@ -120,8 +123,8 @@ fn run_cairo_proof_tree_root_entry(
     Ok(())
 }
 
-/// Runs the Cairo `verify_processed_proof` on the golden leaf's processed proof, against
-/// `proof_facts`.
+/// Runs the Cairo `verify_processed_proof` on the golden leaf's processed proof, against the
+/// single-leaf tree of `proof_facts`.
 fn run_cairo_verify_processed_proof(proof_facts: &[Felt]) -> Cairo0EntryPointRunnerResult<()> {
     let verifier_task = GoldenCircuitVerifierTask::decompress();
     let simple_bootloader_input: Box<dyn Any> =
@@ -138,7 +141,12 @@ fn run_cairo_verify_processed_proof(proof_facts: &[Felt]) -> Cairo0EntryPointRun
     )?;
     run_cairo_0_entrypoint_with_hint_processor(
         entrypoint,
-        &[EndpointArg::from(proof_facts.len()), felt_array_arg(proof_facts)],
+        &[
+            EndpointArg::from(SINGLE_LEAF_FLAT_TREE.len()),
+            felt_array_arg(&SINGLE_LEAF_FLAT_TREE.map(Felt::from)),
+            EndpointArg::from(1),
+            tx_proof_facts_arg(&[proof_facts]),
+        ],
         &implicit_args,
         &mut cairo_runner,
         &program,
@@ -166,13 +174,11 @@ fn test_processed_proof_digests_match_proving_side_goldens() {
     );
 }
 
-/// The verification digest is computed from the leaf and processed proof output digests, so this
-/// also checks them.
 #[test]
 fn test_cairo_verification_digest_matches_proving_side_golden() {
     assert_cairo_verification_digest(
-        &GOLDEN_PROOF_FACTS,
-        &GOLDEN_PROOF_FACTS,
+        &MULTIVERIFIER_CIRCUIT_HASH,
+        &GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
         &GOLDEN_VERIFICATION_DIGEST,
     );
 }

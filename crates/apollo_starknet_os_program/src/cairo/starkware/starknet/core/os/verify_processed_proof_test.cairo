@@ -1,3 +1,4 @@
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     EcOpBuiltin,
@@ -6,6 +7,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
+from starkware.starknet.core.os.proof_fact_fold import TxProofFacts, write_proof_tree_root_entry
 from starkware.starknet.core.os.verify_processed_proof import verify_processed_proof
 
 // An entry point for testing `verify_processed_proof`. It takes the output builtin without using
@@ -22,7 +24,16 @@ func verify_processed_proof_test{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(proof_facts_size: felt, proof_facts: felt*) {
-    verify_processed_proof(proof_facts_size=proof_facts_size, proof_facts=proof_facts);
+}(flat_tree_size: felt, flat_tree: felt*, n_tx_proof_facts: felt, tx_proof_facts: TxProofFacts*) {
+    alloc_locals;
+    let (local root_entry: felt*) = alloc();
+    write_proof_tree_root_entry(
+        flat_tree_size=flat_tree_size,
+        flat_tree=flat_tree,
+        n_tx_proof_facts=n_tx_proof_facts,
+        tx_proof_facts=tx_proof_facts,
+        root_entry=root_entry,
+    );
+    verify_processed_proof(root_entry=root_entry);
     return ();
 }

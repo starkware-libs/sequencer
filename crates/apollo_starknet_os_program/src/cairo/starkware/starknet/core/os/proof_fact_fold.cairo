@@ -35,51 +35,10 @@ func compute_leaf_output_digest{range_check_ptr}(
     return ();
 }
 
-// Writes the output digest of the two transactions' entries in the multiverifier output to
-// `output_digest`.
-func compute_processed_proof_output_digest{range_check_ptr}(
-    left_proof_facts_size: felt,
-    left_proof_facts: felt*,
-    right_proof_facts_size: felt,
-    right_proof_facts: felt*,
-    output_digest: felt*,
-) {
-    alloc_locals;
-    let (local multiverifier_output: felt*) = alloc();
-    write_leaf_proof_entry(
-        proof_facts_size=left_proof_facts_size,
-        proof_facts=left_proof_facts,
-        proof_entry=multiverifier_output,
-    );
-    write_leaf_proof_entry(
-        proof_facts_size=right_proof_facts_size,
-        proof_facts=right_proof_facts,
-        proof_entry=&multiverifier_output[PROOF_ENTRY_N_WORDS],
-    );
-    blake_with_opcode(len=2 * PROOF_ENTRY_N_WORDS, data=multiverifier_output, out=output_digest);
-    return ();
-}
-
-// Writes to `verification_digest` the digest the circuit verifier outputs when run on the processed
-// proof of two transactions.
-func compute_verification_digest{range_check_ptr}(
-    left_proof_facts_size: felt,
-    left_proof_facts: felt*,
-    right_proof_facts_size: felt,
-    right_proof_facts: felt*,
-    verification_digest: felt*,
-) {
-    alloc_locals;
-    let (local preimage: felt*) = alloc();
-    write_multiverifier_circuit_hash(circuit_hash=preimage);
-    compute_processed_proof_output_digest(
-        left_proof_facts_size=left_proof_facts_size,
-        left_proof_facts=left_proof_facts,
-        right_proof_facts_size=right_proof_facts_size,
-        right_proof_facts=right_proof_facts,
-        output_digest=&preimage[BLAKE2S_DIGEST_N_WORDS],
-    );
-    blake_with_opcode(len=PROOF_ENTRY_N_WORDS, data=preimage, out=verification_digest);
+// Writes to `verification_digest` the digest the circuit verifier outputs when run on the proof of
+// the root of a proof tree, whose entry is `root_entry`.
+func compute_verification_digest{range_check_ptr}(root_entry: felt*, verification_digest: felt*) {
+    blake_with_opcode(len=PROOF_ENTRY_N_WORDS, data=root_entry, out=verification_digest);
     return ();
 }
 
