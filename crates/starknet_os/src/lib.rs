@@ -7,6 +7,7 @@ pub mod hints;
 pub mod io;
 pub mod metrics;
 pub mod proof_fact_fold;
+pub mod proof_facts_tree;
 pub mod runner;
 pub mod syscall_handler_utils;
 #[cfg(any(test, feature = "testing"))]
