@@ -38,6 +38,10 @@ use crate::vm_utils::VmUtilsError;
 pub enum OsHintError {
     #[error("Tried to access an already consumed Bootloader input.")]
     AggregatorBootloaderInputAlreadyConsumed,
+    #[error("The OS outputs have proof facts, but the aggregator input has no proof facts tree.")]
+    MissingProofFactsTree,
+    #[error("Unsupported proof facts tree node: {0}.")]
+    UnsupportedProofFactsTreeNode(String),
     #[error("Assertion failed: {message}")]
     AssertionFailed { message: String },
     #[error("Unexpectedly assigned leaf bytecode segment.")]

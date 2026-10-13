@@ -185,6 +185,8 @@ define_string_enum! {
         (FinalRoot),
         (FinalSquashedContractStateChangesEnd),
         (FinalSquashedContractStateChangesStart),
+        (FlatTree),
+        (FlatTreeSize),
         (FullContract),
         (FullOutput),
         (GasPricesHash),

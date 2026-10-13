@@ -1,3 +1,5 @@
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use leaf_proof_format::PackedNode;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, DataAvailability};
@@ -113,5 +115,58 @@ pub(crate) fn get_chain_id_and_fee_token_address_from_input(
     let fee_token_address: Felt = hint_processor.input.fee_token_address;
     ctx.insert_value(Ids::ChainId, chain_id)?;
     ctx.insert_value(Ids::FeeTokenAddress, fee_token_address)?;
+    Ok(())
+}
+
+pub(crate) fn guess_proof_facts_tree(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    mut ctx: HintContext<'_>,
+) -> OsHintResult {
+    let packed_tree =
+        hint_processor.input.proof_facts_tree.as_ref().ok_or(OsHintError::MissingProofFactsTree)?;
+    let flat_tree = flatten_proof_facts_tree(packed_tree)?;
+    ctx.insert_value(Ids::FlatTreeSize, Felt::from(flat_tree.len()))?;
+    let flat_tree_ptr =
+        ctx.vm.gen_arg(&flat_tree.into_iter().map(MaybeRelocatable::from).collect::<Vec<_>>())?;
+    ctx.insert_value(Ids::FlatTree, flat_tree_ptr)?;
+    Ok(())
+}
+
+/// Writes the tree's nodes the way the Cairo `write_proof_tree_root_entry` reads them: one entry
+/// per node, FLAT_TREE_FOLD (1) for a multiverifier proof of two children and FLAT_TREE_LEAF (0)
+/// for a transaction's proof, each fold followed by its left subtree, then its right subtree. The
+/// proving side's single-leaf tree, whose root multiverifier verifies the leaf in both of its
+/// slots, is written as the leaf.
+fn flatten_proof_facts_tree(packed_tree: &PackedNode) -> Result<Vec<Felt>, OsHintError> {
+    let tree = match packed_tree {
+        PackedNode::Composite { subtasks, .. } => match subtasks.as_slice() {
+            [leaf @ PackedNode::Composite { subtasks: leaf_subtasks, .. }]
+                if matches!(leaf_subtasks.as_slice(), [PackedNode::Plain { .. }]) =>
+            {
+                leaf
+            }
+            _ => packed_tree,
+        },
+        PackedNode::Plain { .. } => packed_tree,
+    };
+    let mut flat_tree = Vec::new();
+    write_flat_subtree(tree, &mut flat_tree)?;
+    Ok(flat_tree)
+}
+
+fn write_flat_subtree(node: &PackedNode, flat_tree: &mut Vec<Felt>) -> Result<(), OsHintError> {
+    let unsupported_node = || OsHintError::UnsupportedProofFactsTreeNode(format!("{node:?}"));
+    let PackedNode::Composite { subtasks, .. } = node else {
+        return Err(unsupported_node());
+    };
+    match subtasks.as_slice() {
+        [PackedNode::Plain { .. }] => flat_tree.push(Felt::ZERO),
+        [left, right] => {
+            flat_tree.push(Felt::ONE);
+            write_flat_subtree(left, flat_tree)?;
+            write_flat_subtree(right, flat_tree)?;
+        }
+        _ => return Err(unsupported_node()),
+    }
     Ok(())
 }
