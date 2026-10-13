@@ -1,6 +1,6 @@
 use apollo_consensus_config::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
-use apollo_network::NetworkConfig;
+use apollo_network_config::NetworkConfig;
 use apollo_reverts::RevertConfig;
 use apollo_staking_config::config::StakingManagerConfig;
 use serde::{Deserialize, Serialize};

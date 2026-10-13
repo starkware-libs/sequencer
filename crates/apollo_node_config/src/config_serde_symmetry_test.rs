@@ -17,7 +17,7 @@
 //!
 //! Some configs contain a `Sensitive<T>` field whose derived `Serialize` is intentionally
 //! asymmetric (it redacts) and which is therefore left WITHOUT a `serialize_with` by design:
-//!   - `apollo_network::NetworkConfig::secret_key: Option<Sensitive<Vec<u8>>>`
+//!   - `apollo_network_config::NetworkConfig::secret_key: Option<Sensitive<Vec<u8>>>`
 //!   - `apollo_l1_gas_price_config::ExchangeRateOracleConfig::url_header_list:
 //!     Option<Vec<Sensitive<UrlAndHeaders>>>`
 //!
@@ -40,7 +40,7 @@ use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperCon
 use apollo_l1_gas_price_config::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
 use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
-use apollo_network::NetworkConfig;
+use apollo_network_config::NetworkConfig;
 use apollo_state_sync_config::config::{CentralSyncClientConfig, StateSyncConfig};
 use pretty_assertions::assert_eq;
 use serde::Serialize;
@@ -88,7 +88,7 @@ fn consensus_manager_config_round_trips() {
     //     min_retry_interval_ms, max_retry_interval_ms (millis)},
     //     ContextStaticConfig::{validate_proposal_margin_millis,
     //     retrospective_block_hash_retry_interval_millis} (millis).
-    //   - apollo_network: NetworkConfig fields, via `set_network_config_non_default`.
+    //   - apollo_network_config: NetworkConfig fields, via `set_network_config_non_default`.
     let mut config = ConsensusManagerConfig::default();
 
     let consensus = &mut config.consensus_manager_config;
@@ -128,12 +128,12 @@ fn consensus_manager_config_round_trips() {
 
 #[test]
 fn network_config_round_trips() {
-    // Covers apollo_network directly: NetworkConfig::{session_timeout, idle_connection_timeout,
-    // prune_dead_connections_ping_interval, prune_dead_connections_ping_timeout (seconds),
-    // bootstrap_peer_multiaddr (native JSON array)}, and (via sub-structs)
-    // DiscoveryConfig::heartbeat_interval, RetryConfig::{max_delay_seconds,
-    // new_connection_stabilization_millis}, PeerManagerConfig::{malicious_timeout_seconds,
-    // unstable_timeout_millis}.
+    // Covers apollo_network_config directly: NetworkConfig::{session_timeout,
+    // idle_connection_timeout, prune_dead_connections_ping_interval,
+    // prune_dead_connections_ping_timeout (seconds), bootstrap_peer_multiaddr (native JSON
+    // array)}, and (via sub-structs) DiscoveryConfig::heartbeat_interval,
+    // RetryConfig::{max_delay_seconds, new_connection_stabilization_millis},
+    // PeerManagerConfig::{malicious_timeout_seconds, unstable_timeout_millis}.
     let mut config = NetworkConfig::default();
     set_network_config_non_default(&mut config);
     assert_round_trips_ignoring_sensitive(config, &["/secret_key"]);
@@ -142,7 +142,7 @@ fn network_config_round_trips() {
 #[test]
 fn mempool_p2p_config_round_trips() {
     // Covers apollo_mempool_p2p_config: MempoolP2pConfig::transaction_batch_rate_millis (millis),
-    // and a second NetworkConfig instance (apollo_network).
+    // and a second NetworkConfig instance (apollo_network_config).
     let mut config = MempoolP2pConfig {
         transaction_batch_rate_millis: Duration::from_millis(2468),
         ..Default::default()
@@ -296,9 +296,9 @@ fn state_sync_config_round_trips() {
 
 /// Sets every `serialize_with`-affected field on `NetworkConfig` (and its nested `DiscoveryConfig`
 /// and `RetryConfig`) to a distinctive non-default value. `PeerManagerConfig`'s two affected fields
-/// are private; they keep their non-zero, distinct defaults (1s vs 1000ms), which still differ
-/// between the seconds and millis serializers, so a mispairing there is caught. `secret_key` is
-/// left `None` (its `Sensitive` serializer redacts and cannot round-trip; see the module docs).
+/// keep their non-zero, distinct defaults (1s vs 1000ms), which still differ between the seconds
+/// and millis serializers, so a mispairing there is caught. `secret_key` is left `None` (its
+/// `Sensitive` serializer redacts and cannot round-trip; see the module docs).
 fn set_network_config_non_default(network_config: &mut NetworkConfig) {
     network_config.session_timeout = Duration::from_secs(37);
     network_config.idle_connection_timeout = Duration::from_secs(41);
