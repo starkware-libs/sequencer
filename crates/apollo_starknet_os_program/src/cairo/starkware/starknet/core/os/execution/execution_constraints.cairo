@@ -7,10 +7,12 @@ from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2,
+    ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_3,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
+from starkware.starknet.core.os.output import OsCarriedOutputs, TxProofFacts, os_carried_outputs_new
 from starkware.starknet.core.os.virtual_os_output import (
     PROOF_VERSION_V1,
     PROOF_VERSION_V2,
@@ -26,17 +28,20 @@ func check_is_reverted(is_reverted: felt) {
 
 // Returns TRUE if the given virtual OS program hash is allowed, FALSE otherwise.
 func is_program_hash_allowed(program_hash: felt) -> felt {
-    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 3;
+    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 4;
     if ((program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) *
         (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) *
-        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2) == 0) {
+        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_2) *
+        (program_hash - ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_3) == 0) {
         return TRUE;
     }
     return FALSE;
 }
 
 // Validates that the proof facts of an invoke transaction are of a valid virtual OS run.
-func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
+func check_proof_facts{
+    range_check_ptr, contract_state_changes: DictAccess*, outputs: OsCarriedOutputs*
+}(
     proof_facts_size: felt,
     proof_facts: felt*,
     current_block_number: felt,
@@ -85,5 +90,14 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     // validate that the proof facts config hash is the true hash of the OS config.
     assert os_output_header.starknet_os_config_hash = virtual_os_config_hash;
 
+    // Add the proof facts to the OS output, for the aggregator to verify their proof.
+    assert outputs.tx_proof_facts[0] = TxProofFacts(
+        proof_facts_size=proof_facts_size, proof_facts=proof_facts
+    );
+    let (outputs) = os_carried_outputs_new(
+        messages_to_l1=outputs.messages_to_l1,
+        messages_to_l2=outputs.messages_to_l2,
+        tx_proof_facts=&outputs.tx_proof_facts[1],
+    );
     return ();
 }
