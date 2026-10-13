@@ -5,7 +5,6 @@ use std::process::{Command, Output, Stdio};
 
 use apollo_infra_utils::cairo0_compiler::Cairo0Script;
 use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
-use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
 use tracing::info;
@@ -13,10 +12,6 @@ use tracing::info;
 pub enum CompilationArtifacts {
     Cairo0 { casm: Vec<u8> },
     Cairo1 { casm: Vec<u8>, sierra: Vec<u8> },
-}
-
-pub fn cairo1_compiler_tag() -> String {
-    format!("v{CAIRO1_COMPILER_VERSION}")
 }
 
 /// Path to local compiler package directory, of the specified version.
