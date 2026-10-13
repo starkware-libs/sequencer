@@ -113,6 +113,9 @@ local echonetOverrides = {
     l1_handler_proposal_cooldown_seconds: 0,
   },
   l1_events_scraper_config: {
+    // The fake L1 jumps straight to the next handler's block; a capped fetch needs one more poll
+    // per 1000 blocks, which can push the handler past its block's proposal.
+    max_blocks_per_fetch: 1000000,
     polling_interval_seconds: 1,
     startup_rewind_time_seconds: 3600,
   },
