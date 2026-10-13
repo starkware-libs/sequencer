@@ -242,7 +242,7 @@ class SequencerManager:
         target_block: int,
         timeout_seconds: float = 100000.0,
         poll_interval_seconds: float = 1.0,
-        tail_lines: int = 1000,
+        previous_container_tail_lines: int = 1000,
         pod_name: Optional[str] = None,
     ) -> None:
         """
@@ -257,12 +257,23 @@ class SequencerManager:
         batcher_markers, state_sync_markers = _revert_completion_markers(target_block)
 
         start = time.time()
+        last_read_time: Optional[float] = None
         state_sync_done = False
         batcher_done = False
 
         while True:
-            logs_current = self._read_pod_logs(pod_name=pod, tail_lines=tail_lines)
-            logs_previous = self._read_pod_logs(pod_name=pod, tail_lines=tail_lines, previous=True)
+            # A deep revert logs ~1000 lines/s, enough to scroll a marker out of a fixed tail between
+            # polls, so read everything since the last successful read (the whole log at first).
+            read_time = time.time()
+            since_seconds = None if last_read_time is None else int(read_time - last_read_time) + 2
+            logs_current = self._read_pod_logs(
+                pod_name=pod, tail_lines=None, since_seconds=since_seconds
+            )
+            if logs_current:
+                last_read_time = read_time
+            logs_previous = self._read_pod_logs(
+                pod_name=pod, tail_lines=previous_container_tail_lines, previous=True
+            )
             logs = [logs_current, logs_previous]
 
             if any(marker in log for log in logs for marker in state_sync_markers):
