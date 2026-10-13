@@ -4,15 +4,15 @@ Kubernetes orchestration helpers for the Echonet sequencer node.
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Iterator, Optional
 
 import kubernetes  # pyright: ignore[reportMissingImports]
 import urllib3
-from kubernetes import watch  # pyright: ignore[reportMissingImports]
 from kubernetes.client.rest import ApiException  # pyright: ignore[reportMissingImports]
 
 from echonet.echonet_types import CONFIG, JsonObject
@@ -267,14 +267,13 @@ class SequencerManager:
         while True:
             # Follow the log instead of polling it: a polled window drops lines when request latency
             # jumps or the log file rotates (about once a minute during a deep revert). Each
-            # (re)connect reads the whole current log, as the pod was restarted just before the wait.
+            # (re)connect reads the whole current log, as the pod was restarted just before the wait,
+            # and the previous container's log, in case the container restarted mid-wait.
             try:
-                for line in watch.Watch().stream(
-                    self._core_v1.read_namespaced_pod_log,
-                    name=pod,
-                    namespace=self._namespace,
-                    _request_timeout=(10, _LOG_STREAM_READ_TIMEOUT_SECONDS),
-                ):
+                previous_container_lines = self._read_pod_logs(
+                    pod_name=pod, tail_lines=None, previous=True
+                ).splitlines()
+                for line in itertools.chain(previous_container_lines, self._follow_pod_log(pod)):
                     if any(marker in line for marker in state_sync_markers):
                         state_sync_done = True
                     if any(marker in line for marker in batcher_markers):
@@ -337,6 +336,22 @@ class SequencerManager:
                 )
 
             time.sleep(poll_interval_seconds)
+
+    def _follow_pod_log(self, pod_name: str) -> Iterator[str]:
+        """Yield the pod's current log line by line, then each new line as it is written."""
+        response = self._core_v1.read_namespaced_pod_log(
+            name=pod_name,
+            namespace=self._namespace,
+            follow=True,
+            _preload_content=False,
+            _request_timeout=(10, _LOG_STREAM_READ_TIMEOUT_SECONDS),
+        )
+        try:
+            for line in response:
+                yield line.decode("utf-8", errors="replace")
+        finally:
+            response.close()
+            response.release_conn()
 
     def _read_pod_logs(
         self,
