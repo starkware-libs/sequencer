@@ -49,6 +49,10 @@ jobs:
       checks: read
       statuses: read
     steps:
+      # "Graphite / mergeability_check" is ignored because it stays in_progress for the whole life
+      # of a stacked PR: Graphite cannot call a PR mergeable while its base is another open PR. It
+      # is a stack-state indicator rather than a CI signal about the code, and waiting on it burns
+      # the full timeout and reports "context deadline exceeded" with zero failed jobs.
       - name: Run merge-gatekeeper-new on pull request
         if: github.event_name == 'pull_request'
         uses: starkware-libs/merge-gatekeeper@c0535e7c50a3fc70a0f4857afd37ccd6cfcc59de # v1
@@ -56,7 +60,7 @@ jobs:
           self: merge-gatekeeper-new
           timeout: 3600
           interval: 30
-          ignored: "code-review/reviewable,build_docker_images"
+          ignored: "code-review/reviewable,build_docker_images,Graphite / mergeability_check"
 
       - name: Run merge-gatekeeper-new on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
