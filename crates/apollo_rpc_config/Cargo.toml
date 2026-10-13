@@ -1,0 +1,16 @@
+[package]
+name = "apollo_rpc_config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Configuration types for the Apollo JSON-RPC server."
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+validator = { workspace = true, features = ["derive"] }
