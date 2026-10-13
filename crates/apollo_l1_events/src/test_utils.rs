@@ -588,14 +588,6 @@ impl FakeL1EventsProviderClient {
 
         // TODO(gilad): flush other buffers if necessary.
     }
-
-    #[track_caller]
-    pub fn assert_add_events_received_with(&self, expected: &[Event]) {
-        let events_received = mem::take(&mut *self.events_received.lock().unwrap());
-        for (received, expected) in events_received.iter().zip_eq(expected) {
-            received.assert_event_almost_eq(expected);
-        }
-    }
 }
 
 #[async_trait]
