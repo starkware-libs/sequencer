@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import kubernetes  # pyright: ignore[reportMissingImports]
+import urllib3
+from kubernetes import watch  # pyright: ignore[reportMissingImports]
 from kubernetes.client.rest import ApiException  # pyright: ignore[reportMissingImports]
 
 from echonet.echonet_types import CONFIG, JsonObject
@@ -55,6 +57,9 @@ _STATE_SYNC_REVERT_COMPLETION_MARKER_TEMPLATES: tuple[str, ...] = (
 )
 
 _CACHED_NAMESPACE_BY_PATH: dict[str, str] = {}
+
+# A followed log stream that goes this long without a line is reopened, so the timeout still applies.
+_LOG_STREAM_READ_TIMEOUT_SECONDS = 60
 
 
 ConfigMutator = Callable[[JsonObject], None]
@@ -241,8 +246,7 @@ class SequencerManager:
         self,
         target_block: int,
         timeout_seconds: float = 100000.0,
-        poll_interval_seconds: float = 1.0,
-        previous_container_tail_lines: int = 1000,
+        reconnect_delay_seconds: float = 1.0,
         pod_name: Optional[str] = None,
     ) -> None:
         """
@@ -257,44 +261,41 @@ class SequencerManager:
         batcher_markers, state_sync_markers = _revert_completion_markers(target_block)
 
         start = time.time()
-        last_read_time: Optional[float] = None
         state_sync_done = False
         batcher_done = False
 
         while True:
-            # A deep revert logs ~1000 lines/s, enough to scroll a marker out of a fixed tail between
-            # polls, so read everything since the last successful read (the whole log at first).
-            read_time = time.time()
-            since_seconds = None if last_read_time is None else int(read_time - last_read_time) + 2
-            logs_current = self._read_pod_logs(
-                pod_name=pod, tail_lines=None, since_seconds=since_seconds
-            )
-            if logs_current:
-                last_read_time = read_time
-            logs_previous = self._read_pod_logs(
-                pod_name=pod, tail_lines=previous_container_tail_lines, previous=True
-            )
-            logs = [logs_current, logs_previous]
-
-            if any(marker in log for log in logs for marker in state_sync_markers):
-                state_sync_done = True
-
-            if any(marker in log for log in logs for marker in batcher_markers):
-                batcher_done = True
-
-            if batcher_done and state_sync_done:
-                logger.info(
-                    "Found State Sync and Batcher revert completion logs "
-                    f"for target height {target_block} in pod '{pod}'."
-                )
-                return
+            # Follow the log instead of polling it: a polled window drops lines when request latency
+            # jumps or the log file rotates (about once a minute during a deep revert). Each
+            # (re)connect reads the whole current log, as the pod was restarted just before the wait.
+            try:
+                for line in watch.Watch().stream(
+                    self._core_v1.read_namespaced_pod_log,
+                    name=pod,
+                    namespace=self._namespace,
+                    _request_timeout=(10, _LOG_STREAM_READ_TIMEOUT_SECONDS),
+                ):
+                    if any(marker in line for marker in state_sync_markers):
+                        state_sync_done = True
+                    if any(marker in line for marker in batcher_markers):
+                        batcher_done = True
+                    if batcher_done and state_sync_done:
+                        logger.info(
+                            "Found State Sync and Batcher revert completion logs "
+                            f"for target height {target_block} in pod '{pod}'."
+                        )
+                        return
+                    if time.time() - start > timeout_seconds:
+                        break
+            except (ApiException, urllib3.exceptions.HTTPError) as e:
+                logger.warning(f"Log stream of pod {pod} broke ({e}); reconnecting.")
 
             if time.time() - start > timeout_seconds:
                 raise TimeoutError(
                     f"Timed out after {timeout_seconds}s waiting for State Sync and Batcher "
                     f"revert completion to height {target_block} in pod '{pod}'."
                 )
-            time.sleep(poll_interval_seconds)
+            time.sleep(reconnect_delay_seconds)
 
     def wait_for_synced_block_at_least(
         self,
