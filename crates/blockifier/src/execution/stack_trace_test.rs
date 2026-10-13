@@ -15,6 +15,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::core::{
     calculate_contract_address,
+    AddressDerivationHash,
     ClassHash,
     ContractAddress,
     EntryPointSelector,
@@ -774,6 +775,7 @@ fn test_contract_ctor_frame_stack_trace(
         faulty_class_hash,
         &calldata![validate_constructor],
         account_address,
+        AddressDerivationHash::Pedersen,
     )
     .unwrap();
     // Invoke the deploy_contract function on the dummy account to deploy the faulty contract.

@@ -9,6 +9,7 @@ use crate::core::{
     ascii_as_felt,
     calculate_contract_address,
     felt_to_u128,
+    AddressDerivationHash,
     ChainId,
     ContractAddress,
     EthAddress,
@@ -61,9 +62,14 @@ fn test_calculate_contract_address() {
     let constructor_calldata =
         Calldata(vec![Felt::from(60_u16), Felt::from(70_u16), Felt::MAX].into());
 
-    let actual_address =
-        calculate_contract_address(salt, class_hash, &constructor_calldata, deployer_address)
-            .unwrap();
+    let actual_address = calculate_contract_address(
+        salt,
+        class_hash,
+        &constructor_calldata,
+        deployer_address,
+        AddressDerivationHash::Pedersen,
+    )
+    .unwrap();
 
     let constructor_calldata_hash = Pedersen::hash_array(&constructor_calldata.0);
     let address = Pedersen::hash_array(&[
