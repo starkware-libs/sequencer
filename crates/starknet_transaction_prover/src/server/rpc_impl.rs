@@ -103,7 +103,12 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         };
 
         self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
+            // Only the bounded kind is logged. See `VirtualSnosProverError` for why.
+            warn!(
+                event = "prove_transaction_failed",
+                error_kind = err.error_kind(),
+                "prove_transaction failed"
+            );
             ErrorObjectOwned::from(err)
         })
     }

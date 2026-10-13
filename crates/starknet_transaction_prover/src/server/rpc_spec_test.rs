@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
+use tracing_test::traced_test;
 
 use crate::config::ProverConfig;
 use crate::proving::virtual_snos_prover::RpcVirtualSnosProver;
@@ -34,6 +35,9 @@ const PROVE_TRANSACTION_METHOD: &str = "starknet_proveTransaction";
 const DUMMY_RPC_NODE_URL: &str = "http://localhost:1";
 const TEST_MAX_CONCURRENT_REQUESTS: usize = 2;
 const RPC_RESPONSE_BUFFER_SIZE: usize = 1;
+/// A gas price that no other log line contains, so finding it in the logs means a log line echoed
+/// client data.
+const DISTINCTIVE_GAS_PRICE: u128 = 987_654_321;
 
 /// Pinned revision of starknet-specs. Update this when the spec changes.
 const STARKNET_SPECS_REV: &str =
@@ -118,17 +122,20 @@ static SPEC_ERRORS: LazyLock<BTreeMap<String, Value>> = LazyLock::new(|| {
     errors
 });
 
-#[fixture]
-fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
+fn proving_rpc_server_impl() -> ProvingRpcServerImpl {
     let config =
         ProverConfig { rpc_node_url: DUMMY_RPC_NODE_URL.to_string(), ..Default::default() };
-    let rpc_impl = ProvingRpcServerImpl::new(
+    ProvingRpcServerImpl::new(
         RpcVirtualSnosProver::new(&config),
         TEST_MAX_CONCURRENT_REQUESTS,
         0,
         std::time::Duration::from_secs(30),
-    );
-    rpc_impl.into_rpc()
+    )
+}
+
+#[fixture]
+fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
+    proving_rpc_server_impl().into_rpc()
 }
 
 #[fixture]
@@ -554,4 +561,32 @@ async fn test_prove_transaction_rejects_non_zero_fee(rpc_module: RpcModule<Provi
         resource_bounds: ValidResourceBounds::AllResources(non_zero_fee_bounds)
     ));
     assert_prove_transaction_error(&rpc_module, transaction, "INVALID_TRANSACTION_INPUT").await;
+}
+
+#[tokio::test]
+#[traced_test]
+async fn test_prove_transaction_failure_log_omits_client_fee_values() {
+    let rpc_impl = proving_rpc_server_impl();
+    let transaction = rpc_invoke_tx(invoke_tx_args!(
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(1),
+                max_price_per_unit: GasPrice(DISTINCTIVE_GAS_PRICE),
+            },
+            ..Default::default()
+        })
+    ));
+
+    // Calls the handler directly to inspect the typed result.
+    let result = rpc_impl.prove_transaction(BlockId::Latest, transaction).await;
+
+    assert!(result.is_err(), "a non-zero gas price must fail fee validation");
+    // The positive checks show the failure was captured, so the negative check below cannot pass
+    // on an empty capture.
+    assert!(logs_contain("event=\"prove_transaction_failed\""));
+    assert!(logs_contain("error_kind=\"invalid_transaction_input\""));
+    assert!(
+        !logs_contain(&DISTINCTIVE_GAS_PRICE.to_string()),
+        "the failure log must not echo the client's fee values"
+    );
 }

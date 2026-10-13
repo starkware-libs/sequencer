@@ -13,6 +13,10 @@ use starknet_rust::providers::jsonrpc::{HttpTransportError, JsonRpcClientError};
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 #[derive(Debug, Error)]
 pub enum VirtualBlockExecutorError {
     #[error(transparent)]
@@ -133,6 +137,10 @@ pub enum ProvingError {
 }
 
 /// Error type for the virtual SNOS prover.
+///
+/// The `Display` and `Debug` text of these errors can carry client data such as fee values and
+/// revert reasons with contract addresses. It can also carry the node URL, which may embed
+/// credentials. Log [`VirtualSnosProverError::error_kind`] instead of the error text.
 #[derive(Debug, Error)]
 pub enum VirtualSnosProverError {
     #[error("Invalid transaction type: {0}")]
@@ -153,6 +161,23 @@ pub enum VirtualSnosProverError {
     OutputParseError(#[from] OsOutputError),
     #[error("Transaction blocked by external check")]
     TransactionBlocked,
+}
+
+impl VirtualSnosProverError {
+    /// Returns the variant name in snake_case. The set of values is fixed, so it is safe to log.
+    pub fn error_kind(&self) -> &'static str {
+        match self {
+            Self::InvalidTransactionType(_) => "invalid_transaction_type",
+            Self::InvalidTransactionInput(_) => "invalid_transaction_input",
+            Self::ValidationError(_) => "validation_error",
+            Self::ProgramOutputError(_) => "program_output_error",
+            Self::RunnerError(_) => "runner_error",
+            #[cfg(feature = "stwo_proving")]
+            Self::ProvingError(_) => "proving_error",
+            Self::OutputParseError(_) => "output_parse_error",
+            Self::TransactionBlocked => "transaction_blocked",
+        }
+    }
 }
 
 /// Errors that can occur during configuration.
