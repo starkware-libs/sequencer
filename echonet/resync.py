@@ -23,10 +23,10 @@ class ResyncPolicy:
         gateway_errors: Dict[str, JsonObject],
         sent_tx_hashes: Dict[str, int],
         echonet_only_reverts: Dict[str, RevertErrorInfo],
-        current_block: int,
+        committed_block_number: int,
         block_hash_mismatch_block: Optional[int] = None,
     ) -> Optional[ResyncTriggerPayload]:
-        threshold_block = current_block - self._blocks_to_wait_before_failing_tx
+        threshold_block = committed_block_number - self._blocks_to_wait_before_failing_tx
 
         # We combine all error sources into one list so we can pick a single earliest
         # failure trigger across gateway errors, Echonet-only reverts, stale pending txs,
