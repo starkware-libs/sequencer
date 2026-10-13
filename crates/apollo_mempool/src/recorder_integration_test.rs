@@ -152,13 +152,13 @@ async fn test_resolve_block_metadata_uses_recorder_timestamp_and_gas_prices() {
         .await
         .unwrap();
 
-    let resolved_metadata = wrapper.resolve_block_metadata().await.unwrap();
+    let resolved_metadata = wrapper.resolve_block_metadata(BlockNumber(1234)).await.unwrap();
 
     assert_eq!(
         resolved_metadata,
         ReplayBlockMetadata {
             timestamp: recorder_metadata.timestamp,
-            // The block number comes from the mempool's tx metadata, not the recorder.
+            // The block number is the height being built, not the recorder's.
             block_number: Some(BlockNumber(1234)),
             l1_gas_price_wei: recorder_metadata.l1_gas_price_wei,
             l1_data_gas_price_wei: recorder_metadata.l1_data_gas_price_wei,
@@ -187,7 +187,7 @@ async fn test_resolve_block_metadata_falls_back_on_http_error() {
         .await
         .unwrap();
 
-    let resolved_metadata = wrapper.resolve_block_metadata().await.unwrap();
+    let resolved_metadata = wrapper.resolve_block_metadata(BlockNumber(1234)).await.unwrap();
 
     // The mempool-derived timing fields survive; gas prices fall back to zero.
     assert_eq!(
