@@ -13,6 +13,7 @@ from typing import Callable, Optional
 import kubernetes  # pyright: ignore[reportMissingImports]
 from kubernetes.client.rest import ApiException  # pyright: ignore[reportMissingImports]
 
+from echonet.constants import SequencerLayout
 from echonet.echonet_types import CONFIG, JsonObject
 from echonet.logger import get_logger
 
@@ -76,9 +77,19 @@ def _revert_completion_markers(target_block: int) -> tuple[tuple[str, ...], tupl
 class SequencerKubeSpec:
     """Names/paths that identify the running sequencer inside the cluster."""
 
-    configmap_name: str = "sequencer-node-config"
-    statefulset_name: str = "sequencer-node-statefulset"
     serviceaccount_namespace_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
+    @property
+    def layout(self) -> SequencerLayout:
+        return CONFIG.sequencer.layout
+
+    @property
+    def configmap_name(self) -> str:
+        return f"sequencer-{self.layout.statefulset_services[0]}-config"
+
+    @property
+    def statefulset_name(self) -> str:
+        return f"sequencer-{self.layout.statefulset_services[0]}-statefulset"
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,16 +204,20 @@ class SequencerManager:
         )
 
     def scale(self, replicas: int) -> None:
-        stateful_set_name = self._spec.statefulset_name
-        logger.info(
-            f"Scaling StatefulSet '{stateful_set_name}' in namespace '{self._namespace}' to {replicas} replicas..."
-        )
-        self._apps_v1.patch_namespaced_stateful_set_scale(
-            name=stateful_set_name,
-            namespace=self._namespace,
-            body={"spec": {"replicas": replicas}},
-        )
-        self._wait_for_statefulset_replicas(expected_replicas=replicas)
+        """Scale every sequencer workload, then wait until all of them reach `replicas`."""
+        workloads = self._spec.layout.workloads
+        for kind, name in workloads:
+            logger.info(
+                f"Scaling {kind} '{name}' in namespace '{self._namespace}' to {replicas} replicas..."
+            )
+            patch_scale = (
+                self._apps_v1.patch_namespaced_stateful_set_scale
+                if kind == "statefulset"
+                else self._apps_v1.patch_namespaced_deployment_scale
+            )
+            patch_scale(name=name, namespace=self._namespace, body={"spec": {"replicas": replicas}})
+        for kind, name in workloads:
+            self._wait_for_replicas(kind, name, expected_replicas=replicas)
         logger.info(f"Scaling to {replicas} replicas done.")
 
     def restart_node(self) -> None:
@@ -210,29 +225,28 @@ class SequencerManager:
         self.scale(replicas=0)
         self.scale(replicas=1)
 
-    def _wait_for_statefulset_replicas(self, expected_replicas: int) -> None:
-        stateful_set_name = self._spec.statefulset_name
-        logger.info(
-            f"Waiting for StatefulSet '{stateful_set_name}' to reach {expected_replicas} replicas..."
+    def _wait_for_replicas(self, kind: str, name: str, expected_replicas: int) -> None:
+        logger.info(f"Waiting for {kind} '{name}' to reach {expected_replicas} replicas...")
+        read_workload = (
+            self._apps_v1.read_namespaced_stateful_set
+            if kind == "statefulset"
+            else self._apps_v1.read_namespaced_deployment
         )
         start = time.time()
 
         while True:
-            stateful_set = self._apps_v1.read_namespaced_stateful_set(
-                stateful_set_name, self._namespace
-            )
-            replicas = stateful_set.status.replicas or 0
-            ready = stateful_set.status.ready_replicas or 0
-            logger.info(f"Current replicas: {replicas}, ready: {ready}")
+            status = read_workload(name, self._namespace).status
+            replicas = status.replicas or 0
+            ready = status.ready_replicas or 0
+            logger.info(f"Current replicas of {kind} '{name}': {replicas}, ready: {ready}")
 
             if replicas == expected_replicas and ready == expected_replicas:
-                logger.info(f"StatefulSet reached {expected_replicas} replicas.")
+                logger.info(f"{kind} '{name}' reached {expected_replicas} replicas.")
                 return
 
             if time.time() - start > self._timing.scale_timeout_seconds:
                 raise TimeoutError(
-                    f"Timed out waiting for StatefulSet '{stateful_set_name}' "
-                    f"to reach {expected_replicas} replicas."
+                    f"Timed out waiting for {kind} '{name}' to reach {expected_replicas} replicas."
                 )
 
             time.sleep(self._timing.poll_interval_seconds)
@@ -350,7 +364,7 @@ class SequencerManager:
             return ""
 
     def scale_to_zero(self) -> None:
-        """Scale the sequencer StatefulSet down to 0 replicas and wait until it reaches 0."""
+        """Scale every sequencer workload down to 0 replicas and wait until they reach 0."""
         self.scale(replicas=0)
 
     def _read_previous_revert_marker(self) -> int:
