@@ -9,6 +9,7 @@ fn main() {
 #[cfg(feature = "stwo_proving")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use std::io::IsTerminal;
     use std::net::SocketAddr;
     use std::sync::Arc;
 
@@ -43,9 +44,15 @@ async fn main() -> anyhow::Result<()> {
         EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
     let registry = tracing_subscriber::registry().with(filter);
+    // ANSI styling is only legible on a terminal. A container scheduler runs the service with
+    // stdout piped to a log aggregator, which would receive the escape sequences verbatim and
+    // garble every line, so style only when stdout is a terminal. The JSON layer never emits
+    // them.
     match args.log_format {
         LogFormat::Json => registry.with(fmt::layer().json()).init(),
-        LogFormat::Text => registry.with(fmt::layer()).init(),
+        LogFormat::Text => {
+            registry.with(fmt::layer().with_ansi(std::io::stdout().is_terminal())).init()
+        }
     }
 
     // Installed after tracing init so the hook's `error!` reaches the subscriber.
