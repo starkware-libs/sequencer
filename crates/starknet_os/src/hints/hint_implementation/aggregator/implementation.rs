@@ -1,3 +1,4 @@
+use cairo_program_runner_lib::SIMPLE_BOOTLOADER_INPUT;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use leaf_proof_format::PackedNode;
 use starknet_types_core::felt::Felt;
@@ -129,6 +130,20 @@ pub(crate) fn guess_proof_facts_tree(
     let flat_tree_ptr =
         ctx.vm.gen_arg(&flat_tree.into_iter().map(MaybeRelocatable::from).collect::<Vec<_>>())?;
     ctx.insert_value(Ids::FlatTree, flat_tree_ptr)?;
+    Ok(())
+}
+
+pub(crate) fn load_circuit_verifier_task(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    ctx: HintContext<'_>,
+) -> OsHintResult {
+    let verifier_task = hint_processor
+        .input
+        .proof_facts_verifier_task
+        .as_ref()
+        .ok_or(OsHintError::MissingProofFactsVerifierTask)?;
+    // The simple bootloader that runs the verifier reads its input from this scope variable.
+    ctx.exec_scopes.insert_value(SIMPLE_BOOTLOADER_INPUT, verifier_task.simple_bootloader_input()?);
     Ok(())
 }
 

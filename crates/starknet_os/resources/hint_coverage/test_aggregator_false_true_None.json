@@ -1,5 +1,11 @@
 [
   {
+    "StatelessHint": "SelectedBuiltins"
+  },
+  {
+    "StatelessHint": "SelectBuiltin"
+  },
+  {
     "StatelessHint": "DictionaryFromBucket"
   },
   {
@@ -76,5 +82,8 @@
   },
   {
     "AggregatorHint": "GuessProofFactsTree"
+  },
+  {
+    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]

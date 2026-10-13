@@ -42,6 +42,10 @@ pub enum OsHintError {
     MissingProofFactsTree,
     #[error("Unsupported proof facts tree node: {0}.")]
     UnsupportedProofFactsTreeNode(String),
+    #[error("The OS outputs have proof facts, but the aggregator input has no verifier task.")]
+    MissingProofFactsVerifierTask,
+    #[error(transparent)]
+    BootloaderTask(#[from] cairo_program_runner_lib::tasks::BootloaderTaskError),
     #[error("Assertion failed: {message}")]
     AssertionFailed { message: String },
     #[error("Unexpectedly assigned leaf bytecode segment.")]

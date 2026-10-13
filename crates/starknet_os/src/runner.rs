@@ -1,6 +1,7 @@
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM, VIRTUAL_OS_PROGRAM};
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::state::state_api::StateReader;
+use cairo_program_runner_lib::BootloaderHintProcessor;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -36,7 +37,7 @@ pub struct RunnerReturnObject {
 
 // TODO(Aner): replace the return type with Result<StarknetRunnerOutput,...>
 // TODO(Aner): Make generic (CommonHintProcessor trait) depend on testing flag.
-pub(crate) fn run_program<HP: HintProcessor + CommonHintProcessor>(
+pub(crate) fn run_program<HP: HintProcessor>(
     layout: LayoutName,
     program: &Program,
     hint_processor: &mut HP,
@@ -172,6 +173,14 @@ pub fn run_os_stateless(
     run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
 }
 
+/// Wraps the aggregator hint processor with the simple bootloader's, which runs the hints of the
+/// circuit verifier's bootloader run, and of the verifier itself, that the aggregator's does not.
+pub(crate) fn aggregator_with_bootloader_hint_processor<'a>(
+    aggregator_hint_processor: &'a mut AggregatorHintProcessor<'_>,
+) -> BootloaderHintProcessor<'a> {
+    BootloaderHintProcessor::new(Some(aggregator_hint_processor))
+}
+
 /// Run the Aggregator.
 pub fn run_aggregator(
     layout: LayoutName,
@@ -181,8 +190,11 @@ pub fn run_aggregator(
     let mut aggregator_hint_processor =
         AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
 
-    let mut runner_output =
-        run_program(layout, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)?;
+    let mut runner_output = run_program(
+        layout,
+        &AGGREGATOR_PROGRAM,
+        &mut aggregator_with_bootloader_hint_processor(&mut aggregator_hint_processor),
+    )?;
 
     Ok(StarknetAggregatorRunnerOutput {
         aggregator_output: runner_output.raw_output,
