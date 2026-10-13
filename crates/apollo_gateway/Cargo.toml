@@ -46,7 +46,6 @@ clap.workspace = true
 google-cloud-storage.workspace = true
 mockall.workspace = true
 num-rational.workspace = true
-reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
