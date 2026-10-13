@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791796465138,
+  "lastUpdate": 1791905176049,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -747,6 +747,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1613.98310188,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d0ac71d9a6a066925b7cc5cfe976cfb37d963ff0",
+          "message": "starknet_api,apollo_storage,apollo_reverts: store per-block fee market info (#15175)\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T14:40:44Z",
+          "tree_id": "6a7cde74055da7689b98844ecf23b1f7cf2804ba",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d0ac71d9a6a066925b7cc5cfe976cfb37d963ff0"
+        },
+        "date": 1791905175452,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 877.0430675900001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1413.63477067,
             "unit": "ms"
           }
         ]
