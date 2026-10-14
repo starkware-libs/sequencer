@@ -257,6 +257,15 @@ pub struct BlockFeeMarketInfo {
     pub next_l2_gas_price: GasPrice,
 }
 
+impl From<&BlockHeaderWithoutHash> for BlockFeeMarketInfo {
+    fn from(header: &BlockHeaderWithoutHash) -> Self {
+        Self {
+            fee_proposal_fri: header.fee_proposal_fri,
+            next_l2_gas_price: header.next_l2_gas_price,
+        }
+    }
+}
+
 /// The [transactions](`crate::transaction::Transaction`) and their
 /// [outputs](`crate::transaction::TransactionOutput`) in a [block](`crate::block::Block`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
