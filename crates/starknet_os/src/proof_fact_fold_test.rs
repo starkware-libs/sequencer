@@ -49,33 +49,6 @@ fn felt_array_arg(felts: &[Felt]) -> EndpointArg {
     ))
 }
 
-/// Runs the Cairo `compute_processed_proof_output_digest` on two transactions' proof facts, giving
-/// it a pointer to `expected_digest` to write the output digest to. Cairo memory is write-once, so
-/// the run fails unless the function writes `expected_digest`.
-fn assert_cairo_processed_proof_output_digest(
-    left_proof_facts: &[Felt],
-    right_proof_facts: &[Felt],
-    expected_digest: &Blake2sDigestWords,
-) {
-    initialize_and_run_cairo_0_entry_point(
-        &entrypoint_runner_config(),
-        PROOF_FACT_FOLD_BYTES,
-        "compute_processed_proof_output_digest",
-        &[
-            EndpointArg::from(left_proof_facts.len()),
-            felt_array_arg(left_proof_facts),
-            EndpointArg::from(right_proof_facts.len()),
-            felt_array_arg(right_proof_facts),
-            felt_array_arg(&expected_digest.map(Felt::from)),
-        ],
-        &[ImplicitArg::Builtin(BuiltinName::range_check)],
-        &[],
-        HashMap::new(),
-        None,
-    )
-    .unwrap();
-}
-
 /// The `TxProofFacts*` argument of the given transactions' proof facts.
 fn tx_proof_facts_arg(proof_facts_list: &[&[Felt]]) -> EndpointArg {
     EndpointArg::Pointer(PointerArg::Composed(
@@ -88,6 +61,8 @@ fn tx_proof_facts_arg(proof_facts_list: &[&[Felt]]) -> EndpointArg {
     ))
 }
 
+/// The flattened single-leaf tree.
+const SINGLE_LEAF_FLAT_TREE: [u8; 1] = [0];
 /// The flattened four-leaf tree, in pre-order: the root fold, the fold of the first two leaves, the
 /// two leaves, the fold of the last two leaves, and the two leaves.
 const FOUR_LEAF_FLAT_TREE: [u8; 7] = [1, 1, 0, 0, 1, 0, 0];
@@ -125,8 +100,8 @@ fn run_cairo_proof_tree_root_entry(
     Ok(())
 }
 
-/// Runs the Cairo `verify_processed_proof` on the golden leaf's processed proof, against
-/// `proof_facts`.
+/// Runs the Cairo `verify_processed_proof` on the golden leaf's processed proof, against the
+/// single-leaf tree of `proof_facts`.
 fn run_cairo_verify_processed_proof(proof_facts: &[Felt]) -> Cairo0EntryPointRunnerResult<()> {
     let verifier_task = GoldenCircuitVerifierTask::decompress();
     let simple_bootloader_input: Box<dyn Any> =
@@ -143,7 +118,12 @@ fn run_cairo_verify_processed_proof(proof_facts: &[Felt]) -> Cairo0EntryPointRun
     )?;
     run_cairo_0_entrypoint_with_hint_processor(
         entrypoint,
-        &[EndpointArg::from(proof_facts.len()), felt_array_arg(proof_facts)],
+        &[
+            EndpointArg::from(SINGLE_LEAF_FLAT_TREE.len()),
+            felt_array_arg(&SINGLE_LEAF_FLAT_TREE.map(Felt::from)),
+            EndpointArg::from(1),
+            tx_proof_facts_arg(&[proof_facts]),
+        ],
         &implicit_args,
         &mut cairo_runner,
         &program,
@@ -171,17 +151,6 @@ fn test_processed_proof_digests_match_proving_side_goldens() {
     );
 }
 
-/// The processed proof output digest is computed from the leaf output digests, so this also checks
-/// them.
-#[test]
-fn test_cairo_processed_proof_output_digest_matches_proving_side_golden() {
-    assert_cairo_processed_proof_output_digest(
-        &GOLDEN_PROOF_FACTS,
-        &GOLDEN_PROOF_FACTS,
-        &GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
-    );
-}
-
 #[test]
 fn test_cairo_verify_processed_proof_accepts_its_proof_facts() {
     run_cairo_verify_processed_proof(&GOLDEN_PROOF_FACTS).unwrap();
@@ -197,6 +166,7 @@ fn test_cairo_verify_processed_proof_rejects_other_proof_facts() {
 }
 
 #[rstest]
+#[case::single_leaf(&SINGLE_LEAF_FLAT_TREE, 1, GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST)]
 #[case::four_leaves(&FOUR_LEAF_FLAT_TREE, 4, GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST)]
 fn test_cairo_proof_tree_root_matches_proving_side_golden(
     #[case] flat_tree: &[u8],
