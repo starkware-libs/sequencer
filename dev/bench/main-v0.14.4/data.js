@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791905176049,
+  "lastUpdate": 1791992351070,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -781,6 +781,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1413.63477067,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "71da8dd067adac5fae4932f274b0a1ca4347b5bc",
+          "message": "starknet_patricia_storage: expose RocksDB ttl and a generic options string in the committer storage config (#15219)",
+          "timestamp": "2026-10-14T14:56:58Z",
+          "tree_id": "78d2a27c950e45e098c40c2b45ce644b25999e97",
+          "url": "https://github.com/starkware-libs/sequencer/commit/71da8dd067adac5fae4932f274b0a1ca4347b5bc"
+        },
+        "date": 1791992350501,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 881.84761326,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1377.5514255399999,
             "unit": "ms"
           }
         ]
