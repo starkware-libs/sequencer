@@ -46,10 +46,10 @@ fn felt_array_arg(felts: &[Felt]) -> EndpointArg {
     ))
 }
 
-/// Runs the Cairo `compute_verification_digest` on two transactions' proof facts, giving it a
-/// pointer to `expected_digest` to write the verification digest to. Cairo memory is write-once, so
+/// Runs the Cairo `compute_processed_proof_output_digest` on two transactions' proof facts, giving
+/// it a pointer to `expected_digest` to write the output digest to. Cairo memory is write-once, so
 /// the run fails unless the function writes `expected_digest`.
-fn assert_cairo_verification_digest(
+fn assert_cairo_processed_proof_output_digest(
     left_proof_facts: &[Felt],
     right_proof_facts: &[Felt],
     expected_digest: &Blake2sDigestWords,
@@ -57,7 +57,7 @@ fn assert_cairo_verification_digest(
     initialize_and_run_cairo_0_entry_point(
         &entrypoint_runner_config(),
         PROOF_FACT_FOLD_BYTES,
-        "compute_verification_digest",
+        "compute_processed_proof_output_digest",
         &[
             EndpointArg::from(left_proof_facts.len()),
             felt_array_arg(left_proof_facts),
@@ -119,14 +119,14 @@ fn test_processed_proof_digests_match_proving_side_goldens() {
     );
 }
 
-/// The verification digest is computed from the leaf and processed proof output digests, so this
-/// also checks them.
+/// The processed proof output digest is computed from the leaf output digests, so this also checks
+/// them.
 #[test]
-fn test_cairo_verification_digest_matches_proving_side_golden() {
-    assert_cairo_verification_digest(
+fn test_cairo_processed_proof_output_digest_matches_proving_side_golden() {
+    assert_cairo_processed_proof_output_digest(
         &GOLDEN_PROOF_FACTS,
         &GOLDEN_PROOF_FACTS,
-        &GOLDEN_VERIFICATION_DIGEST,
+        &GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
     );
 }
 
