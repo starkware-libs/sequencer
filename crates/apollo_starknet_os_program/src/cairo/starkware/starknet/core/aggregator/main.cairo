@@ -1,8 +1,15 @@
-%builtins output pedersen range_check ec_op poseidon
+%builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.cairo_builtins import EcOpBuiltin, HashBuiltin, PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import (
+    BitwiseBuiltin,
+    EcOpBuiltin,
+    HashBuiltin,
+    KeccakBuiltin,
+    ModBuiltin,
+    PoseidonBuiltin,
+)
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
 from starkware.starknet.core.os.os_config.os_config import (
     StarknetOsConfig,
@@ -17,13 +24,20 @@ from starkware.starknet.core.os.output import (
     serialize_os_output,
 )
 from starkware.starknet.core.os.proof_fact_fold import write_proof_tree_root_entry
+from starkware.starknet.core.os.verify_processed_proof import verify_processed_proof
 
 func main{
     output_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
+    ecdsa_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
     ec_op_ptr: EcOpBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
 }() {
     alloc_locals;
 
@@ -60,7 +74,7 @@ func main{
         full_output=full_output,
     );
 
-    let proof_facts_root_output_digest = compute_proof_facts_root_output_digest(
+    let proof_facts_root_output_digest = verify_proof_facts(
         initial_carried_outputs=combined_output.initial_carried_outputs,
         final_carried_outputs=combined_output.final_carried_outputs,
     );
@@ -144,11 +158,21 @@ func output_blocks{
     );
 }
 
-// Returns the output digest of the root of the proof facts tree of the transactions that have proof
-// facts, or zero if there are none.
-func compute_proof_facts_root_output_digest{range_check_ptr}(
-    initial_carried_outputs: OsCarriedOutputs*, final_carried_outputs: OsCarriedOutputs*
-) -> felt* {
+// Verifies the proof of the transactions' proof facts: computes the root of their proof tree, whose
+// shape the proof's prover chose, and runs the circuit verifier on the root's proof. Returns the
+// output digest of the root, or zero if there are no proof facts.
+func verify_proof_facts{
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    ecdsa_ptr,
+    bitwise_ptr: BitwiseBuiltin*,
+    ec_op_ptr: EcOpBuiltin*,
+    keccak_ptr: KeccakBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
+    range_check96_ptr: felt*,
+    add_mod_ptr: ModBuiltin*,
+    mul_mod_ptr: ModBuiltin*,
+}(initial_carried_outputs: OsCarriedOutputs*, final_carried_outputs: OsCarriedOutputs*) -> felt* {
     alloc_locals;
     let n_tx_proof_facts = (
         final_carried_outputs.tx_proof_facts - initial_carried_outputs.tx_proof_facts
@@ -169,6 +193,9 @@ func compute_proof_facts_root_output_digest{range_check_ptr}(
         tx_proof_facts=initial_carried_outputs.tx_proof_facts,
         root_entry=root_entry,
     );
+
+    %{ LoadCircuitVerifierTask %}
+    verify_processed_proof(root_entry=root_entry);
     return &root_entry[BLAKE2S_DIGEST_N_WORDS];
 }
 

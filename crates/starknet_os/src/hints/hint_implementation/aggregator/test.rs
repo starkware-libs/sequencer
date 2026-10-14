@@ -59,6 +59,7 @@ use crate::test_utils::cairo_runner::{
 };
 use crate::test_utils::coverage::expect_hint_coverage;
 use crate::test_utils::golden_leaf::{
+    GoldenCircuitVerifierTask,
     GOLDEN_PROOF_FACTS_SIZE,
     GOLDEN_THREE_LEAF_PROOF_FACTS,
     GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST,
@@ -818,6 +819,7 @@ fn test_aggregator(
     let temp_file_path = temp_file.path();
 
     let bootloader_output_data = bootloader_output(true, modifier.clone());
+    let golden_verifier_task = GoldenCircuitVerifierTask::decompress_three_leaf_tree();
     let aggregator_input = AggregatorInput {
         bootloader_output: Some(bootloader_output_data.clone()),
         full_output,
@@ -831,6 +833,7 @@ fn test_aggregator(
         chain_id: Felt::ZERO,
         public_keys: None,
         proof_facts_tree: Some(proof_facts_tree()),
+        proof_facts_verifier_task: Some(golden_verifier_task.task_input()),
     };
 
     // Create the aggregator hint processor.
@@ -893,6 +896,7 @@ fn test_aggregator(
 /// The tree must have a leaf for each transaction that has proof facts.
 #[test]
 fn test_aggregator_rejects_tree_of_other_transactions() {
+    let golden_verifier_task = GoldenCircuitVerifierTask::decompress_three_leaf_tree();
     let aggregator_input = AggregatorInput {
         bootloader_output: Some(bootloader_output(true, FailureModifier::None)),
         full_output: true,
@@ -902,6 +906,7 @@ fn test_aggregator_rejects_tree_of_other_transactions() {
         chain_id: Felt::ZERO,
         public_keys: None,
         proof_facts_tree: Some(fold_node(vec![leaf_node(), leaf_node()])),
+        proof_facts_verifier_task: Some(golden_verifier_task.task_input()),
     };
     let mut aggregator_hint_processor =
         AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
