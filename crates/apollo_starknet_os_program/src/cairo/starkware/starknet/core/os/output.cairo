@@ -69,6 +69,9 @@ struct MessageToL2Header {
     payload_size: felt,
 }
 
+// The number of 32-bit words in a Blake2s digest.
+const BLAKE2S_DIGEST_N_WORDS = 8;
+
 // The proof facts of a transaction.
 struct TxProofFacts {
     proof_facts_size: felt,
@@ -86,7 +89,14 @@ struct OsCarriedOutputs {
 
 func serialize_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(os_output: OsOutput*, replace_keys_with_aliases: felt, n_public_keys: felt, public_keys: felt*) {
+}(
+    os_output: OsOutput*,
+    replace_keys_with_aliases: felt,
+    n_public_keys: felt,
+    public_keys: felt*,
+    replace_tx_proof_facts_with_root: felt,
+    proof_facts_root_output_digest: felt*,
+) {
     alloc_locals;
 
     local use_kzg_da = os_output.header.use_kzg_da;
@@ -145,10 +155,20 @@ func serialize_os_output{
         initial_carried_outputs=os_output.initial_carried_outputs,
         final_carried_outputs=os_output.final_carried_outputs,
     );
-    serialize_tx_proof_facts(
-        initial_carried_outputs=os_output.initial_carried_outputs,
-        final_carried_outputs=os_output.final_carried_outputs,
-    );
+    // The aggregator's output on L1 has the output digest of the root of the transactions' proof
+    // facts tree instead of the proof facts.
+    if (replace_tx_proof_facts_with_root == FALSE) {
+        serialize_tx_proof_facts(
+            initial_carried_outputs=os_output.initial_carried_outputs,
+            final_carried_outputs=os_output.final_carried_outputs,
+        );
+    } else {
+        serialize_proof_facts_root(
+            initial_carried_outputs=os_output.initial_carried_outputs,
+            final_carried_outputs=os_output.final_carried_outputs,
+            proof_facts_root_output_digest=proof_facts_root_output_digest,
+        );
+    }
 
     if (use_kzg_da == 0) {
         serialize_data_availability(da_start=da_start, da_end=da_end);
@@ -209,6 +229,28 @@ func serialize_messages{output_ptr: felt*}(
     relocate_segment(src_ptr=initial_carried_outputs.messages_to_l2, dest_ptr=output_ptr);
     let output_ptr = cast(final_carried_outputs.messages_to_l2, felt*);
 
+    return ();
+}
+
+// Serializes to output the number of transactions that have proof facts, followed, if there are
+// any, by the output digest of the root of their proof facts tree.
+// TODO(Einat): decide how the aggregator's output on L1 encodes the proof facts.
+func serialize_proof_facts_root{output_ptr: felt*}(
+    initial_carried_outputs: OsCarriedOutputs*,
+    final_carried_outputs: OsCarriedOutputs*,
+    proof_facts_root_output_digest: felt*,
+) {
+    alloc_locals;
+    local n_tx_proof_facts = (
+        final_carried_outputs.tx_proof_facts - initial_carried_outputs.tx_proof_facts
+    ) / TxProofFacts.SIZE;
+    serialize_word(n_tx_proof_facts);
+    if (n_tx_proof_facts == 0) {
+        return ();
+    }
+    local digest_dst: felt* = output_ptr;
+    memcpy(dst=digest_dst, src=proof_facts_root_output_digest, len=BLAKE2S_DIGEST_N_WORDS);
+    let output_ptr = &digest_dst[BLAKE2S_DIGEST_N_WORDS];
     return ();
 }
 

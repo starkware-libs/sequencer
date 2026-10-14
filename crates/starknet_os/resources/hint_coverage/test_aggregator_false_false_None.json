@@ -64,5 +64,8 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
+  },
+  {
+    "AggregatorHint": "GuessProofFactsTree"
   }
 ]

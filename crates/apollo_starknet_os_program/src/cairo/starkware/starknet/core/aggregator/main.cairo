@@ -1,7 +1,7 @@
 %builtins output pedersen range_check ec_op poseidon
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, HashBuiltin, PoseidonBuiltin
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
 from starkware.starknet.core.os.os_config.os_config import (
@@ -9,7 +9,14 @@ from starkware.starknet.core.os.os_config.os_config import (
     get_public_keys_hash,
     get_starknet_os_config_hash,
 )
-from starkware.starknet.core.os.output import OsOutput, serialize_os_output
+from starkware.starknet.core.os.output import (
+    BLAKE2S_DIGEST_N_WORDS,
+    OsCarriedOutputs,
+    OsOutput,
+    TxProofFacts,
+    serialize_os_output,
+)
+from starkware.starknet.core.os.proof_fact_fold import write_proof_tree_root_entry
 
 func main{
     output_ptr: felt*,
@@ -53,6 +60,11 @@ func main{
         full_output=full_output,
     );
 
+    let proof_facts_root_output_digest = compute_proof_facts_root_output_digest(
+        initial_carried_outputs=combined_output.initial_carried_outputs,
+        final_carried_outputs=combined_output.final_carried_outputs,
+    );
+
     // Output the bootloader output of the inner OsOutput instances.
     // This represents the "input" of the aggregator, whose correctness is later verified
     // by the bootloader by running the Cairo verifier.
@@ -77,6 +89,8 @@ func main{
         replace_keys_with_aliases=FALSE,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
+        replace_tx_proof_facts_with_root=TRUE,
+        proof_facts_root_output_digest=proof_facts_root_output_digest,
     );
 
     %{ WriteDaSegment %}
@@ -114,6 +128,8 @@ func output_blocks{
         replace_keys_with_aliases=FALSE,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
+        replace_tx_proof_facts_with_root=FALSE,
+        proof_facts_root_output_digest=cast(0, felt*),
     );
 
     // Compute the size of the output, including the program hash and the output size fields.
@@ -126,6 +142,34 @@ func output_blocks{
         n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
+}
+
+// Returns the output digest of the root of the proof facts tree of the transactions that have proof
+// facts, or zero if there are none.
+func compute_proof_facts_root_output_digest{range_check_ptr}(
+    initial_carried_outputs: OsCarriedOutputs*, final_carried_outputs: OsCarriedOutputs*
+) -> felt* {
+    alloc_locals;
+    let n_tx_proof_facts = (
+        final_carried_outputs.tx_proof_facts - initial_carried_outputs.tx_proof_facts
+    ) / TxProofFacts.SIZE;
+    if (n_tx_proof_facts == 0) {
+        return cast(0, felt*);
+    }
+
+    // Guess the shape of the tree, which the proof's prover chose.
+    local flat_tree_size: felt;
+    local flat_tree: felt*;
+    %{ GuessProofFactsTree %}
+    let (root_entry: felt*) = alloc();
+    write_proof_tree_root_entry(
+        flat_tree_size=flat_tree_size,
+        flat_tree=flat_tree,
+        n_tx_proof_facts=n_tx_proof_facts,
+        tx_proof_facts=initial_carried_outputs.tx_proof_facts,
+        root_entry=root_entry,
+    );
+    return &root_entry[BLAKE2S_DIGEST_N_WORDS];
 }
 
 func check_public_keys{range_check_ptr}(
