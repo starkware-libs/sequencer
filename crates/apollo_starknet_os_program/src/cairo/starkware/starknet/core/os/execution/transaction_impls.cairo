@@ -52,7 +52,7 @@ from starkware.starknet.core.os.execution.execute_transaction_utils import (
 )
 from starkware.starknet.core.os.execution.execution_constraints import (
     check_is_reverted,
-    check_proof_facts,
+    validate_and_output_proof_facts,
 )
 from starkware.starknet.core.os.execution.revert import init_revert_log
 from starkware.starknet.core.os.output import (
@@ -310,7 +310,7 @@ func execute_invoke_function_transaction{
 
     check_and_increment_nonce(tx_info=tx_info);
 
-    check_proof_facts(
+    validate_and_output_proof_facts(
         proof_facts_size=proof_facts_size,
         proof_facts=proof_facts,
         current_block_number=block_context.block_info_for_execute.block_number,
