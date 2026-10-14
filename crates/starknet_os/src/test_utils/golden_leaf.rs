@@ -34,6 +34,12 @@ pub const GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST: Blake2sDigestWords =
 pub const GOLDEN_VERIFICATION_DIGEST: Blake2sDigestWords =
     [2180856259, 1333085512, 862178086, 2311453888, 551146339, 2046676941, 3386628737, 1763131494];
 
+/// The output digest of the root of the proving side's four-leaf tree, which folds four copies of
+/// the golden leaf in two layers. From `stwo_run_and_prove_recursive_tree`'s
+/// `test_data/goldens/four_leaves/root_outputs.json` at proving commit `b75d21f9`.
+pub const GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST: Blake2sDigestWords =
+    [897652633, 1382572116, 3969946465, 347296500, 2153515991, 2472657789, 1975506022, 3786147232];
+
 const CIRCUIT_VERIFIER_EXECUTABLE_GZ: &[u8] = include_bytes!(
     "../../resources/circuit_verifier/stwo_circuit_verifier_canonical_small.executable.json.gz"
 );
