@@ -48,6 +48,7 @@ from starkware.starknet.core.os.output import (
     MessageToL2Header,
     OsCarriedOutputs,
     OsOutput,
+    ProofFacts,
 )
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
 
@@ -201,8 +202,9 @@ func execute_blocks{
     // Initialize the carried outputs and the state changes dictionaries.
     let (messages_to_l1: MessageToL1Header*) = alloc();
     let (messages_to_l2: MessageToL2Header*) = alloc();
+    let (tx_proof_facts: ProofFacts*) = alloc();
     tempvar initial_carried_outputs = new OsCarriedOutputs(
-        messages_to_l1=messages_to_l1, messages_to_l2=messages_to_l2
+        messages_to_l1=messages_to_l1, messages_to_l2=messages_to_l2, tx_proof_facts=tx_proof_facts
     );
     let (
         contract_state_changes: DictAccess*, contract_class_changes: DictAccess*

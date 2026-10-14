@@ -6,14 +6,15 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     OsOutput,
     OsOutputHeader,
+    ProofFacts,
 )
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
 from starkware.starknet.core.os.state.squash import squash_class_changes, squash_state_changes
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
 
-// Copies the L1<>L2 message segments from `current` to the end of the aggregated values
-// and returns the new aggregated values.
-func copy_l1l2_messages(
+// Copies the L1<>L2 message segments and the transactions' proof facts from `current` to the end
+// of the aggregated values and returns the new aggregated values.
+func copy_carried_outputs(
     aggregated_carried_outputs: OsCarriedOutputs*, current: OsOutput*
 ) -> OsCarriedOutputs* {
     alloc_locals;
@@ -32,9 +33,17 @@ func copy_l1l2_messages(
     memcpy(dst=res_messages_to_l2, src=initial_messages_to_l2, len=len_messages_to_l2);
     local res_messages_to_l2: felt* = res_messages_to_l2 + len_messages_to_l2;
 
+    local initial_tx_proof_facts: felt* = current.initial_carried_outputs.tx_proof_facts;
+    local final_tx_proof_facts: felt* = current.final_carried_outputs.tx_proof_facts;
+    local res_tx_proof_facts: felt* = aggregated_carried_outputs.tx_proof_facts;
+    local len_tx_proof_facts: felt = final_tx_proof_facts - initial_tx_proof_facts;
+    memcpy(dst=res_tx_proof_facts, src=initial_tx_proof_facts, len=len_tx_proof_facts);
+    local res_tx_proof_facts: felt* = res_tx_proof_facts + len_tx_proof_facts;
+
     tempvar res = new OsCarriedOutputs(
         messages_to_l1=cast(res_messages_to_l1, MessageToL1Header*),
         messages_to_l2=cast(res_messages_to_l2, MessageToL2Header*),
+        tx_proof_facts=cast(res_tx_proof_facts, ProofFacts*),
     );
 
     return res;
@@ -43,7 +52,7 @@ func copy_l1l2_messages(
 // Combines the outputs of multiple Starknet OS runs into a single output, by:
 // * checking that the final values of one block match the initial values of the next block,
 // * squashing the state updates,
-// * concatenating the L1<>L2 message segments.
+// * concatenating the L1<>L2 message segments and the transactions' proof facts.
 //
 // `os_program_hash` is used for the `os_program_hash` field of the combined output.
 func combine_blocks{range_check_ptr}(
@@ -70,7 +79,7 @@ func combine_blocks{range_check_ptr}(
     assert first_header.os_program_hash = 0;
 
     // Copy the messages of the first block.
-    let final_carried_outputs = copy_l1l2_messages(
+    let final_carried_outputs = copy_carried_outputs(
         aggregated_carried_outputs=initial_carried_outputs, current=&first
     );
 
@@ -147,6 +156,7 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     // they are handled by the aggregator.
     static_assert OsOutput.SIZE == 4;
     static_assert OsOutputHeader.SIZE == 9;
+    static_assert OsCarriedOutputs.SIZE == 3;
 
     // Validate fields of the inner OS output of a single task.
     assert current_header.use_kzg_da = 0;
@@ -174,7 +184,7 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     ];
 
     // Copy the messages.
-    let final_carried_outputs = copy_l1l2_messages(
+    let final_carried_outputs = copy_carried_outputs(
         aggregated_carried_outputs=aggregated.final_carried_outputs, current=&current
     );
 

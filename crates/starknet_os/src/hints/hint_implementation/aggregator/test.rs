@@ -168,6 +168,26 @@ const MSG_TO_L2_1: [Felt; 5] = [
     Felt::ZERO,                         // PayloadSize.
 ];
 
+// The proof facts sections of the multi-blocks' full outputs: their number of transactions' proof
+// facts, followed by each one's size and felts.
+const TX_PROOF_FACTS_0: [Felt; 5] = [
+    Felt::ONE,
+    Felt::THREE,
+    Felt::from_hex_unchecked("0x11"),
+    Felt::from_hex_unchecked("0x12"),
+    Felt::from_hex_unchecked("0x13"),
+];
+const TX_PROOF_FACTS_1: [Felt; 8] = [
+    Felt::TWO,
+    Felt::TWO,
+    Felt::from_hex_unchecked("0x21"),
+    Felt::from_hex_unchecked("0x22"),
+    Felt::THREE,
+    Felt::from_hex_unchecked("0x31"),
+    Felt::from_hex_unchecked("0x32"),
+    Felt::from_hex_unchecked("0x33"),
+];
+
 const NUMBER_OF_BLOCKS_IN_MULTI_BLOCK: usize = 13;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -318,6 +338,7 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
         // Messages to L2.
         vec![MSG_TO_L2_0.len().into()],
         MSG_TO_L2_0.to_vec(),
+        if full_output { TX_PROOF_FACTS_0.to_vec() } else { vec![] },
     ]
     .concat();
     let da = [
@@ -410,6 +431,7 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
         // Messages to L2.
         vec![MSG_TO_L2_1.len().into()],
         MSG_TO_L2_1.to_vec(),
+        if full_output { TX_PROOF_FACTS_1.to_vec() } else { vec![] },
     ]
     .concat();
     let da = [
@@ -620,6 +642,17 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
         vec![Felt::from(MSG_TO_L2_0.len() + MSG_TO_L2_1.len())],
         MSG_TO_L2_0.to_vec(),
         MSG_TO_L2_1.to_vec(),
+        // Proof facts, only in the full output: the two multi-blocks' lists, joined.
+        if full_output {
+            [
+                vec![TX_PROOF_FACTS_0[0] + TX_PROOF_FACTS_1[0]],
+                TX_PROOF_FACTS_0[1..].to_vec(),
+                TX_PROOF_FACTS_1[1..].to_vec(),
+            ]
+            .concat()
+        } else {
+            vec![]
+        },
         if use_kzg_da { vec![] } else { da },
     ]
     .concat()
