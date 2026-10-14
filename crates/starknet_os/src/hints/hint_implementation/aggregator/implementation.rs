@@ -10,9 +10,16 @@ use crate::io::os_output_types::TryFromOutputIter;
 use crate::vm_utils::LoadIntoVmMemory;
 
 pub(crate) fn allocate_segments_for_messages(mut ctx: HintContext<'_>) -> OsHintResult {
-    let segment1 = ctx.vm.add_temporary_segment();
-    let segment2 = ctx.vm.add_temporary_segment();
-    let initial_carried_outputs = ctx.vm.gen_arg(&vec![segment1, segment2])?;
+    let messages_to_l1_segment = ctx.vm.add_temporary_segment();
+    let messages_to_l2_segment = ctx.vm.add_temporary_segment();
+    // Unlike the message segments, the proof facts are copied to the output, not relocated to it,
+    // so their segment must not be temporary.
+    let tx_proof_facts_segment = ctx.vm.add_memory_segment();
+    let initial_carried_outputs = ctx.vm.gen_arg(&vec![
+        messages_to_l1_segment,
+        messages_to_l2_segment,
+        tx_proof_facts_segment,
+    ])?;
     ctx.insert_value(Ids::InitialCarriedOutputs, initial_carried_outputs)?;
     Ok(())
 }
