@@ -86,26 +86,3 @@ func compute_processed_proof_output_digest{range_check_ptr}(
     blake_with_opcode(len=2 * PROOF_ENTRY_N_WORDS, data=multiverifier_output, out=output_digest);
     return ();
 }
-
-// Writes to `verification_digest` the digest the circuit verifier outputs when run on the processed
-// proof of two transactions.
-func compute_verification_digest{range_check_ptr}(
-    left_proof_facts_size: felt,
-    left_proof_facts: felt*,
-    right_proof_facts_size: felt,
-    right_proof_facts: felt*,
-    verification_digest: felt*,
-) {
-    alloc_locals;
-    let (local preimage: felt*) = alloc();
-    write_multiverifier_circuit_hash(circuit_hash=preimage);
-    compute_processed_proof_output_digest(
-        left_proof_facts_size=left_proof_facts_size,
-        left_proof_facts=left_proof_facts,
-        right_proof_facts_size=right_proof_facts_size,
-        right_proof_facts=right_proof_facts,
-        output_digest=&preimage[BLAKE2S_DIGEST_N_WORDS],
-    );
-    blake_with_opcode(len=PROOF_ENTRY_N_WORDS, data=preimage, out=verification_digest);
-    return ();
-}
