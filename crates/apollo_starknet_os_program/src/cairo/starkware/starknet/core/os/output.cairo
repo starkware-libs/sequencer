@@ -2,6 +2,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.serialize import serialize_word
@@ -75,10 +76,11 @@ struct ProofFacts {
 }
 
 // Holds all the information that StarkNet's OS needs to output.
-// TODO(Yoni, 1/1/2026): rename to OsMessages.
 struct OsCarriedOutputs {
     messages_to_l1: MessageToL1Header*,
     messages_to_l2: MessageToL2Header*,
+    // The transactions' proof facts, if present.
+    tx_proof_facts: ProofFacts*,
 }
 
 func serialize_os_output{
@@ -142,6 +144,11 @@ func serialize_os_output{
         initial_carried_outputs=os_output.initial_carried_outputs,
         final_carried_outputs=os_output.final_carried_outputs,
     );
+    serialize_tx_proof_facts(
+        full_output=full_output,
+        initial_carried_outputs=os_output.initial_carried_outputs,
+        final_carried_outputs=os_output.final_carried_outputs,
+    );
 
     if (use_kzg_da == 0) {
         serialize_data_availability(da_start=da_start, da_end=da_end);
@@ -151,7 +158,9 @@ func serialize_os_output{
 }
 
 func os_carried_outputs_new(
-    messages_to_l1: MessageToL1Header*, messages_to_l2: MessageToL2Header*
+    messages_to_l1: MessageToL1Header*,
+    messages_to_l2: MessageToL2Header*,
+    tx_proof_facts: ProofFacts*,
 ) -> (os_carried_outputs: OsCarriedOutputs*) {
     let (fp_val, pc_val) = get_fp_and_pc();
     static_assert OsCarriedOutputs.SIZE == Args.SIZE;
@@ -201,6 +210,45 @@ func serialize_messages{output_ptr: felt*}(
     let output_ptr = cast(final_carried_outputs.messages_to_l2, felt*);
 
     return ();
+}
+
+// Serializes to output the proof facts of the transactions that have them: their number, followed
+// by each transaction's proof facts size and proof facts. Only the offchain full output has them,
+// not the onchain output.
+func serialize_tx_proof_facts{output_ptr: felt*}(
+    full_output: felt,
+    initial_carried_outputs: OsCarriedOutputs*,
+    final_carried_outputs: OsCarriedOutputs*,
+) {
+    if (full_output == FALSE) {
+        return ();
+    }
+    let n_tx_proof_facts = (
+        final_carried_outputs.tx_proof_facts - initial_carried_outputs.tx_proof_facts
+    ) / ProofFacts.SIZE;
+    serialize_word(n_tx_proof_facts);
+    serialize_tx_proof_facts_inner(
+        n_tx_proof_facts=n_tx_proof_facts, tx_proof_facts=initial_carried_outputs.tx_proof_facts
+    );
+    return ();
+}
+
+func serialize_tx_proof_facts_inner{output_ptr: felt*}(
+    n_tx_proof_facts: felt, tx_proof_facts: ProofFacts*
+) {
+    if (n_tx_proof_facts == 0) {
+        return ();
+    }
+    alloc_locals;
+    serialize_word(tx_proof_facts.proof_facts_size);
+    local proof_facts_dst: felt* = output_ptr;
+    memcpy(
+        dst=proof_facts_dst, src=tx_proof_facts.proof_facts, len=tx_proof_facts.proof_facts_size
+    );
+    let output_ptr = &proof_facts_dst[tx_proof_facts.proof_facts_size];
+    return serialize_tx_proof_facts_inner(
+        n_tx_proof_facts=n_tx_proof_facts - 1, tx_proof_facts=&tx_proof_facts[1]
+    );
 }
 
 // Serializes OsKzgCommitmentInfo to output. Required for publishing data on L1 using KZG

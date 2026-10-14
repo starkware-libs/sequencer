@@ -708,6 +708,7 @@ func execute_deprecated_syscalls{
         messages_to_l1=outputs.messages_to_l1 + MessageToL1Header.SIZE +
         outputs.messages_to_l1.payload_size,
         messages_to_l2=outputs.messages_to_l2,
+        tx_proof_facts=outputs.tx_proof_facts,
     );
     %{ OsLoggerExitSyscall %}
     return execute_deprecated_syscalls(
