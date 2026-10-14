@@ -1,10 +1,9 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode, encode_felt252s_to_u32s
 from starkware.cairo.common.memcpy import memcpy
-from starkware.starknet.core.os.output import TxProofFacts
+from starkware.starknet.core.os.output import BLAKE2S_DIGEST_N_WORDS, TxProofFacts
 from starkware.starknet.core.os.virtual_os_output import ProofHeader
 
-const BLAKE2S_DIGEST_N_WORDS = 8;
 const PROOF_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
 
 // A proof tree is passed as a list with one entry per node: FLAT_TREE_FOLD for a node that

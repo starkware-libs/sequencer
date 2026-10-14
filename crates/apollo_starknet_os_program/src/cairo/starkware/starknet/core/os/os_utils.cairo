@@ -181,6 +181,8 @@ func process_os_output{
         replace_keys_with_aliases=TRUE,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
+        replace_tx_proof_facts_with_root=FALSE,
+        proof_facts_root_output_digest=cast(0, felt*),
     );
     return ();
 }

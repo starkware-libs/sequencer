@@ -12,6 +12,7 @@ use cairo_vm::vm::runners::cairo_pie::{
     PublicMemoryPage,
 };
 use itertools::Itertools;
+use leaf_proof_format::PackedNode;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::ToPrimitive;
@@ -28,6 +29,7 @@ use crate::hint_processor::aggregator_hint_processor::{
     AggregatorInput,
     DataAvailability,
 };
+use crate::hints::hint_implementation::aggregator::implementation::flatten_proof_facts_tree;
 use crate::hints::hint_implementation::aggregator::utils::{
     write_full_os_output,
     FullOsOutputsData,
@@ -45,6 +47,7 @@ use crate::io::os_output_types::{
     TryFromOutputIter,
     N_UPDATES_SMALL_PACKING_BOUND,
 };
+use crate::proof_fact_fold::{LEAF_VERIFIER_CIRCUIT_HASH, MULTIVERIFIER_CIRCUIT_HASH};
 use crate::runner::{run_program, RunnerReturnObject};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
@@ -55,6 +58,11 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 use crate::test_utils::coverage::expect_hint_coverage;
+use crate::test_utils::golden_leaf::{
+    GOLDEN_PROOF_FACTS_SIZE,
+    GOLDEN_THREE_LEAF_PROOF_FACTS,
+    GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST,
+};
 use crate::test_utils::validations::validate_builtins;
 
 // Dummy values for the test.
@@ -166,26 +174,6 @@ const MSG_TO_L2_1: [Felt; 5] = [
     Felt::ZERO,                         // Nonce.
     Felt::from_hex_unchecked("0x4321"), // Selector.
     Felt::ZERO,                         // PayloadSize.
-];
-
-// The proof facts sections of the multi-blocks: their number of transactions' proof facts,
-// followed by each one's size and felts.
-const TX_PROOF_FACTS_0: [Felt; 5] = [
-    Felt::ONE,
-    Felt::THREE,
-    Felt::from_hex_unchecked("0x11"),
-    Felt::from_hex_unchecked("0x12"),
-    Felt::from_hex_unchecked("0x13"),
-];
-const TX_PROOF_FACTS_1: [Felt; 8] = [
-    Felt::TWO,
-    Felt::TWO,
-    Felt::from_hex_unchecked("0x21"),
-    Felt::from_hex_unchecked("0x22"),
-    Felt::THREE,
-    Felt::from_hex_unchecked("0x31"),
-    Felt::from_hex_unchecked("0x32"),
-    Felt::from_hex_unchecked("0x33"),
 ];
 
 const NUMBER_OF_BLOCKS_IN_MULTI_BLOCK: usize = 13;
@@ -338,7 +326,8 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
         // Messages to L2.
         vec![MSG_TO_L2_0.len().into()],
         MSG_TO_L2_0.to_vec(),
-        TX_PROOF_FACTS_0.to_vec(),
+        // Proof facts: the first two golden leaves'.
+        serialize_tx_proof_facts(&GOLDEN_THREE_LEAF_PROOF_FACTS[..2]),
     ]
     .concat();
     let da = [
@@ -431,7 +420,8 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
         // Messages to L2.
         vec![MSG_TO_L2_1.len().into()],
         MSG_TO_L2_1.to_vec(),
-        TX_PROOF_FACTS_1.to_vec(),
+        // Proof facts: the third golden leaf's.
+        serialize_tx_proof_facts(&GOLDEN_THREE_LEAF_PROOF_FACTS[2..]),
     ]
     .concat();
     let da = [
@@ -642,13 +632,36 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
         vec![Felt::from(MSG_TO_L2_0.len() + MSG_TO_L2_1.len())],
         MSG_TO_L2_0.to_vec(),
         MSG_TO_L2_1.to_vec(),
-        // Proof facts: the two multi-blocks' lists, joined.
-        vec![TX_PROOF_FACTS_0[0] + TX_PROOF_FACTS_1[0]],
-        TX_PROOF_FACTS_0[1..].to_vec(),
-        TX_PROOF_FACTS_1[1..].to_vec(),
+        // Proof facts: the number of transactions that have them, followed by the output digest of
+        // the root of their tree.
+        vec![Felt::from(GOLDEN_THREE_LEAF_PROOF_FACTS.len())],
+        GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST.map(Felt::from).to_vec(),
         if use_kzg_da { vec![] } else { da },
     ]
     .concat()
+}
+
+/// A multi-block output's proof facts section: their number, followed by each one's size and felts.
+fn serialize_tx_proof_facts(tx_proof_facts: &[[Felt; GOLDEN_PROOF_FACTS_SIZE]]) -> Vec<Felt> {
+    std::iter::once(Felt::from(tx_proof_facts.len()))
+        .chain(tx_proof_facts.iter().flat_map(|proof_facts| {
+            std::iter::once(Felt::from(proof_facts.len())).chain(proof_facts.iter().copied())
+        }))
+        .collect()
+}
+
+fn leaf_node() -> PackedNode {
+    PackedNode::leaf(LEAF_VERIFIER_CIRCUIT_HASH, vec![])
+}
+
+fn fold_node(subtasks: Vec<PackedNode>) -> PackedNode {
+    PackedNode::Composite { circuit_hash: MULTIVERIFIER_CIRCUIT_HASH, subtasks }
+}
+
+/// The proving side's tree of the three golden leaves' proofs: the first two fold together, and the
+/// third is carried up to fold with them at the root.
+fn proof_facts_tree() -> PackedNode {
+    fold_node(vec![fold_node(vec![leaf_node(), leaf_node()]), leaf_node()])
 }
 
 fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> {
@@ -723,6 +736,9 @@ fn test_parse_and_output(
         EndpointArg::Value(ValueArg::Single(replace_keys_with_aliases.into())),
         EndpointArg::Value(ValueArg::Single(n_public_keys.into())),
         EndpointArg::Value(ValueArg::Single(public_keys_segment.into())),
+        // Write the proof facts themselves, not their tree's root.
+        EndpointArg::Value(ValueArg::Single(Felt::from(false).into())),
+        EndpointArg::Value(ValueArg::Single(vm.add_memory_segment().into())),
     ];
 
     // Run the entrypoint.
@@ -814,6 +830,7 @@ fn test_aggregator(
         fee_token_address: Felt::ZERO,
         chain_id: Felt::ZERO,
         public_keys: None,
+        proof_facts_tree: Some(proof_facts_tree()),
     };
 
     // Create the aggregator hint processor.
@@ -868,4 +885,33 @@ fn test_aggregator(
         &aggregator_hint_processor.unused_hints,
         &format!("test_aggregator_{full_output}_{use_kzg_da}_{modifier:?}"),
     );
+}
+
+/// The tree must have a leaf for each transaction that has proof facts.
+#[test]
+fn test_aggregator_rejects_tree_of_other_transactions() {
+    let aggregator_input = AggregatorInput {
+        bootloader_output: Some(bootloader_output(true, FailureModifier::None)),
+        full_output: true,
+        da: DataAvailability::CallData,
+        debug_mode: false,
+        fee_token_address: Felt::ZERO,
+        chain_id: Felt::ZERO,
+        public_keys: None,
+        proof_facts_tree: Some(fold_node(vec![leaf_node(), leaf_node()])),
+    };
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+    assert!(
+        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)
+            .is_err()
+    );
+}
+
+/// The hint writes the proving side's single-leaf tree, a self-fold of its leaf, as the leaf.
+#[rstest]
+#[case::single_leaf(fold_node(vec![leaf_node()]), vec![Felt::ZERO])]
+#[case::three_leaves(proof_facts_tree(), [1, 1, 0, 0, 0].map(Felt::from).to_vec())]
+fn test_flatten_proof_facts_tree(#[case] packed_tree: PackedNode, #[case] expected: Vec<Felt>) {
+    assert_eq!(flatten_proof_facts_tree(&packed_tree).unwrap(), expected);
 }

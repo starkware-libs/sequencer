@@ -14,6 +14,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use leaf_proof_format::PackedNode;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
@@ -48,6 +49,10 @@ pub struct AggregatorInput {
     pub fee_token_address: Felt,
     pub chain_id: Felt,
     pub public_keys: Option<Vec<Felt>>,
+    /// The proving side's tree of the proofs of the transactions' proof facts (`packed_output` of
+    /// `stwo_run_and_prove_recursive_tree`). Required when the OS outputs have proof facts.
+    #[serde(default)]
+    pub proof_facts_tree: Option<PackedNode>,
 }
 
 impl AggregatorInput {
