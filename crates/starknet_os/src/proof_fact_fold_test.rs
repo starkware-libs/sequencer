@@ -36,6 +36,8 @@ use crate::test_utils::golden_leaf::{
     GOLDEN_LEAF_OUTPUT_DIGEST,
     GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
     GOLDEN_PROOF_FACTS,
+    GOLDEN_THREE_LEAF_PROOF_FACTS,
+    GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST,
     GOLDEN_VERIFICATION_DIGEST,
 };
 
@@ -66,14 +68,21 @@ const SINGLE_LEAF_FLAT_TREE: [u8; 1] = [0];
 /// The flattened four-leaf tree, in pre-order: the root fold, the fold of the first two leaves, the
 /// two leaves, the fold of the last two leaves, and the two leaves.
 const FOUR_LEAF_FLAT_TREE: [u8; 7] = [1, 1, 0, 0, 1, 0, 0];
+/// The flattened three-leaf tree: the root fold, the fold of the first two leaves, the two leaves,
+/// and the third leaf, carried up to the root.
+const THREE_LEAF_FLAT_TREE: [u8; 5] = [1, 1, 0, 0, 0];
 
-/// Runs the Cairo `write_proof_tree_root_entry` on a flattened tree whose leaves are
-/// `n_tx_proof_facts` copies of the golden leaf's proof facts, giving it a pointer to
-/// `expected_root_output_digest`, after the multiverifier's circuit hash, to write the root entry
-/// to.
+/// `n_tx_proof_facts` copies of the golden leaf's proof facts.
+fn golden_proof_facts_copies(n_tx_proof_facts: usize) -> Vec<&'static [Felt]> {
+    vec![GOLDEN_PROOF_FACTS.as_slice(); n_tx_proof_facts]
+}
+
+/// Runs the Cairo `write_proof_tree_root_entry` on a flattened tree whose leaves are the given
+/// transactions' proof facts, giving it a pointer to `expected_root_output_digest`, after the
+/// multiverifier's circuit hash, to write the root entry to.
 fn run_cairo_proof_tree_root_entry(
     flat_tree: &[u8],
-    n_tx_proof_facts: usize,
+    tx_proof_facts: &[&[Felt]],
     expected_root_output_digest: &Blake2sDigestWords,
 ) -> Cairo0EntryPointRunnerResult<()> {
     let expected_root_entry: Vec<Felt> = MULTIVERIFIER_CIRCUIT_HASH
@@ -88,8 +97,8 @@ fn run_cairo_proof_tree_root_entry(
         &[
             EndpointArg::from(flat_tree.len()),
             felt_array_arg(&flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>()),
-            EndpointArg::from(n_tx_proof_facts),
-            tx_proof_facts_arg(&vec![GOLDEN_PROOF_FACTS.as_slice(); n_tx_proof_facts]),
+            EndpointArg::from(tx_proof_facts.len()),
+            tx_proof_facts_arg(tx_proof_facts),
             felt_array_arg(&expected_root_entry),
         ],
         &[ImplicitArg::Builtin(BuiltinName::range_check)],
@@ -166,14 +175,27 @@ fn test_cairo_verify_processed_proof_rejects_other_proof_facts() {
 }
 
 #[rstest]
-#[case::single_leaf(&SINGLE_LEAF_FLAT_TREE, 1, GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST)]
-#[case::four_leaves(&FOUR_LEAF_FLAT_TREE, 4, GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST)]
+#[case::single_leaf(
+    &SINGLE_LEAF_FLAT_TREE,
+    golden_proof_facts_copies(1),
+    GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST
+)]
+#[case::three_leaves_with_carried_leaf(
+    &THREE_LEAF_FLAT_TREE,
+    GOLDEN_THREE_LEAF_PROOF_FACTS.iter().map(|proof_facts| proof_facts.as_slice()).collect(),
+    GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST
+)]
+#[case::four_leaves(
+    &FOUR_LEAF_FLAT_TREE,
+    golden_proof_facts_copies(4),
+    GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST
+)]
 fn test_cairo_proof_tree_root_matches_proving_side_golden(
     #[case] flat_tree: &[u8],
-    #[case] n_tx_proof_facts: usize,
+    #[case] tx_proof_facts: Vec<&[Felt]>,
     #[case] expected_root_output_digest: Blake2sDigestWords,
 ) {
-    run_cairo_proof_tree_root_entry(flat_tree, n_tx_proof_facts, &expected_root_output_digest)
+    run_cairo_proof_tree_root_entry(flat_tree, &tx_proof_facts, &expected_root_output_digest)
         .unwrap();
 }
 
@@ -184,7 +206,7 @@ fn test_cairo_proof_tree_root_matches_proving_side_golden(
 fn test_cairo_proof_tree_root_rejects_other_proof_facts_count(#[case] n_tx_proof_facts: usize) {
     run_cairo_proof_tree_root_entry(
         &FOUR_LEAF_FLAT_TREE,
-        n_tx_proof_facts,
+        &golden_proof_facts_copies(n_tx_proof_facts),
         &GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST,
     )
     .unwrap_err();

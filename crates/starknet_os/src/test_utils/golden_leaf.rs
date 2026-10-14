@@ -12,9 +12,12 @@ use tempfile::NamedTempFile;
 use crate::io::os_input::CircuitVerifierTaskInput;
 use crate::proof_fact_fold::Blake2sDigestWords;
 
+/// The number of felts in the golden leaves' proof facts.
+pub const GOLDEN_PROOF_FACTS_SIZE: usize = 6;
+
 /// The proof facts of the proving side's golden leaf: two zero version markers, followed by the
 /// preimage [program_hash, ...virtual OS output] that the proving side hashes.
-pub const GOLDEN_PROOF_FACTS: [Felt; 6] = [
+pub const GOLDEN_PROOF_FACTS: [Felt; GOLDEN_PROOF_FACTS_SIZE] = [
     Felt::ZERO,
     Felt::ZERO,
     Felt::from_hex_unchecked("0x32b88272d54b83880ebebd9c4292a650bee27d1575e82123391b6df2932e843"),
@@ -40,11 +43,46 @@ pub const GOLDEN_VERIFICATION_DIGEST: Blake2sDigestWords =
 pub const GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST: Blake2sDigestWords =
     [897652633, 1382572116, 3969946465, 347296500, 2153515991, 2472657789, 1975506022, 3786147232];
 
+/// The proof facts of three golden leaves: the leaf simple bootloader running the simple-output
+/// task with the outputs [11, 13, 17] (the golden leaf), [19, 23, 29] and [31, 37, 41]. The last
+/// two were proven with `leaf_prover` at proving commit `b75d21f9`, under the `canonical_small`
+/// circuit registry.
+pub const GOLDEN_THREE_LEAF_PROOF_FACTS: [[Felt; GOLDEN_PROOF_FACTS_SIZE]; 3] = [
+    GOLDEN_PROOF_FACTS,
+    [
+        Felt::ZERO,
+        Felt::ZERO,
+        GOLDEN_PROOF_FACTS[2],
+        Felt::from_hex_unchecked("0x13"),
+        Felt::from_hex_unchecked("0x17"),
+        Felt::from_hex_unchecked("0x1d"),
+    ],
+    [
+        Felt::ZERO,
+        Felt::ZERO,
+        GOLDEN_PROOF_FACTS[2],
+        Felt::from_hex_unchecked("0x1f"),
+        Felt::from_hex_unchecked("0x25"),
+        Felt::from_hex_unchecked("0x29"),
+    ],
+];
+
+/// The output digest of the root of the tree of the three golden leaves' proofs, as
+/// `stwo_run_and_prove_recursive_tree` at proving commit `b75d21f9` folds them: the first two
+/// leaves fold together, and the third is carried up to fold with them at the root.
+pub const GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST: Blake2sDigestWords = [
+    2130757912, 2706508986, 3760192371, 4219191282, 1022873970, 4153180131, 1578765253, 2172532855,
+];
+
 const CIRCUIT_VERIFIER_EXECUTABLE_GZ: &[u8] = include_bytes!(
     "../../resources/circuit_verifier/stwo_circuit_verifier_canonical_small.executable.json.gz"
 );
 const GOLDEN_PROCESSED_PROOF_GZ: &[u8] =
     include_bytes!("../../resources/circuit_verifier/one_leaf_root_proof.json.gz");
+/// The root proof of the three golden leaves' tree, folded by `stwo_run_and_prove_recursive_tree`
+/// at proving commit `b75d21f9`.
+const GOLDEN_THREE_LEAF_ROOT_PROOF_GZ: &[u8] =
+    include_bytes!("../../resources/circuit_verifier/three_leaf_root_proof.json.gz");
 
 /// The circuit verifier task on the golden leaf's processed proof. Its files stay decompressed for
 /// as long as it lives.
@@ -55,9 +93,18 @@ pub struct GoldenCircuitVerifierTask {
 
 impl GoldenCircuitVerifierTask {
     pub fn decompress() -> Self {
+        Self::decompress_with_processed_proof(GOLDEN_PROCESSED_PROOF_GZ)
+    }
+
+    /// The circuit verifier task on the root proof of the three golden leaves' tree.
+    pub fn decompress_three_leaf_tree() -> Self {
+        Self::decompress_with_processed_proof(GOLDEN_THREE_LEAF_ROOT_PROOF_GZ)
+    }
+
+    fn decompress_with_processed_proof(processed_proof_gz: &[u8]) -> Self {
         Self {
             executable_file: gunzip_to_temp_file(CIRCUIT_VERIFIER_EXECUTABLE_GZ),
-            processed_proof_file: gunzip_to_temp_file(GOLDEN_PROCESSED_PROOF_GZ),
+            processed_proof_file: gunzip_to_temp_file(processed_proof_gz),
         }
     }
 

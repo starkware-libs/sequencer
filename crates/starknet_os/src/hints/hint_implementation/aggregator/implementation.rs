@@ -152,7 +152,7 @@ pub(crate) fn load_circuit_verifier_task(
 /// for a transaction's proof, each fold followed by its left subtree, then its right subtree. The
 /// proving side's single-leaf tree, whose root multiverifier verifies the leaf in both of its
 /// slots, is written as the leaf.
-fn flatten_proof_facts_tree(packed_tree: &PackedNode) -> Result<Vec<Felt>, OsHintError> {
+pub(crate) fn flatten_proof_facts_tree(packed_tree: &PackedNode) -> Result<Vec<Felt>, OsHintError> {
     let tree = match packed_tree {
         PackedNode::Composite { subtasks, .. } => match subtasks.as_slice() {
             [leaf @ PackedNode::Composite { subtasks: leaf_subtasks, .. }]
