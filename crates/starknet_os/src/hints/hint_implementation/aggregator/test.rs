@@ -48,7 +48,7 @@ use crate::io::os_output_types::{
     N_UPDATES_SMALL_PACKING_BOUND,
 };
 use crate::proof_fact_fold::{LEAF_VERIFIER_CIRCUIT_HASH, MULTIVERIFIER_CIRCUIT_HASH};
-use crate::runner::{run_program, RunnerReturnObject};
+use crate::runner::{aggregator_with_bootloader_hint_processor, run_program, RunnerReturnObject};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -837,8 +837,11 @@ fn test_aggregator(
     let mut aggregator_hint_processor =
         AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
 
-    let result =
-        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor);
+    let result = run_program(
+        LayoutName::all_cairo,
+        &AGGREGATOR_PROGRAM,
+        &mut aggregator_with_bootloader_hint_processor(&mut aggregator_hint_processor),
+    );
 
     if let Some(message) = error_message {
         let Err(error) = result else { panic!("Expected error '{message}', got success.") };
@@ -903,8 +906,12 @@ fn test_aggregator_rejects_tree_of_other_transactions() {
     let mut aggregator_hint_processor =
         AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
     assert!(
-        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)
-            .is_err()
+        run_program(
+            LayoutName::all_cairo,
+            &AGGREGATOR_PROGRAM,
+            &mut aggregator_with_bootloader_hint_processor(&mut aggregator_hint_processor),
+        )
+        .is_err()
     );
 }
 
