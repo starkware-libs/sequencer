@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791992351070,
+  "lastUpdate": 1791996223802,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -815,6 +815,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1377.5514255399999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "26fecb789cdc0e749dfd002fca0a42cb1836fe7d",
+          "message": "apollo_batcher,apollo_batcher_types: persist fee market info with the block and serve it (#15177)\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T15:56:11Z",
+          "tree_id": "542b7f1f26332a0acc6f54d853eef707d15bf676",
+          "url": "https://github.com/starkware-libs/sequencer/commit/26fecb789cdc0e749dfd002fca0a42cb1836fe7d"
+        },
+        "date": 1791996223175,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 983.04733463,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1664.2473658800002,
             "unit": "ms"
           }
         ]
