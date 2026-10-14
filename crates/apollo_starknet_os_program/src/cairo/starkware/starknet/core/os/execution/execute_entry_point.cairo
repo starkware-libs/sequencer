@@ -289,7 +289,7 @@ func execute_entry_point{
     if (is_reverted != FALSE) {
         // Create a dummy OsCarriedOutputs so that messages to L1 will be discarded.
         // The dummy is initialized with
-        // OsCarriedOutputs(messages_to_l1="empty segment", messages_to_l2=0).
+        // OsCarriedOutputs(messages_to_l1="empty segment", messages_to_l2=0, tx_proof_facts=0).
         %{ GenerateDummyOsOutputSegment %}
         // Create a new revert log for the reverted entry point. This will be used to revert the
         // entry point changes after calling `call_execute_syscalls`.
