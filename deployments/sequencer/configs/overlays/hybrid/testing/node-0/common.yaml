@@ -20,7 +20,7 @@ config:
     strk_fee_token_address: "0x1002"
     validator_id: "0x64"
     versioned_constants_overrides.#is_none: true
-    versioned_constants_overrides.max_n_events: 1000
+    versioned_constants_overrides.max_n_events: 3000
 
 service:
   ports:
