@@ -624,6 +624,11 @@
     "privacy": "Public",
     "value": true
   },
+  "committer_config.storage_config.inner_storage_config.extra_options": {
+    "description": "RocksDB option string (name=value;name=value) applied after and overriding the explicit settings. Lets any RocksDB option be set without a code change.",
+    "privacy": "Public",
+    "value": ""
+  },
   "committer_config.storage_config.inner_storage_config.max_background_jobs": {
     "description": "Maximum number of background compaction and flush jobs",
     "privacy": "Public",
@@ -653,6 +658,11 @@
     "description": "Whether to spawn blocking tasks for read operations",
     "privacy": "Public",
     "value": true
+  },
+  "committer_config.storage_config.inner_storage_config.ttl_seconds": {
+    "description": "Non-bottom-level SST files whose data is older than this many seconds are compacted down to the bottom level. 0 keeps RocksDB's default of 30 days.",
+    "privacy": "Public",
+    "value": 0
   },
   "committer_config.storage_config.inner_storage_config.use_mmap_reads": {
     "description": "Whether to use mmap for reading SST files",
