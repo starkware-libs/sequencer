@@ -11,7 +11,7 @@ func check_is_reverted(is_reverted: felt) {
     return ();
 }
 
-func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
+func validate_and_output_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     proof_facts_size: felt,
     proof_facts: felt*,
     current_block_number: felt,
