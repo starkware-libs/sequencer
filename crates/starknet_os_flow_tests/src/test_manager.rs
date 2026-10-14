@@ -54,7 +54,13 @@ use starknet_api::test_utils::declare::{declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::constants::TRANSFER_EVENT_NAME;
-use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, Calldata, Fee, Tip};
+use starknet_api::transaction::fields::{
+    snos_block_number_from_proof_facts,
+    Calldata,
+    Fee,
+    ProofFacts,
+    Tip,
+};
 use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_api::{declare_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::{
@@ -157,6 +163,8 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) full_output: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
+    // The proof facts of the transactions that have them, in execution order.
+    pub(crate) tx_proof_facts: Vec<ProofFacts>,
     pub(crate) committed_state_diff: StateDiff,
 }
 
@@ -204,6 +212,7 @@ impl OsTestExpectedValues {
             full_output: config.full_output,
             messages_to_l1,
             messages_to_l2,
+            tx_proof_facts: collect_tx_proof_facts(os_hints),
             committed_state_diff,
         }
     }
@@ -344,6 +353,9 @@ impl<S: FlowTestState> OsTestOutput<S> {
         // Messages.
         assert_eq!(os_output.common_os_output.messages_to_l1, self.expected_values.messages_to_l1);
         assert_eq!(os_output.common_os_output.messages_to_l2, self.expected_values.messages_to_l2);
+
+        // Proof facts.
+        assert_eq!(os_output.common_os_output.tx_proof_facts, self.expected_values.tx_proof_facts);
 
         // State diff.
         // Storage diffs should always be equal, but in full output mode there is extra data in the
@@ -1058,6 +1070,23 @@ impl TestBuilder<DictStateReader> {
         );
         Self::new_with_initial_state_data(initial_state_data, config, true)
     }
+}
+
+/// Returns the proof facts of the invoke transactions that have them, in execution order.
+fn collect_tx_proof_facts(os_hints: &OsHints) -> Vec<ProofFacts> {
+    os_hints
+        .os_input
+        .os_block_inputs
+        .iter()
+        .flat_map(|block_input| &block_input.transactions)
+        .filter_map(|tx| match tx {
+            ExecutableTransaction::Account(AccountTransaction::Invoke(InvokeTransaction {
+                tx: starknet_api::transaction::InvokeTransaction::V3(invoke_tx),
+                ..
+            })) if !invoke_tx.proof_facts.0.is_empty() => Some(invoke_tx.proof_facts.clone()),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Extracts the block numbers stored in each tx's SNOS proof facts. Empty / malformed proof facts
