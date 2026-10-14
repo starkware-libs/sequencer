@@ -17,6 +17,7 @@ use crate::hints::hint_implementation::aggregator::implementation::{
     get_os_output_for_inner_blocks,
     get_use_kzg_da_and_full_output_from_input,
     guess_proof_facts_tree,
+    load_circuit_verifier_task,
     set_state_update_pointers_to_none,
     write_da_segment,
 };
@@ -574,7 +575,8 @@ define_hint_enum!(
     (WriteDaSegment, write_da_segment),
     (GetUseKzgDaAndFullOutputFromInput, get_use_kzg_da_and_full_output_from_input),
     (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input),
-    (GuessProofFactsTree, guess_proof_facts_tree)
+    (GuessProofFactsTree, guess_proof_facts_tree),
+    (LoadCircuitVerifierTask, load_circuit_verifier_task)
 );
 
 define_hint_extension_enum!(

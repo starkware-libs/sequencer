@@ -1,5 +1,11 @@
 [
   {
+    "StatelessHint": "SelectedBuiltins"
+  },
+  {
+    "StatelessHint": "SelectBuiltin"
+  },
+  {
     "StatelessHint": "SetStateUpdatesStart"
   },
   {
@@ -55,5 +61,8 @@
   },
   {
     "AggregatorHint": "GuessProofFactsTree"
+  },
+  {
+    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]
