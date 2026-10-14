@@ -7,11 +7,8 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
-from starkware.starknet.core.os.proof_fact_fold import (
-    BLAKE2S_DIGEST_N_WORDS,
-    compute_processed_proof_output_digest,
-    write_multiverifier_circuit_hash,
-)
+from starkware.starknet.core.os.output import TxProofFacts
+from starkware.starknet.core.os.proof_fact_fold import write_proof_tree_root_entry
 from starkware.starknet.core.os.verify_processed_proof import verify_processed_proof
 
 // An entry point for testing `verify_processed_proof`. It takes the output builtin without using
@@ -28,18 +25,15 @@ func verify_processed_proof_test{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(proof_facts_size: felt, proof_facts: felt*) {
+}(flat_tree_size: felt, flat_tree: felt*, n_tx_proof_facts: felt, tx_proof_facts: TxProofFacts*) {
     alloc_locals;
-    // The root entry of the processed proof of the proof facts, which fill both of the
-    // multiverifier's verifier slots.
     let (local root_entry: felt*) = alloc();
-    write_multiverifier_circuit_hash(circuit_hash=root_entry);
-    compute_processed_proof_output_digest(
-        left_proof_facts_size=proof_facts_size,
-        left_proof_facts=proof_facts,
-        right_proof_facts_size=proof_facts_size,
-        right_proof_facts=proof_facts,
-        output_digest=&root_entry[BLAKE2S_DIGEST_N_WORDS],
+    write_proof_tree_root_entry(
+        flat_tree_size=flat_tree_size,
+        flat_tree=flat_tree,
+        n_tx_proof_facts=n_tx_proof_facts,
+        tx_proof_facts=tx_proof_facts,
+        root_entry=root_entry,
     );
     verify_processed_proof(root_entry=root_entry);
     return ();
