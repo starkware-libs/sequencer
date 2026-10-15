@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
+use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -90,6 +91,11 @@ impl Storage for MapStorage {
                 DbOperation::Delete => self.0.remove(&key),
             };
         }
+        Ok(())
+    }
+
+    async fn free_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        self.0.retain(|key, _| !keys.contains(key));
         Ok(())
     }
 
@@ -390,6 +396,12 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<
         }
 
         Ok(())
+    }
+
+    /// Leaves the cache as is: scanning it for the keys in the range is slow, and it holds no
+    /// storage space.
+    async fn free_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        self.storage.free_range(keys).await
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
