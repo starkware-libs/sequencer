@@ -798,7 +798,7 @@
       "name": "consensus_proposal_fin_mismatch_once",
       "title": "Consensus proposal fin mismatch occurred",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(sum(increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "sum(increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -818,7 +818,7 @@
         }
       ],
       "for": "30s",
-      "severity": "p4"
+      "severity": "p3"
     },
     {
       "name": "consensus_retrospective_block_hash_mismatch",
