@@ -1399,6 +1399,15 @@
           "extra_params": {}
         },
         {
+          "title": "Commitment Infos Range Lower Bound",
+          "description": "The block number below which the last range deletion deleted all commitment infos",
+          "type": "stat",
+          "exprs": [
+            "committer_commitment_infos_range_lower_bound{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Total Block Duration",
           "description": "Average total block duration over a 1m window",
           "type": "timeseries",
