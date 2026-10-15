@@ -28,6 +28,7 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceProviderError,
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
+use apollo_metrics::metrics::MetricDetails;
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
@@ -82,6 +83,7 @@ use crate::cende::{
 };
 use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::{
+    CENDE_STATE_COMMITMENT_INFOS_GAP,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_L2_GAS_PRICE_AT_MINIMUM,
     CONSENSUS_L2_GAS_PRICE_CLAMPED,
@@ -1271,6 +1273,11 @@ async fn collect_recent_state_commitment_infos_stops_when_the_block_version_is_u
 #[tokio::test]
 async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() {
     // A failed offset query must propagate, not silently fall back to genesis.
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    CENDE_STATE_COMMITMENT_INFOS_GAP.register();
+    CENDE_STATE_COMMITMENT_INFOS_GAP.set(3);
+
     let (mut deps, _network) = create_test_and_network_deps();
     deps.batcher
         .expect_get_state_commitment_infos()
@@ -1288,6 +1295,12 @@ async fn collect_recent_state_commitment_infos_errors_on_offset_query_failure() 
     assert!(
         matches!(&result, Err(CendeAmbassadorError::RecorderRequestFailed { .. })),
         "expected the offset query error to propagate, got {result:?}"
+    );
+    let rendered = recorder.handle().render();
+    let expected_line = format!("{} NaN", CENDE_STATE_COMMITMENT_INFOS_GAP.get_name());
+    assert!(
+        rendered.lines().any(|line| line == expected_line),
+        "expected the stale gap to be replaced with NaN, got:\n{rendered}"
     );
 }
 
