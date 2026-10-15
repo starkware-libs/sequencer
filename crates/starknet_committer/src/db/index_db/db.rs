@@ -486,6 +486,21 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
         }
         Ok(self.write_updates(operations).await)
     }
+
+    async fn delete_commitment_infos_below(
+        &mut self,
+        lower_bound: BlockNumber,
+    ) -> PatriciaStorageResult<()> {
+        let Some(last_height) = lower_bound.prev() else {
+            return Ok(());
+        };
+        for prefix in [&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX, &*PATRICIA_PATHS_PREFIX] {
+            let first_key = block_number_based_key(prefix, DbBlockNumber(BlockNumber(0)));
+            let last_key = block_number_based_key(prefix, DbBlockNumber(last_height));
+            self.storage.free_range(DbKey(first_key)..=DbKey(last_key)).await?;
+        }
+        Ok(())
+    }
 }
 
 fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>
