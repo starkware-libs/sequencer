@@ -35,7 +35,10 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_committer_types::committer_types::RevertBlockResponse;
+use apollo_committer_types::committer_types::{
+    GetStateCommitmentInfosRequest,
+    RevertBlockResponse,
+};
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -53,6 +56,7 @@ use apollo_storage::accessed_keys::{
     AccessedKeysStorageWriter,
 };
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
+use apollo_storage::fee_market::{FeeMarketInfoStorageReader, FeeMarketInfoStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
@@ -64,11 +68,6 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::state_commitment_infos::{
-    CompressedStateCommitmentInfos,
-    StateCommitmentInfosStorageReader,
-    StateCommitmentInfosStorageWriter,
-};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
     DynamicConfigProvider,
@@ -89,6 +88,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -104,6 +104,7 @@ use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockInfo,
     BlockNumber,
@@ -123,6 +124,7 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
@@ -170,6 +172,7 @@ use crate::pre_confirmed_block_writer::{
     PreconfirmedBlockWriterTrait,
 };
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
+use crate::storage_access_filter::create_storage_access_filter;
 use crate::transaction_provider::{
     ProposeTransactionProvider,
     TxProviderPhase,
@@ -473,6 +476,9 @@ impl Batcher {
                         .results_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
+                create_storage_access_filter(
+                    &self.config.dynamic_config.storage_access_filter_config,
+                ),
                 Box::new(tx_provider),
                 Some(output_tx_sender),
                 Some(pre_confirmed_tx_sender),
@@ -569,6 +575,9 @@ impl Batcher {
                         .results_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
+                create_storage_access_filter(
+                    &self.config.dynamic_config.storage_access_filter_config,
+                ),
                 Box::new(tx_provider),
                 None,
                 None,
@@ -1019,6 +1028,7 @@ impl Batcher {
             Default::default(),
             storage_commitment_block_hash,
             accessed_keys.as_ref(),
+            (&block_header_without_hash).into(),
         )
         .await?;
 
@@ -1082,6 +1092,7 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
             Some(&accessed_keys),
+            input.fee_market_info,
         )
         .await?;
 
@@ -1166,6 +1177,7 @@ impl Batcher {
         rejected_tx_hashes: IndexSet<TransactionHash>,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
         accessed_keys: Option<&AccessedKeys>,
+        fee_market_info: BlockFeeMarketInfo,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -1195,7 +1207,13 @@ impl Batcher {
 
         // Commit the proposal to the storage.
         self.storage_writer
-            .commit_proposal(height, state_diff, storage_commitment_block_hash, accessed_keys)
+            .commit_proposal(
+                height,
+                state_diff,
+                storage_commitment_block_hash,
+                accessed_keys,
+                fee_market_info,
+            )
             .map_err(|err| {
                 error!("Failed to commit proposal to storage: {}", err);
                 BatcherError::InternalError
@@ -1559,6 +1577,7 @@ impl Batcher {
             .expect("Failed to write commitment results to storage.");
 
         info!("Revert task result: {revert_task_result:?}");
+        self.commitment_manager.evict_reverted_height(height);
         self.validate_revert_task_result(revert_task_result, height).await;
         info!("Reverted commitment for height {height}.");
     }
@@ -1622,19 +1641,71 @@ impl Batcher {
         Ok(block_hash)
     }
 
+    /// Serves the state commitment infos of recently committed heights from memory. `None` means
+    /// the height is not cached: not committed yet, committed without accessed keys, or older than
+    /// the cache window.
     pub fn get_state_commitment_infos(
-        &self,
+        &mut self,
         block_number: BlockNumber,
     ) -> BatcherResult<Option<CompressedStateCommitmentInfos>> {
-        self.storage_reader.get_state_commitment_infos(block_number).map_err(|err| {
-            error!("Failed to get state commitment infos from storage: {err}");
-            BatcherError::InternalError
-        })
+        self.get_commitment_results_and_write_to_storage()?;
+        Ok(self.commitment_manager.recent_state_commitment_infos_cache.get(&block_number).cloned())
     }
 
-    pub fn has_state_commitment_infos(&self, block_number: BlockNumber) -> BatcherResult<bool> {
-        self.storage_reader.has_state_commitment_infos(block_number).map_err(|err| {
-            error!("Failed to check state commitment infos existence in storage: {err}");
+    pub fn has_state_commitment_infos(&mut self, block_number: BlockNumber) -> BatcherResult<bool> {
+        self.get_commitment_results_and_write_to_storage()?;
+        Ok(self.commitment_manager.recent_state_commitment_infos_cache.contains(&block_number))
+    }
+
+    /// Warms the state commitment infos cache from the committer with the heights in
+    /// `[storage_height - STORED_BLOCK_HASH_BUFFER, commitment task offset)`: the recent heights
+    /// whose global roots are already in storage. From the offset up, the missing commitment tasks
+    /// fill the cache with their results. The heights are requested one at a time to bound the
+    /// size of each response. A height the committer fails to serve is logged and skipped; the
+    /// batcher runs without it, and a request for it may stall until it is served.
+    async fn load_recent_state_commitment_infos(&mut self, storage_height: BlockNumber) {
+        let start_height = BlockNumber(storage_height.0.saturating_sub(STORED_BLOCK_HASH_BUFFER));
+        let end_height = self.commitment_manager.get_commitment_task_offset();
+        if start_height >= end_height {
+            // The committer is at its maximal lag, or the node is fed by sync; the missing
+            // commitment tasks fill the cache instead.
+            if storage_height > BlockNumber(0) {
+                warn!(
+                    "Skipping the state commitment infos warm-up: the committer is at height \
+                     {end_height}, {} blocks behind the storage height {storage_height}.",
+                    storage_height.0 - end_height.0
+                );
+            }
+            return;
+        }
+        for height in start_height.iter_up_to(end_height) {
+            let request = GetStateCommitmentInfosRequest { height };
+            let response = match self.committer_client.get_state_commitment_infos(request).await {
+                Ok(response) => response,
+                Err(err) => {
+                    warn!(
+                        "Failed to load the state commitment infos of height {height} from the \
+                         committer: {err:?}."
+                    );
+                    continue;
+                }
+            };
+            if let Some(infos) = response.state_commitment_infos {
+                self.commitment_manager.recent_state_commitment_infos_cache.put(height, infos);
+            }
+        }
+        info!(
+            "Loaded the state commitment infos the committer holds for heights [{start_height}, \
+             {end_height})."
+        );
+    }
+
+    pub fn get_fee_market_info(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherResult<Option<BlockFeeMarketInfo>> {
+        self.storage_reader.get_fee_market_info(block_number).map_err(|err| {
+            error!("Failed to get fee market info from storage: {err}");
             BatcherError::InternalError
         })
     }
@@ -1854,13 +1925,8 @@ pub trait BatcherStorageReader: Send + Sync {
 
     fn get_block_hash(&self, height: BlockNumber) -> StorageResult<Option<BlockHash>>;
 
-    fn get_state_commitment_infos(
-        &self,
-        height: BlockNumber,
-    ) -> StorageResult<Option<CompressedStateCommitmentInfos>>;
-
-    /// Returns whether the state commitment infos for the given height are stored.
-    fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool>;
+    fn get_fee_market_info(&self, height: BlockNumber)
+    -> StorageResult<Option<BlockFeeMarketInfo>>;
 
     fn get_parent_hash_and_partial_block_hash_components(
         &self,
@@ -1958,15 +2024,11 @@ impl BatcherStorageReader for StorageReader {
         self.begin_ro_txn()?.get_block_hash(&height)
     }
 
-    fn get_state_commitment_infos(
+    fn get_fee_market_info(
         &self,
         height: BlockNumber,
-    ) -> StorageResult<Option<CompressedStateCommitmentInfos>> {
-        self.begin_ro_txn()?.get_state_commitment_infos(height)
-    }
-
-    fn has_state_commitment_infos(&self, height: BlockNumber) -> StorageResult<bool> {
-        self.begin_ro_txn()?.has_state_commitment_infos(height)
+    ) -> StorageResult<Option<BlockFeeMarketInfo>> {
+        self.begin_ro_txn()?.get_fee_market_info(height)
     }
 
     fn get_parent_hash_and_partial_block_hash_components(
@@ -2005,21 +2067,19 @@ pub trait BatcherStorageWriter: Send + Sync {
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
         accessed_keys: Option<&'a AccessedKeys>,
+        fee_market_info: BlockFeeMarketInfo,
     ) -> StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
 
-    /// Sets the global root and block hash (unless it's None) for the given height, and persists
-    /// the commitment infos (when present) in the same transaction.
+    /// Sets the global root and block hash (unless it's None) for the given height.
     /// Increments the block hash marker by 1.
     /// Block hash is optional because for old blocks, the block hash was set separately.
-    /// Commitment infos are optional for blocks that doesn't come from decision_reached flow.
     fn set_global_root_and_block_hash(
         &mut self,
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        state_commitment_infos: Option<CompressedStateCommitmentInfos>,
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
@@ -2034,9 +2094,13 @@ impl BatcherStorageWriter for StorageWriter {
         state_diff: ThinStateDiff,
         storage_commitment_block_hash: StorageCommitmentBlockHash,
         accessed_keys: Option<&'a AccessedKeys>,
+        fee_market_info: BlockFeeMarketInfo,
     ) -> StorageResult<()> {
         // TODO(AlonH): write casms.
-        let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
+        let mut txn = self
+            .begin_rw_txn()?
+            .append_state_diff(height, state_diff)?
+            .set_fee_market_info(height, &fee_market_info)?;
         match storage_commitment_block_hash {
             StorageCommitmentBlockHash::ParentHash(parent_block_hash) => {
                 if let Some(parent_block_number) = height.prev() {
@@ -2064,14 +2128,10 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
-        state_commitment_infos: Option<CompressedStateCommitmentInfos>,
     ) -> StorageResult<()> {
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
-             hash: {block_hash:?}, compressed commitment infos byte length: {:?}.",
-            state_commitment_infos
-                .as_ref()
-                .map(|state_commitment_infos| state_commitment_infos.payload.0.len())
+             hash: {block_hash:?}."
         );
         let mut txn = self
             .begin_rw_txn()?
@@ -2079,9 +2139,6 @@ impl BatcherStorageWriter for StorageWriter {
             .checked_increment_global_root_marker(height)?;
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
-        }
-        if let Some(state_commitment_infos) = state_commitment_infos {
-            txn = txn.append_state_commitment_infos(height, &state_commitment_infos)?;
         }
         txn.commit()
     }
@@ -2168,6 +2225,7 @@ impl ComponentStarter for Batcher {
 
         register_metrics(storage_height, global_root_height);
 
+        self.load_recent_state_commitment_infos(storage_height).await;
         self.commitment_manager
             .add_missing_commitment_tasks(
                 storage_height,

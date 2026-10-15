@@ -1,12 +1,8 @@
 use std::time::Duration;
 
 use apollo_metrics::metrics::MetricQueryName;
-use apollo_state_sync_metrics::metrics::{
-    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
-    STATE_SYNC_CLASS_MANAGER_MARKER,
-};
+use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
-use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -18,24 +14,6 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
     SECS_IN_MIN,
 };
-
-pub(crate) fn get_state_sync_lag() -> Alert {
-    const ALERT_NAME: &str = "state_sync_lag";
-    Alert::new(
-        ALERT_NAME,
-        "State sync lag",
-        EvaluationRate::Default,
-        format!(
-            "{} - {}",
-            CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
-            STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
-        ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
-        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
-        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
-        ObserverApplicability::NotApplicable,
-    )
-}
 
 fn get_state_sync_stuck(
     alert_name: &'static str,

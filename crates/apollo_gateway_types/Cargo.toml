@@ -15,7 +15,7 @@ workspace = true
 [dependencies]
 apollo_infra.workspace = true
 apollo_network_types.workspace = true
-apollo_rpc.workspace = true
+apollo_rpc_types.workspace = true
 async-trait.workspace = true
 enum-assoc.workspace = true
 enum-iterator = { workspace = true }

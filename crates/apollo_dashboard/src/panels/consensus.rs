@@ -82,6 +82,7 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use crate::dashboard::Row;
 use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{
+    exclude_observers,
     increase,
     increase_with_label,
     seconds_since_last_timestamp_with_label,
@@ -367,23 +368,24 @@ fn get_panel_cende_last_state_commitment_infos_block_number() -> Panel {
     Panel::new(
         "Last State Commitment Infos Block Number",
         "The block number of the most recent state commitment infos sent",
-        CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.get_name_with_filter().to_string(),
+        exclude_observers(&CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.get_name_with_filter()),
         PanelType::Stat,
     )
 }
 
 fn get_panel_consensus_cende_state_commitment_infos_gap() -> Panel {
     // The two metrics are emitted by different pods, so drop the pod filter or the diff empties.
-    let consensus = CONSENSUS_BLOCK_NUMBER.get_name_with_filter().replace(POD_LABEL_FILTER, "");
-    let cende = CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER
-        .get_name_with_filter()
+    let consensus = exclude_observers(&CONSENSUS_BLOCK_NUMBER.get_name_with_filter())
         .replace(POD_LABEL_FILTER, "");
+    let cende =
+        exclude_observers(&CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.get_name_with_filter())
+            .replace(POD_LABEL_FILTER, "");
     #[allow(clippy::as_conversions)]
     let gap_failure_threshold = STORED_BLOCK_HASH_BUFFER as f64;
     Panel::new(
         "Consensus vs Cende State Commitment Infos Gap (blocks)",
         "Blocks the last state-commitment-infos blob sent trails consensus; the retrospective \
-         gate errors once it reaches STORED_BLOCK_HASH_BUFFER.",
+         gate errors once it reaches STORED_BLOCK_HASH_BUFFER. Observer nodes are excluded.",
         format!("max by (namespace) ({consensus}) - max by (namespace) ({cende})"),
         PanelType::TimeSeries,
     )
@@ -410,7 +412,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
     Panel::new(
         "Write Blob Success",
         format!("The number of successful blob writes to Cende ({DEFAULT_DURATION} window)"),
-        increase(&CENDE_WRITE_BLOB_SUCCESS, DEFAULT_DURATION),
+        exclude_observers(&increase(&CENDE_WRITE_BLOB_SUCCESS, DEFAULT_DURATION)),
         PanelType::TimeSeries,
     )
     .with_log_query(query_expression)

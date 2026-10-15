@@ -10,7 +10,7 @@ config:
   sequencerConfig:
     components.sierra_compiler.port: 55007
     components.sierra_compiler.url: sequencer-sierracompiler-service
-    sierra_compiler_config.audited_libfuncs_only: false
+    sierra_compiler_config.allowed_libfuncs_list: "all"
     sierra_compiler_config.max_bytecode_size: 81920
 
 service:

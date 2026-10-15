@@ -751,7 +751,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         let start_ptr = syscall_handler.get_or_allocate_tx_signature_segment(vm)?;
         let length = syscall_handler.context.tx_context.tx_info.signature().0.len();
 
-        Ok(GetTxSignatureResponse { segment: ReadOnlySegment { start_ptr, length } })
+        Ok(GetTxSignatureResponse { signature_len: length, signature: start_ptr.into() })
     }
 
     fn library_call(

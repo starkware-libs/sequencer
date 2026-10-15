@@ -219,7 +219,7 @@ impl Default for BouncerWeights {
         Self {
             l1_gas: 2500000,
             message_segment_length: 3700,
-            n_events: 5000,
+            n_events: 10000,
             n_txs: 600,
             state_diff_size: 4000,
             sierra_gas: GasAmount(5000000000),

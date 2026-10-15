@@ -10,6 +10,7 @@ use starknet_api::nonce;
 use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use crate::blockifier::config::WorkerPoolConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::blockifier::transaction_filter::{SharedTransactionFilter, TransactionFilter};
 use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
@@ -17,6 +18,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::maybe_dummy_block_hash_and_number;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::test_utils::{create_test_init_data, emit_n_events_tx, TestInitData};
 use crate::transaction::transaction_execution::Transaction;
 
@@ -32,7 +34,10 @@ struct TestData {
     max_n_events_in_block: usize,
 }
 
-fn get_test_data(block_deadline: Option<Instant>) -> TestData {
+fn get_test_data(
+    block_deadline: Option<Instant>,
+    transaction_filter: Option<SharedTransactionFilter>,
+) -> TestData {
     let pool = Arc::new(WorkerPool::start(&WorkerPoolConfig::create_for_testing()));
 
     let max_n_events_in_block = 10;
@@ -52,6 +57,7 @@ fn get_test_data(block_deadline: Option<Instant>) -> TestData {
         block_number_hash_pair,
         pool.clone(),
         block_deadline,
+        transaction_filter,
     )
     .unwrap();
 
@@ -102,7 +108,7 @@ fn test_concurrent_transaction_executor(
         account_address,
         contract_address,
         max_n_events_in_block,
-    } = get_test_data(None);
+    } = get_test_data(None, None);
 
     let (txs0, txs1) = test_txs(account_address, contract_address, max_n_events_in_block);
 
@@ -145,7 +151,7 @@ fn test_concurrent_transaction_executor_stream_txs() {
         account_address,
         contract_address,
         max_n_events_in_block,
-    } = get_test_data(None);
+    } = get_test_data(None, None);
 
     let (txs0, txs1) = test_txs(account_address, contract_address, max_n_events_in_block);
 
@@ -189,7 +195,7 @@ fn test_concurrent_transaction_executor_stream_txs() {
 
 #[rstest]
 fn test_concurrent_transaction_executor_abort() {
-    let TestData { pool, mut tx_executor, .. } = get_test_data(None);
+    let TestData { pool, mut tx_executor, .. } = get_test_data(None, None);
 
     // Not calling `abort_block` would cause the `join` below to hang.
     tx_executor.abort_block();
@@ -202,7 +208,7 @@ fn test_concurrent_transaction_executor_abort() {
 fn test_concurrent_transaction_executor_deadline() {
     let deadline = Instant::now();
     let TestData { pool, mut tx_executor, account_address, contract_address, .. } =
-        get_test_data(Some(deadline));
+        get_test_data(Some(deadline), None);
 
     let txs0 = get_txs([emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32))]);
 
@@ -213,6 +219,39 @@ fn test_concurrent_transaction_executor_deadline() {
 
     let block_summary = tx_executor.close_block(0).unwrap();
     assert!(block_summary.state_diff.address_to_nonce.get(&account_address).is_none());
+
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}
+
+struct RejectAllFilter;
+
+impl TransactionFilter for RejectAllFilter {
+    fn check(
+        &self,
+        _tx: &Transaction,
+        _tx_execution_info: &TransactionExecutionInfo,
+    ) -> TransactionExecutionResult<()> {
+        Err(TransactionExecutionError::RejectedByTransactionFilter)
+    }
+}
+
+#[test]
+fn test_filtered_tx_is_rejected_without_writes() {
+    let TestData { pool, mut tx_executor, account_address, contract_address, .. } =
+        get_test_data(None, Some(Arc::new(RejectAllFilter)));
+
+    let txs = get_txs([emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32))]);
+    let results = tx_executor.add_txs_and_wait(&txs);
+    assert_matches!(
+        results[0],
+        Err(TransactionExecutorError::TransactionExecutionError(
+            TransactionExecutionError::RejectedByTransactionFilter
+        ))
+    );
+
+    let block_summary = tx_executor.close_block(txs.len()).unwrap();
+    assert_eq!(block_summary.state_diff.address_to_nonce.get(&account_address), None);
 
     drop(tx_executor);
     Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();

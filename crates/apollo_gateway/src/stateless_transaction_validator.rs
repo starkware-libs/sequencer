@@ -9,7 +9,13 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::fields::{Fee, Tip, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    Fee,
+    ProofFactsVariant,
+    ProofVersion,
+    Tip,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 
@@ -47,6 +53,7 @@ impl StatelessTransactionValidator {
 
         if let RpcTransaction::Invoke(invoke_tx) = tx {
             self.validate_client_side_proving_allowed(invoke_tx)?;
+            self.validate_proof_version_allowed(invoke_tx)?;
             self.validate_proof_facts_and_proof_consistency(invoke_tx)?;
         }
 
@@ -244,6 +251,38 @@ impl StatelessTransactionValidator {
         let has_proof_data = !tx.proof_facts.is_empty() || !tx.proof.is_empty();
         if has_proof_data {
             return Err(StatelessTransactionValidatorError::ClientSideProvingNotAllowed);
+        }
+
+        Ok(())
+    }
+
+    /// Rejects a proof whose version this gateway has been configured to stop accepting, ahead of
+    /// the protocol-level gate in the blockifier.
+    ///
+    /// Proof facts that fail to parse are left alone: they are rejected later, on their own
+    /// grounds, rather than reported here as a version problem.
+    fn validate_proof_version_allowed(
+        &self,
+        tx: &RpcInvokeTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let RpcInvokeTransaction::V3(tx) = tx;
+        let Ok(ProofFactsVariant::Snos(snos_proof_facts)) =
+            ProofFactsVariant::try_from(&tx.proof_facts)
+        else {
+            return Ok(());
+        };
+        let proof_version = snos_proof_facts.proof_version;
+        let allowed = match proof_version {
+            ProofVersion::V1 => self.config.allow_proof_version_v1,
+            ProofVersion::V2 => self.config.allow_proof_version_v2,
+            // V0 has no flag of its own: the blockifier rejects it for this protocol version
+            // regardless.
+            ProofVersion::V0 => return Ok(()),
+        };
+        if !allowed {
+            return Err(StatelessTransactionValidatorError::ProofVersionNotAllowed {
+                proof_version,
+            });
         }
 
         Ok(())

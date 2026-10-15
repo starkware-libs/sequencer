@@ -23,8 +23,32 @@ define_metrics!(
         MetricGauge { KUBE_POD_CONTAINER_STATUS_WAITING_REASON, "kube_pod_container_status_waiting_reason", "Indicates the reason a container is in a waiting state (e.g., ContainerCreating, ImagePullBackOff, CrashLoopBackOff). This means the container process has not started or has crashed." },
         MetricGauge { KUBELET_VOLUME_STATS_AVAILABLE_BYTES, "kubelet_volume_stats_available_bytes", "Number of bytes available on the volume (persistent volume claim)." },
         MetricGauge { KUBELET_VOLUME_STATS_USED_BYTES, "kubelet_volume_stats_used_bytes", "Number of bytes used by the volume (persistent volume claim)." },
+        MetricGauge { UP, "up", "Scrape health of each monitored target: 1 if the last scrape succeeded, 0 otherwise. Written by the collector, so it is present for every scraped pod." },
     },
 );
+
+/// Fires when no scrape target in the namespace has reported for a sustained period. With
+/// `noDataState: KeepLast`, every other rule holds its last state when its series vanish, so this
+/// is what pages when a node's metrics go dark entirely.
+pub(crate) fn get_namespace_metrics_absent() -> Alert {
+    Alert::new(
+        "namespace_metrics_absent",
+        "Namespace metrics absent",
+        EvaluationRate::Default,
+        // `absent_over_time` yields 1 only when no `up` sample exists in the window; `or
+        // vector(0)` keeps the rule defined while data is present.
+        format!("absent_over_time({}[1m]) or vector(0)", UP.get_name_with_filter()),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        // `up` is scraped every 10s, so the 1m window is 6 missed scrapes. Query results can
+        // transiently miss a whole region regardless of window length; the 2m pending period (5
+        // consecutive 30s evaluations) is what rides those out.
+        "2m",
+        AlertSeverity::Regular,
+        // Not observer-guarded: `is_observer` is scraped from the same pods, so it would be absent
+        // too.
+        ObserverApplicability::Applicable,
+    )
+}
 
 pub(crate) fn get_general_pod_state_not_ready() -> Alert {
     Alert::new(

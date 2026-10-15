@@ -43,7 +43,7 @@ fn cairo1_package_complete_marker(version: &String) -> PathBuf {
 
 /// Returns the path to the allowed_libfuncs.json file.
 pub fn allowed_libfuncs_json_path() -> String {
-    resolve_project_relative_path("crates/apollo_compile_to_casm/src/allowed_libfuncs.json")
+    resolve_project_relative_path("crates/apollo_compile_to_casm/resources/allowed_libfuncs.json")
         .unwrap()
         .to_string_lossy()
         .to_string()

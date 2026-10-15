@@ -20,7 +20,7 @@ curl -s -X POST http://localhost:3000 \
 Expected response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.3-rc.2" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.4" }
 ```
 
 ## API Reference
@@ -44,7 +44,7 @@ curl -s -X POST http://localhost:3000 \
 Response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.3-rc.2" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.4" }
 ```
 
 ### `starknet_proveTransaction`
@@ -133,6 +133,7 @@ curl -s -X POST http://localhost:3000 \
 | `55`     | Account validation failed       | The transaction's `__validate__` entry point reverted. Check the `data` field.           |
 | `61`     | Unsupported transaction version | A non-Invoke transaction was sent (Declare, DeployAccount).                              |
 | `1000`   | Invalid transaction input       | Invalid request field: non-zero gas prices or tip, or other malformed input. See `data`. |
+| `1002`   | Unsupported builtin             | The transaction uses a builtin the prover does not support. See `data`.                  |
 | `-32005` | Service busy                    | At concurrent proving capacity. Retry later.                                             |
 | `-32603` | Internal error                  | Unexpected failure. The `data` field contains diagnostic information.                    |
 
@@ -369,6 +370,10 @@ serving.
 - Finalized blocks only — pending blocks are not supported as the `block_id`.
 - One transaction per request — batch proving is not available.
 - Nightly Rust required for the Stwo prover — this is handled automatically in the Docker image.
+- Transactions that use the `ecdsa`, `range_check96`, `add_mod` or `mul_mod` builtin (for example,
+  by evaluating a `core::circuit` circuit) cannot be proven. They are rejected before proof
+  generation with error `1002` (Unsupported builtin), whose `data` lists the builtins and their
+  instance counts.
 
 ## Machine specs
 

@@ -18,12 +18,12 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{InnerInconsistentStorageValueError, OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
-    assert_retdata_as_expected,
     compare_retdata,
     extract_actual_retdata,
     get_account_deployment_data,
     get_calldata,
     get_proof_facts,
+    postprocess_retdata,
     set_state_entry,
 };
 use crate::hints::types::HintContext;
@@ -483,7 +483,7 @@ pub(crate) fn check_new_call_contract_response<S: StateReader>(
     _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    assert_retdata_as_expected(
+    postprocess_retdata(
         "retdata_start",
         "retdata_end",
         CairoStruct::CallContractResponse,
@@ -498,7 +498,7 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
     _hint_processor: &mut SnosHintProcessor<'_, S>,
     ctx: HintContext<'_>,
 ) -> OsHintResult {
-    assert_retdata_as_expected(
+    postprocess_retdata(
         "constructor_retdata_start",
         "constructor_retdata_end",
         CairoStruct::DeployResponse,

@@ -64,6 +64,21 @@
     "privacy": "Public",
     "value": 10
   },
+  "batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys": {
+    "description": "Comma-separated storage keys, with no spaces, that transactions must not read or write, in any contract. Empty means no key is blocked.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address": {
+    "description": "The account whose transactions may access blocked storage keys.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
@@ -97,7 +112,7 @@
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events": {
     "description": "An upper bound on the total number of events generated in a block.",
     "privacy": "Public",
-    "value": 5000
+    "value": 10000
   },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_txs": {
     "description": "An upper bound on the total number of transactions in a block.",
@@ -624,6 +639,11 @@
     "privacy": "Public",
     "value": true
   },
+  "committer_config.storage_config.inner_storage_config.extra_options": {
+    "description": "RocksDB option string (name=value;name=value) applied after and overriding the explicit settings. Lets any RocksDB option be set without a code change.",
+    "privacy": "Public",
+    "value": ""
+  },
   "committer_config.storage_config.inner_storage_config.max_background_jobs": {
     "description": "Maximum number of background compaction and flush jobs",
     "privacy": "Public",
@@ -653,6 +673,11 @@
     "description": "Whether to spawn blocking tasks for read operations",
     "privacy": "Public",
     "value": true
+  },
+  "committer_config.storage_config.inner_storage_config.ttl_seconds": {
+    "description": "Non-bottom-level SST files whose data is older than this many seconds are compacted down to the bottom level. 0 keeps RocksDB's default of 30 days.",
+    "privacy": "Public",
+    "value": 0
   },
   "committer_config.storage_config.inner_storage_config.use_mmap_reads": {
     "description": "Whether to use mmap for reading SST files",
@@ -3214,6 +3239,16 @@
     "privacy": "Public",
     "value": true
   },
+  "gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v1": {
+    "description": "If true, allows proofs stamped with proof version V1.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2": {
+    "description": "If true, allows proofs stamped with proof version V2.",
+    "privacy": "Public",
+    "value": true
+  },
   "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
     "privacy": "Public",
@@ -3262,7 +3297,7 @@
   "gateway_config.static_config.stateless_tx_validator_config.min_gas_price": {
     "description": "Minimum gas price for transactions.",
     "privacy": "Public",
-    "value": 8000000000
+    "value": 3000000000
   },
   "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",
@@ -3378,6 +3413,11 @@
     "description": "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the catch-up window so a large backlog is drained over successive polls instead of in one unbounded request.",
     "privacy": "Public",
     "value": 1000
+  },
+  "l1_events_scraper_config.max_l1_handler_payload_length": {
+    "description": "Max number of payload felts (calldata without the leading from_address) an L1 to L2 message may carry; the scraper drops longer messages. Must be identical on every validator of the network.",
+    "privacy": "Public",
+    "value": 20
   },
   "l1_events_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
@@ -3819,10 +3859,10 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "sierra_compiler_config.audited_libfuncs_only": {
-    "description": "If true, restrict to audited libfuncs. Otherwise allow all.",
+  "sierra_compiler_config.allowed_libfuncs_list": {
+    "description": "The libfunc list to validate against: 'audited', 'all', or 'bundled'.",
     "privacy": "Public",
-    "value": true
+    "value": "bundled"
   },
   "sierra_compiler_config.max_bytecode_size": {
     "description": "Limitation of compiled CASM bytecode size (felts).",
@@ -4282,7 +4322,7 @@
   "versioned_constants_overrides.max_n_events": {
     "description": "Maximum number of events that can be emitted from the transaction.",
     "privacy": "TemporaryValue",
-    "value": 1000
+    "value": 3000
   },
   "versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",

@@ -70,6 +70,9 @@ COPY --from=builder /usr/bin/tini /usr/bin/tini
 # Copy apollo config schema, used when it loads its configuration.
 COPY crates/apollo_node/resources/config_schema.json crates/apollo_node/resources/config_schema.json
 
+# Copy the bundled allowed-libfuncs list, used when compiling Sierra with that list selected.
+COPY crates/apollo_compile_to_casm/resources/allowed_libfuncs.json crates/apollo_compile_to_casm/resources/allowed_libfuncs.json
+
 # Create a new user "sequencer".
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \

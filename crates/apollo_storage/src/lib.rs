@@ -85,12 +85,12 @@ pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
 pub mod consensus;
+pub mod fee_market;
 pub mod global_root;
 pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
-pub mod state_commitment_infos;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
@@ -152,13 +152,20 @@ use mmap_file::{
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::block::{
+    BlockFeeMarketInfo,
+    BlockHash,
+    BlockNumber,
+    BlockSignature,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
+use strum::EnumCount;
 use tracing::{debug, info, trace, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
@@ -185,7 +192,6 @@ use crate::header::StorageBlockHeader;
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
-use crate::state_commitment_infos::CompressedStateCommitmentInfos;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -244,6 +250,7 @@ fn open_storage_internal(
     }
 
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
+    remove_legacy_state_commitment_infos(&mut db_writer, &storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
         block_signatures: db_writer.create_simple_table("block_signatures")?,
@@ -257,6 +264,7 @@ fn open_storage_internal(
             .create_simple_table("deprecated_declared_classes_block")?,
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
+        fee_market_infos: db_writer.create_simple_table("fee_market_infos")?,
         headers: db_writer.create_simple_table("headers")?,
         last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
@@ -279,7 +287,6 @@ fn open_storage_internal(
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
         accessed_keys: db_writer.create_simple_table("accessed_keys")?,
-        state_commitment_infos: db_writer.create_simple_table("state_commitment_infos")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -970,6 +977,7 @@ struct_field_names! {
         // TODO(dvir): consider use here also the CommonPrefix table type.
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
+        fee_market_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockFeeMarketInfo>, SimpleTable>,
         // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
         headers: TableIdentifier<BlockNumber, VersionWrapper<StorageBlockHeader, 1>, SimpleTable>,
         last_voted_marker: TableIdentifier<(), VersionZeroWrapper<LastVotedMarker>, SimpleTable>,
@@ -992,8 +1000,7 @@ struct_field_names! {
         compiled_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
         stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
 
-        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
-        state_commitment_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
+        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
     }
 }
 
@@ -1162,8 +1169,13 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
-    state_commitment_infos: FileHandler<VersionZeroWrapper<CompressedStateCommitmentInfos>, Mode>,
 }
+
+/// The serialized `OffsetKind` discriminant of the removed state commitment infos file.
+const LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND: [u8; 1] = [7];
+// The current variants take the discriminants below the legacy one, so a new variant would take
+// it: adding one fails to compile until `remove_legacy_state_commitment_infos` is deleted.
+const _: () = assert!(OffsetKind::COUNT <= 7);
 
 impl FileHandlers<RW> {
     // Appends a thin state diff to the corresponding file and returns its location.
@@ -1204,13 +1216,6 @@ impl FileHandlers<RW> {
         self.clone().accessed_keys.append(accessed_keys)
     }
 
-    fn append_state_commitment_infos(
-        &self,
-        state_commitment_infos: &CompressedStateCommitmentInfos,
-    ) -> LocationInFile {
-        self.clone().state_commitment_infos.append(state_commitment_infos)
-    }
-
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
@@ -1222,7 +1227,6 @@ impl FileHandlers<RW> {
         self.transaction_output.flush();
         self.transaction.flush();
         self.accessed_keys.flush();
-        self.state_commitment_infos.flush();
     }
 }
 
@@ -1237,7 +1241,6 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
             ("accessed_keys".to_string(), self.accessed_keys.stats()),
-            ("state_commitment_infos".to_string(), self.state_commitment_infos.stats()),
         ])
     }
 
@@ -1306,17 +1309,34 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("AccessedKeys at location {location:?} not found."),
         })
     }
+}
 
-    // Returns the compressed commitment infos at the given location or an error in case they don't
-    // exist.
-    pub(crate) fn get_state_commitment_infos_unchecked(
-        &self,
-        location: LocationInFile,
-    ) -> StorageResult<CompressedStateCommitmentInfos> {
-        self.state_commitment_infos.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("StateCommitmentInfos at location {location:?} not found."),
-        })
+// TODO(yoavGrs): Remove once all environments have been upgraded past the state commitment infos
+// removal.
+/// Removes the state commitment infos table, file and file offset that a storage created before
+/// they moved to the committer still holds.
+fn remove_legacy_state_commitment_infos(
+    db_writer: &mut DbWriter,
+    db_config: &DbConfig,
+) -> StorageResult<()> {
+    if db_writer.drop_table_if_exists("state_commitment_infos")? {
+        info!("Dropped the legacy state_commitment_infos table.");
     }
+    let file_offsets =
+        db_writer.create_simple_table::<[u8; 1], NoVersionValueWrapper<usize>>("file_offsets")?;
+    let txn = db_writer.begin_persistent_rw_txn()?;
+    let markers_table = txn.txn().open_table(&file_offsets)?;
+    if markers_table.get(txn.txn(), &LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND)?.is_some() {
+        markers_table.delete(txn.txn(), &LEGACY_STATE_COMMITMENT_INFOS_OFFSET_KIND)?;
+        txn.commit()?;
+        info!("Removed the legacy state commitment infos file offset.");
+    }
+    let file_path = db_config.path().join("state_commitment_infos.dat");
+    if file_path.exists() {
+        fs::remove_file(&file_path)?;
+        info!("Removed the legacy state commitment infos file {}.", file_path.display());
+    }
+    Ok(())
 }
 
 fn open_storage_files(
@@ -1354,8 +1374,6 @@ fn open_storage_files(
     let (transaction_writer, transaction_reader) = open_storage_file!("transaction", Transaction)?;
     let (accessed_keys_writer, accessed_keys_reader) =
         open_storage_file!("accessed_keys", AccessedKeys)?;
-    let (state_commitment_infos_writer, state_commitment_infos_reader) =
-        open_storage_file!("state_commitment_infos", StateCommitmentInfos)?;
 
     Ok((
         FileHandlers {
@@ -1366,7 +1384,6 @@ fn open_storage_files(
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
             accessed_keys: accessed_keys_writer,
-            state_commitment_infos: state_commitment_infos_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -1376,13 +1393,12 @@ fn open_storage_files(
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,
             accessed_keys: accessed_keys_reader,
-            state_commitment_infos: state_commitment_infos_reader,
         },
     ))
 }
 
 /// Represents a kind of mmap file.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, EnumCount)]
 pub enum OffsetKind {
     /// A thin state diff file.
     ThinStateDiff,
@@ -1398,6 +1414,4 @@ pub enum OffsetKind {
     Transaction,
     /// An accessed-keys file.
     AccessedKeys,
-    /// A state-commitment-infos file.
-    StateCommitmentInfos,
 }

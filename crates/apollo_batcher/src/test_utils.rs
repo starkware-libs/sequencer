@@ -10,6 +10,7 @@ use apollo_batcher_config::config::{
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_committer_types::committer_types::{
     CommitBlockResponse,
+    GetStateCommitmentInfosResponse,
     ReadPathsAndCommitBlockResponse,
     RevertBlockResponse,
 };
@@ -19,11 +20,6 @@ use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_storage::accessed_keys::AccessedKeys;
-use apollo_storage::state_commitment_infos::{
-    CompressedPayload,
-    CompressedStateCommitmentInfos,
-    STATE_COMMITMENT_INFOS_VERSION,
-};
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -42,6 +38,11 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
+use starknet_committer::patricia_merkle_tree::types::{
+    CompressedPayload,
+    CompressedStateCommitmentInfos,
+    STATE_COMMITMENT_INFOS_VERSION,
+};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
@@ -235,6 +236,15 @@ pub(crate) fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
     HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
 }
 
+pub(crate) fn test_state_commitment_infos(height: BlockNumber) -> CompressedStateCommitmentInfos {
+    CompressedStateCommitmentInfos {
+        version: STATE_COMMITMENT_INFOS_VERSION,
+        payload: CompressedPayload(
+            format!("state commitment infos of block {height}").into_bytes(),
+        ),
+    }
+}
+
 pub(crate) fn test_state_diff() -> ThinStateDiff {
     ThinStateDiff {
         storage_diffs: indexmap! {
@@ -298,16 +308,16 @@ impl Default for MockClients {
         committer_client_inner.expect_revert_block().returning(|_| {
             Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
         });
-        committer_client_inner.expect_read_paths_and_commit_block().returning(|_| {
-            Box::pin(async {
+        committer_client_inner.expect_read_paths_and_commit_block().returning(|request| {
+            Box::pin(async move {
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root: GlobalRoot::default(),
-                    state_commitment_infos: CompressedStateCommitmentInfos {
-                        version: STATE_COMMITMENT_INFOS_VERSION,
-                        payload: CompressedPayload(Vec::new()),
-                    },
+                    state_commitment_infos: test_state_commitment_infos(request.commit.height),
                 })
             })
+        });
+        committer_client_inner.expect_get_state_commitment_infos().returning(|_| {
+            Box::pin(async { Ok(GetStateCommitmentInfosResponse { state_commitment_infos: None }) })
         });
         let committer_client =
             MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));

@@ -2043,6 +2043,15 @@ async fn test_deprecated_tx_info() {
         };
         contract_storage_updates.insert(get_storage_var_address("version", tx_type), version);
     }
+    // The deprecated `get_tx_signature` syscall reports the same empty signature.
+    contract_storage_updates.insert(
+        get_storage_var_address(
+            "signature_len",
+            &[Felt::from_bytes_be_slice(b"L1_HANDLER_SYSCALL")],
+        ),
+        Felt::ZERO,
+    );
+
     // Add the offset to all storage update values and convert types.
     let offset = Felt::from_hex_unchecked("0x1234");
     let contract_storage_updates = contract_storage_updates
@@ -2571,6 +2580,23 @@ async fn test_reverted_call() {
          {expected_changed_addresses:#?}"
     );
     test_output.expect_hint_coverage("test_reverted_call");
+}
+
+/// A caller may append to the error array of a failed call and pass it on to another call.
+#[tokio::test]
+async fn test_call_contract_revert_and_append() {
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+    let calldata = create_calldata(
+        test_contract_address,
+        "test_call_contract_revert_and_append",
+        &[**test_contract_address],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.build_and_run().await.perform_default_validations();
 }
 
 /// Tests that the OS correctly handles calls between Cairo 1.0 contracts that count resources by

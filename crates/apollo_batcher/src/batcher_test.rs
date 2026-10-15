@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::mpsc::{channel, Receiver};
@@ -27,7 +28,14 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_committer_types::committer_types::CommitBlockRequest;
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    GetStateCommitmentInfosResponse,
+    ReadPathsAndCommitBlockRequest,
+};
+use apollo_committer_types::communication::MockCommitterClient;
+use apollo_committer_types::errors::CommitterClientError;
+use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -73,6 +81,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -144,6 +153,7 @@ use crate::test_utils::{
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
+    test_state_commitment_infos,
     test_state_diff,
     test_txs,
     verify_indexed_execution_infos,
@@ -324,6 +334,15 @@ fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
     state_diffs
 }
 
+/// Derives distinct fee market values per height, so committing the wrong block's info is caught.
+fn test_fee_market_info(height: BlockNumber) -> BlockFeeMarketInfo {
+    let base = u128::from(height.0) * 1000;
+    BlockFeeMarketInfo {
+        fee_proposal_fri: Some(GasPrice(base + 17)),
+        next_l2_gas_price: GasPrice(base + 23),
+    }
+}
+
 /// Expects a single `commit_proposal` call with the given arguments; `expect_accessed_keys`
 /// states whether accessed keys should be written with the state diff.
 fn expect_commit_proposal_once(
@@ -332,21 +351,29 @@ fn expect_commit_proposal_once(
     expected_state_diff: ThinStateDiff,
     expected_storage_commitment_block_hash: StorageCommitmentBlockHash,
     expect_accessed_keys: bool,
+    expected_fee_market_info: BlockFeeMarketInfo,
 ) {
     storage_writer
         .expect_commit_proposal()
         .times(1)
-        .withf(move |height, state_diff, storage_commitment_block_hash, accessed_keys| {
-            *height == expected_height
-                && *state_diff == expected_state_diff
-                && *storage_commitment_block_hash == expected_storage_commitment_block_hash
-                && accessed_keys.is_some() == expect_accessed_keys
-        })
-        .returning(|_, _, _, _| Ok(()));
+        .withf(
+            move |height,
+                  state_diff,
+                  storage_commitment_block_hash,
+                  accessed_keys,
+                  fee_market_info| {
+                *height == expected_height
+                    && *state_diff == expected_state_diff
+                    && *storage_commitment_block_hash == expected_storage_commitment_block_hash
+                    && accessed_keys.is_some() == expect_accessed_keys
+                    && *fee_market_info == expected_fee_market_info
+            },
+        )
+        .returning(|_, _, _, _, _| Ok(()));
 }
 
 fn expect_commit_proposal_success(storage_writer: &mut MockBatcherStorageWriter) {
-    storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
+    storage_writer.expect_commit_proposal().returning(|_, _, _, _, _| Ok(()));
 }
 
 fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &ThinStateDiff) {
@@ -357,6 +384,7 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
             state_diff.clone(),
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
             None,
+            test_fee_market_info(height),
         )
         .expect("set_state_diff failed");
 }
@@ -539,7 +567,12 @@ async fn batcher_propose_and_commit_block(
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await
+    batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(INITIAL_HEIGHT),
+        })
+        .await
 }
 
 fn mock_create_builder_for_validate_block(
@@ -547,7 +580,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, _, tx_provider, _, _, _| {
+        |_, _, _, _, tx_provider, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -572,7 +605,7 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, tx_provider, output_content_sender, _, _| {
+        move |_, _, _, _, tx_provider, output_content_sender, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
@@ -1230,6 +1263,73 @@ async fn consecutive_proposal_generation_success() {
 }
 
 #[rstest]
+#[case::no_blocked_storage_keys(BTreeSet::new())]
+#[case::blocked_storage_keys(BTreeSet::from([StorageKey::from(0x1_u8)]))]
+#[tokio::test]
+async fn block_builders_get_storage_access_filter(
+    #[case] blocked_storage_keys: BTreeSet<StorageKey>,
+) {
+    let expect_filter = !blocked_storage_keys.is_empty();
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    let propose_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(move |_, _, _, transaction_filter, _, _, _, _| {
+            transaction_filter.is_some() == expect_filter
+        })
+        .return_once(|_, _, _, _, tx_provider, output_content_sender, _, _| {
+            let block_builder = FakeProposeBlockBuilder {
+                output_content_sender: output_content_sender.unwrap(),
+                output_txs: vec![],
+                build_block_result: Some(Ok(propose_artifacts)),
+                tx_provider,
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+    let validate_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(move |_, _, _, transaction_filter, _, _, _, _| {
+            transaction_filter.is_some() == expect_filter
+        })
+        .return_once(|_, _, _, _, tx_provider, _, _, _| {
+            let block_builder = FakeValidateBlockBuilder {
+                tx_provider,
+                build_block_result: Some(Ok(validate_artifacts)),
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut mock_dependencies = MockDependencies {
+        clients: MockClients { block_builder_factory, l1_provider_client, ..Default::default() },
+        ..Default::default()
+    };
+    mock_dependencies
+        .batcher_config
+        .dynamic_config
+        .storage_access_filter_config
+        .blocked_storage_keys = blocked_storage_keys;
+    let mut batcher = create_batcher(mock_dependencies).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+    let validate_proposal_id = ProposalId(PROPOSAL_ID.0 + 1);
+    batcher.validate_block(validate_block_input(validate_proposal_id)).await.unwrap();
+    batcher
+        .finish_proposal(FinishProposalInput {
+            proposal_id: validate_proposal_id,
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+        })
+        .await
+        .unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+}
+
+#[rstest]
 #[tokio::test]
 async fn concurrent_proposals_generation_fail() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -1360,6 +1460,16 @@ async fn add_sync_block(
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
+    let BlockFeeMarketInfo { fee_proposal_fri, next_l2_gas_price } =
+        test_fee_market_info(block_number);
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number,
+        starknet_version,
+        fee_proposal_fri,
+        next_l2_gas_price,
+        ..Default::default()
+    };
+
     let mut storage_writer = MockBatcherStorageWriter::new();
     expect_commit_proposal_once(
         &mut storage_writer,
@@ -1367,6 +1477,7 @@ async fn add_sync_block(
         test_state_diff(),
         storage_commitment_block_hash,
         accessed_keys.is_some(),
+        (&block_header_without_hash).into(),
     );
 
     mock_clients
@@ -1398,11 +1509,7 @@ async fn add_sync_block(
     let n_synced_transactions = l1_transaction_hashes.len();
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number,
-            starknet_version,
-            ..Default::default()
-        },
+        block_header_without_hash,
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         block_header_commitments,
@@ -1531,6 +1638,16 @@ async fn add_sync_block_for_first_new_block() {
         .times(1)
         .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()), eq(DUMMY_BLOCK_HASH))
         .returning(|_, _| Ok(()));
+    let BlockFeeMarketInfo { fee_proposal_fri, next_l2_gas_price } =
+        test_fee_market_info(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH);
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+        starknet_version: StarknetVersion::LATEST,
+        parent_hash: DUMMY_BLOCK_HASH,
+        fee_proposal_fri,
+        next_l2_gas_price,
+        ..Default::default()
+    };
     expect_commit_proposal_once(
         &mut mock_dependencies.storage_writer,
         FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
@@ -1540,6 +1657,7 @@ async fn add_sync_block_for_first_new_block() {
             ..Default::default()
         }),
         false,
+        (&block_header_without_hash).into(),
     );
 
     mock_dependencies
@@ -1557,12 +1675,7 @@ async fn add_sync_block_for_first_new_block() {
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-            starknet_version: StarknetVersion::LATEST,
-            parent_hash: DUMMY_BLOCK_HASH,
-            ..Default::default()
-        },
+        block_header_without_hash,
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
@@ -1651,9 +1764,27 @@ async fn revert_block() {
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
 
+    batcher
+        .commitment_manager
+        .recent_block_hashes_cache
+        .put(LATEST_BLOCK_IN_STORAGE, BlockHash::default());
+    batcher
+        .commitment_manager
+        .recent_state_commitment_infos_cache
+        .put(LATEST_BLOCK_IN_STORAGE, test_state_commitment_infos(LATEST_BLOCK_IN_STORAGE));
+
     assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
     assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
+    assert!(
+        !batcher.commitment_manager.recent_block_hashes_cache.contains(&LATEST_BLOCK_IN_STORAGE)
+    );
+    assert!(
+        !batcher
+            .commitment_manager
+            .recent_state_commitment_infos_cache
+            .contains(&LATEST_BLOCK_IN_STORAGE)
+    );
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
@@ -1736,6 +1867,7 @@ async fn decision_reached() {
         expected_artifacts.thin_state_diff(),
         StorageCommitmentBlockHash::Partial(expected_partial_block_hash),
         true,
+        test_fee_market_info(INITIAL_HEIGHT),
     );
 
     mock_dependencies
@@ -1791,8 +1923,12 @@ async fn decision_reached_no_executed_proposal() {
     let mut batcher = create_batcher(MockDependencies::default()).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
-    let decision_reached_result =
-        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
+    let decision_reached_result = batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(INITIAL_HEIGHT),
+        })
+        .await;
     assert_eq!(decision_reached_result, Err(expected_error));
 }
 
@@ -1997,8 +2133,8 @@ async fn get_block_hash_after_reading_commitment_results() {
         mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
     set_global_root_expectation.times(1);
     set_global_root_expectation
-        .with(eq(INITIAL_HEIGHT), eq(global_root), always(), always())
-        .returning(|_, _, _, _| Ok(()));
+        .with(eq(INITIAL_HEIGHT), eq(global_root), always())
+        .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -2017,6 +2153,123 @@ async fn get_block_hash_after_reading_commitment_results() {
         get_number_of_items_in_channel_from_receiver(&batcher.commitment_manager.results_receiver),
         0
     );
+}
+
+#[tokio::test]
+async fn get_state_commitment_infos_after_reading_commitment_results() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| {
+            Ok((
+                Some(BlockHash::default()),
+                Some(PartialBlockHashComponents {
+                    block_number: INITIAL_HEIGHT,
+                    ..Default::default()
+                }),
+            ))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .returning(|_, _, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    let task = CommitterTaskInput::ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest {
+        commit: CommitBlockRequest {
+            height: INITIAL_HEIGHT,
+            state_diff: ThinStateDiff::default(),
+            state_diff_commitment: None,
+        },
+        accessed_keys: Default::default(),
+    });
+    batcher.commitment_manager.tasks_sender.send(task).await.unwrap();
+    wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
+
+    // The mock storage reader has no state commitment infos expectations, so both answers come
+    // from the cache.
+    assert_eq!(
+        batcher.get_state_commitment_infos(INITIAL_HEIGHT),
+        Ok(Some(test_state_commitment_infos(INITIAL_HEIGHT)))
+    );
+    assert_eq!(batcher.has_state_commitment_infos(INITIAL_HEIGHT), Ok(true));
+}
+
+fn mock_dependencies_with_committer_client(
+    committer_client: MockCommitterClient,
+) -> MockDependencies {
+    MockDependencies {
+        clients: MockClients {
+            committer_client: MockCommitterClientWithOffset::new(
+                committer_client,
+                Some(INITIAL_HEIGHT),
+            ),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn start_loads_recent_state_commitment_infos() {
+    let start_height =
+        BlockNumber(INITIAL_HEIGHT.0.saturating_sub(constants::STORED_BLOCK_HASH_BUFFER));
+    let n_requested_heights = usize::try_from(INITIAL_HEIGHT.0 - start_height.0).unwrap();
+    let mut committer_client = MockCommitterClient::new();
+    committer_client
+        .expect_get_state_commitment_infos()
+        .withf(move |request| start_height <= request.height && request.height < INITIAL_HEIGHT)
+        .times(n_requested_heights)
+        .returning(|request| {
+            Box::pin(async move {
+                Ok(GetStateCommitmentInfosResponse {
+                    state_commitment_infos: (request.height == LATEST_BLOCK_IN_STORAGE)
+                        .then(|| test_state_commitment_infos(request.height)),
+                })
+            })
+        });
+
+    let mut batcher =
+        create_batcher(mock_dependencies_with_committer_client(committer_client)).await;
+
+    assert_eq!(
+        batcher.get_state_commitment_infos(LATEST_BLOCK_IN_STORAGE),
+        Ok(Some(test_state_commitment_infos(LATEST_BLOCK_IN_STORAGE)))
+    );
+    assert_eq!(batcher.commitment_manager.recent_state_commitment_infos_cache.len(), 1);
+}
+
+#[tokio::test]
+async fn start_skips_state_commitment_infos_load_failures() {
+    let start_height =
+        BlockNumber(INITIAL_HEIGHT.0.saturating_sub(constants::STORED_BLOCK_HASH_BUFFER));
+    let n_requested_heights = usize::try_from(INITIAL_HEIGHT.0 - start_height.0).unwrap();
+    let mut committer_client = MockCommitterClient::new();
+    committer_client.expect_get_state_commitment_infos().times(n_requested_heights).returning(
+        move |request| {
+            Box::pin(async move {
+                if request.height == start_height {
+                    return Err(CommitterClientError::ClientError(
+                        ClientError::CommunicationFailure("committer is down".to_string()),
+                    ));
+                }
+                Ok(GetStateCommitmentInfosResponse {
+                    state_commitment_infos: (request.height == LATEST_BLOCK_IN_STORAGE)
+                        .then(|| test_state_commitment_infos(request.height)),
+                })
+            })
+        },
+    );
+
+    let batcher = create_batcher(mock_dependencies_with_committer_client(committer_client)).await;
+
+    let cache = &batcher.commitment_manager.recent_state_commitment_infos_cache;
+    assert_eq!(cache.len(), 1);
+    assert!(cache.contains(&LATEST_BLOCK_IN_STORAGE));
 }
 
 #[tokio::test]
@@ -2161,7 +2414,13 @@ async fn validation_only_decision_reached_skips_mempool_notification() {
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     // decision_reached must succeed and not call mempool_client.commit_block.
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(INITIAL_HEIGHT),
+        })
+        .await
+        .unwrap();
 }
 
 #[tokio::test]

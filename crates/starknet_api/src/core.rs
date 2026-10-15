@@ -298,9 +298,7 @@ impl_from_through_intermediate!(u128, ContractAddress, u8, u16, u32, u64);
 impl FromStr for ContractAddress {
     type Err = StarknetApiError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let felt = Felt::from_str(s)
-            .map_err(|e| StarknetApiError::OutOfRange { string: format!("{e}") })?;
-        Ok(ContractAddress(PatriciaKey::try_from(felt)?))
+        Ok(ContractAddress(s.parse()?))
     }
 }
 
@@ -603,6 +601,15 @@ impl TryFrom<StarkHash> for PatriciaKey {
             return Ok(PatriciaKey(value));
         }
         Err(StarknetApiError::OutOfRange { string: format!("[0x0, {PATRICIA_KEY_UPPER_BOUND})") })
+    }
+}
+
+impl FromStr for PatriciaKey {
+    type Err = StarknetApiError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let felt = Felt::from_str(s)
+            .map_err(|e| StarknetApiError::OutOfRange { string: format!("{e}") })?;
+        PatriciaKey::try_from(felt)
     }
 }
 

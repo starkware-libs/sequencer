@@ -37,11 +37,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use apollo_state_sync_types::communication::{
-    SharedStateSyncClient,
-    StateSyncClientError,
-    StateSyncClientResult,
-};
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
@@ -55,6 +51,8 @@ use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
+    BlockHash,
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -89,7 +87,6 @@ use crate::cende::{
     CendeContext,
     InternalTransactionWithReceipt,
     StateCommitmentInfosAndNumber,
-    N_BLOCK_HASHES_BACK_IN_BLOB,
 };
 use crate::dynamic_gas_price::{
     compute_fee_actual,
@@ -132,8 +129,10 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
-/// Maximum number of commitment infos backfilled to the cende recorder per blob.
-const MAX_COMMITMENT_INFOS_BACKFILL: usize = 10;
+/// Maximum number of commitment infos backfilled to the cende recorder per blob: the blob's
+/// window, from its block's retrospective block `STORED_BLOCK_HASH_BUFFER` heights back to the
+/// block itself.
+const MAX_COMMITMENT_INFOS_BACKFILL: usize = 11;
 
 /// First Starknet version whose blocks have state commitment infos.
 const FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS: StarknetVersion = StarknetVersion::V0_14_4;
@@ -288,6 +287,14 @@ pub struct SequencerConsensusContextDeps {
     pub config_manager_client: Option<SharedConfigManagerClient>,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum FeeMarketBootstrapError {
+    #[error(transparent)]
+    Batcher(#[from] BatcherClientError),
+    #[error(transparent)]
+    StateSync(#[from] StateSyncClientError),
+}
+
 #[derive(thiserror::Error, PartialEq, Debug)]
 enum ReproposeError {
     #[error(transparent)]
@@ -333,15 +340,14 @@ impl SequencerConsensusContext {
         self.fee_proposals_window = self.fee_proposals_window.split_off(&cutoff);
     }
 
-    /// Fill `[start_height - WINDOW, start_height)` from local state_sync storage. Must be
-    /// called before `run_consensus` so the window is populated before voting begins. Blocks
-    /// state_sync has not caught up to yet are pushed to the back of the queue and revisited —
-    /// joining consensus with a partial window would make this node disagree with caught-up
-    /// peers on `fee_actual`. Other state_sync errors propagate.
-    pub async fn initialize_fee_proposals_window(
+    /// Restores the fee market state for `start_height`: fills the fee-proposals window
+    /// `[start_height - WINDOW, start_height)` from local state_sync storage, retrying blocks
+    /// state_sync does not have yet. Must be called before `run_consensus`, so voting never
+    /// starts with a partial window.
+    pub async fn initialize_fee_market_state(
         &mut self,
         start_height: BlockNumber,
-    ) -> StateSyncClientResult<()> {
+    ) -> Result<(), FeeMarketBootstrapError> {
         const STATE_SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(500);
         let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
         let window_end_height = start_height.0;
@@ -362,7 +368,7 @@ impl SequencerConsensusContext {
                     pending_heights.push_back(block_number);
                     tokio::time::sleep(STATE_SYNC_RETRY_INTERVAL).await;
                 }
-                Err(e) => return Err(e),
+                Err(e) => return Err(e.into()),
             }
         }
         Ok(())
@@ -565,8 +571,14 @@ impl SequencerConsensusContext {
         }
     }
 
-    fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
-        let next_l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
+    /// Adopts a committed block's `next_l2_gas_price` as the current price.
+    fn set_l2_gas_price_from_block(&mut self, next_l2_gas_price: GasPrice) {
+        // May be default for blocks older than 0.14.0, ensure min gas price is met.
+        self.l2_gas_price =
+            max(next_l2_gas_price, VersionedConstants::latest_constants().min_gas_price);
+    }
+
+    fn update_l2_gas_price(&mut self, height: BlockNumber, next_l2_gas_price: NextL2GasPrice) {
         // Only this path runs once per decided block, so the clamp counter is reported here rather
         // than inside the shared computation.
         next_l2_gas_price.record_clamping();
@@ -591,11 +603,12 @@ impl SequencerConsensusContext {
         decision_reached_response: DecisionReachedResponse,
         block_header_commitments: BlockHeaderCommitments,
         l2_gas_used: GasAmount,
+        next_l2_gas_price: NextL2GasPrice,
         wait_for_last_commitment: bool,
     ) {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
-        self.update_l2_gas_price(height, l2_gas_used);
+        self.update_l2_gas_price(height, next_l2_gas_price);
         self.record_fee_proposal(height, init.fee_proposal_fri);
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
@@ -668,15 +681,25 @@ impl SequencerConsensusContext {
             .prev()
             .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
             .flatten();
-        // Collected first: `get_block_hash` flushes finished committer results to storage,
-        // making this height's state commitment infos readable in the collection below.
-        let recent_block_hashes = self.collect_recent_block_hashes(height).await;
-        let recent_state_commitment_infos =
-            self.collect_recent_state_commitment_infos(height).await.unwrap_or_else(|e| {
-                // `finalize_decision` must not fail, so continue with an empty vector.
-                error!("Failed to collect recent state commitment infos at height {height}: {e:?}");
+        let (recent_block_hashes, recent_state_commitment_infos): (Vec<_>, Vec<_>) = self
+            .collect_recent_block_hashes_and_state_commitment_infos(height)
+            .await
+            .unwrap_or_else(|e| {
+                // `finalize_decision` must not fail, so continue with nothing to send.
+                error!(
+                    "Failed to collect recent block hashes and state commitment infos at height \
+                     {height}: {e:?}"
+                );
                 Vec::new()
-            });
+            })
+            .into_iter()
+            .map(|(block_number, (hash, state_commitment_infos))| {
+                (
+                    BlockHashAndNumber { number: block_number, hash },
+                    StateCommitmentInfosAndNumber { state_commitment_infos, block_number },
+                )
+            })
+            .unzip();
 
         if let Err(e) = self
             .deps
@@ -747,61 +770,37 @@ impl SequencerConsensusContext {
         }
     }
 
-    /// Collects the recent block hashes from the batcher.
-    /// Returns computed block hashes in range [height - N_BLOCK_HASHES_BACK_IN_BLOB, height].
-    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
-        let mut recent_block_hashes = Vec::with_capacity(
-            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
-                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
-                + 1,
-        );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        for height in lowest_height..=height.0 {
-            let block_number = BlockNumber(height);
-            match self.deps.batcher.get_block_hash(block_number).await {
-                Ok(block_hash) => {
-                    recent_block_hashes
-                        .push(BlockHashAndNumber { number: block_number, hash: block_hash });
-                }
-                Err(err) => {
-                    // This error is expected if the block is not yet committed.
-                    if !matches!(
-                        err,
-                        BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))
-                    ) {
-                        // TODO(Nimrod): Consider handle this error differently.
-                        warn!("Failed to get block hash from batcher: {err:?}");
-                    }
-                    break;
-                }
-            }
-        }
-        recent_block_hashes
-    }
-
-    async fn collect_recent_state_commitment_infos(
+    /// Collects the block hashes and state commitment infos to send to the cende recorder, keyed
+    /// by height: the heights the recorder lacks, up to `height`, the first
+    /// `MAX_COMMITMENT_INFOS_BACKFILL` of them at most. An empty recorder gets the last
+    /// `MAX_COMMITMENT_INFOS_BACKFILL` heights, minus those predating
+    /// `FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS`.
+    async fn collect_recent_block_hashes_and_state_commitment_infos(
         &self,
         height: BlockNumber,
-    ) -> CendeAmbassadorResult<Vec<StateCommitmentInfosAndNumber>> {
-        // Send only the commitment infos the cende recorder has not stored yet, bounding the
-        // lower end by the cende recorder's commitment infos height offset.
-        let (lowest_height, cende_recorder_is_empty) =
-            match self.deps.cende_ambassador.commitment_infos_height_offset().await? {
-                Some(commitment_infos_height_offset) => (commitment_infos_height_offset.0, false),
-                // The cende recorder has stored nothing yet: fall back to block hashes window
-                // size.
-                None => (height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB), true),
-            };
-        let mut recent_state_commitment_infos = Vec::with_capacity(MAX_COMMITMENT_INFOS_BACKFILL);
+    ) -> CendeAmbassadorResult<Vec<(BlockNumber, (BlockHash, CompressedStateCommitmentInfos))>>
+    {
+        let commitment_infos_height_offset =
+            self.deps.cende_ambassador.commitment_infos_height_offset().await?;
+        let (lowest_height, cende_recorder_is_empty) = match commitment_infos_height_offset {
+            Some(commitment_infos_height_offset) => (commitment_infos_height_offset.0, false),
+            None => {
+                let window = u64::try_from(MAX_COMMITMENT_INFOS_BACKFILL)
+                    .expect("MAX_COMMITMENT_INFOS_BACKFILL fits in u64.");
+                ((height.0 + 1).saturating_sub(window), true)
+            }
+        };
+
+        let mut collected = Vec::with_capacity(MAX_COMMITMENT_INFOS_BACKFILL);
         for block_height in lowest_height..=height.0 {
-            // Stop at the cap, so sending commitment infos won't stall block production.
-            if recent_state_commitment_infos.len() >= MAX_COMMITMENT_INFOS_BACKFILL {
+            if collected.len() >= MAX_COMMITMENT_INFOS_BACKFILL {
                 break;
             }
             let block_number = BlockNumber(block_height);
-            match self.state_commitment_infos_to_send(block_number).await {
-                Ok(Some(state_commitment_infos)) => recent_state_commitment_infos
-                    .push(StateCommitmentInfosAndNumber { state_commitment_infos, block_number }),
+            match self.block_hash_and_state_commitment_infos_to_send(block_number).await {
+                Ok(Some(block_hash_and_state_commitment_infos)) => {
+                    collected.push((block_number, block_hash_and_state_commitment_infos));
+                }
                 Ok(None) => {
                     // Only an empty cende recorder's fallback window can reach back before
                     // FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS; a block that old has no
@@ -811,30 +810,26 @@ impl SequencerConsensusContext {
                     {
                         debug!(
                             "Block {block_number} predates \
-                             {FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS}; skipping its state \
-                             commitment infos."
+                             {FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS}; skipping it."
                         );
                         continue;
                     }
-                    // Break, rather than continue, in both cases that reach here:
-                    // - Normal production: the cende recorder is not empty, so this is the first
-                    //   block past the latest one with state commitment infos.
-                    // - The cende recorder is empty and, by the condition above, the block is not
-                    //   pre-0.14.4; it is the system's first block with state commitment infos,
-                    //   left for the next blob. Continuing would send a later height's commitment
-                    //   infos and leave a gap here.
+                    // Break, rather than continue, at the first block without infos: one not
+                    // committed yet, a gap, or an empty recorder's first block with infos. Sending
+                    // a later height would leave a gap that the recorder's offset, one past its
+                    // highest stored height, then skips for good.
                     break;
                 }
                 Err(err) => {
                     error!(
-                        "Failed to get state commitment infos from batcher for block \
-                         {block_number}: {err:?}"
+                        "Failed to get the block hash and state commitment infos of block \
+                         {block_number} from the batcher: {err:?}"
                     );
                     break;
                 }
             }
         }
-        Ok(recent_state_commitment_infos)
+        Ok(collected)
     }
 
     /// Returns whether `block_number` predates `FIRST_VERSION_WITH_STATE_COMMITMENT_INFOS`, read
@@ -855,22 +850,30 @@ impl SequencerConsensusContext {
         }
     }
 
-    /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
-    /// `None` if the batcher has none. With `send_empty_state_commitment_infos_only` on, an empty
-    /// object stands in for the stored one, which is not read.
-    async fn state_commitment_infos_to_send(
+    /// Returns the block hash and state commitment infos of `block_number` to send to the cende
+    /// recorder, or `None` if the batcher has no state commitment infos for it. With
+    /// `send_empty_state_commitment_infos_only` on, an empty object stands in for the stored
+    /// infos, which are not read.
+    async fn block_hash_and_state_commitment_infos_to_send(
         &self,
         block_number: BlockNumber,
-    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
-        if !self.config.static_config.send_empty_state_commitment_infos_only {
-            return self.deps.batcher.get_state_commitment_infos(block_number).await;
-        }
-        let has_state_commitment_infos =
-            self.deps.batcher.has_state_commitment_infos(block_number).await?;
-        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos {
-            version: STATE_COMMITMENT_INFOS_VERSION,
-            payload: CompressedPayload(Vec::new()),
-        }))
+    ) -> BatcherClientResult<Option<(BlockHash, CompressedStateCommitmentInfos)>> {
+        let state_commitment_infos =
+            if self.config.static_config.send_empty_state_commitment_infos_only {
+                self.deps.batcher.has_state_commitment_infos(block_number).await?.then(|| {
+                    CompressedStateCommitmentInfos {
+                        version: STATE_COMMITMENT_INFOS_VERSION,
+                        payload: CompressedPayload(Vec::new()),
+                    }
+                })
+            } else {
+                self.deps.batcher.get_state_commitment_infos(block_number).await?
+            };
+        let Some(state_commitment_infos) = state_commitment_infos else {
+            return Ok(None);
+        };
+        let block_hash = self.deps.batcher.get_block_hash(block_number).await?;
+        Ok(Some((block_hash, state_commitment_infos)))
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored
@@ -1162,8 +1165,18 @@ impl ConsensusContext for SequencerConsensusContext {
             (init, transactions, proposal_id, finished_info)
         };
 
-        let decision_reached_response =
-            self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;
+        let next_l2_gas_price = self.calculate_next_l2_gas_price(height, finished_info.l2_gas_used);
+        let decision_reached_response = self
+            .deps
+            .batcher
+            .decision_reached(DecisionReachedInput {
+                proposal_id,
+                fee_market_info: BlockFeeMarketInfo {
+                    fee_proposal_fri: init.fee_proposal_fri,
+                    next_l2_gas_price: next_l2_gas_price.published_price,
+                },
+            })
+            .await?;
 
         // CRITICAL: The block is now committed. This function must not fail beyond this point
         // unless the state is fully reverted, otherwise the node will be left in an
@@ -1177,6 +1190,7 @@ impl ConsensusContext for SequencerConsensusContext {
             decision_reached_response,
             finished_info.block_header_commitments.clone(),
             finished_info.l2_gas_used,
+            next_l2_gas_price,
             wait_for_last_commitment,
         )
         .await;
@@ -1210,11 +1224,7 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             Ok(block) => block,
         };
-        // May be default for blocks older than 0.14.0, ensure min gas price is met.
-        self.l2_gas_price = max(
-            sync_block.block_header_without_hash.next_l2_gas_price,
-            VersionedConstants::latest_constants().min_gas_price,
-        );
+        self.set_l2_gas_price_from_block(sync_block.block_header_without_hash.next_l2_gas_price);
 
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;

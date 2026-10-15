@@ -20,6 +20,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     Proof,
     ProofFacts,
+    ProofVersion,
     ResourceBounds,
     TransactionSignature,
 };
@@ -71,6 +72,8 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         min_sierra_version: *MIN_SIERRA_VERSION,
         max_sierra_version: *MAX_SIERRA_VERSION,
         allow_client_side_proving: true,
+        allow_proof_version_v1: false,
+        allow_proof_version_v2: true,
     });
 
 #[rstest]
@@ -680,6 +683,39 @@ fn test_client_side_proving_flag(
         );
     } else {
         assert_matches!(tx_validator.validate(&tx), Ok(()));
+    }
+}
+
+/// A proof whose version the gateway has been configured to stop accepting is rejected, even
+/// though the protocol still allows it. The fixture proof facts are stamped V2, so only
+/// `allow_proof_version_v2` gates them.
+#[rstest]
+#[case::v2_allowed(true, true)]
+#[case::v2_disallowed(false, false)]
+fn test_allow_proof_version(#[case] allow_proof_version_v2: bool, #[case] should_pass: bool) {
+    let config = StatelessTransactionValidatorConfig {
+        allow_proof_version_v2,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    };
+    let tx = rpc_tx_for_testing(
+        TransactionType::Invoke,
+        RpcTransactionArgs {
+            proof_facts: create_valid_proof_facts_for_testing(),
+            proof: Proof::proof_for_testing(),
+            ..Default::default()
+        },
+    );
+
+    let result = stateless_validator(config).validate(&tx);
+    if should_pass {
+        assert_matches!(result, Ok(()));
+    } else {
+        assert_eq!(
+            result.unwrap_err(),
+            StatelessTransactionValidatorError::ProofVersionNotAllowed {
+                proof_version: ProofVersion::V2
+            }
+        );
     }
 }
 

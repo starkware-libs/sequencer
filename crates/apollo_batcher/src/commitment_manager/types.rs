@@ -12,9 +12,9 @@ use apollo_committer_types::committer_types::{
     RevertBlockResponse,
 };
 use apollo_committer_types::communication::CommitterRequestLabelValue;
-use apollo_storage::state_commitment_infos::CompressedStateCommitmentInfos;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tracing::warn;
 
 /// Input for commitment tasks.
@@ -142,22 +142,26 @@ impl TaskTimer {
         }
     }
 
-    /// Returns the timer map for the given task label.
+    /// Returns the timer map for the given task label, or `None` for committer requests that have
+    /// no height to time.
     fn map_for_label(
         &mut self,
         task: CommitterRequestLabelValue,
-    ) -> &mut HashMap<BlockNumber, Instant> {
+    ) -> Option<&mut HashMap<BlockNumber, Instant>> {
         match task {
-            CommitterRequestLabelValue::CommitBlock => &mut self.commit,
+            CommitterRequestLabelValue::CommitBlock => Some(&mut self.commit),
             CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
-                &mut self.read_paths_and_commit_block
+                Some(&mut self.read_paths_and_commit_block)
             }
-            CommitterRequestLabelValue::RevertBlock => &mut self.revert,
+            CommitterRequestLabelValue::RevertBlock => Some(&mut self.revert),
+            CommitterRequestLabelValue::GetStateCommitmentInfos => None,
         }
     }
 
     pub(crate) fn start_timer(&mut self, task: CommitterRequestLabelValue, height: BlockNumber) {
-        self.map_for_label(task).insert(height, Instant::now());
+        if let Some(task_timers) = self.map_for_label(task) {
+            task_timers.insert(height, Instant::now());
+        }
     }
 
     /// Returns the duration of the task in milliseconds.
@@ -166,7 +170,7 @@ impl TaskTimer {
         task: CommitterRequestLabelValue,
         height: BlockNumber,
     ) -> Option<u64> {
-        let Some(instant) = self.map_for_label(task).remove(&height) else {
+        let Some(instant) = self.map_for_label(task)?.remove(&height) else {
             warn!(
                 "Can't stop timer for {task:?} task for block number {height} because timer was \
                  never started."
