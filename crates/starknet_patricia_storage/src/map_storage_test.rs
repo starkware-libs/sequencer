@@ -46,3 +46,28 @@ async fn test_storage_impl(#[case] mut storage: impl Storage) {
     // storage = {1:1, 3:3}
     assert!(storage.get_mut(&key_2.clone()).await.unwrap().is_none());
 }
+
+#[rstest]
+#[case::map_storage(MapStorage::default())]
+#[case::cached_storage(
+    CachedStorage::new(MapStorage::default(), CachedStorageConfig {
+        cache_size: NonZeroUsize::new(10).unwrap(),
+        include_inner_stats: false,
+        inner_storage_config: EmptyStorageConfig::default(),
+    })
+)]
+#[tokio::test]
+async fn test_delete_range(#[case] mut storage: impl Storage) {
+    let keys = [vec![1], vec![2], vec![2, 5], vec![3], vec![3, 0], vec![4]].map(DbKey);
+    for (index, key) in keys.iter().enumerate() {
+        storage.set(key.clone(), DbValue(vec![u8::try_from(index).unwrap()])).await.unwrap();
+    }
+    // Reads populate the cache of a cached storage, so the deletion must evict them too.
+    storage.mget_mut(&keys.each_ref()).await.unwrap();
+
+    storage.delete_range(DbKey(vec![2])..=DbKey(vec![3])).await.unwrap();
+
+    let stored: Vec<bool> =
+        storage.mget_mut(&keys.each_ref()).await.unwrap().iter().map(Option::is_some).collect();
+    assert_eq!(stored, [true, false, false, false, true, true]);
+}

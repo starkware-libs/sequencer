@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
+use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -90,6 +91,11 @@ impl Storage for MapStorage {
                 DbOperation::Delete => self.0.remove(&key),
             };
         }
+        Ok(())
+    }
+
+    async fn delete_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        self.0.retain(|key, _| !keys.contains(key));
         Ok(())
     }
 
@@ -389,6 +395,21 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<
             };
         }
 
+        Ok(())
+    }
+
+    async fn delete_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        let cached_keys_in_range: Vec<DbKey> = self
+            .cache
+            .iter()
+            .map(|(key, _)| key)
+            .filter(|key| keys.contains(key))
+            .cloned()
+            .collect();
+        self.storage.delete_range(keys).await?;
+        for key in &cached_keys_in_range {
+            self.cache.pop(key);
+        }
         Ok(())
     }
 

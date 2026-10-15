@@ -1,6 +1,7 @@
 use core::fmt;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
+use std::ops::RangeInclusive;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -37,6 +38,10 @@ use crate::storage_trait::{
     StorageConfigTrait,
     StorageStats,
 };
+
+#[cfg(test)]
+#[path = "rocksdb_storage_test.rs"]
+mod rocksdb_storage_test;
 
 // General database Options.
 
@@ -453,6 +458,20 @@ impl Storage for RocksDbStorage {
             }
         }
         Ok(self.db.write_opt(&batch, &self.options.write_options)?)
+    }
+
+    /// Writes a range tombstone, then drops every SST file that lies entirely inside `keys`, which
+    /// frees their space without a compaction. L0 files and files that straddle the range edges
+    /// are kept; the tombstone hides their keys until compaction drops them.
+    async fn delete_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        let (first, last) = keys.into_inner();
+        // The smallest key above `last`: the range tombstone's end is exclusive.
+        let end = [last.0.as_slice(), &[0]].concat();
+        let mut batch = WriteBatch::default();
+        batch.delete_range(&first.0, &end);
+        self.db.write_opt(&batch, &self.options.write_options)?;
+        // Unlinks the SST files below L0 whose keys all lie in the range, without reading them.
+        Ok(self.db.delete_file_in_range(&first.0, &last.0)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
