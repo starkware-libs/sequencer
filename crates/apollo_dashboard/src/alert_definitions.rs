@@ -299,8 +299,8 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        AlertSeverity::WorkingHours,
-        ObserverApplicability::NotApplicable,
+        AlertSeverity::DayOnly,
+        ObserverApplicability::Applicable,
     )
 }
 
