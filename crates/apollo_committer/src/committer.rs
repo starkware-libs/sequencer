@@ -71,6 +71,7 @@ use crate::metrics::{
     BLOCKS_COMMITTED,
     COMMITTER_BLOCK_COMMIT_LATENCY,
     COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
+    COMMITTER_COMMITMENT_INFOS_RANGE_LOWER_BOUND,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -158,6 +159,8 @@ where
     offset: BlockNumber,
     /// The lowest height whose commitment infos are stored; infos of lower heights were pruned.
     commitment_infos_lower_bound: BlockNumber,
+    /// The height below which the last range deletion deleted all commitment infos.
+    commitment_infos_range_lower_bound: BlockNumber,
 }
 
 impl<S, ForestDB> Committer<S, ForestDB>
@@ -187,7 +190,13 @@ where
             "Initializing committer with offset: {offset}, commitment infos lower bound: \
              {commitment_infos_lower_bound}"
         );
-        Self { forest_storage, config, offset, commitment_infos_lower_bound }
+        Self {
+            forest_storage,
+            config,
+            offset,
+            commitment_infos_lower_bound,
+            commitment_infos_range_lower_bound: BlockNumber(0),
+        }
     }
 
     fn update_offset(&mut self, offset: BlockNumber) {
@@ -198,6 +207,49 @@ where
     fn update_commitment_infos_lower_bound(&mut self, lower_bound: BlockNumber) {
         self.commitment_infos_lower_bound = lower_bound;
         COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.set_lossy(lower_bound.0);
+    }
+
+    fn update_commitment_infos_range_lower_bound(&mut self, range_lower_bound: BlockNumber) {
+        self.commitment_infos_range_lower_bound = range_lower_bound;
+        COMMITTER_COMMITMENT_INFOS_RANGE_LOWER_BOUND.set_lossy(range_lower_bound.0);
+    }
+
+    /// Deletes all commitment infos below the retention window as one key range, once the window
+    /// has advanced `range_deletion_interval_blocks` past the previous range deletion. A failure
+    /// only delays freeing space, so it is logged and retried on the next commit.
+    async fn delete_range_commitment_infos(&mut self) {
+        let (Some(pruning_config), Some(retention_start)) =
+            (&self.config.commitment_infos_pruning_config, self.retention_start(self.offset))
+        else {
+            return;
+        };
+        if retention_start.0
+            >= self
+                .commitment_infos_range_lower_bound
+                .0
+                .saturating_add(pruning_config.range_deletion_interval_blocks)
+        {
+            match self.forest_storage.delete_commitment_infos_below(retention_start).await {
+                Ok(()) => {
+                    info!(
+                        "Deleted the commitment infos below height {retention_start} as a key \
+                         range."
+                    );
+                    self.update_commitment_infos_range_lower_bound(retention_start);
+                }
+                Err(err) => warn!(
+                    "Failed to delete the commitment infos below height {retention_start} as a \
+                     key range: {err}"
+                ),
+            }
+        }
+    }
+
+    /// The lowest height whose commitment infos are retained when the commitment offset is
+    /// `offset`, or `None` without a pruning config.
+    fn retention_start(&self, offset: BlockNumber) -> Option<BlockNumber> {
+        let pruning_config = self.config.commitment_infos_pruning_config.as_ref()?;
+        Some(BlockNumber(offset.0.saturating_sub(pruning_config.retention_blocks)))
     }
 
     /// Commits a block to the forest.
@@ -272,6 +324,7 @@ where
                 );
                 self.update_offset(next_offset);
                 self.update_commitment_infos_lower_bound(new_lower_bound);
+                self.delete_range_commitment_infos().await;
                 Ok(CommitBlockResponse { global_root })
             }
         }
@@ -546,7 +599,9 @@ where
         next_offset: BlockNumber,
         metadata: &mut HashMap<ForestMetadataType, DbValue>,
     ) -> (BlockNumber, Vec<CommitmentInfosUpdate<'a>>) {
-        let Some(pruning_config) = &self.config.commitment_infos_pruning_config else {
+        let (Some(pruning_config), Some(retention_start)) =
+            (&self.config.commitment_infos_pruning_config, self.retention_start(next_offset))
+        else {
             let lower_bound = self.commitment_infos_lower_bound;
             metadata.insert(
                 ForestMetadataType::CommitmentInfosLowerBound,
@@ -555,9 +610,8 @@ where
             return (lower_bound, vec![]);
         };
         let lower_bound = self.commitment_infos_lower_bound.0;
-        let retention_start = next_offset.0.saturating_sub(pruning_config.retention_blocks);
         let heights_to_prune = lower_bound
-            ..retention_start.clamp(
+            ..retention_start.0.clamp(
                 lower_bound,
                 lower_bound.saturating_add(pruning_config.max_deletions_per_commit),
             );
@@ -701,6 +755,7 @@ where
                 );
                 self.update_offset(next_offset);
                 self.update_commitment_infos_lower_bound(new_lower_bound);
+                self.delete_range_commitment_infos().await;
                 Ok(ReadPathsAndCommitBlockResponse {
                     global_root,
                     state_commitment_infos: compressed_commitment_infos,

@@ -27,6 +27,7 @@ pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Con
 pub const DEFAULT_COMMIT_DURATION_WARN_THRESHOLD: Duration = Duration::from_millis(3000);
 pub const DEFAULT_COMMITMENT_INFOS_RETENTION_BLOCKS: u64 = 1000;
 pub const DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT: u64 = 100;
+pub const DEFAULT_COMMITMENT_INFOS_RANGE_DELETION_INTERVAL_BLOCKS: u64 = 100;
 
 /// Configuration of commitment-infos pruning from the committer storage.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
@@ -37,6 +38,11 @@ pub struct CommitmentInfosPruningConfig {
     pub retention_blocks: u64,
     /// At most this many heights are pruned per commit.
     pub max_deletions_per_commit: u64,
+    /// The commitment infos below the retention window are also deleted as one key range, each
+    /// time the window advances this many heights. A range deletion lets the storage free their
+    /// space in bulk.
+    #[validate(range(min = 1))]
+    pub range_deletion_interval_blocks: u64,
 }
 
 impl SerializeConfig for CommitmentInfosPruningConfig {
@@ -55,6 +61,13 @@ impl SerializeConfig for CommitmentInfosPruningConfig {
                 "At most this many heights' commitment infos are pruned per commit.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "range_deletion_interval_blocks",
+                &self.range_deletion_interval_blocks,
+                "The commitment infos below the retention window are also deleted as one key \
+                 range, each time the window advances this many heights.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -64,6 +77,7 @@ impl Default for CommitmentInfosPruningConfig {
         Self {
             retention_blocks: DEFAULT_COMMITMENT_INFOS_RETENTION_BLOCKS,
             max_deletions_per_commit: DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT,
+            range_deletion_interval_blocks: DEFAULT_COMMITMENT_INFOS_RANGE_DELETION_INTERVAL_BLOCKS,
         }
     }
 }
