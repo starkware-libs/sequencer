@@ -579,18 +579,13 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "committer_config.commitment_infos_pruning_config.max_deletions_per_commit": {
-    "description": "At most this many heights' commitment infos are pruned per commit.",
-    "privacy": "Public",
-    "value": 100
-  },
   "committer_config.commitment_infos_pruning_config.range_deletion_interval_blocks": {
-    "description": "The commitment infos below the retention window are also deleted as one key range, each time the window advances this many heights.",
+    "description": "The commitment infos below the retention window are deleted as one key range, each time the window advances this many heights.",
     "privacy": "Public",
     "value": 100
   },
   "committer_config.commitment_infos_pruning_config.retention_blocks": {
-    "description": "The commitment infos of this many highest committed heights are kept in storage; those of lower heights are pruned when committing a block.",
+    "description": "The commitment infos of this many highest committed heights are kept in storage; those of lower heights are deleted by a periodic key range deletion.",
     "privacy": "Public",
     "value": 1000
   },
