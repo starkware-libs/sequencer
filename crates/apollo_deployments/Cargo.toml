@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Deployment configurations and utilities for various Starknet environments."
+publish = false
 
 [lints]
 workspace = true

@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Configuration types for the Apollo consensus manager."
+publish = false
 
 [dependencies]
 apollo_config.workspace = true

@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "The Starknet OS."
+publish = false
 
 [features]
 deserialize = [
