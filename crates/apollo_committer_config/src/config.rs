@@ -34,20 +34,17 @@ pub const DEFAULT_SHORT_LIVED_CACHE_BLOCKS: usize = 11;
 pub const DEFAULT_SHORT_LIVED_CACHE_SIZE: usize =
     DEFAULT_SHORT_LIVED_CACHE_BLOCKS * N_COMMITMENT_INFOS_KEYS_PER_BLOCK;
 pub const DEFAULT_COMMITMENT_INFOS_RETENTION_BLOCKS: u64 = 1000;
-pub const DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT: u64 = 100;
 pub const DEFAULT_COMMITMENT_INFOS_RANGE_DELETION_INTERVAL_BLOCKS: u64 = 100;
 
 /// Configuration of commitment-infos pruning from the committer storage.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct CommitmentInfosPruningConfig {
     /// The commitment infos of the `retention_blocks` highest committed heights are kept in
-    /// storage; those of lower heights are pruned when committing a block.
+    /// storage; those of lower heights are deleted by a periodic key range deletion.
     #[validate(range(min = 10))]
     pub retention_blocks: u64,
-    /// At most this many heights are pruned per commit.
-    pub max_deletions_per_commit: u64,
-    /// The commitment infos below the retention window are also deleted as one key range, each
-    /// time the window advances this many heights. A range deletion lets the storage free their
+    /// The commitment infos below the retention window are deleted as one key range, each time
+    /// the window advances this many heights. A range deletion lets the storage free their
     /// space in bulk.
     #[validate(range(min = 1))]
     pub range_deletion_interval_blocks: u64,
@@ -60,20 +57,14 @@ impl SerializeConfig for CommitmentInfosPruningConfig {
                 "retention_blocks",
                 &self.retention_blocks,
                 "The commitment infos of this many highest committed heights are kept in storage; \
-                 those of lower heights are pruned when committing a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_deletions_per_commit",
-                &self.max_deletions_per_commit,
-                "At most this many heights' commitment infos are pruned per commit.",
+                 those of lower heights are deleted by a periodic key range deletion.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "range_deletion_interval_blocks",
                 &self.range_deletion_interval_blocks,
-                "The commitment infos below the retention window are also deleted as one key \
-                 range, each time the window advances this many heights.",
+                "The commitment infos below the retention window are deleted as one key range, \
+                 each time the window advances this many heights.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -84,7 +75,6 @@ impl Default for CommitmentInfosPruningConfig {
     fn default() -> Self {
         Self {
             retention_blocks: DEFAULT_COMMITMENT_INFOS_RETENTION_BLOCKS,
-            max_deletions_per_commit: DEFAULT_MAX_COMMITMENT_INFOS_DELETIONS_PER_COMMIT,
             range_deletion_interval_blocks: DEFAULT_COMMITMENT_INFOS_RANGE_DELETION_INTERVAL_BLOCKS,
         }
     }

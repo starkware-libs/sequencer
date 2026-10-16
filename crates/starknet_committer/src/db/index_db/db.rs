@@ -112,7 +112,9 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
 
-/// The db key prefix of the lowest height whose commitment infos are stored.
+/// The db key prefix of the lowest height whose commitment infos were stored. No longer written,
+/// but existing storages still hold the key, so new prefixes must be derived past this one.
+#[allow(dead_code)]
 static COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&PATRICIA_PATHS_PREFIX) + Felt::ONE).to_bytes_be());
 
@@ -324,9 +326,6 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
         DbKey(match metadata_type {
             ForestMetadataType::CommitmentOffset => {
                 singleton_metadata_key(&COMMITMENT_OFFSET_METADATA_PREFIX)
-            }
-            ForestMetadataType::CommitmentInfosLowerBound => {
-                singleton_metadata_key(&COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX)
             }
             ForestMetadataType::StateDiffHash(block_number) => {
                 block_number_based_key(&STATE_DIFF_HASH_METADATA_PREFIX, block_number)
