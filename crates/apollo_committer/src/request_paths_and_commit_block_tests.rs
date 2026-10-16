@@ -64,6 +64,8 @@ const UNACCESSED_CLASS_HASH: u64 = 2;
 const UNACCESSED_CONTRACT: u128 = 3;
 const UNACCESSED_STORAGE_KEY: u128 = 11;
 const UNACCESSED_STORAGE_VALUE: u128 = 300;
+const RANGE_DELETION_INTERVAL_BLOCKS: u64 = 10;
+const RANGE_DELETION_FIRST_RETAINED_HEIGHT: u64 = 300;
 
 static ACCESSED_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| ClassHash(1u64.into()));
 static ACCESSED_CONTRACT_1: LazyLock<ContractAddress> =
@@ -900,4 +902,51 @@ async fn no_pruning_without_a_pruning_config() {
         assert_witnesses_and_digest_stored(&mut committer, BlockNumber(height)).await;
     }
     assert_eq!(stored_commitment_infos_lower_bound(&mut committer).await, Some(BlockNumber(0)));
+}
+
+/// Stores commitment infos of height 0, then starts pruning above it, so that only the range
+/// deletion can delete them. Once the retention window starts `range_deletion_interval_blocks`
+/// heights up, the range deletion removes height 0, while the infos at the window start stay.
+#[tokio::test]
+async fn range_deletion_removes_commitment_infos_below_the_retention_window() {
+    let mut committer = new_test_committer().await;
+    read_paths_and_commit_block_without_accessed_keys(&mut committer, 0).await;
+    committer.update_commitment_infos_lower_bound(BlockNumber(1));
+    // Committing height `h` moves the retention window start to `h`.
+    pruning_config(&mut committer).retention_blocks = 1;
+    pruning_config(&mut committer).range_deletion_interval_blocks = RANGE_DELETION_INTERVAL_BLOCKS;
+
+    let deletion_height = RANGE_DELETION_INTERVAL_BLOCKS;
+    for height in 1..deletion_height {
+        commit_block_without_commitment_infos(&mut committer, height).await;
+    }
+    assert_witnesses_and_digest_stored(&mut committer, BlockNumber(0)).await;
+
+    read_paths_and_commit_block_without_accessed_keys(&mut committer, deletion_height).await;
+    assert_witnesses_and_digest_absent(&mut committer, BlockNumber(0)).await;
+    assert_witnesses_and_digest_stored(&mut committer, BlockNumber(deletion_height)).await;
+}
+
+/// On a storage that predates lower bound tracking, the lower bound starts at the offset, inside
+/// the retention window; the range deletion must still keep the retained heights. The heights
+/// pass 256, so the deleted range spans two bytes of the big-endian height in the key.
+#[tokio::test]
+async fn range_deletion_keeps_the_retention_window_of_an_untracked_lower_bound() {
+    let mut committer = new_test_committer().await;
+    let retention_blocks = 2 * RANGE_DELETION_INTERVAL_BLOCKS;
+    let tip = RANGE_DELETION_FIRST_RETAINED_HEIGHT + retention_blocks - 1;
+    for height in 0..tip {
+        read_paths_and_commit_block_without_accessed_keys(&mut committer, height).await;
+    }
+    committer.update_commitment_infos_lower_bound(BlockNumber(tip));
+    pruning_config(&mut committer).retention_blocks = retention_blocks;
+    pruning_config(&mut committer).range_deletion_interval_blocks = RANGE_DELETION_INTERVAL_BLOCKS;
+
+    read_paths_and_commit_block_without_accessed_keys(&mut committer, tip).await;
+    for height in 0..RANGE_DELETION_FIRST_RETAINED_HEIGHT {
+        assert_witnesses_and_digest_absent(&mut committer, BlockNumber(height)).await;
+    }
+    for height in RANGE_DELETION_FIRST_RETAINED_HEIGHT..=tip {
+        assert_witnesses_and_digest_stored(&mut committer, BlockNumber(height)).await;
+    }
 }

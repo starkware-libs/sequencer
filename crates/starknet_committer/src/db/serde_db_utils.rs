@@ -12,6 +12,8 @@ use crate::patricia_merkle_tree::tree::SortedLeavesRequest;
 pub struct DbBlockNumber(pub BlockNumber);
 
 impl DbBlockNumber {
+    pub const ZERO: Self = Self(BlockNumber(0));
+
     pub fn serialize(&self) -> [u8; 8] {
         self.0.0.to_be_bytes()
     }
