@@ -27,6 +27,7 @@ use crate::metrics::{
     register_metrics,
     COMMITTER_BLOCK_COMMIT_LATENCY,
     COMMITTER_COMMITMENT_INFOS_LOWER_BOUND,
+    COMMITTER_COMMITMENT_INFOS_RANGE_LOWER_BOUND,
 };
 
 #[path = "request_paths_and_commit_block_tests.rs"]
@@ -387,6 +388,28 @@ async fn commitment_infos_lower_bound_gauge_tracks_pruning() {
     let recorded_metrics = recorder.handle().render();
     assert_eq!(
         COMMITTER_COMMITMENT_INFOS_LOWER_BOUND.parse_numeric_metric::<u64>(&recorded_metrics),
+        Some(2)
+    );
+}
+
+#[tokio::test]
+async fn commitment_infos_range_lower_bound_gauge_tracks_range_deletion() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics(BlockNumber(0), BlockNumber(0));
+
+    let mut committer = new_test_committer().await;
+    pruning_config(&mut committer).retention_blocks = 1;
+    pruning_config(&mut committer).range_deletion_interval_blocks = 2;
+    // Committing height 2 moves the retention window start to 2, a full interval past 0.
+    for height in 0..3 {
+        committer.commit_block(commit_block_request(1, Some(1), height)).await.unwrap();
+    }
+    assert_eq!(committer.commitment_infos_range_lower_bound, BlockNumber(2));
+
+    let recorded_metrics = recorder.handle().render();
+    assert_eq!(
+        COMMITTER_COMMITMENT_INFOS_RANGE_LOWER_BOUND.parse_numeric_metric::<u64>(&recorded_metrics),
         Some(2)
     );
 }
