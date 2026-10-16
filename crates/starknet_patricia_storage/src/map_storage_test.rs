@@ -46,3 +46,29 @@ async fn test_storage_impl(#[case] mut storage: impl Storage) {
     // storage = {1:1, 3:3}
     assert!(storage.get_mut(&key_2.clone()).await.unwrap().is_none());
 }
+
+#[rstest]
+#[case::map_storage(MapStorage::default(), [true, false, false, false, true, true])]
+// The single cache entry holds the in-range key read before freeing, so it stays readable.
+#[case::cached_storage(
+    CachedStorage::new(MapStorage::default(), CachedStorageConfig {
+        cache_size: NonZeroUsize::new(1).unwrap(),
+        include_inner_stats: false,
+        inner_storage_config: EmptyStorageConfig::default(),
+    }),
+    [true, true, false, false, true, true],
+)]
+#[tokio::test]
+async fn test_free_range(#[case] mut storage: impl Storage, #[case] expected_stored: [bool; 6]) {
+    let keys = [vec![1], vec![2], vec![2, 5], vec![3], vec![3, 0], vec![4]].map(DbKey);
+    for (index, key) in keys.iter().enumerate() {
+        storage.set(key.clone(), DbValue(vec![u8::try_from(index).unwrap()])).await.unwrap();
+    }
+    storage.get_mut(&keys[1]).await.unwrap();
+
+    storage.free_range(DbKey(vec![2])..=DbKey(vec![3])).await.unwrap();
+
+    let stored: Vec<bool> =
+        storage.mget_mut(&keys.each_ref()).await.unwrap().iter().map(Option::is_some).collect();
+    assert_eq!(stored, expected_stored);
+}
