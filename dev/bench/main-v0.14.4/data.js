@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791996223802,
+  "lastUpdate": 1792122580025,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -849,6 +849,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1664.2473658800002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c02ab257b85488da46440ab2ebbd363a5626682b",
+          "message": "starknet_patricia_storage: add Storage::free_range, freeing whole files in RocksDB (#15224)",
+          "timestamp": "2026-10-16T03:15:17Z",
+          "tree_id": "8ea66425c9fffc203efebd4d2e5516acd56b79e9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c02ab257b85488da46440ab2ebbd363a5626682b"
+        },
+        "date": 1792122579571,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 921.40967634,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1405.77475893,
             "unit": "ms"
           }
         ]
