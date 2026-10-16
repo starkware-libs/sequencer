@@ -116,6 +116,14 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 static COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&PATRICIA_PATHS_PREFIX) + Felt::ONE).to_bytes_be());
 
+/// The per-block commitment infos prefixes, each with its height-0 key, where their range deletion
+/// starts.
+static COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS: LazyLock<[(&[u8; 32], DbKey); 2]> =
+    LazyLock::new(|| {
+        [&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX, &*PATRICIA_PATHS_PREFIX]
+            .map(|prefix| (prefix, DbKey(block_number_based_key(prefix, DbBlockNumber::ZERO))))
+    });
+
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
     phantom: PhantomData<H>,
@@ -349,6 +357,8 @@ impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
     }
 }
 
+// The big-endian block number keeps the keys in height order, which the range deletion of
+// commitment infos relies on.
 fn block_number_based_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> Vec<u8> {
     let mut key = Vec::with_capacity(64);
     key.extend_from_slice(prefix);
@@ -485,6 +495,22 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
             Self::append_commitment_infos_update(&mut operations, commitment_infos_update);
         }
         Ok(self.write_updates(operations).await)
+    }
+
+    async fn delete_commitment_infos_below(
+        &mut self,
+        lower_bound: BlockNumber,
+    ) -> PatriciaStorageResult<()> {
+        let Some(last_height) = lower_bound.prev() else {
+            return Ok(());
+        };
+        // Starting at 0 also covers heights a failed earlier deletion left behind; the range
+        // tombstone costs the same however far down it reaches.
+        for (prefix, first_key) in COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS.iter() {
+            let last_key = block_number_based_key(prefix, DbBlockNumber(last_height));
+            self.storage.free_range(first_key.clone()..=DbKey(last_key)).await?;
+        }
+        Ok(())
     }
 }
 
