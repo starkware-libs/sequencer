@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791482396395,
+  "lastUpdate": 1792323503025,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7751,6 +7751,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1465.09779176,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d014c2402e2b25f1a4a19ebe3dce59ee7a394af",
+          "message": "starknet_transaction_prover: expose Prometheus metrics with build identity (#14167)",
+          "timestamp": "2026-10-18T11:25:16Z",
+          "tree_id": "41522a414aa1ff2709d9350c7b1ced2ecdb1e511",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7d014c2402e2b25f1a4a19ebe3dce59ee7a394af"
+        },
+        "date": 1792323502553,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 775.70135227,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1188.52608506,
             "unit": "ms"
           }
         ]
