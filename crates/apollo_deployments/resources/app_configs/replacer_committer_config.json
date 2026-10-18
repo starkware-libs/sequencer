@@ -24,5 +24,7 @@
   "committer_config.storage_config.inner_storage_config.ttl_seconds": 0,
   "committer_config.storage_config.inner_storage_config.use_mmap_reads": false,
   "committer_config.storage_config.inner_storage_config.write_buffer_size": 134217728,
+  "committer_config.storage_config.short_lived_cache_size": 22,
+  "committer_config.storage_config.short_lived_cache_size.#is_none": false,
   "committer_config.verify_state_diff_hash": "$$$_COMMITTER_CONFIG-VERIFY_STATE_DIFF_HASH_$$$"
 }
