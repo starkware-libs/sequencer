@@ -47,6 +47,7 @@ use starknet_committer::db::forest_trait::{
     ForestMetadataType,
     ForestStorageWithEmptyReadContext,
 };
+use starknet_committer::db::index_db::db::is_commitment_infos_key;
 use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::{
     accessed_keys_digest,
@@ -103,6 +104,7 @@ impl StorageConstructor for ApolloStorage {
                 .inspect_err(|e| error!("Failed to open committer DB: {e}"))
                 .unwrap();
         CachedStorage::new(rocksdb_storage, storage_config)
+            .with_short_lived_keys(is_commitment_infos_key)
     }
 }
 

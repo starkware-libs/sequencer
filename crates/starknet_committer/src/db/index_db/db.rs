@@ -116,13 +116,25 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 static COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&PATRICIA_PATHS_PREFIX) + Felt::ONE).to_bytes_be());
 
+/// The number of db keys holding the commitment infos of a block.
+pub const N_COMMITMENT_INFOS_KEYS_PER_BLOCK: usize = 2;
+
 /// The per-block commitment infos prefixes, each with its height-0 key, where their range deletion
 /// starts.
-static COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS: LazyLock<[(&[u8; 32], DbKey); 2]> =
-    LazyLock::new(|| {
-        [&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX, &*PATRICIA_PATHS_PREFIX]
-            .map(|prefix| (prefix, DbKey(block_number_based_key(prefix, DbBlockNumber::ZERO))))
-    });
+static COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS: LazyLock<
+    [(&[u8; 32], DbKey); N_COMMITMENT_INFOS_KEYS_PER_BLOCK],
+> = LazyLock::new(|| {
+    [&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX, &*PATRICIA_PATHS_PREFIX]
+        .map(|prefix| (prefix, DbKey(block_number_based_key(prefix, DbBlockNumber::ZERO))))
+});
+
+/// Whether `key` holds the commitment infos of a block: its accessed keys digest or its Patricia
+/// paths. These are read right after being written, and deleted after the retention window.
+pub fn is_commitment_infos_key(key: &DbKey) -> bool {
+    COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS
+        .iter()
+        .any(|(prefix, _)| key.0.starts_with(prefix.as_slice()))
+}
 
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,

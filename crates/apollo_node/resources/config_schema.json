@@ -694,6 +694,16 @@
     "privacy": "Public",
     "value": 134217728
   },
+  "committer_config.storage_config.short_lived_cache_size": {
+    "description": "Max number of entries in the cache of the short-lived keys",
+    "privacy": "Public",
+    "value": 22
+  },
+  "committer_config.storage_config.short_lived_cache_size.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "committer_config.verify_state_diff_hash": {
     "description": "If true, the committer will verify the state diff hash.",
     "privacy": "Public",
