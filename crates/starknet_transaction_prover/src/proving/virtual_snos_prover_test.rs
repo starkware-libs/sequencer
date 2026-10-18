@@ -30,6 +30,7 @@
 //! ```
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
@@ -55,9 +56,11 @@ use starknet_api::{contract_address, felt};
 use starknet_proof_verifier::verify_proof;
 use starknet_types_core::felt::Felt;
 
+use super::{record_prove_transaction_metrics, VirtualSnosProver};
 use crate::errors::{RunnerError, VirtualSnosProverError};
-use crate::proving::virtual_snos_prover::VirtualSnosProver;
 use crate::running::runner::{RunnerOutput, VirtualSnosRunner};
+use crate::server::metrics::{configured_builder, names, outcomes};
+use crate::server::test_recorder::{duration_count_line, metric_value, outcome_total_line};
 use crate::test_utils::{
     build_client_side_rpc_invoke,
     resolve_test_mode,
@@ -267,6 +270,35 @@ async fn test_valid_invoke_reaches_runner() {
     );
 }
 
+#[rstest]
+#[case::success(Ok(()), outcomes::SUCCESS)]
+#[case::failure(Err(VirtualSnosProverError::TransactionBlocked), outcomes::FAILURE_BLOCKED)]
+fn record_prove_transaction_metrics_records_outcome(
+    #[case] result: Result<(), VirtualSnosProverError>,
+    #[case] expected_outcome: &str,
+) {
+    let recorder = configured_builder().unwrap().build_recorder();
+    let handle = recorder.handle();
+
+    metrics::with_local_recorder(&recorder, || {
+        record_prove_transaction_metrics(&result, Duration::from_secs(1));
+    });
+
+    let scrape = handle.render();
+    assert_eq!(metric_value(&scrape, &outcome_total_line(expected_outcome)), 1.0);
+    assert_eq!(metric_value(&scrape, &duration_count_line(expected_outcome)), 1.0);
+    assert_eq!(
+        metric_value(
+            &scrape,
+            &format!(
+                "{}_sum{{outcome=\"{expected_outcome}\"}}",
+                names::PROVE_TRANSACTION_DURATION_SECONDS
+            )
+        ),
+        1.0
+    );
+}
+
 /// `l1_gas.max_amount` and `l1_data_gas.max_amount` do not affect OS execution and may be
 /// non-zero even with fee-field validation enabled; only `max_price_per_unit` fields and `tip`
 /// are required to be zero. Asserting on `RunnerError::InputGenerationError("mock error")` proves
@@ -330,4 +362,26 @@ async fn test_prove_transfer_transaction() {
         .expect("proof verification should succeed");
 
     test_mode.finalize();
+}
+
+/// A validation failure records one outcome and one duration sample.
+#[cfg(not(feature = "stwo_proving"))]
+#[tokio::test(flavor = "current_thread")]
+async fn prove_transaction_records_validation_failure_outcome_and_duration() {
+    let recorder = configured_builder().unwrap().build_recorder();
+    let handle = recorder.handle();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let prover = VirtualSnosProver::from_runner(runner_factory("http://localhost:1"));
+    let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
+    let tx = build_client_side_rpc_invoke(account, create_calldata(account, "noop", &[]));
+    let result = prover.prove_transaction(BlockId::Pending, tx).await;
+    assert!(
+        matches!(result, Err(VirtualSnosProverError::ValidationError(_))),
+        "pending block should fail validation, got: {result:?}"
+    );
+
+    let scrape = handle.render();
+    assert_eq!(metric_value(&scrape, &outcome_total_line(outcomes::FAILURE_VALIDATION)), 1.0);
+    assert_eq!(metric_value(&scrape, &duration_count_line(outcomes::FAILURE_VALIDATION)), 1.0);
 }
