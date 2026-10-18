@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792122580025,
+  "lastUpdate": 1792309308443,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -883,6 +883,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1405.77475893,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "946dc234a85f38aa8414a2e7c90b58fd4508d7b4",
+          "message": "workspace,starknet_transaction_prover: bump proving to sharp-8.0 and verify large proofs (#15228)\n\nPin privacy-prove and privacy-circuit-verify-v2 to the sharp-8.0 tip of\nstarkware-libs/proving (399cb4ea). The large prover now runs the privacy\nbootloader, so its output preimage carries the [num_tasks, output_size]\nprefix and converts into proof facts.\n\nThe small-proof circuit root changes, so V2 proofs from the previous\nprover no longer verify; provers are expected to upgrade. Regenerate the\nproof fixtures with the new prover.\n\nAdd a test that a large proof verifies from its proof facts.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-18T07:20:01Z",
+          "tree_id": "e45f180be510e9d1558386cedc59cda012e37614",
+          "url": "https://github.com/starkware-libs/sequencer/commit/946dc234a85f38aa8414a2e7c90b58fd4508d7b4"
+        },
+        "date": 1792309307924,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 782.70604486,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1195.48765968,
             "unit": "ms"
           }
         ]
