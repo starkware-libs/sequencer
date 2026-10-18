@@ -29,7 +29,13 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{HealthLayer, RequestLogLayer, RequestSpanLayer, ServerLayers};
+use crate::server::{
+    HealthLayer,
+    HttpMetricsLayer,
+    RequestLogLayer,
+    RequestSpanLayer,
+    ServerLayers,
+};
 
 #[cfg(test)]
 #[path = "tls_test.rs"]
