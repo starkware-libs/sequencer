@@ -71,6 +71,13 @@ local echonetOverrides = {
     config_update_interval_secs: 60.0,
   },
   consensus_manager_config: {
+    consensus_manager_config: {
+      static_config: {
+        // The gateway reaches a restarted core through its Service only seconds after core is
+        // ready; wait so the first replayed blocks' txs are in the mempool before proposing.
+        startup_delay: 60,
+      },
+    },
     cende_config: {
       max_retry_duration_secs: 60,
       max_retry_interval_ms: 30000,
