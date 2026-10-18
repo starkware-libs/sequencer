@@ -163,11 +163,31 @@ local echonetOverrides = {
   },
 };
 
+// Replayed mainnet blocks can carry committer read paths and compiled classes past the default
+// 8 MiB body limit between services.
+local bodyLimitBytes = 268435456;
+local raiseBodyLimits(components) = {
+  [name]: components[name] + {
+    [field]: components[name][field] + {
+      [limit]: bodyLimitBytes
+      for limit in ['max_response_body_bytes', 'max_request_body_bytes']
+      if std.objectHas(components[name][field], limit)
+    }
+    for field in ['remote_client_config', 'remote_server_config']
+    if std.isObject(std.get(components[name], field))
+  }
+  for name in std.objectFields(components)
+  if std.isObject(components[name])
+};
+
 {
-  [service]: deepMerge(built[service], {
-    [section]: echonetOverrides[section]
-    for section in std.objectFields(echonetOverrides)
-    if std.objectHas(built[service], section)
-  })
+  [service]: (
+    local merged = deepMerge(built[service], {
+      [section]: echonetOverrides[section]
+      for section in std.objectFields(echonetOverrides)
+      if std.objectHas(built[service], section)
+    });
+    merged + { components: raiseBodyLimits(merged.components) }
+  )
   for service in std.objectFields(built)
 }
