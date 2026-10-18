@@ -5,7 +5,7 @@
 
 #[cfg(feature = "stwo_proving")]
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -26,6 +26,11 @@ use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
 use crate::config::ProverConfig;
 use crate::errors::VirtualSnosProverError;
 use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
+use crate::server::metrics::{names, outcomes};
+
+#[cfg(test)]
+#[path = "virtual_snos_prover_test.rs"]
+mod virtual_snos_prover_test;
 
 /// Result of a successful prove transaction operation.
 ///
@@ -168,7 +173,22 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         transaction: RpcTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         let start_time = Instant::now();
+        let result = self.prove_transaction_inner(block_id, transaction).await;
+        let total_duration = start_time.elapsed();
+        let outcome = record_prove_transaction_metrics(&result, total_duration);
+        info!(
+            total_duration_ms = %total_duration.as_millis(),
+            outcome,
+            "prove_transaction completed"
+        );
+        result
+    }
 
+    async fn prove_transaction_inner(
+        &self,
+        block_id: BlockId,
+        transaction: RpcTransaction,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         // Validate block_id is not pending.
         if matches!(block_id, BlockId::Pending) {
             return Err(VirtualSnosProverError::ValidationError(
@@ -181,15 +201,12 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
         let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
-        let result = match &self.blocking_check_client {
-            None => self.run_and_prove(block_id, vec![invoke_tx]).await?,
+        match &self.blocking_check_client {
+            None => self.run_and_prove(block_id, vec![invoke_tx]).await,
             Some(client) => {
-                self.prove_with_blocking_check(client, block_id, transaction, invoke_tx).await?
+                self.prove_with_blocking_check(client, block_id, transaction, invoke_tx).await
             }
-        };
-
-        info!(total_duration_ms = %start_time.elapsed().as_millis(), "prove_transaction completed");
-        Ok(result)
+        }
     }
 
     /// Runs the OS and generates a proof. This is the core proving pipeline.
@@ -205,18 +222,17 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             .await
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
-        info!(
-            os_duration_ms = %os_start.elapsed().as_millis(),
-            "OS execution completed"
-        );
+        let os_duration = os_start.elapsed();
+        metrics::histogram!(names::OS_RUN_DURATION_SECONDS).record(os_duration.as_secs_f64());
+        info!(os_duration_ms = %os_duration.as_millis(), "OS execution completed");
 
         let prove_start = Instant::now();
         let result = self.prove_virtual_snos_run(runner_output).await?;
 
-        info!(
-            prove_duration_ms = %prove_start.elapsed().as_millis(),
-            "Proving completed"
-        );
+        let prove_duration = prove_start.elapsed();
+        metrics::histogram!(names::STWO_PROVE_DURATION_SECONDS)
+            .record(prove_duration.as_secs_f64());
+        info!(prove_duration_ms = %prove_duration.as_millis(), "Proving completed");
 
         Ok(result)
     }
@@ -314,6 +330,20 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         prove_virtual_snos_run_with_precomputes(runner_output, self.precomputes.clone()).await
     }
+}
+
+fn record_prove_transaction_metrics<T>(
+    result: &Result<T, VirtualSnosProverError>,
+    total_duration: Duration,
+) -> &'static str {
+    let outcome = match result {
+        Ok(_) => outcomes::SUCCESS,
+        Err(error) => error.metric_outcome(),
+    };
+    metrics::histogram!(names::PROVE_TRANSACTION_DURATION_SECONDS, "outcome" => outcome)
+        .record(total_duration.as_secs_f64());
+    metrics::counter!(names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome).increment(1);
+    outcome
 }
 
 /// Proves a Virtual Starknet OS run fdirectly from a `RunnerOutput`.
