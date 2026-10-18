@@ -124,6 +124,14 @@ static COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS: LazyLock<[(&[u8; 32], DbKey); 2
             .map(|prefix| (prefix, DbKey(block_number_based_key(prefix, DbBlockNumber::ZERO))))
     });
 
+/// Whether `key` holds the commitment infos of a block: its accessed keys digest or its Patricia
+/// paths. These are read right after being written, and deleted after the retention window.
+pub fn is_commitment_infos_key(key: &DbKey) -> bool {
+    COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS
+        .iter()
+        .any(|(prefix, _)| key.0.starts_with(prefix.as_slice()))
+}
+
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
     phantom: PhantomData<H>,
