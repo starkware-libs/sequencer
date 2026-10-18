@@ -144,16 +144,12 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 
 /// Configuration for the preconfirmed Cende client component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_pre_confirmed_cende_config"))]
 pub struct PreconfirmedCendeConfig {
     pub recorder_url: Url,
     /// Maximal wall time (in milliseconds) of a single pre-confirmed block write, including
     /// connecting to the recorder.
-    #[serde(
-        deserialize_with = "deserialize_milliseconds_to_duration",
-        serialize_with = "serialize_duration_as_milliseconds"
-    )]
-    pub write_timeout_millis: Duration,
+    #[validate(range(min = 1))]
+    pub write_timeout_millis: u64,
 }
 
 impl Default for PreconfirmedCendeConfig {
@@ -162,7 +158,7 @@ impl Default for PreconfirmedCendeConfig {
             recorder_url: "https://recorder_url"
                 .parse::<Url>()
                 .expect("recorder_url must be a valid Recorder URL"),
-            write_timeout_millis: Duration::from_millis(1000),
+            write_timeout_millis: 1000,
         }
     }
 }
@@ -178,7 +174,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
             ),
             ser_param(
                 "write_timeout_millis",
-                &self.write_timeout_millis.as_millis(),
+                &self.write_timeout_millis,
                 "Maximal wall time (in milliseconds) of a single pre-confirmed block write, \
                  including connecting to the recorder.",
                 ParamPrivacyInput::Public,
@@ -535,15 +531,6 @@ fn validate_batcher_dynamic_config(
         return Err(ValidationError::new(
             "results_polling_interval_millis must be in [1, tx_polling_interval_millis]",
         ));
-    }
-    Ok(())
-}
-
-fn validate_pre_confirmed_cende_config(
-    config: &PreconfirmedCendeConfig,
-) -> Result<(), ValidationError> {
-    if config.write_timeout_millis.is_zero() {
-        return Err(ValidationError::new("write_timeout_millis must be positive"));
     }
     Ok(())
 }

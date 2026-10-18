@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::time::Duration;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::SerializedContent;
@@ -37,7 +36,6 @@ fn test_blocked_storage_keys_serialization() {
 #[test]
 fn zero_pre_confirmed_write_timeout_is_invalid() {
     assert!(PreconfirmedCendeConfig::default().validate().is_ok());
-    let config =
-        PreconfirmedCendeConfig { write_timeout_millis: Duration::ZERO, ..Default::default() };
+    let config = PreconfirmedCendeConfig { write_timeout_millis: 0, ..Default::default() };
     assert!(config.validate().is_err());
 }

@@ -180,7 +180,7 @@ async fn test_write_pre_confirmed_block_times_out() {
 
     let config = PreconfirmedCendeConfig {
         recorder_url: format!("http://{address}").parse::<Url>().unwrap(),
-        write_timeout_millis: Duration::from_millis(100),
+        write_timeout_millis: 100,
     };
     let client = PreconfirmedCendeClient::new(config);
 
@@ -230,7 +230,7 @@ async fn test_write_pre_confirmed_block_network_error() {
     let config = PreconfirmedCendeConfig {
         recorder_url: "http://invalid-url-that-should-not-exist.pmrewpohg".parse::<Url>().unwrap(),
         // Long enough that a slow resolver still yields a connect error rather than a timeout.
-        write_timeout_millis: Duration::from_secs(30),
+        write_timeout_millis: 30_000,
     };
     let client = PreconfirmedCendeClient::new(config);
     let test_data = test_preconfirmed_block_data();

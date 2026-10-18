@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 pub use apollo_batcher_config::config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
@@ -70,7 +72,7 @@ impl PreconfirmedCendeClient {
             .join(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH)
             .expect("Failed to construct URL");
         let client = Client::builder()
-            .timeout(config.write_timeout_millis)
+            .timeout(Duration::from_millis(config.write_timeout_millis))
             .build()
             .expect("Failed to build the pre-confirmed Cende client");
         Self { write_pre_confirmed_block_url: recorder_url, client }
