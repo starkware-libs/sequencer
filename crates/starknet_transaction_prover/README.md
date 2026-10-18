@@ -352,6 +352,14 @@ there was never a status.
 The logging layer never reads request bodies. Transaction calldata is private user data and stays
 out of the logs.
 
+### Failed proving requests
+
+When the prover fails a `starknet_proveTransaction` request, the service logs one `warn` event
+with `event="prove_transaction_failed"` and an `error_kind` field, such as
+`invalid_transaction_input` or `runner_error`. The event never carries the error text. That text can
+hold fee values, revert reasons with contract addresses, and the node URL. Busy rejections log
+their own warning.
+
 ### Shutdown
 
 `SIGTERM` and `SIGINT` start a graceful shutdown. The server stops accepting new requests and lets
