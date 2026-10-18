@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
+use cairo_program_runner_lib::BootloaderHintProcessor;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData as Cairo0Hint,
@@ -66,6 +67,7 @@ pub struct AggregatorHintProcessor<'a> {
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
     builtin_hint_processor: BuiltinHintProcessor,
+    bootloader_hint_processor: BootloaderHintProcessor<'static>,
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<AllHints>,
@@ -80,6 +82,7 @@ impl<'a> AggregatorHintProcessor<'a> {
             input,
             serialize_data_availability_create_pages: false,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
+            bootloader_hint_processor: BootloaderHintProcessor::new(None),
             #[cfg(any(test, feature = "testing"))]
             unused_hints: AllHints::all_iter().collect(),
         }
