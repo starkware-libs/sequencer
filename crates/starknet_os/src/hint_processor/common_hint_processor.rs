@@ -1,4 +1,5 @@
 use cairo_lang_casm::hints::StarknetHint;
+use cairo_program_runner_lib::BootloaderHintProcessor;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
@@ -22,6 +23,9 @@ pub(crate) trait CommonHintProcessor {
     // Indicates wether to create pages or not when serializing data-availability.
     fn get_serialize_data_availability_create_pages(&self) -> bool;
     fn get_builtin_hint_processor(&mut self) -> &mut BuiltinHintProcessor;
+    // The simple bootloader's hint processor, which runs the hints of the simple bootloader and of
+    // the Cairo 1 programs it runs as tasks (the circuit verifier).
+    fn get_bootloader_hint_processor(&mut self) -> &mut BootloaderHintProcessor<'static>;
     // Gets the public keys used for state diff encryption.
     fn get_public_keys(&self) -> Option<&[Felt]>;
     // Gets the current randomness.
@@ -68,6 +72,19 @@ macro_rules! impl_common_hint_processor_logic {
             exec_scopes: &mut ExecutionScopes,
             hint_data: &Box<dyn Any>,
         ) -> VmHintExtensionResult {
+            // While the simple bootloader runs a Cairo 1 task, the hints are the task's, for the
+            // bootloader's hint processor.
+            if matches!(
+                self.get_bootloader_hint_processor().subtask_cairo1_hint_processor_stack.last(),
+                Some(Some(_))
+            ) {
+                return self.get_bootloader_hint_processor().execute_hint_extensive(
+                    vm,
+                    exec_scopes,
+                    hint_data,
+                );
+            }
+
             if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
                 // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
                 let ctx = HintContext {
@@ -92,9 +109,17 @@ macro_rules! impl_common_hint_processor_logic {
                         _ => self.execute_cairo0_unique_hint(&hint, ctx, hint_str),
                     };
                 } else {
-                    // Cairo0 core hint.
-                    self.get_builtin_hint_processor().execute_hint(vm, exec_scopes, hint_data)?;
-                    return Ok(HintExtension::default());
+                    // Cairo0 core hint, or a hint of the simple bootloader.
+                    return match self.get_builtin_hint_processor().execute_hint(
+                        vm,
+                        exec_scopes,
+                        hint_data,
+                    ) {
+                        Err(VmHintError::UnknownHint(_)) => self
+                            .get_bootloader_hint_processor()
+                            .execute_hint_extensive(vm, exec_scopes, hint_data),
+                        result => result.map(|()| HintExtension::default()),
+                    };
                 }
             }
 
@@ -149,6 +174,10 @@ macro_rules! impl_common_hint_processor_getters {
 
         fn get_builtin_hint_processor(&mut self) -> &mut BuiltinHintProcessor {
             &mut self.builtin_hint_processor
+        }
+
+        fn get_bootloader_hint_processor(&mut self) -> &mut BootloaderHintProcessor<'static> {
+            &mut self.bootloader_hint_processor
         }
 
         #[cfg(any(test, feature = "testing"))]
