@@ -25,6 +25,17 @@ pub enum PreconfirmedCendeClientError {
     RequestFailed(reqwest::StatusCode),
 }
 
+impl PreconfirmedCendeClientError {
+    /// A client error (4xx) means the recorder rejected this write, e.g. because a newer one
+    /// exists, so resending the same block cannot succeed.
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::RequestError(_) => true,
+            Self::RequestFailed(status) => !status.is_client_error(),
+        }
+    }
+}
+
 pub type PreconfirmedCendeClientResult<T> = Result<T, PreconfirmedCendeClientError>;
 
 /// Interface for communicating pre-confirmed block data to the Cende recorder during block
@@ -54,7 +65,11 @@ impl PreconfirmedCendeClient {
         recorder_url = recorder_url
             .join(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH)
             .expect("Failed to construct URL");
-        Self { write_pre_confirmed_block_url: recorder_url, client: Client::new() }
+        let client = Client::builder()
+            .timeout(config.write_timeout_millis)
+            .build()
+            .expect("Failed to build the pre-confirmed Cende client");
+        Self { write_pre_confirmed_block_url: recorder_url, client }
     }
 }
 

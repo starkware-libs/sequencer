@@ -256,3 +256,54 @@ async fn write_error_is_ignored() {
 
     writer_handle.await.unwrap();
 }
+
+/// A write that fails with a retryable error is resent by the final write, with a new iteration,
+/// even when no new transactions arrived after it.
+#[tokio::test]
+async fn final_write_retries_after_retryable_failure() {
+    let initial_write_done = Arc::new(Notify::new());
+    let initial_write_done_clone = initial_write_done.clone();
+
+    let mut seq = mockall::Sequence::new();
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .in_sequence(&mut seq)
+        .withf(|block| block.write_iteration == 0)
+        .returning(move |_| {
+            initial_write_done_clone.notify_one();
+            Err(PreconfirmedCendeClientError::RequestFailed(StatusCode::INTERNAL_SERVER_ERROR))
+        });
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .in_sequence(&mut seq)
+        .withf(|block| block.write_iteration == 1)
+        .returning(|_| Ok(()));
+
+    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+
+    let writer_handle = tokio::spawn(async move { writer.run().await });
+
+    initial_write_done.notified().await;
+    drop(pre_confirmed_tx_sender);
+
+    writer_handle.await.unwrap();
+}
+
+/// A write rejected by the recorder (4xx) is not resent.
+#[tokio::test]
+async fn rejected_write_is_not_retried() {
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .returning(|_| Err(PreconfirmedCendeClientError::RequestFailed(StatusCode::BAD_REQUEST)));
+
+    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+
+    drop(pre_confirmed_tx_sender);
+
+    writer.run().await;
+}

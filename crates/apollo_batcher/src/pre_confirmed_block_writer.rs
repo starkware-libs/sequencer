@@ -110,7 +110,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             (CendePreconfirmedTransaction, StarknetClientTransactionReceipt, StateDiff),
         > = IndexMap::new();
 
-        let mut pending_write_task: Option<BoxFuture<'static, ()>> = None;
+        let mut pending_write_task: Option<BoxFuture<'static, bool>> = None;
         let mut write_pre_confirmed_txs_timer =
             tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
 
@@ -143,8 +143,9 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                     }
                 }
 
-                Some(_) = OptionFuture::from(pending_write_task.as_mut()) => {
+                Some(should_retry) = OptionFuture::from(pending_write_task.as_mut()) => {
                     pending_write_task = None;
+                    pending_changes |= should_retry;
                 }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
@@ -165,7 +166,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
 
         // Wait for the pending write task to complete gracefully.
         if let Some(task) = pending_write_task.take() {
-            task.await;
+            pending_changes |= task.await;
         }
 
         if pending_changes {
@@ -226,10 +227,13 @@ pub struct PreconfirmedBlockWriterInput {
     pub block_metadata: CendeBlockMetadata,
 }
 
-/// Intentionally ignore write-task errors; each write is best effort.
+/// Each write is best effort; returns whether the block should be written again.
 async fn best_effort_write_pre_confirmed_block(
     cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     pre_confirmed_block: CendeWritePreconfirmedBlock,
-) {
-    let _result = cende_client.write_pre_confirmed_block(pre_confirmed_block).await;
+) -> bool {
+    match cende_client.write_pre_confirmed_block(pre_confirmed_block).await {
+        Ok(()) => false,
+        Err(err) => err.is_retryable(),
+    }
 }

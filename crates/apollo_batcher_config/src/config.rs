@@ -146,6 +146,13 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PreconfirmedCendeConfig {
     pub recorder_url: Url,
+    /// Maximal wall time (in milliseconds) of a single pre-confirmed block write, including
+    /// connecting to the recorder.
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
+    pub write_timeout_millis: Duration,
 }
 
 impl Default for PreconfirmedCendeConfig {
@@ -154,18 +161,28 @@ impl Default for PreconfirmedCendeConfig {
             recorder_url: "https://recorder_url"
                 .parse::<Url>()
                 .expect("recorder_url must be a valid Recorder URL"),
+            write_timeout_millis: Duration::from_millis(1000),
         }
     }
 }
 
 impl SerializeConfig for PreconfirmedCendeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from([
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the Pythonic cende_recorder",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "write_timeout_millis",
+                &self.write_timeout_millis.as_millis(),
+                "Maximal wall time (in milliseconds) of a single pre-confirmed block write, \
+                 including connecting to the recorder.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
