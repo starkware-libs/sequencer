@@ -143,7 +143,8 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 }
 
 /// Configuration for the preconfirmed Cende client component of the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_pre_confirmed_cende_config"))]
 pub struct PreconfirmedCendeConfig {
     pub recorder_url: Url,
     /// Maximal wall time (in milliseconds) of a single pre-confirmed block write, including
@@ -231,6 +232,7 @@ pub struct BatcherStaticConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub commitment_manager_config: CommitmentManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
+    #[validate(nested)]
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
     // TODO(Amos): Move to commitment manager config.
@@ -533,6 +535,15 @@ fn validate_batcher_dynamic_config(
         return Err(ValidationError::new(
             "results_polling_interval_millis must be in [1, tx_polling_interval_millis]",
         ));
+    }
+    Ok(())
+}
+
+fn validate_pre_confirmed_cende_config(
+    config: &PreconfirmedCendeConfig,
+) -> Result<(), ValidationError> {
+    if config.write_timeout_millis.is_zero() {
+        return Err(ValidationError::new("write_timeout_millis must be positive"));
     }
     Ok(())
 }

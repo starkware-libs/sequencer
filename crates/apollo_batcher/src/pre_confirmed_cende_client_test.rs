@@ -4,6 +4,8 @@ use apollo_batcher_types::batcher_types::Round;
 use assert_matches::assert_matches;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockito::{Server, ServerGuard};
+use reqwest::StatusCode;
+use rstest::rstest;
 use starknet_api::block::{
     BlockNumber,
     BlockTimestamp,
@@ -161,6 +163,10 @@ async fn test_write_pre_confirmed_block_server_error() {
 
 #[tokio::test]
 async fn test_write_pre_confirmed_block_times_out() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.register();
+
     // Accepts connections but never responds.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -187,10 +193,32 @@ async fn test_write_pre_confirmed_block_times_out() {
 
     let error = result.unwrap_err();
     assert!(error.is_retryable());
-    let PreconfirmedCendeClientError::RequestError(e) = error else {
+    let PreconfirmedCendeClientError::RequestError(request_error) = error else {
         panic!("Incorrect error type.")
     };
-    assert!(e.is_timeout());
+    assert!(request_error.is_timeout());
+
+    let metrics = recorder.handle().render();
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.assert_eq::<u64>(
+        &metrics,
+        1,
+        &[(
+            LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+            PreconfirmedBlockWriteFailureReason::Timeout.into(),
+        )],
+    );
+}
+
+#[rstest]
+#[case::bad_request(StatusCode::BAD_REQUEST, false)]
+#[case::request_timeout(StatusCode::REQUEST_TIMEOUT, true)]
+#[case::too_many_requests(StatusCode::TOO_MANY_REQUESTS, true)]
+#[case::internal_server_error(StatusCode::INTERNAL_SERVER_ERROR, true)]
+fn status_retryability(#[case] status: StatusCode, #[case] expected_retryable: bool) {
+    assert_eq!(
+        PreconfirmedCendeClientError::RequestFailed(status).is_retryable(),
+        expected_retryable
+    );
 }
 
 #[tokio::test]
@@ -201,15 +229,16 @@ async fn test_write_pre_confirmed_block_network_error() {
 
     let config = PreconfirmedCendeConfig {
         recorder_url: "http://invalid-url-that-should-not-exist.pmrewpohg".parse::<Url>().unwrap(),
-        ..Default::default()
+        // Long enough that a slow resolver still yields a connect error rather than a timeout.
+        write_timeout_millis: Duration::from_secs(30),
     };
     let client = PreconfirmedCendeClient::new(config);
     let test_data = test_preconfirmed_block_data();
     let result = client.write_pre_confirmed_block(test_data).await;
-    let PreconfirmedCendeClientError::RequestError(e) = result.unwrap_err() else {
+    let PreconfirmedCendeClientError::RequestError(error) = result.unwrap_err() else {
         panic!("Incorrect error type.")
     };
-    assert!(e.is_connect());
+    assert!(error.is_connect());
 
     let metrics = recorder.handle().render();
     PRECONFIRMED_BLOCK_WRITE_FAILURE.assert_eq::<u64>(

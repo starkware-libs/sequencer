@@ -6,6 +6,7 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use async_trait::async_trait;
 use futures::future::{BoxFuture, OptionFuture};
+use futures::FutureExt;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
@@ -100,6 +101,28 @@ impl PreconfirmedBlockWriter {
             pre_confirmed_block,
         }
     }
+
+    async fn final_write(
+        &self,
+        transactions_map: &IndexMap<
+            TransactionHash,
+            (CendePreconfirmedTransaction, StarknetClientTransactionReceipt, StateDiff),
+        >,
+        mut write_iteration: u64,
+    ) {
+        for attempt in 1..=MAX_FINAL_WRITE_ATTEMPTS {
+            let pre_confirmed_block =
+                self.create_pre_confirmed_block(transactions_map, write_iteration);
+            let cende_client = Arc::clone(&self.cende_client);
+            let outcome =
+                best_effort_write_pre_confirmed_block(cende_client, pre_confirmed_block).await;
+            if outcome != WriteOutcome::Failed || attempt == MAX_FINAL_WRITE_ATTEMPTS {
+                return;
+            }
+            write_iteration += 1;
+            tokio::time::sleep(retry_backoff(attempt)).await;
+        }
+    }
 }
 
 #[async_trait]
@@ -110,9 +133,10 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             (CendePreconfirmedTransaction, StarknetClientTransactionReceipt, StateDiff),
         > = IndexMap::new();
 
-        let mut pending_write_task: Option<BoxFuture<'static, bool>> = None;
+        let mut pending_write_task: Option<BoxFuture<'static, WriteOutcome>> = None;
         let mut write_pre_confirmed_txs_timer =
             tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
+        let mut retry_state = RetryState::default();
 
         // We initially mark that we have pending changes so that the client will write to the
         // Cende recorder that a new proposal round has started.
@@ -124,7 +148,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                 _ = write_pre_confirmed_txs_timer.tick() => {
                     // TODO(noamsp): Extract to a function.
                     // Only send if there are pending changes to avoid unnecessary calls
-                    if pending_changes {
+                    if pending_changes && retry_state.write_allowed() {
                         // Check if there are any ongoing write tasks to avoid contention
                         if pending_write_task.is_none() {
                             let pre_confirmed_block = self.create_pre_confirmed_block(
@@ -143,9 +167,9 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                     }
                 }
 
-                Some(should_retry) = OptionFuture::from(pending_write_task.as_mut()) => {
+                Some(outcome) = OptionFuture::from(pending_write_task.as_mut()) => {
                     pending_write_task = None;
-                    pending_changes |= should_retry;
+                    pending_changes |= retry_state.record(outcome);
                 }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
@@ -164,16 +188,17 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             }
         }
 
-        // Wait for the pending write task to complete gracefully.
+        // A write still in flight may be stuck on its connection. The final write carries every
+        // transaction with a higher iteration, so it supersedes the dropped write.
         if let Some(task) = pending_write_task.take() {
-            pending_changes |= task.await;
+            match task.now_or_never() {
+                Some(outcome) => pending_changes |= retry_state.record(outcome),
+                None => pending_changes = true,
+            }
         }
 
         if pending_changes {
-            let pre_confirmed_block =
-                self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
-            let cende_client = Arc::clone(&self.cende_client);
-            best_effort_write_pre_confirmed_block(cende_client, pre_confirmed_block).await;
+            self.final_write(&transactions_map, next_write_iteration).await;
         }
         info!("Pre confirmed block writer finished");
     }
@@ -227,13 +252,55 @@ pub struct PreconfirmedBlockWriterInput {
     pub block_metadata: CendeBlockMetadata,
 }
 
-/// Each write is best effort; returns whether the block should be written again.
+#[derive(Debug, PartialEq)]
+enum WriteOutcome {
+    Written,
+    /// The recorder refused the write; resending the same block cannot succeed.
+    Rejected,
+    Failed,
+}
+
+const INITIAL_RETRY_BACKOFF: Duration = Duration::from_millis(50);
+const MAX_RETRY_BACKOFF: Duration = Duration::from_secs(1);
+const MAX_FINAL_WRITE_ATTEMPTS: u32 = 3;
+
+fn retry_backoff(consecutive_failures: u32) -> Duration {
+    let exponent = consecutive_failures.saturating_sub(1).min(16);
+    INITIAL_RETRY_BACKOFF.saturating_mul(1 << exponent).min(MAX_RETRY_BACKOFF)
+}
+
+#[derive(Default)]
+struct RetryState {
+    consecutive_failures: u32,
+    next_write_allowed_at: Option<tokio::time::Instant>,
+}
+
+impl RetryState {
+    /// Returns whether the block should be written again.
+    fn record(&mut self, outcome: WriteOutcome) -> bool {
+        if outcome != WriteOutcome::Failed {
+            *self = Self::default();
+            return false;
+        }
+        self.consecutive_failures += 1;
+        self.next_write_allowed_at =
+            Some(tokio::time::Instant::now() + retry_backoff(self.consecutive_failures));
+        true
+    }
+
+    fn write_allowed(&self) -> bool {
+        self.next_write_allowed_at
+            .is_none_or(|allowed_at| tokio::time::Instant::now() >= allowed_at)
+    }
+}
+
 async fn best_effort_write_pre_confirmed_block(
     cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     pre_confirmed_block: CendeWritePreconfirmedBlock,
-) -> bool {
+) -> WriteOutcome {
     match cende_client.write_pre_confirmed_block(pre_confirmed_block).await {
-        Ok(()) => false,
-        Err(err) => err.is_retryable(),
+        Ok(()) => WriteOutcome::Written,
+        Err(error) if error.is_retryable() => WriteOutcome::Failed,
+        Err(_) => WriteOutcome::Rejected,
     }
 }
