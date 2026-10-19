@@ -42,6 +42,12 @@
     "CommonHint": "GetPublicKeys"
   },
   {
+    "CommonHint": "GuessProofFactsTree"
+  },
+  {
+    "CommonHint": "LoadCircuitVerifierTask"
+  },
+  {
     "AggregatorHint": "DisableDaPageCreation"
   },
   {
@@ -58,11 +64,5 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
-  },
-  {
-    "AggregatorHint": "GuessProofFactsTree"
-  },
-  {
-    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]

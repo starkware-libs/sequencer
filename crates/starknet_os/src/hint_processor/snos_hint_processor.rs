@@ -127,6 +127,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
     pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    proof_facts_tree: Option<PackedNode>,
+    proof_facts_verifier_task: Option<CircuitVerifierTaskInput>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     builtin_hint_processor: BuiltinHintProcessor,
     bootloader_hint_processor: BootloaderHintProcessor<'static>,
@@ -152,6 +154,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_block_inputs: Vec<&'a OsBlockInput>,
         deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
         compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+        proof_facts_tree: Option<PackedNode>,
+        proof_facts_verifier_task: Option<CircuitVerifierTaskInput>,
         state_readers: Vec<S>,
     ) -> Result<Self, StarknetOsError> {
         if state_readers.len() != os_block_inputs.len() {
@@ -184,6 +188,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
             deprecated_compiled_classes_iter: deprecated_compiled_classes.into_iter(),
             compiled_classes,
+            proof_facts_tree,
+            proof_facts_verifier_task,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
@@ -303,13 +309,12 @@ impl<S: StateReader> CommonHintProcessor for SnosHintProcessor<'_, S> {
         self.os_hints_config.public_keys.as_deref()
     }
 
-    // The OS does not verify the proofs of the transactions' proof facts.
     fn get_proof_facts_tree(&self) -> Option<&PackedNode> {
-        None
+        self.proof_facts_tree.as_ref()
     }
 
     fn get_proof_facts_verifier_task(&self) -> Option<&CircuitVerifierTaskInput> {
-        None
+        self.proof_facts_verifier_task.as_ref()
     }
 
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
@@ -377,6 +382,8 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             block_inputs,
             BTreeMap::new(),
             BTreeMap::new(),
+            None,
+            None,
             vec![state_reader],
         )?;
         hint_processor.execution_helpers_manager.increment_current_helper_index();

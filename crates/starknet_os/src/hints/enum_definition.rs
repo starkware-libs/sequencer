@@ -465,7 +465,9 @@ define_common_hint_enum!(
     (GuessClassesPtr, guess_classes_ptr),
     (UpdateContractAddrToStoragePtr, update_contract_addr_to_storage_ptr),
     (SetStateUpdatePointersToNone, set_state_update_pointers_to_none),
-    (GetPublicKeys, get_public_keys)
+    (GetPublicKeys, get_public_keys),
+    (GuessProofFactsTree, guess_proof_facts_tree),
+    (LoadCircuitVerifierTask, load_circuit_verifier_task)
 );
 
 define_hint_enum!(
@@ -576,9 +578,7 @@ define_hint_enum!(
     (GetAggregatorOutput, get_aggregator_output),
     (WriteDaSegment, write_da_segment),
     (GetUseKzgDaAndFullOutputFromInput, get_use_kzg_da_and_full_output_from_input),
-    (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input),
-    (GuessProofFactsTree, guess_proof_facts_tree),
-    (LoadCircuitVerifierTask, load_circuit_verifier_task)
+    (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input)
 );
 
 define_hint_extension_enum!(
