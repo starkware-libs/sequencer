@@ -19,6 +19,8 @@
     "committer_config.storage_config.inner_storage_config.use_mmap_reads": false,
     "committer_config.storage_config.inner_storage_config.spawn_blocking_reads": true,
     "committer_config.storage_config.inner_storage_config.ttl_seconds": 0,
+    "committer_config.storage_config.short_lived_cache_size": 22,
+    "committer_config.storage_config.short_lived_cache_size.#is_none": false,
     "committer_config.storage_config.inner_storage_config.max_read_tasks": 32,
     "committer_config.storage_config.inner_storage_config.max_subcompactions": 8,
     "committer_config.storage_config.inner_storage_config.max_write_buffers": 4,
