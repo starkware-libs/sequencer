@@ -143,9 +143,13 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 }
 
 /// Configuration for the preconfirmed Cende client component of the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct PreconfirmedCendeConfig {
     pub recorder_url: Url,
+    /// Maximal wall time (in milliseconds) of a single pre-confirmed block write, including
+    /// connecting to the recorder.
+    #[validate(range(min = 1))]
+    pub write_timeout_millis: u64,
 }
 
 impl Default for PreconfirmedCendeConfig {
@@ -154,18 +158,28 @@ impl Default for PreconfirmedCendeConfig {
             recorder_url: "https://recorder_url"
                 .parse::<Url>()
                 .expect("recorder_url must be a valid Recorder URL"),
+            write_timeout_millis: 1000,
         }
     }
 }
 
 impl SerializeConfig for PreconfirmedCendeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from([
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the Pythonic cende_recorder",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "write_timeout_millis",
+                &self.write_timeout_millis,
+                "Maximal wall time (in milliseconds) of a single pre-confirmed block write, \
+                 including connecting to the recorder.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
@@ -214,6 +228,7 @@ pub struct BatcherStaticConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub commitment_manager_config: CommitmentManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
+    #[validate(nested)]
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
     // TODO(Amos): Move to commitment manager config.

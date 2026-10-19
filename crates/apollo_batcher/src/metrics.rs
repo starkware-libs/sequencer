@@ -104,9 +104,12 @@ pub enum PreconfirmedBlockWriteFailureReason {
     /// The Cende recorder returned an unexpected non-success status code (not 4xx or 5xx).
     HttpOtherError,
     /// The HTTP request to the Cende recorder failed before a response was received.
-    /// Possible causes: connection refused, DNS failure, timeout, TLS error, network
-    /// unreachable, connection reset, etc.
+    /// Possible causes: connection refused, DNS failure, TLS error, network unreachable,
+    /// connection reset, etc.
     SendError,
+    /// No response arrived within the configured write timeout, including the wait for a
+    /// connection.
+    Timeout,
 }
 
 impl PreconfirmedBlockWriteFailureReason {

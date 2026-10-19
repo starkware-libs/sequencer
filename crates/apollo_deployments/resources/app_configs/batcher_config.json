@@ -52,6 +52,7 @@
   "batcher_config.static_config.outstream_content_buffer_size": 64,
   "batcher_config.static_config.pre_confirmed_block_writer_config.channel_buffer_capacity": 1000,
   "batcher_config.static_config.pre_confirmed_block_writer_config.write_block_interval_millis": 50,
+  "batcher_config.static_config.pre_confirmed_cende_config.write_timeout_millis": 1000,
   "batcher_config.static_config.propose_l1_txs_every": 10,
   "batcher_config.static_config.storage.batch_config.batch_size": 100,
   "batcher_config.static_config.storage.batch_config.enabled": false,
