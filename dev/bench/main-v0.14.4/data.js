@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792411619006,
+  "lastUpdate": 1792413789308,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -985,6 +985,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1272.28686816,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cddd141b03a75a396e3772fd1b8d9e82790a0100",
+          "message": "apollo_committer,starknet_committer: drop the commitment infos lower bound (#15226)",
+          "timestamp": "2026-10-19T12:28:19Z",
+          "tree_id": "c380d09fbc023dc5c2de5f0581f1ab7014893d33",
+          "url": "https://github.com/starkware-libs/sequencer/commit/cddd141b03a75a396e3772fd1b8d9e82790a0100"
+        },
+        "date": 1792413788786,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 815.62883818,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1226.79330165,
             "unit": "ms"
           }
         ]
