@@ -2,6 +2,7 @@
 //! proof facts. Matches the goldens from the `proving` crate `stwo_run_and_prove_recursive_tree`.
 
 use blake2::{Blake2s256, Digest};
+use leaf_proof_format::PackedNode;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
@@ -62,10 +63,58 @@ pub fn compute_verification_digest(
     )
 }
 
+/// A proof tree node that is neither a leaf (a transaction's proof) nor a fold of two subtrees.
+#[derive(Debug, thiserror::Error)]
+#[error("Unsupported proof facts tree node: {0}.")]
+pub struct UnsupportedProofFactsTreeNode(pub String);
+
+/// Flattens the proving side's proof tree (`packed_output` of `stwo_run_and_prove_recursive_tree`)
+/// into the pre-order list that the Cairo `write_proof_tree_root_entry` reads.
+pub fn flatten_proof_facts_tree(
+    packed_tree: &PackedNode,
+) -> Result<Vec<Felt>, UnsupportedProofFactsTreeNode> {
+    let tree = match packed_tree {
+        // A single-leaf tree is a root fold over just the leaf; flatten it as the leaf.
+        PackedNode::Composite { subtasks, .. } => match subtasks.as_slice() {
+            [leaf @ PackedNode::Composite { subtasks: leaf_subtasks, .. }]
+                if matches!(leaf_subtasks.as_slice(), [PackedNode::Plain { .. }]) =>
+            {
+                leaf
+            }
+            _ => packed_tree,
+        },
+        PackedNode::Plain { .. } => packed_tree,
+    };
+    let mut flat_tree = Vec::new();
+    write_flat_subtree(tree, &mut flat_tree)?;
+    Ok(flat_tree)
+}
+
 pub fn blake2s_over_u32_words(words: &[u32]) -> Blake2sDigestWords {
     let bytes: Vec<u8> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
     let digest_bytes: [u8; 32] = Blake2s256::digest(&bytes).into();
     std::array::from_fn(|word_index| {
         u32::from_le_bytes(digest_bytes[word_index * 4..(word_index + 1) * 4].try_into().unwrap())
     })
+}
+
+/// Appends the flattening of `node` to `flat_tree`.
+fn write_flat_subtree(
+    node: &PackedNode,
+    flat_tree: &mut Vec<Felt>,
+) -> Result<(), UnsupportedProofFactsTreeNode> {
+    let unsupported_node = || UnsupportedProofFactsTreeNode(format!("{node:?}"));
+    let PackedNode::Composite { subtasks, .. } = node else {
+        return Err(unsupported_node());
+    };
+    match subtasks.as_slice() {
+        [PackedNode::Plain { .. }] => flat_tree.push(Felt::ZERO),
+        [left, right] => {
+            flat_tree.push(Felt::ONE);
+            write_flat_subtree(left, flat_tree)?;
+            write_flat_subtree(right, flat_tree)?;
+        }
+        _ => return Err(unsupported_node()),
+    }
+    Ok(())
 }
