@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792408295461,
+  "lastUpdate": 1792411619006,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -951,6 +951,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1239.93553064,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df9a8744dbe5ad5a3a973e59b0c503080ee1eb64",
+          "message": "starknet_patricia_storage,apollo_committer: cache the commitment infos in a short-lived cache (#15233)",
+          "timestamp": "2026-10-19T11:43:36Z",
+          "tree_id": "4268f0ae4089ad42a43a2fa6441ffe73820b0181",
+          "url": "https://github.com/starkware-libs/sequencer/commit/df9a8744dbe5ad5a3a973e59b0c503080ee1eb64"
+        },
+        "date": 1792411618450,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 878.06735612,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1272.28686816,
             "unit": "ms"
           }
         ]
