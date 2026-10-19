@@ -193,7 +193,9 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     let (mut test_builder, [contract_address]) =
         TestBuilder::<DictStateReader>::new_with_default_initial_state(
             [(test_contract, calldata![Felt::ONE, Felt::TWO])],
-            TestBuilderConfig::default(),
+            // Without the full output, the regular OS verifies the proofs of the proof facts,
+            // which the flow tests don't have.
+            TestBuilderConfig { full_output: !virtual_os, ..Default::default() },
             virtual_os,
         )
         .await;

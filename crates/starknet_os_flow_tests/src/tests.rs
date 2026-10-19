@@ -528,7 +528,7 @@ async fn test_os_logic(
     )
     .await;
     let chain_id = &test_builder.chain_id();
-    let n_expected_txs = 32;
+    let n_expected_txs = 31;
     let mut expected_storage_updates = HashMap::new();
 
     // Declare a Cairo 0 test contract.
@@ -610,23 +610,6 @@ async fn test_os_logic(
 
     let calldata = create_calldata(contract_addresses[0], "test_builtins", &[]);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
-
-    // Invoke with non-empty `proof_fact`; we use an arbitrary read-only entry point since
-    // this test only verifies successful execution.
-    let calldata = create_calldata(
-        contract_addresses[0],
-        "test_get_contract_address",
-        &[**contract_addresses[0]],
-    );
-    let config_hash = test_builder.compute_virtual_os_config_hash();
-    let proof_facts = ProofFacts::custom_proof_facts_for_testing(
-        get_valid_virtual_os_program_hash(),
-        config_hash,
-    );
-    test_builder.add_funded_account_invoke(invoke_tx_args! {
-        calldata,
-        proof_facts,
-    });
 
     // Call test_get_block_timestamp with the current (testing) block timestamp.
     let calldata = create_calldata(
@@ -1125,9 +1108,12 @@ async fn test_v1_bound_accounts_cairo1() {
 async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
+    // Proof facts need the full output, which has no KZG data availability: without it, the OS
+    // verifies their proofs, which the flow tests don't have.
+    let full_output = !use_kzg_da;
     let (mut test_builder, [main_contract_address]) = TestBuilder::create_standard_with_config(
         [(test_contract, default_test_contract_constructor_calldata())],
-        TestBuilderConfig { use_kzg_da, ..Default::default() },
+        TestBuilderConfig { use_kzg_da, full_output, ..Default::default() },
     )
     .await;
     let chain_id = &test_builder.chain_id();
@@ -1166,11 +1152,14 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     // Test calling test_get_execution_info.
     let test_call_contract_selector_name = "test_call_contract";
     let test_execution_info_selector = selector_from_name("test_get_execution_info_v3");
-    let config_hash = test_builder.compute_virtual_os_config_hash();
-    let proof_facts = ProofFacts::custom_proof_facts_for_testing(
-        get_valid_virtual_os_program_hash(),
-        config_hash,
-    );
+    let proof_facts = if full_output {
+        ProofFacts::custom_proof_facts_for_testing(
+            get_valid_virtual_os_program_hash(),
+            test_builder.compute_virtual_os_config_hash(),
+        )
+    } else {
+        ProofFacts::default()
+    };
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,
@@ -3251,10 +3240,10 @@ async fn test_get_block_hash_current_block_number() {
 #[tokio::test]
 async fn test_proof_facts_versions_and_program_hashes() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
-        test_contract,
-        default_test_contract_constructor_calldata(),
-    )])
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard_with_config(
+        [(test_contract, default_test_contract_constructor_calldata())],
+        TestBuilderConfig { full_output: true, ..Default::default() },
+    )
     .await;
     let config_hash = test_builder.compute_virtual_os_config_hash();
     let os_versioned_constants = &VersionedConstants::latest_constants().os_constants;
@@ -3286,4 +3275,28 @@ async fn test_proof_facts_versions_and_program_hashes() {
     }
 
     test_builder.build_and_run().await.perform_default_validations();
+}
+
+/// Without the full output (posted on L1), the OS verifies the proofs of the transactions' proof
+/// facts, so it fails without their proof tree.
+#[rstest]
+#[tokio::test]
+#[should_panic(
+    expected = "There are transactions with proof facts, but the input has no proof facts tree."
+)]
+async fn test_proof_facts_without_full_output_need_proof_facts_tree() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
+    let proof_facts = ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        test_builder.compute_virtual_os_config_hash(),
+    );
+    let calldata = create_calldata(test_contract_address, "empty_function", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata, proof_facts });
+
+    test_builder.build_and_run().await;
 }

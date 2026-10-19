@@ -158,6 +158,8 @@ fn test_run_os_with_code_snippet() {
         os_block_inputs: vec![],
         deprecated_compiled_classes: BTreeMap::new(),
         compiled_classes: BTreeMap::new(),
+        proof_facts_tree: None,
+        proof_facts_verifier_task: None,
     };
     let state_readers: Vec<PanickingStateReader> = vec![];
 
