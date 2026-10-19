@@ -85,9 +85,8 @@ pub struct OsBlockInput {
 }
 
 /// The circuit verifier task that `verify_processed_proof` runs as a simple bootloader task.
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CircuitVerifierTaskInput {
     /// The compiled Cairo1 executable of the circuit verifier.
     pub executable_path: PathBuf,

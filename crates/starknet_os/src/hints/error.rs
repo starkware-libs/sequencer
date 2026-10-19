@@ -38,6 +38,14 @@ use crate::vm_utils::VmUtilsError;
 pub enum OsHintError {
     #[error("Tried to access an already consumed Bootloader input.")]
     AggregatorBootloaderInputAlreadyConsumed,
+    #[error("The OS outputs have proof facts, but the aggregator input has no proof facts tree.")]
+    MissingProofFactsTree,
+    #[error(transparent)]
+    UnsupportedProofFactsTreeNode(#[from] crate::proof_fact_fold::UnsupportedProofFactsTreeNode),
+    #[error("The OS outputs have proof facts, but the aggregator input has no verifier task.")]
+    MissingProofFactsVerifierTask,
+    #[error(transparent)]
+    BootloaderTask(#[from] cairo_program_runner_lib::tasks::BootloaderTaskError),
     #[error("Assertion failed: {message}")]
     AssertionFailed { message: String },
     #[error("Unexpectedly assigned leaf bytecode segment.")]

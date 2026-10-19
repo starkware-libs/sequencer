@@ -1,5 +1,11 @@
 [
   {
+    "StatelessHint": "SelectedBuiltins"
+  },
+  {
+    "StatelessHint": "SelectBuiltin"
+  },
+  {
     "StatelessHint": "SetStateUpdatesStart"
   },
   {
@@ -43,5 +49,11 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
+  },
+  {
+    "AggregatorHint": "GuessProofFactsTree"
+  },
+  {
+    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]

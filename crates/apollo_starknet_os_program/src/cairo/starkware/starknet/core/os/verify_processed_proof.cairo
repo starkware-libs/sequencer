@@ -12,7 +12,12 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     SignatureBuiltin,
 )
-from starkware.starknet.core.os.proof_fact_fold import BLAKE2S_DIGEST_N_WORDS, PROOF_ENTRY_N_WORDS
+from starkware.starknet.core.os.output import OsCarriedOutputs, ProofFacts
+from starkware.starknet.core.os.proof_fact_fold import (
+    BLAKE2S_DIGEST_N_WORDS,
+    PROOF_ENTRY_N_WORDS,
+    write_proof_tree_root_entry,
+)
 
 // The Blake program hash of the circuit verifier, as the simple bootloader computes it.
 // TODO(Einat): the hash of the canonical_small test verifier; replace it with the production
@@ -23,6 +28,36 @@ const CIRCUIT_VERIFIER_PROGRAM_HASH = (
 
 // The output of a simple bootloader task: its size and program hash and verifier output digest.
 const VERIFIER_TASK_OUTPUT_SIZE = 2 + BLAKE2S_DIGEST_N_WORDS;
+
+// Verifies the proofs of the transactions' proof facts between `initial_carried_outputs` and
+// `final_carried_outputs`, if there are any: computes the root of their proof tree, whose shape the
+// proof's prover chose, and runs the circuit verifier on the root's proof.
+func verify_tx_proof_facts{range_check_ptr}(
+    initial_carried_outputs: OsCarriedOutputs*, final_carried_outputs: OsCarriedOutputs*
+) {
+    alloc_locals;
+    let n_proof_facts = (
+        final_carried_outputs.tx_proof_facts - initial_carried_outputs.tx_proof_facts
+    ) / ProofFacts.SIZE;
+    if (n_proof_facts == 0) {
+        return ();
+    }
+
+    local flat_tree_size: felt;
+    local flat_tree: felt*;
+    %{ GuessProofFactsTree %}
+    let (root_entry: felt*) = alloc();
+    write_proof_tree_root_entry(
+        flat_tree_size=flat_tree_size,
+        flat_tree=flat_tree,
+        n_proof_facts=n_proof_facts,
+        proof_facts_list=initial_carried_outputs.tx_proof_facts,
+        root_entry=root_entry,
+    );
+    %{ LoadCircuitVerifierTask %}
+    verify_processed_proof(root_entry=root_entry);
+    return ();
+}
 
 // Runs the circuit verifier, as a simple bootloader task, on the processed proof: the proof of the
 // root of a proof tree, whose entry (circuit hash and output digest) is `root_entry`.
