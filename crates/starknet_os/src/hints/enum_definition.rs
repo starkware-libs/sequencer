@@ -166,6 +166,10 @@ use crate::hints::hint_implementation::patricia::implementation::{
     split_descend,
     write_case_not_left_to_ap,
 };
+use crate::hints::hint_implementation::proof_facts::{
+    guess_proof_facts_tree,
+    load_circuit_verifier_task,
+};
 use crate::hints::hint_implementation::resources::{
     debug_expected_initial_gas,
     is_sierra_gas_mode,
@@ -572,7 +576,9 @@ define_hint_enum!(
     (GetAggregatorOutput, get_aggregator_output),
     (WriteDaSegment, write_da_segment),
     (GetUseKzgDaAndFullOutputFromInput, get_use_kzg_da_and_full_output_from_input),
-    (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input)
+    (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input),
+    (GuessProofFactsTree, guess_proof_facts_tree),
+    (LoadCircuitVerifierTask, load_circuit_verifier_task)
 );
 
 define_hint_extension_enum!(

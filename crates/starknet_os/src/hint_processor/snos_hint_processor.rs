@@ -23,6 +23,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use leaf_proof_format::PackedNode;
 use rand::SeedableRng;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass;
@@ -49,7 +50,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintContext, HintEnum};
 use crate::hints::vars::CairoStruct;
-use crate::io::os_input::{OsBlockInput, OsHintsConfig, OsInputError};
+use crate::io::os_input::{CircuitVerifierTaskInput, OsBlockInput, OsHintsConfig, OsInputError};
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
@@ -300,6 +301,15 @@ impl<S: StateReader> CommonHintProcessor for SnosHintProcessor<'_, S> {
 
     fn get_public_keys(&self) -> Option<&[Felt]> {
         self.os_hints_config.public_keys.as_deref()
+    }
+
+    // The OS does not verify the proofs of the transactions' proof facts.
+    fn get_proof_facts_tree(&self) -> Option<&PackedNode> {
+        None
+    }
+
+    fn get_proof_facts_verifier_task(&self) -> Option<&CircuitVerifierTaskInput> {
+        None
     }
 
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng {

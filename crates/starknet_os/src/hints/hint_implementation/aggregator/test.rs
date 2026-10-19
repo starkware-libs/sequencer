@@ -12,6 +12,7 @@ use cairo_vm::vm::runners::cairo_pie::{
     PublicMemoryPage,
 };
 use itertools::Itertools;
+use leaf_proof_format::PackedNode;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::ToPrimitive;
@@ -55,6 +56,13 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 use crate::test_utils::coverage::expect_hint_coverage;
+use crate::test_utils::golden_leaf::{
+    packed_fold,
+    packed_leaf,
+    GoldenCircuitVerifierTask,
+    GOLDEN_PROOF_FACTS_SIZE,
+    GOLDEN_THREE_LEAF_PROOF_FACTS,
+};
 use crate::test_utils::validations::validate_builtins;
 
 // Dummy values for the test.
@@ -166,26 +174,6 @@ const MSG_TO_L2_1: [Felt; 5] = [
     Felt::ZERO,                         // Nonce.
     Felt::from_hex_unchecked("0x4321"), // Selector.
     Felt::ZERO,                         // PayloadSize.
-];
-
-// The proof facts sections of the multi-blocks' full outputs: their number of transactions' proof
-// facts, followed by each one's size and felts.
-const TX_PROOF_FACTS_0: [Felt; 5] = [
-    Felt::ONE,
-    Felt::THREE,
-    Felt::from_hex_unchecked("0x11"),
-    Felt::from_hex_unchecked("0x12"),
-    Felt::from_hex_unchecked("0x13"),
-];
-const TX_PROOF_FACTS_1: [Felt; 8] = [
-    Felt::TWO,
-    Felt::TWO,
-    Felt::from_hex_unchecked("0x21"),
-    Felt::from_hex_unchecked("0x22"),
-    Felt::THREE,
-    Felt::from_hex_unchecked("0x31"),
-    Felt::from_hex_unchecked("0x32"),
-    Felt::from_hex_unchecked("0x33"),
 ];
 
 const NUMBER_OF_BLOCKS_IN_MULTI_BLOCK: usize = 13;
@@ -338,7 +326,12 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
         // Messages to L2.
         vec![MSG_TO_L2_0.len().into()],
         MSG_TO_L2_0.to_vec(),
-        if full_output { TX_PROOF_FACTS_0.to_vec() } else { vec![] },
+        // Proof facts, only in the full output: the first two golden leaves'.
+        if full_output {
+            serialize_tx_proof_facts(&GOLDEN_THREE_LEAF_PROOF_FACTS[..2])
+        } else {
+            vec![]
+        },
     ]
     .concat();
     let da = [
@@ -431,7 +424,12 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
         // Messages to L2.
         vec![MSG_TO_L2_1.len().into()],
         MSG_TO_L2_1.to_vec(),
-        if full_output { TX_PROOF_FACTS_1.to_vec() } else { vec![] },
+        // Proof facts, only in the full output: the third golden leaf's.
+        if full_output {
+            serialize_tx_proof_facts(&GOLDEN_THREE_LEAF_PROOF_FACTS[2..])
+        } else {
+            vec![]
+        },
     ]
     .concat();
     let da = [
@@ -643,19 +641,25 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
         MSG_TO_L2_0.to_vec(),
         MSG_TO_L2_1.to_vec(),
         // Proof facts, only in the full output: the two multi-blocks' lists, joined.
-        if full_output {
-            [
-                vec![TX_PROOF_FACTS_0[0] + TX_PROOF_FACTS_1[0]],
-                TX_PROOF_FACTS_0[1..].to_vec(),
-                TX_PROOF_FACTS_1[1..].to_vec(),
-            ]
-            .concat()
-        } else {
-            vec![]
-        },
+        if full_output { serialize_tx_proof_facts(&GOLDEN_THREE_LEAF_PROOF_FACTS) } else { vec![] },
         if use_kzg_da { vec![] } else { da },
     ]
     .concat()
+}
+
+/// A multi-block output's proof facts section: their number, followed by each one's size and felts.
+fn serialize_tx_proof_facts(tx_proof_facts: &[[Felt; GOLDEN_PROOF_FACTS_SIZE]]) -> Vec<Felt> {
+    std::iter::once(Felt::from(tx_proof_facts.len()))
+        .chain(tx_proof_facts.iter().flat_map(|proof_facts| {
+            std::iter::once(Felt::from(proof_facts.len())).chain(proof_facts.iter().copied())
+        }))
+        .collect()
+}
+
+/// The proving side's tree of the three golden leaves' proofs: the first two fold together, and the
+/// third is carried up to fold with them at the root.
+fn proof_facts_tree() -> PackedNode {
+    packed_fold(vec![packed_fold(vec![packed_leaf(), packed_leaf()]), packed_leaf()])
 }
 
 fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> {
@@ -809,6 +813,7 @@ fn test_aggregator(
     let temp_file_path = temp_file.path();
 
     let bootloader_output_data = bootloader_output(true, modifier.clone());
+    let golden_verifier_task = GoldenCircuitVerifierTask::decompress_three_leaf_tree();
     let aggregator_input = AggregatorInput {
         bootloader_output: Some(bootloader_output_data.clone()),
         full_output,
@@ -821,6 +826,8 @@ fn test_aggregator(
         fee_token_address: Felt::ZERO,
         chain_id: Felt::ZERO,
         public_keys: None,
+        proof_facts_tree: Some(proof_facts_tree()),
+        proof_facts_verifier_task: Some(golden_verifier_task.task_input()),
     };
 
     // Create the aggregator hint processor.
@@ -874,5 +881,28 @@ fn test_aggregator(
     expect_hint_coverage(
         &aggregator_hint_processor.unused_hints,
         &format!("test_aggregator_{full_output}_{use_kzg_da}_{modifier:?}"),
+    );
+}
+
+/// The tree must have a leaf for each transaction that has proof facts.
+#[test]
+fn test_aggregator_rejects_tree_of_other_transactions() {
+    let golden_verifier_task = GoldenCircuitVerifierTask::decompress_three_leaf_tree();
+    let aggregator_input = AggregatorInput {
+        bootloader_output: Some(bootloader_output(true, FailureModifier::None)),
+        full_output: true,
+        da: DataAvailability::CallData,
+        debug_mode: false,
+        fee_token_address: Felt::ZERO,
+        chain_id: Felt::ZERO,
+        public_keys: None,
+        proof_facts_tree: Some(packed_fold(vec![packed_leaf(), packed_leaf()])),
+        proof_facts_verifier_task: Some(golden_verifier_task.task_input()),
+    };
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+    assert!(
+        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)
+            .is_err()
     );
 }

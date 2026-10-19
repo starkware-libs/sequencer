@@ -1,5 +1,11 @@
 [
   {
+    "StatelessHint": "SelectedBuiltins"
+  },
+  {
+    "StatelessHint": "SelectBuiltin"
+  },
+  {
     "StatelessHint": "DictionaryFromBucket"
   },
   {
@@ -73,5 +79,11 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
+  },
+  {
+    "AggregatorHint": "GuessProofFactsTree"
+  },
+  {
+    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]

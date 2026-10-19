@@ -4,12 +4,14 @@ use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_def
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use leaf_proof_format::PackedNode;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintContext;
+use crate::io::os_input::CircuitVerifierTaskInput;
 
 pub(crate) type VmHintResultType<T> = Result<T, VmHintError>;
 pub(crate) type VmHintResult = VmHintResultType<()>;
@@ -28,6 +30,10 @@ pub(crate) trait CommonHintProcessor {
     fn get_bootloader_hint_processor(&mut self) -> &mut BootloaderHintProcessor<'static>;
     // Gets the public keys used for state diff encryption.
     fn get_public_keys(&self) -> Option<&[Felt]>;
+    // Gets the proving side's tree of the proofs of the transactions' proof facts.
+    fn get_proof_facts_tree(&self) -> Option<&PackedNode>;
+    // Gets the circuit verifier task of the proof of the root of the proof facts tree.
+    fn get_proof_facts_verifier_task(&self) -> Option<&CircuitVerifierTaskInput>;
     // Gets the current randomness.
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng;
     // For testing, track hint coverage.
