@@ -11,6 +11,7 @@ use cairo_program_runner_lib::{BootloaderHintProcessor, SIMPLE_BOOTLOADER_INPUT}
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use leaf_proof_format::PackedNode;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 use tempfile::NamedTempFile;
@@ -19,6 +20,7 @@ use super::{
     combine_leaf_digests,
     compute_leaf_output_digest,
     compute_verification_digest,
+    flatten_proof_facts_tree,
     Blake2sDigestWords,
     MULTIVERIFIER_CIRCUIT_HASH,
 };
@@ -35,6 +37,8 @@ use crate::test_utils::cairo_runner::{
     PointerArg,
 };
 use crate::test_utils::golden_leaf::{
+    packed_fold,
+    packed_leaf,
     GoldenCircuitVerifierTask,
     GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST,
     GOLDEN_LEAF_OUTPUT_DIGEST,
@@ -251,4 +255,37 @@ fn test_cairo_proof_tree_root_rejects_other_proof_facts_count(#[case] n_tx_proof
         &GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST,
     )
     .unwrap_err();
+}
+
+/// The proving side's single-leaf tree, a self-fold of its leaf, is flattened as the leaf.
+#[rstest]
+#[case::single_leaf(packed_fold(vec![packed_leaf()]), &SINGLE_LEAF_FLAT_TREE)]
+#[case::three_leaves_with_carried_leaf(
+    packed_fold(vec![packed_fold(vec![packed_leaf(), packed_leaf()]), packed_leaf()]),
+    &THREE_LEAF_FLAT_TREE
+)]
+#[case::four_leaves(
+    packed_fold(vec![
+        packed_fold(vec![packed_leaf(), packed_leaf()]),
+        packed_fold(vec![packed_leaf(), packed_leaf()]),
+    ]),
+    &FOUR_LEAF_FLAT_TREE
+)]
+fn test_flatten_proof_facts_tree(
+    #[case] packed_tree: PackedNode,
+    #[case] expected_flat_tree: &[u8],
+) {
+    assert_eq!(
+        flatten_proof_facts_tree(&packed_tree).unwrap(),
+        expected_flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>()
+    );
+}
+
+/// Only folds of two subtrees and transactions' proofs can be flattened.
+#[rstest]
+#[case::preimage(PackedNode::Plain { output_preimage: vec![] })]
+#[case::fold_of_three(packed_fold(vec![packed_leaf(), packed_leaf(), packed_leaf()]))]
+#[case::fold_with_preimage(packed_fold(vec![packed_leaf(), PackedNode::Plain { output_preimage: vec![] }]))]
+fn test_flatten_proof_facts_tree_rejects_unsupported_node(#[case] packed_tree: PackedNode) {
+    flatten_proof_facts_tree(&packed_tree).unwrap_err();
 }
