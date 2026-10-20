@@ -38,8 +38,10 @@ local constants = import 'lib/base_layer_constants.libsonnet';
     block_number: 671813,
     parent_block_hash: '0x1e68b0d22b14688dc97afa3006a53cf4e62ebcb02102e80f55e8b48f9a28b97',
   },
-  committer_cache_size: 10000000,
-  committer_inner_storage_cache_size: 8589934592,
+  // Replay commits a block every ~2s, so small caches suffice; the defaults grow the committer
+  // past 14GiB.
+  committer_cache_size: 2000000,
+  committer_inner_storage_cache_size: 2147483648,
   // Replayed blocks can take long to build; with no per-round delta, every round waits this
   // long.
   proposal_timeout_base: 50.0,
