@@ -72,7 +72,6 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         min_sierra_version: *MIN_SIERRA_VERSION,
         max_sierra_version: *MAX_SIERRA_VERSION,
         allow_client_side_proving: true,
-        allow_proof_version_v1: false,
         allow_proof_version_v2: true,
     });
 
