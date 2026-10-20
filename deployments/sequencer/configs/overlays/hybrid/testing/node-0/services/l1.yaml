@@ -24,6 +24,7 @@ config:
     components.l1_events_provider.url: sequencer-l1-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
+    l1_gas_price_provider_config.chainlink_oracle_config.sampling_interval_seconds: 900
 
 service:
   enabled: true
