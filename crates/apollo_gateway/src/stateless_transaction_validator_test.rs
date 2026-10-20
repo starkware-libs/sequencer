@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use std::vec;
 
 use apollo_config::behavior_mode::BehaviorMode;
@@ -685,24 +685,27 @@ fn test_client_side_proving_flag(
     }
 }
 
-/// A proof whose version the gateway has been configured to stop accepting is rejected, even
-/// though the protocol still allows it. The fixture proof facts are stamped V2, so only
-/// `allow_proof_version_v2` gates them.
+/// V2 proofs are gated by `allow_proof_version_v2`; V0 and V1 proofs are always rejected, as the
+/// protocol no longer accepts them.
 #[rstest]
-#[case::v2_allowed(true, true)]
-#[case::v2_disallowed(false, false)]
-fn test_allow_proof_version(#[case] allow_proof_version_v2: bool, #[case] should_pass: bool) {
+#[case::v2_allowed(ProofVersion::V2, true, true)]
+#[case::v2_disallowed(ProofVersion::V2, false, false)]
+#[case::v0_rejected(ProofVersion::V0, true, false)]
+#[case::v1_rejected(ProofVersion::V1, true, false)]
+fn test_allow_proof_version(
+    #[case] proof_version: ProofVersion,
+    #[case] allow_proof_version_v2: bool,
+    #[case] should_pass: bool,
+) {
     let config = StatelessTransactionValidatorConfig {
         allow_proof_version_v2,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
+    let mut proof_facts = create_valid_proof_facts_for_testing();
+    Arc::make_mut(&mut proof_facts.0)[0] = proof_version.as_felt();
     let tx = rpc_tx_for_testing(
         TransactionType::Invoke,
-        RpcTransactionArgs {
-            proof_facts: create_valid_proof_facts_for_testing(),
-            proof: Proof::proof_for_testing(),
-            ..Default::default()
-        },
+        RpcTransactionArgs { proof_facts, proof: Proof::proof_for_testing(), ..Default::default() },
     );
 
     let result = stateless_validator(config).validate(&tx);
@@ -711,9 +714,7 @@ fn test_allow_proof_version(#[case] allow_proof_version_v2: bool, #[case] should
     } else {
         assert_eq!(
             result.unwrap_err(),
-            StatelessTransactionValidatorError::ProofVersionNotAllowed {
-                proof_version: ProofVersion::V2
-            }
+            StatelessTransactionValidatorError::ProofVersionNotAllowed { proof_version }
         );
     }
 }
