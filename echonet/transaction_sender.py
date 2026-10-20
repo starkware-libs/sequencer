@@ -273,6 +273,8 @@ class TransactionSenderService:
     async def run(self, config: SenderConfig) -> None:
         timeout = aiohttp.ClientTimeout(total=config.request_timeout_seconds)
         feeder = FeederClient(base_url=config.feeder_url)
+        # Block fetches run on a worker thread; a requests.Session must not be shared across threads.
+        block_feeder = FeederClient(base_url=config.feeder_url)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tx_queue: "asyncio.Queue[Optional[TxData]]" = asyncio.Queue(maxsize=config.queue_size)
@@ -314,7 +316,7 @@ class TransactionSenderService:
                         shared.set_sender_current_block(block_number)
 
                         block = await fetch_block_transactions(
-                            feeder,
+                            block_feeder,
                             block_number,
                             attempts=config.access_fgw_attempts,
                             retry_backoff_seconds=config.retry_backoff_seconds,
