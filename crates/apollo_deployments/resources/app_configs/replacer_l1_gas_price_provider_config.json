@@ -3,7 +3,7 @@
   "l1_gas_price_provider_config.chainlink_oracle_config.failure_retry_interval_seconds": 60,
   "l1_gas_price_provider_config.chainlink_oracle_config.freshness.max_future_updated_at_seconds": 300,
   "l1_gas_price_provider_config.chainlink_oracle_config.freshness.max_staleness_seconds": 90000,
-  "l1_gas_price_provider_config.chainlink_oracle_config.sampling_interval_seconds": 900,
+  "l1_gas_price_provider_config.chainlink_oracle_config.sampling_interval_seconds": "$$$_L1_GAS_PRICE_PROVIDER_CONFIG-CHAINLINK_ORACLE_CONFIG-SAMPLING_INTERVAL_SECONDS_$$$",
   "l1_gas_price_provider_config.chainlink_oracle_config.strk_usd_feed_address": "$$$_L1_GAS_PRICE_PROVIDER_CONFIG-CHAINLINK_ORACLE_CONFIG-STRK_USD_FEED_ADDRESS_$$$",
   "l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds": 900,
   "l1_gas_price_provider_config.eth_to_strk_oracle_config.max_cache_size": 100,

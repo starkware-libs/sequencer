@@ -2,4 +2,6 @@ include: configs/overlays/hybrid/common/services/committer.yaml
 
 config:
   sequencerConfig:
+    committer_config.commitment_infos_pruning_config.#is_none: false
     committer_config.storage_config.cache_size: 50000000
+    components.committer.remote_server_config.max_request_body_bytes: 16777216
