@@ -2,7 +2,9 @@ use std::env::current_dir;
 use std::fs::File;
 use std::io::Read;
 
+use blockifier::execution::execution_utils::sn_api_to_cairo_vm_program;
 use rstest::rstest;
+use serde_json::{json, Value};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -81,6 +83,35 @@ fn test_hinted_hash_equivalence(#[case] contract_0: &str, #[case] contract_1: &s
         current_dir().unwrap().join(format!("resources/{contract_1}")).to_str().unwrap(),
     );
     assert_eq!(hash_0, hash_1, "{contract_0} and {contract_1} hinted hashes do not match.");
+}
+
+#[rstest]
+#[case::missing(None)]
+#[case::null(Some(Value::Null))]
+#[case::empty(Some(json!([])))]
+fn test_empty_attributes_hash_equivalence(#[case] attributes: Option<Value>) {
+    let contract_path = current_dir().unwrap().join("resources/deprecated_proxy.json");
+    let mut contract_class = contract_class_from_file(contract_path.to_str().unwrap());
+    contract_class.program.attributes = json!([]);
+    let expected_hinted_hash = compute_cairo_hinted_class_hash(&contract_class).unwrap();
+    let expected_class_hash = compute_deprecated_class_hash(&contract_class).unwrap();
+
+    let mut contract_value = serde_json::to_value(&contract_class).unwrap();
+    let program = contract_value["program"].as_object_mut().unwrap();
+    match attributes {
+        Some(attributes) => {
+            program.insert("attributes".to_string(), attributes);
+        }
+        None => {
+            program.remove("attributes");
+        }
+    }
+    let contract_class: ContractClass = serde_json::from_value(contract_value).unwrap();
+
+    // Every representation accepted by the execution loader must preserve the historical hash.
+    sn_api_to_cairo_vm_program(contract_class.program.clone()).unwrap();
+    assert_eq!(compute_cairo_hinted_class_hash(&contract_class).unwrap(), expected_hinted_hash);
+    assert_eq!(compute_deprecated_class_hash(&contract_class).unwrap(), expected_class_hash);
 }
 
 #[rstest]
