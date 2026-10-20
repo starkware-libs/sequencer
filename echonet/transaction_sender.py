@@ -88,7 +88,10 @@ async def fetch_block_transactions(
 
     for attempt in range(attempts):
         try:
-            return feeder.get_block(block_number, with_fee_market_info=True)
+            # A slow feeder response must not block the event loop, or forwarding stalls with it.
+            return await asyncio.to_thread(
+                feeder.get_block, block_number, with_fee_market_info=True
+            )
         except Exception as err:
             last_err = err
             if attempt == attempts - 1:
