@@ -60,8 +60,6 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "committer_config.storage_config.cache_size",
     "committer_config.storage_config.inner_storage_config.cache_size",
     "committer_config.verify_state_diff_hash",
-    "components.committer.remote_client_config.max_response_body_bytes",
-    "components.committer.remote_server_config.max_request_body_bytes",
     "consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
@@ -372,8 +370,16 @@ impl NodeType {
     }
 }
 
+/// Component-config keys that environments override. They live in the per-service component
+/// configs rather than the application configs, so they are kept out of `KEYS_TO_BE_REPLACED`,
+/// whose entries are validated against the application configs.
+pub static COMPONENT_KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
+    "components.committer.remote_client_config.max_response_body_bytes",
+    "components.committer.remote_server_config.max_request_body_bytes",
+};
+
 fn replace_pred(key: &str, value: &Value) -> bool {
-    if KEYS_TO_BE_REPLACED.contains(key) {
+    if KEYS_TO_BE_REPLACED.contains(key) || COMPONENT_KEYS_TO_BE_REPLACED.contains(key) {
         return true;
     }
 
