@@ -6,6 +6,7 @@ use std::string::FromUtf8Error;
 use papyrus_common::python_json::PythonJsonFormatter;
 use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
+use serde_with::{serde_as, DefaultOnNull};
 use sha3::digest::Digest;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
@@ -68,9 +69,12 @@ pub struct AttributeScope {
 
 // It's important that this is ordered alphabetically because the fields need to be in sorted order
 // for the keccak hashed representation.
+#[serde_as]
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CairoProgram<'a> {
+    // Historical classes may omit attributes, which the API represents as JSON null.
+    #[serde_as(deserialize_as = "DefaultOnNull")]
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub attributes: Vec<AttributeScope>,
 
