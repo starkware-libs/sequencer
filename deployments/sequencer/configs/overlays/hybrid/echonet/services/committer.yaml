@@ -23,10 +23,11 @@ affinity:
               values:
                 - us-central1-f
 
+# The 8GiB inner storage cache plus the 10M-entry cache outgrow 16GiB on mainnet replay.
 resources:
   requests:
     cpu: "1"
-    memory: "12Gi"
+    memory: "16Gi"
   limits:
     cpu: "3"
-    memory: "16Gi"
+    memory: "32Gi"
