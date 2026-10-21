@@ -63,6 +63,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     ProofFacts,
+    ProofVersion,
     Resource,
     ResourceBounds,
     SnosProofFacts,
@@ -2282,6 +2283,17 @@ fn proof_facts_with_zero_block_hash() -> ProofFacts {
         .unwrap()
 }
 
+/// Returns proof_facts stamped with the given proof version.
+fn proof_facts_with_proof_version(proof_version: ProofVersion) -> ProofFacts {
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.proof_version = proof_version;
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
+}
+
 /// Returns invalid proof_facts with an invalid program hash.
 fn proof_facts_with_invalid_program_hash() -> ProofFacts {
     ProofFacts::custom_proof_facts_for_testing(Felt::from(0x12345678_u64), *TEST_OS_CONFIG_HASH)
@@ -2319,6 +2331,16 @@ fn proof_facts_with_invalid_config_hash() -> ProofFacts {
     proof_facts_with_zero_block_hash(),
     CURRENT_BLOCK_NUMBER,
     Some("block hash is zero")
+)]
+#[case::proof_version_v0_not_allowed(
+    proof_facts_with_proof_version(ProofVersion::V0),
+    CURRENT_BLOCK_NUMBER,
+    Some("is not allowed under this protocol version")
+)]
+#[case::proof_version_v1_not_allowed(
+    proof_facts_with_proof_version(ProofVersion::V1),
+    CURRENT_BLOCK_NUMBER,
+    Some("is not allowed under this protocol version")
 )]
 #[case::program_hash_invalid(
     proof_facts_with_invalid_program_hash(),
