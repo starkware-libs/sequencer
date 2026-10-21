@@ -256,8 +256,8 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    /// Rejects a proof whose version is no longer supported (V0, V1) or that this gateway has been
-    /// configured to stop accepting (V2), ahead of the protocol-level gate in the blockifier.
+    /// Rejects a proof whose version is no longer supported (V0, V1), ahead of the protocol-level
+    /// gate in the blockifier.
     ///
     /// Proof facts that fail to parse are left alone: they are rejected later, on their own
     /// grounds, rather than reported here as a version problem.
@@ -271,19 +271,12 @@ impl StatelessTransactionValidator {
         else {
             return Ok(());
         };
-        let proof_version = snos_proof_facts.proof_version;
-        let allowed = match proof_version {
-            ProofVersion::V2 => self.config.allow_proof_version_v2,
-            // No longer accepted by the protocol; reject before reaching the blockifier.
-            ProofVersion::V0 | ProofVersion::V1 => false,
-        };
-        if !allowed {
-            return Err(StatelessTransactionValidatorError::ProofVersionNotAllowed {
-                proof_version,
-            });
+        match snos_proof_facts.proof_version {
+            ProofVersion::V2 => Ok(()),
+            proof_version @ (ProofVersion::V0 | ProofVersion::V1) => {
+                Err(StatelessTransactionValidatorError::ProofVersionNotAllowed { proof_version })
+            }
         }
-
-        Ok(())
     }
 
     fn validate_proof_facts_and_proof_consistency(
