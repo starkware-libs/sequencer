@@ -7,11 +7,27 @@ use socket2::{Domain, Socket, Type};
 use strum::EnumCount;
 use tracing::instrument;
 
+#[cfg(test)]
+#[path = "test_utils_test.rs"]
+mod test_utils_test;
+
 const PORTS_PER_INSTANCE: u16 = 80;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 26;
 #[allow(clippy::as_conversions)]
 const MAX_NUMBER_OF_TESTS: u16 = TestIdentifier::COUNT as u16;
 const BASE_PORT: u16 = 11000;
+
+// A port between `is_port_in_use` returning false and the child process binding it can be handed
+// to an outbound connection by the kernel, surfacing as `Os { code: 98, kind: AddrInUse }`. The
+// allocated range (11000..63000) overlaps the ephemeral range that governs this
+// (`/proc/sys/net/ipv4/ip_local_port_range`, 32768..60999 by default), and one integration test
+// run allocated 40 of its 203 ports inside it.
+//
+// Moving the range below 32768 leaves 21768 usable ports, and the budget needs
+// MAX_NUMBER_OF_TESTS * MAX_NUMBER_OF_INSTANCES_PER_TEST * PORTS_PER_INSTANCE = 52000. Shrinking
+// PORTS_PER_INSTANCE is not the way out either: `integration_test_manager` draws
+// 5 * <services in the node> ports from a single instance, which is 60 for a distributed node and
+// 35 for a hybrid one. Fixing this needs a different allocation scheme, not a smaller constant.
 
 // Ensure available ports don't exceed u16::MAX.
 const _: () = {
@@ -111,8 +127,13 @@ impl AvailablePorts {
 }
 
 // Checks if a port is occupied, without side effects.
+//
+// Probes the unspecified address, which is what the servers under test bind. Probing
+// `127.0.0.1` only reports a conflict with a holder on the loopback interface, so a port held on
+// any other interface passes the probe and then collides on bind with
+// `Os { code: 98, kind: AddrInUse }`. CI runners have several interfaces.
 fn is_port_in_use(port: u16) -> bool {
-    let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), port);
     let socket =
         Socket::new(Domain::IPV4, Type::STREAM, None).expect("Should be able to create a socket.");
     // Enable SO_REUSEADDR, which enables later binding to the address
