@@ -17,6 +17,7 @@ from echonet.constants import (
     MAX_BLOCK_NUMBER,
     SEQUENCER_LAYOUTS,
     SequencerLayout,
+    SequencerLayoutName,
 )
 
 JsonObject: TypeAlias = dict[str, Any]
@@ -270,7 +271,7 @@ class EchonetConfig:
         blocked_senders_csv = str(keys.get("blocked_senders", ""))
         max_block_lead_before_pausing = int(keys.get("max_block_lead_before_pausing", 10))
         sequencer_layout = SEQUENCER_LAYOUTS[
-            str(keys.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
+            SequencerLayoutName(keys.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
         ]
 
         feeder_bypass = str(secrets.get("feeder_x_throttling_bypass", "")).strip()

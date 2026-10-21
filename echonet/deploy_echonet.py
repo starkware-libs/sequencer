@@ -27,7 +27,12 @@ import urllib.request
 from http import HTTPStatus
 from pathlib import Path
 
-from constants import DEFAULT_SEQUENCER_LAYOUT, ECHONET_KEYS_FILENAME, SEQUENCER_LAYOUTS
+from constants import (
+    DEFAULT_SEQUENCER_LAYOUT,
+    ECHONET_KEYS_FILENAME,
+    SEQUENCER_LAYOUTS,
+    SequencerLayoutName,
+)
 from helpers import read_json_object
 
 logger = logging.getLogger("deploy_echonet")
@@ -255,6 +260,40 @@ def _scale_down_existing_echonet_deployments(namespace_args: list[str]) -> None:
         _run(["kubectl", *namespace_args, "rollout", "status", f"deployment/{deployment_name}"])
 
 
+def _scale_down_sequencer_workloads(namespace_args: list[str]) -> None:
+    """Scale the sequencer workloads of every layout to 0, so a layout switch stops the old one."""
+    proc = subprocess.run(
+        [
+            "kubectl",
+            *namespace_args,
+            "get",
+            "statefulsets,deployments",
+            "-o",
+            'jsonpath={range .items[*]}{.kind}/{.metadata.name}{"\\n"}{end}',
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    existing_workloads = {workload.lower() for workload in proc.stdout.split()}
+    # Each namespace holds one layout's workloads, and `kubectl scale` fails on a missing one.
+    sequencer_workloads = [
+        f"{kind}/{name}"
+        for layout in SEQUENCER_LAYOUTS.values()
+        for kind, name in layout.workloads
+        if f"{kind}/{name}" in existing_workloads
+    ]
+    if not sequencer_workloads:
+        logger.info("No sequencer workloads to scale down.")
+        return
+
+    logger.info(f"Scaling down {', '.join(sequencer_workloads)} to 0 replicas...")
+    _run(["kubectl", *namespace_args, "scale", *sequencer_workloads, "--replicas=0"])
+    for workload in sequencer_workloads:
+        logger.info(f"Waiting for rollout status {workload}...")
+        _run(["kubectl", *namespace_args, "rollout", "status", workload])
+
+
 def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     """
     Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
@@ -273,6 +312,9 @@ def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
             "Set a non-zero start_block and re-run."
         )
         raise SystemExit(1)
+
+    # Reject an unknown layout before anything is torn down; echonet itself would crash on it.
+    SequencerLayoutName(data.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
 
     shutil.copyfile(keys_in_repo, generated_path)
     logger.info(f"Copied keys file: {keys_in_repo} -> {generated_path}")
@@ -349,15 +391,7 @@ def main(argv: list[str] | None = None) -> int:
     _scale_down_existing_echonet_deployments(namespace_args)
 
     # Ensure the sequencer is scaled down before deploying/updating echonet.
-    layout_name = read_json_object(keys_in_repo).get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT)
-    sequencer_workloads = [
-        f"{kind}/{name}" for kind, name in SEQUENCER_LAYOUTS[layout_name].workloads
-    ]
-    logger.info(f"Scaling down {', '.join(sequencer_workloads)} to 0 replicas...")
-    _run(["kubectl", *namespace_args, "scale", *sequencer_workloads, "--replicas=0"])
-    for workload in sequencer_workloads:
-        logger.info(f"Waiting for rollout status {workload}...")
-        _run(["kubectl", *namespace_args, "rollout", "status", workload])
+    _scale_down_sequencer_workloads(namespace_args)
 
     # Apply manifests
     logger.info("Applying manifests...")

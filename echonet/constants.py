@@ -1,4 +1,5 @@
-from typing import NamedTuple
+from dataclasses import dataclass
+from enum import Enum
 
 ETHEREUM_AVERAGE_SECONDS_PER_BLOCK = 12
 
@@ -38,7 +39,15 @@ ECHONET_ENV_KEYS_PATH = "ECHONET_KEYS_PATH"
 ECHONET_ENV_SECRETS_PATH = "ECHONET_SECRETS_PATH"
 
 
-class SequencerLayout(NamedTuple):
+class SequencerLayoutName(str, Enum):
+    """Values of `sequencer_layout` in the echonet keys file."""
+
+    CONSOLIDATED = "consolidated"
+    HYBRID = "hybrid"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SequencerLayout:
     """The sequencer services echonet drives, under the names the deployment chart gives them."""
 
     # The first one hosts the batcher and state sync, whose config and logs echonet drives.
@@ -59,11 +68,16 @@ class SequencerLayout(NamedTuple):
         )
 
 
-# Selected by `sequencer_layout` in the echonet keys file.
-SEQUENCER_LAYOUTS = {
-    "consolidated": SequencerLayout(("node",), (), "node"),
-    "hybrid": SequencerLayout(
-        ("core", "committer"), ("gateway", "l1", "mempool", "sierracompiler"), "gateway"
+SEQUENCER_LAYOUTS: dict[SequencerLayoutName, SequencerLayout] = {
+    SequencerLayoutName.CONSOLIDATED: SequencerLayout(
+        statefulset_services=("node",),
+        deployment_services=(),
+        http_service="node",
+    ),
+    SequencerLayoutName.HYBRID: SequencerLayout(
+        statefulset_services=("core", "committer"),
+        deployment_services=("gateway", "l1", "mempool", "sierracompiler"),
+        http_service="gateway",
     ),
 }
-DEFAULT_SEQUENCER_LAYOUT = "consolidated"
+DEFAULT_SEQUENCER_LAYOUT = SequencerLayoutName.CONSOLIDATED
