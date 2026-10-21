@@ -112,7 +112,12 @@ impl BlockingCheckClient {
             match self.http_client.post(self.url.as_str()).json(&request_body).send().await {
                 Ok(resp) => resp,
                 Err(err) => {
-                    warn!("Blocking check request failed: {err}");
+                    // The error text includes the request URL, which can hold an API key.
+                    warn!(
+                        is_timeout = err.is_timeout(),
+                        is_connect = err.is_connect(),
+                        "Blocking check request failed"
+                    );
                     return BlockingCheckResult::Inconclusive;
                 }
             };
@@ -129,7 +134,7 @@ impl BlockingCheckClient {
         let body = match response.text().await {
             Ok(text) => text,
             Err(err) => {
-                warn!("Failed to read blocking check response body: {err}");
+                warn!(is_timeout = err.is_timeout(), "Failed to read blocking check response body");
                 return BlockingCheckResult::Inconclusive;
             }
         };
