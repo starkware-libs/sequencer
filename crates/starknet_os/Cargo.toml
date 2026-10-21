@@ -79,6 +79,7 @@ blockifier_test_utils.workspace = true
 cairo-lang-utils.workspace = true
 ethnum.workspace = true
 expect-test.workspace = true
+flate2.workspace = true
 itertools.workspace = true
 num-bigint.workspace = true
 rstest.workspace = true
