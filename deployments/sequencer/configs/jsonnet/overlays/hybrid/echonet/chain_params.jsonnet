@@ -53,7 +53,8 @@ local constants = import 'lib/base_layer_constants.libsonnet';
   max_contract_bytecode_size: 81920,
   min_gas_price: 3000000000,
   transaction_ttl: 300,
-  audited_libfuncs_only: false,
+  // Replayed mainnet declares may use any libfunc; main's default is the bundled list.
+  allowed_libfuncs_list: 'all',
   max_bytecode_size: 4089446,
   central_sync_client_config: {},
   state_sync_network_config: { port: 55010 },
