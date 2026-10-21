@@ -12,7 +12,6 @@ from starkware.starknet.core.os.constants import (
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
 from starkware.starknet.core.os.virtual_os_output import (
-    PROOF_VERSION_V1,
     PROOF_VERSION_V2,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
@@ -53,11 +52,9 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     let proof_header = cast(proof_facts, ProofHeader*);
     assert proof_header.proof_variant = VIRTUAL_SNOS;
     assert is_program_hash_allowed(proof_header.program_hash) = TRUE;
-    // Proof versions V1 and V2 are both accepted.
+    // Only proof version V2 is accepted.
     with_attr error_message("Unsupported proof version") {
-        assert (proof_header.proof_version - PROOF_VERSION_V1) * (
-            proof_header.proof_version - PROOF_VERSION_V2
-        ) = 0;
+        assert proof_header.proof_version = PROOF_VERSION_V2;
     }
 
     // Validate the virtual OS output header.
