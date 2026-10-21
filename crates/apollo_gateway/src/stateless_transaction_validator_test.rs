@@ -72,7 +72,6 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         min_sierra_version: *MIN_SIERRA_VERSION,
         max_sierra_version: *MAX_SIERRA_VERSION,
         allow_client_side_proving: true,
-        allow_proof_version_v2: true,
     });
 
 #[rstest]
@@ -685,22 +684,12 @@ fn test_client_side_proving_flag(
     }
 }
 
-/// V2 proofs are gated by `allow_proof_version_v2`; V0 and V1 proofs are always rejected, as the
-/// protocol no longer accepts them.
+/// V2 proofs are accepted; V0 and V1 proofs are rejected, as the protocol no longer accepts them.
 #[rstest]
-#[case::v2_allowed(ProofVersion::V2, true, true)]
-#[case::v2_disallowed(ProofVersion::V2, false, false)]
-#[case::v0_rejected(ProofVersion::V0, true, false)]
-#[case::v1_rejected(ProofVersion::V1, true, false)]
-fn test_allow_proof_version(
-    #[case] proof_version: ProofVersion,
-    #[case] allow_proof_version_v2: bool,
-    #[case] should_pass: bool,
-) {
-    let config = StatelessTransactionValidatorConfig {
-        allow_proof_version_v2,
-        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    };
+#[case::v2_allowed(ProofVersion::V2, true)]
+#[case::v0_rejected(ProofVersion::V0, false)]
+#[case::v1_rejected(ProofVersion::V1, false)]
+fn test_allow_proof_version(#[case] proof_version: ProofVersion, #[case] should_pass: bool) {
     let mut proof_facts = create_valid_proof_facts_for_testing();
     Arc::make_mut(&mut proof_facts.0)[0] = proof_version.as_felt();
     let tx = rpc_tx_for_testing(
@@ -708,7 +697,7 @@ fn test_allow_proof_version(
         RpcTransactionArgs { proof_facts, proof: Proof::proof_for_testing(), ..Default::default() },
     );
 
-    let result = stateless_validator(config).validate(&tx);
+    let result = stateless_validator(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone()).validate(&tx);
     if should_pass {
         assert_matches!(result, Ok(()));
     } else {
