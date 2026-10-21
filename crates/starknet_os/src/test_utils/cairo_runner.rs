@@ -391,7 +391,8 @@ fn convert_implicit_args_to_cairo_args(
         .collect()
 }
 
-fn get_all_builtins_ordered() -> Result<Vec<BuiltinName>, BuiltinMismatchError> {
+/// Returns all the builtins, in the order the Cairo runner expects them.
+pub fn get_all_builtins_ordered() -> Result<Vec<BuiltinName>, BuiltinMismatchError> {
     let ordered_builtins = vec![
         BuiltinName::output,
         BuiltinName::pedersen,
