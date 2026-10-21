@@ -14,6 +14,7 @@ use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
+pub use starknet_api::staking::DEFAULT_VALIDATOR_ID;
 use starknet_types_core::felt::Felt;
 
 use crate::converters::ProtobufConversionError;
@@ -126,10 +127,6 @@ pub struct ProposalInit {
     /// `starknet_version >= V0_14_3`.
     pub fee_proposal_fri: Option<GasPrice>,
 }
-
-/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
-// TODO(Matan): Remove this once we have a proper validator set.
-pub const DEFAULT_VALIDATOR_ID: u64 = 100;
 
 impl Default for BuildParam {
     fn default() -> Self {
