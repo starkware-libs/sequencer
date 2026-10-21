@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792569826375,
+  "lastUpdate": 1792586056002,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7853,6 +7853,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1369.1345275899998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd1718086d97c36b078449da6f489d08d4fb04fd",
+          "message": "apollo_gateway: validate replayed txs against their source block's gas prices (#15010)\n\nResource bounds are validated against the committed block's gas prices in two\nindependent places: the explicit l2 threshold check, and blockifier's check_fee_bounds\nreached through run_validate_entry_point, whose BlockContext is built from the same\nget_block_info(). Blockifier's is the stricter of the two -- max_price_per_unit >=\nactual_gas_price, no percentage -- and it covers all three resources.\n\nUnder replay the committed block trails the block a transaction came from, and mainnet\nprices move up to ~2% per block, so a transaction mainnet accepted is rejected here for\nhaving less headroom than the price fell in between. That is a deadlock rather than a\ndelay: the bound is satisfied only once prices drop to the transaction's cap, which in a\nfalling market first happens when the committed block IS its own block -- already built\nby then, so it can never be included. Being deterministic, the retry after a resync\nreproduces it and the block is skipped for good.\n\nBlock 11926844 hit this twice in one weekend. Tx 0x1549342b caps l2 at 32000000000\nagainst its own block's 31507218957, +1.56% headroom at the bottom of a five-block\nslide; 57 rejections walked the threshold from 32093567243 up to 34854264801 without\never falling under the cap. Echonet built the block with 1 of its 4 transactions and\nproduced the same wrong hash on the retry. Nor is it only l2 or only the explicit check:\nof nine `Resource bounds were not satisfied` rejections over four days, seven were\nl1_data_gas, which only blockifier's bound looks at.\n\nResolve the source block's whole STRK price vector once per transaction and apply it in\na single block_info() seam that both consumers are built from. A transaction mainnet\nincluded in block N necessarily paid price(N), so it clears on the first forward\nwherever the committed block happens to be, while the check keeps its teeth: anything\nthat could not have paid its own block's price is still rejected.\n\nOnly strk_gas_prices is replaced -- the ETH vector is not replayed, and v3 transactions\nselect the STRK vector by fee type. block_number and block_timestamp are deliberately\nleft alone, since moving them would shift the stored-block-hash window and\nget_block_hash against a state that only holds up to the committed block.\n\nResolution happens in instantiate_validator before the state snapshot is pinned, so the\nrecorder round-trips do not age the state validation then runs against. Transient\nfailures are retried with the policy the mempool's recorder client uses, since a silent\nfallback would reinstate the very rejection this removes. The last block's prices are\nmemoized -- they are immutable and consecutive replayed transactions share a block -- so\nthe block lookup drops to roughly one per block, leaving only the per-transaction hash\nlookup the mempool already makes anyway. The recorder base URL is normalized to end in a\nslash, because Url::join otherwise replaces the last path segment of a URL configured\nwith a path.\n\nThe threshold multiplication is now saturating rather than a Ratio product, so a price\ntoo large to scale rejects instead of wrapping. That also hardens the pre-existing path,\nwhere the price comes from state, and leaves num-rational unused by this crate, so it is\ndropped from its dependencies.\n\nBoth recorder endpoints already exist and are already used by the mempool in this mode,\nso no recorder-side change is needed.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-21T12:07:53Z",
+          "tree_id": "7d488a576a4b153622b11295d4aeee5fa81a0863",
+          "url": "https://github.com/starkware-libs/sequencer/commit/fd1718086d97c36b078449da6f489d08d4fb04fd"
+        },
+        "date": 1792586055157,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 907.0467350700001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1393.3335490299999,
             "unit": "ms"
           }
         ]
