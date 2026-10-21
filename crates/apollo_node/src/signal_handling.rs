@@ -46,15 +46,6 @@ impl GracefulShutdownBehavior {
         self.sigterm = sigterm;
         self
     }
-
-    pub fn with_sigint(mut self, sigint: GracefulShutdownCallback) -> Self {
-        self.sigint = sigint;
-        self
-    }
-    pub fn with_sigabrt(mut self, sigabrt: GracefulShutdownCallback) -> Self {
-        self.sigabrt = sigabrt;
-        self
-    }
 }
 
 impl Default for GracefulShutdownBehavior {
