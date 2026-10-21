@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "HTTP server for exposing node APIs."
+publish = false
 
 [features]
 testing = [

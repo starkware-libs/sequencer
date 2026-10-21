@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "Computes and manages Starknet state."
+publish = false
 
 [features]
 testing = ["starknet_patricia/testing"]

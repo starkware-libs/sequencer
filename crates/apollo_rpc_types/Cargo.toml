@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Shared JSON-RPC error types for Starknet API."
+publish = false
 
 [lints]
 workspace = true

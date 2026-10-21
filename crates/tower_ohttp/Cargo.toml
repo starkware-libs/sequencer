@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Framework-agnostic tower middleware for Oblivious HTTP (RFC 9458)."
+publish = false
 
 [features]
 # Exposes OHTTP client-side primitives (`test_gateway`,
