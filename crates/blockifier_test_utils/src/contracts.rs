@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -582,15 +581,6 @@ impl FeatureContract {
         Self::all_feature_contracts().filter(|contract| {
             matches!(contract.cairo_version(), CairoVersion::Cairo1(RunnableCairo1::Casm))
         })
-    }
-
-    pub fn all_cairo1_casm_compiler_versions() -> HashSet<CairoVersionString> {
-        Self::all_feature_contracts()
-            .filter(|contract| {
-                contract.cairo_version() == CairoVersion::Cairo1(RunnableCairo1::Casm)
-            })
-            .map(|contract| contract.fixed_version())
-            .collect()
     }
 }
 
