@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792323503025,
+  "lastUpdate": 1792566580082,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7785,6 +7785,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1188.52608506,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "60da5752944cd88199b080da996005d94fad4456",
+          "message": "starknet_os,scripts: add the golden circuit verifier fixtures (#15169)\n\nAdds the proving side's processed proof of its golden leaf and the canonical_small circuit\nverifier executable that verifies it, generated with stwo_run_and_prove_recursive_tree at proving\ncommit b75d21f9 under the canonical_small registry. They are gzipped, and\nGoldenCircuitVerifierTask decompresses them to temporary files and gives their circuit verifier\ntask input. The TODO style check skips gzip files, like the other binary formats.\n\n\nClaude-Session: https://claude.ai/code/session_015X6kWZhBXFeNyPwSuKTohy\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-10-21T06:53:47Z",
+          "tree_id": "1db59a1970f70532e4fde8c2db80a62ac871a8d4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/60da5752944cd88199b080da996005d94fad4456"
+        },
+        "date": 1792566579656,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 788.64000023,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1295.56400891,
             "unit": "ms"
           }
         ]
