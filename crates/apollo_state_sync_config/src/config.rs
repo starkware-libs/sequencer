@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::result;
 
 use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
-use apollo_network::NetworkConfig;
+use apollo_network_config::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
 use apollo_rpc::RpcConfig;
