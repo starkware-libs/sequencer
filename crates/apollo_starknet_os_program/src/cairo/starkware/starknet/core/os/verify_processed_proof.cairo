@@ -2,6 +2,7 @@ from starkware.cairo.bootloaders.simple_bootloader.run_simple_bootloader import 
     run_simple_bootloader,
 )
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     EcOpBuiltin,
@@ -11,10 +12,7 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
     SignatureBuiltin,
 )
-from starkware.starknet.core.os.proof_fact_fold import (
-    BLAKE2S_DIGEST_N_WORDS,
-    compute_verification_digest,
-)
+from starkware.starknet.core.os.proof_fact_fold import BLAKE2S_DIGEST_N_WORDS, PROOF_ENTRY_N_WORDS
 
 // The Blake program hash of the circuit verifier, as the simple bootloader computes it.
 // TODO(Einat): the hash of the canonical_small test verifier; replace it with the production
@@ -26,9 +24,8 @@ const CIRCUIT_VERIFIER_PROGRAM_HASH = (
 // The output of a simple bootloader task: its size and program hash and verifier output digest.
 const VERIFIER_TASK_OUTPUT_SIZE = 2 + BLAKE2S_DIGEST_N_WORDS;
 
-// Runs the circuit verifier, as a simple bootloader task, on the processed proof of a
-// transaction's proof facts, which fill both of the multiverifier's verifier slots.
-// TODO(Einat): modify the function to take a tree of proof facts instead of just one.
+// Runs the circuit verifier, as a simple bootloader task, on the processed proof: the proof of the
+// root of a proof tree, whose entry (circuit hash and output digest) is `root_entry`.
 func verify_processed_proof{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr,
@@ -40,27 +37,20 @@ func verify_processed_proof{
     range_check96_ptr: felt*,
     add_mod_ptr: ModBuiltin*,
     mul_mod_ptr: ModBuiltin*,
-}(proof_facts_size: felt, proof_facts: felt*) {
+}(root_entry: felt*) {
     alloc_locals;
     // Write the output the simple bootloader must produce: the number of tasks, followed by the
-    // verifier task's size, program hash and output, which is the verification digest.
+    // verifier task's size, program hash and output, which is the blake2s hash of the root entry.
     let (local verifier_bootloader_output: felt*) = alloc();
     assert verifier_bootloader_output[0] = 1;
     assert verifier_bootloader_output[1] = VERIFIER_TASK_OUTPUT_SIZE;
     assert verifier_bootloader_output[2] = CIRCUIT_VERIFIER_PROGRAM_HASH;
-    compute_verification_digest(
-        left_proof_facts_size=proof_facts_size,
-        left_proof_facts=proof_facts,
-        right_proof_facts_size=proof_facts_size,
-        right_proof_facts=proof_facts,
-        verification_digest=&verifier_bootloader_output[3],
-    );
+    blake_with_opcode(len=PROOF_ENTRY_N_WORDS, data=root_entry, out=&verifier_bootloader_output[3]);
+
+    let output_ptr = verifier_bootloader_output;
 
     // The bootloader types the signature and range_check96 builtin pointers differently than the
     // OS.
-    let output_ptr = verifier_bootloader_output;
-
-    // The bootloader types the signature builtin pointer differently than the OS.
     let signature_ptr = cast(ecdsa_ptr, SignatureBuiltin*);
     let range_check96 = cast(range_check96_ptr, felt);
     with_attr error_message("The processed proof does not verify against its proof facts.") {
@@ -68,6 +58,9 @@ func verify_processed_proof{
             output_ptr=output_ptr, ecdsa_ptr=signature_ptr, range_check96_ptr=range_check96
         }();
     }
+    // Sanity check that output_ptr has advanced by exactly the expected bootloader output: the
+    // number of tasks and the verifier task's output.
+    assert output_ptr = verifier_bootloader_output + 1 + VERIFIER_TASK_OUTPUT_SIZE;
     let ecdsa_ptr = cast(signature_ptr, felt);
     let range_check96_ptr = cast(range_check96, felt*);
     return ();
