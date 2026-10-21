@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792566580082,
+  "lastUpdate": 1792569826375,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7819,6 +7819,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1295.56400891,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "14af03712131b5ed748cb31b2ac530db1772492b",
+          "message": "apollo_gateway,apollo_gateway_config,deployment: remove the allow_proof_version_v2 flag (#15249)\n\nThe protocol now accepts only V2 proofs, so the V2 gateway flag no longer selects\nbetween versions: turning it off rejects every valid proof, which\nallow_client_side_proving already covers. The stateless validator now accepts V2\nand rejects V0 and V1 with ProofVersionNotAllowed, with no config.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-21T07:42:38Z",
+          "tree_id": "d09beee952b060e1584ddffe9e1a39455e226204",
+          "url": "https://github.com/starkware-libs/sequencer/commit/14af03712131b5ed748cb31b2ac530db1772492b"
+        },
+        "date": 1792569825845,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 909.69190841,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1369.1345275899998,
             "unit": "ms"
           }
         ]
