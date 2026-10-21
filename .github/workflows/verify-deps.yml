@@ -16,6 +16,17 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retried because a transient upstream 503 in this step previously failed 12+ jobs across
+      # 5 PRs. `continue-on-error` works here but not inside a composite action.
+      - name: Install Anvil
+        id: install_anvil
+        continue-on-error: true
+        uses: ./.github/actions/install_anvil
+
+      - name: Retry installing Anvil
+        if: steps.install_anvil.outcome == 'failure'
+        uses: ./.github/actions/install_anvil
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build
