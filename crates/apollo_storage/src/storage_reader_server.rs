@@ -2,9 +2,13 @@ use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io;
 use std::marker::PhantomData;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
+pub use apollo_storage_config::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
 use async_trait::async_trait;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
@@ -23,28 +27,6 @@ use crate::{StorageError, StorageReader};
 #[cfg(test)]
 #[path = "storage_reader_server_test.rs"]
 mod storage_reader_server_test;
-
-/// Static configuration for the storage reader server.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
-pub struct StorageReaderServerStaticConfig {
-    /// The socket address for the server.
-    pub ip: IpAddr,
-    /// The port for the server.
-    pub port: u16,
-}
-
-impl Default for StorageReaderServerStaticConfig {
-    fn default() -> Self {
-        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091 }
-    }
-}
-
-/// Dynamic configuration for the storage reader server.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
-pub struct StorageReaderServerDynamicConfig {
-    /// Whether the server is enabled.
-    pub enable: bool,
-}
 
 /// Error returned by [`DynamicConfigProvider`] implementations.
 #[derive(Debug)]
