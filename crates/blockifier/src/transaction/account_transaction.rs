@@ -366,7 +366,12 @@ impl AccountTransaction {
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
-        self.validate_proof_facts(&tx_context.block_context, state)?;
+        // A query tx run without validation (simulation or fee estimation) may come from a client
+        // that has not proven it yet. Gated on `only_query` too, since the gateway also skips
+        // validation (deploy_account + invoke), and query txs never reach a block.
+        if self.execution_flags.validate || !self.execution_flags.only_query {
+            self.validate_proof_facts(&tx_context.block_context, state)?;
+        }
 
         Ok(())
     }
