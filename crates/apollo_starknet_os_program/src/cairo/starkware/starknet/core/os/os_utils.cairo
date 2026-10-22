@@ -23,6 +23,7 @@ from starkware.starknet.core.os.execution.deprecated_execute_syscalls import (
 )
 from starkware.starknet.core.os.output import OsOutput, OsOutputHeader, serialize_os_output
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate, StateEntry
+from starkware.starknet.core.os.verify_processed_proof import verify_tx_proof_facts
 
 // Performs pre-processing of the block: writes the block number to the block hash mapping and
 // migrates contract classes to the v2 casm hash.
@@ -173,6 +174,8 @@ func process_os_output{
         full_output=full_output,
     );
 
+    verify_tx_proof_facts_unless_full_output(full_output=full_output, os_output=final_os_output);
+
     // Serialize OS output.
     %{ ConfigureKzgManager %}
 
@@ -181,6 +184,21 @@ func process_os_output{
         replace_keys_with_aliases=TRUE,
         n_public_keys=n_public_keys,
         public_keys=public_keys,
+    );
+    return ();
+}
+
+// Verifies the proofs of the transactions' proof facts of `os_output`, unless it is a full output:
+// the full output has the proof facts, and is the input of the aggregator, which verifies them.
+func verify_tx_proof_facts_unless_full_output{range_check_ptr}(
+    full_output: felt, os_output: OsOutput*
+) {
+    if (full_output != FALSE) {
+        return ();
+    }
+    verify_tx_proof_facts(
+        initial_carried_outputs=os_output.initial_carried_outputs,
+        final_carried_outputs=os_output.final_carried_outputs,
     );
     return ();
 }
