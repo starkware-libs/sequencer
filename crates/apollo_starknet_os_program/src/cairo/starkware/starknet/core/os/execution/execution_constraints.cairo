@@ -12,6 +12,7 @@ from starkware.starknet.core.os.constants import (
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
+from starkware.starknet.core.os.output import OsCarriedOutputs, ProofFacts, os_carried_outputs_new
 from starkware.starknet.core.os.virtual_os_output import (
     PROOF_VERSION_V2,
     VIRTUAL_OS_OUTPUT_VERSION,
@@ -37,7 +38,9 @@ func is_program_hash_allowed(program_hash: felt) -> felt {
 }
 
 // Validates that the proof facts of an invoke transaction are of a valid virtual OS run.
-func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
+func check_proof_facts{
+    range_check_ptr, contract_state_changes: DictAccess*, outputs: OsCarriedOutputs*
+}(
     proof_facts_size: felt,
     proof_facts: felt*,
     current_block_number: felt,
@@ -84,5 +87,14 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     // validate that the proof facts config hash is the true hash of the OS config.
     assert os_output_header.starknet_os_config_hash = virtual_os_config_hash;
 
+    // Add the proof facts to the OS output, for the aggregator to verify their proof.
+    assert outputs.tx_proof_facts[0] = ProofFacts(
+        proof_facts_size=proof_facts_size, proof_facts=proof_facts
+    );
+    let (outputs) = os_carried_outputs_new(
+        messages_to_l1=outputs.messages_to_l1,
+        messages_to_l2=outputs.messages_to_l2,
+        tx_proof_facts=&outputs.tx_proof_facts[1],
+    );
     return ();
 }
