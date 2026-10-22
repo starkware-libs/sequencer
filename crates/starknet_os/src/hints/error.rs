@@ -40,6 +40,8 @@ pub enum OsHintError {
     AggregatorBootloaderInputAlreadyConsumed,
     #[error("The OS outputs have proof facts, but the aggregator input has no proof facts tree.")]
     MissingProofFactsTree,
+    #[error("The proof facts tree has no more nodes to guess.")]
+    ProofFactsTreeExhausted,
     #[error(transparent)]
     UnsupportedProofFactsTreeNode(#[from] crate::proof_fact_fold::UnsupportedProofFactsTreeNode),
     #[error("The OS outputs have proof facts, but the aggregator input has no verifier task.")]

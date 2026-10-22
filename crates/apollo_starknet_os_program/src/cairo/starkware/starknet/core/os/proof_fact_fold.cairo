@@ -7,9 +7,9 @@ from starkware.starknet.core.os.virtual_os_output import ProofHeader
 const BLAKE2S_DIGEST_N_WORDS = 8;
 const PROOF_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
 
-// A proof tree is passed as a list with one entry per node: FLAT_TREE_FOLD for a node that
+// A proof tree's nodes are guessed one at a time, in pre-order: FLAT_TREE_FOLD for a node that
 // verifies two child proofs, and FLAT_TREE_LEAF for a transaction's proof. Each fold is followed
-// by the list of its left subtree, then the list of its right subtree. For example, [1, 1, 0, 0, 0]
+// by the nodes of its left subtree, then the nodes of its right subtree. For example, [1, 1, 0, 0, 0]
 // is a fold whose left child folds two leaves and whose right child is a leaf.
 const FLAT_TREE_LEAF = 0;
 const FLAT_TREE_FOLD = 1;
@@ -72,19 +72,15 @@ func write_leaf_proof_entry{range_check_ptr}(proof_facts: ProofFacts, proof_entr
 // Writes to `root_entry` the entry (circuit hash and output digest) of the root of a proof tree,
 // whose leaves are the given transactions' proof facts, in order.
 //
-// `flat_tree` is the tree's list of nodes (see FLAT_TREE_LEAF). For a tree of a single
+// The tree's nodes are guessed (see FLAT_TREE_LEAF); any tree that uses every transaction's proof
+// facts is accepted, since the proof of its root is what gets verified. For a tree of a single
 // transaction's proof facts, the root multiverifier verifies that leaf in both of its slots.
 func write_proof_tree_root_entry{range_check_ptr}(
-    flat_tree_size: felt,
-    flat_tree: felt*,
-    n_proof_facts: felt,
-    proof_facts_list: ProofFacts*,
-    root_entry: felt*,
+    n_proof_facts: felt, proof_facts_list: ProofFacts*, root_entry: felt*
 ) {
     alloc_locals;
-    if (flat_tree[0] == FLAT_TREE_LEAF) {
-        assert flat_tree_size = 1;
-        assert n_proof_facts = 1;
+    // A fold has at least two leaves, so a single transaction's proof facts are a single leaf.
+    if (n_proof_facts == 1) {
         write_multiverifier_circuit_hash(circuit_hash=root_entry);
         let (local leaf_entries: felt*) = alloc();
         write_leaf_proof_entry(proof_facts=proof_facts_list[0], proof_entry=leaf_entries);
@@ -95,32 +91,27 @@ func write_proof_tree_root_entry{range_check_ptr}(
         return ();
     }
 
-    let flat_tree_start = flat_tree;
     let proof_facts_list_start = proof_facts_list;
-    with flat_tree, proof_facts_list {
+    with proof_facts_list {
         write_subtree_entry(entry=root_entry);
     }
-    // Every node and every transaction's proof facts must be used.
-    assert flat_tree = &flat_tree_start[flat_tree_size];
+    // Every transaction's proof facts must be used.
     assert proof_facts_list = &proof_facts_list_start[n_proof_facts];
     return ();
 }
 
-// Writes to `entry` the entry of the subtree that starts at `flat_tree`, and advances `flat_tree`
-// past the subtree. Each leaf uses the next proof facts in `proof_facts_list`, and advances it.
-func write_subtree_entry{range_check_ptr, flat_tree: felt*, proof_facts_list: ProofFacts*}(
-    entry: felt*
-) {
+// Guesses the next node, and writes to `entry` the entry of the subtree it starts. Each leaf uses
+// the next proof facts in `proof_facts_list`, and advances it.
+func write_subtree_entry{range_check_ptr, proof_facts_list: ProofFacts*}(entry: felt*) {
     alloc_locals;
-    if (flat_tree[0] == FLAT_TREE_LEAF) {
+    local node: felt;
+    %{ GuessProofTreeNode %}
+    if (node == FLAT_TREE_LEAF) {
         write_leaf_proof_entry(proof_facts=proof_facts_list[0], proof_entry=entry);
-        let flat_tree = &flat_tree[1];
         let proof_facts_list = &proof_facts_list[1];
         return ();
     }
 
-    assert flat_tree[0] = FLAT_TREE_FOLD;
-    let flat_tree = &flat_tree[1];
     write_multiverifier_circuit_hash(circuit_hash=entry);
     // The children's entries, written where the fold's output digest hashes them.
     let (local children_entries: felt*) = alloc();

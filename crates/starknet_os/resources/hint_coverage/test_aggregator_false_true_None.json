@@ -36,6 +36,9 @@
     "StatelessHint": "AllocateSegmentsForMessages"
   },
   {
+    "StatelessHint": "GuessProofTreeNode"
+  },
+  {
     "CommonHint": "SetProofFactTopology"
   },
   {
@@ -81,7 +84,7 @@
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
   },
   {
-    "AggregatorHint": "GuessProofFactsTree"
+    "AggregatorHint": "LoadProofFactsTree"
   },
   {
     "AggregatorHint": "LoadCircuitVerifierTask"

@@ -24,6 +24,7 @@ use super::{
     Blake2sDigestWords,
     MULTIVERIFIER_CIRCUIT_HASH,
 };
+use crate::hints::vars::Scope;
 use crate::io::os_input::CircuitVerifierTaskInput;
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
@@ -84,9 +85,9 @@ fn golden_proof_facts_copies(n_tx_proof_facts: usize) -> Vec<&'static [Felt]> {
     vec![GOLDEN_PROOF_FACTS.as_slice(); n_tx_proof_facts]
 }
 
-/// Runs the Cairo `write_proof_tree_root_entry` on a flattened tree whose leaves are the given
-/// transactions' proof facts, giving it a pointer to `expected_root_output_digest`, after the
-/// multiverifier's circuit hash, to write the root entry to.
+/// Runs the Cairo `write_proof_tree_root_entry`, guessing the nodes of `flat_tree`, whose leaves
+/// are the given transactions' proof facts, giving it a pointer to `expected_root_output_digest`,
+/// after the multiverifier's circuit hash, to write the root entry to.
 fn run_cairo_proof_tree_root_entry(
     flat_tree: &[u8],
     tx_proof_facts: &[&[Felt]],
@@ -97,20 +98,20 @@ fn run_cairo_proof_tree_root_entry(
         .chain(expected_root_output_digest)
         .map(|word| Felt::from(*word))
         .collect();
+    let proof_tree_nodes: Box<dyn Any> =
+        Box::new(flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>().into_iter());
     initialize_and_run_cairo_0_entry_point(
         &entrypoint_runner_config(),
         PROOF_FACT_FOLD_BYTES,
         "write_proof_tree_root_entry",
         &[
-            EndpointArg::from(flat_tree.len()),
-            felt_array_arg(&flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>()),
             EndpointArg::from(tx_proof_facts.len()),
             tx_proof_facts_arg(tx_proof_facts),
             felt_array_arg(&expected_root_entry),
         ],
         &[ImplicitArg::Builtin(BuiltinName::range_check)],
         &[],
-        HashMap::new(),
+        HashMap::from([(String::from(Scope::ProofTreeNodes), proof_tree_nodes)]),
         None,
     )?;
     Ok(())
@@ -136,12 +137,7 @@ fn run_cairo_verify_processed_proof(
     )?;
     run_cairo_0_entrypoint_with_hint_processor(
         entrypoint,
-        &[
-            EndpointArg::from(SINGLE_LEAF_FLAT_TREE.len()),
-            felt_array_arg(&SINGLE_LEAF_FLAT_TREE.map(Felt::from)),
-            EndpointArg::from(1),
-            tx_proof_facts_arg(&[proof_facts]),
-        ],
+        &[EndpointArg::from(1), tx_proof_facts_arg(&[proof_facts])],
         &implicit_args,
         &mut cairo_runner,
         &program,

@@ -1,24 +1,33 @@
+use std::vec::IntoIter;
+
 use cairo_program_runner_lib::SIMPLE_BOOTLOADER_INPUT;
-use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintContext;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Ids, Scope};
 use crate::proof_fact_fold::flatten_proof_facts_tree;
 
-pub(crate) fn guess_proof_facts_tree<CHP: CommonHintProcessor>(
+pub(crate) fn load_proof_facts_tree<CHP: CommonHintProcessor>(
     hint_processor: &CHP,
     mut ctx: HintContext<'_>,
 ) -> OsHintResult {
     let packed_tree =
         hint_processor.get_proof_facts_tree().ok_or(OsHintError::MissingProofFactsTree)?;
-    let flat_tree = flatten_proof_facts_tree(packed_tree)?;
-    ctx.insert_value(Ids::FlatTreeSize, Felt::from(flat_tree.len()))?;
-    let flat_tree_ptr =
-        ctx.vm.gen_arg(&flat_tree.into_iter().map(MaybeRelocatable::from).collect::<Vec<_>>())?;
-    ctx.insert_value(Ids::FlatTree, flat_tree_ptr)?;
+    // `GuessProofTreeNode` guesses the nodes one at a time, in this order.
+    ctx.insert_into_scope(
+        Scope::ProofTreeNodes,
+        flatten_proof_facts_tree(packed_tree)?.into_iter(),
+    );
+    Ok(())
+}
+
+pub(crate) fn guess_proof_tree_node(mut ctx: HintContext<'_>) -> OsHintResult {
+    let proof_tree_nodes: &mut IntoIter<Felt> =
+        ctx.exec_scopes.get_mut_ref(Scope::ProofTreeNodes.into())?;
+    let node = proof_tree_nodes.next().ok_or(OsHintError::ProofFactsTreeExhausted)?;
+    ctx.insert_value(Ids::Node, node)?;
     Ok(())
 }
 

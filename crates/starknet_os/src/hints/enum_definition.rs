@@ -167,8 +167,9 @@ use crate::hints::hint_implementation::patricia::implementation::{
     write_case_not_left_to_ap,
 };
 use crate::hints::hint_implementation::proof_facts::{
-    guess_proof_facts_tree,
+    guess_proof_tree_node,
     load_circuit_verifier_task,
+    load_proof_facts_tree,
 };
 use crate::hints::hint_implementation::resources::{
     debug_expected_initial_gas,
@@ -452,7 +453,8 @@ define_stateless_hint_enum!(
     (StarknetOsInput, starknet_os_input),
     (AllocateSegmentsForMessages, allocate_segments_for_messages),
     (NaiveUnpackFelt252ToU32s, naive_unpack_felt252_to_u32s),
-    (GenerateKeysUsingSha256Hash, calculate_keys_using_sha256_hash)
+    (GenerateKeysUsingSha256Hash, calculate_keys_using_sha256_hash),
+    (GuessProofTreeNode, guess_proof_tree_node)
 );
 
 define_common_hint_enum!(
@@ -577,7 +579,7 @@ define_hint_enum!(
     (WriteDaSegment, write_da_segment),
     (GetUseKzgDaAndFullOutputFromInput, get_use_kzg_da_and_full_output_from_input),
     (GetChainIdAndFeeTokenAddressFromInput, get_chain_id_and_fee_token_address_from_input),
-    (GuessProofFactsTree, guess_proof_facts_tree),
+    (LoadProofFactsTree, load_proof_facts_tree),
     (LoadCircuitVerifierTask, load_circuit_verifier_task)
 );
 

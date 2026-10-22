@@ -70,11 +70,11 @@ pub fn compute_verification_digest(
 pub struct UnsupportedProofFactsTreeNode(pub String);
 
 /// Flattens the proving side's tree of the proofs of transactions' proof facts (`packed_output` of
-/// `stwo_run_and_prove_recursive_tree`) the way the Cairo `write_proof_tree_root_entry` reads it:
-/// one entry per node, FLAT_TREE_FOLD (1) for a multiverifier proof of two children and
-/// FLAT_TREE_LEAF (0) for a transaction's proof, each fold followed by its left subtree, then its
-/// right subtree. The proving side's single-leaf tree, whose root multiverifier verifies the leaf
-/// in both of its slots, is written as the leaf.
+/// `stwo_run_and_prove_recursive_tree`) into the nodes the Cairo `write_proof_tree_root_entry`
+/// guesses, in order: one entry per node, FLAT_TREE_FOLD (1) for a multiverifier proof of two
+/// children and FLAT_TREE_LEAF (0) for a transaction's proof, each fold followed by its left
+/// subtree, then its right subtree. The proving side's single-leaf tree, whose root multiverifier
+/// verifies the leaf in both of its slots, is written as the leaf.
 pub fn flatten_proof_facts_tree(
     packed_tree: &PackedNode,
 ) -> Result<Vec<Felt>, UnsupportedProofFactsTreeNode> {
