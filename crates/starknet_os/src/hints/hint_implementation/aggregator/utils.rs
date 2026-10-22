@@ -247,6 +247,23 @@ pub(crate) fn write_full_os_output(
     let messages_to_l2_start = vm.add_temporary_segment();
     let messages_to_l2_end =
         common_os_output.messages_to_l2.load_into_vm_memory(vm, messages_to_l2_start)?;
+
+    // The proof facts list: a `ProofFacts` (size and pointer) per transaction that has them.
+    // Unlike the message segments, it is copied to the output, not relocated to it, so its segment
+    // must not be temporary.
+    let tx_proof_facts_start = vm.add_memory_segment();
+    let tx_proof_facts = common_os_output
+        .tx_proof_facts
+        .iter()
+        .map(|proof_facts| {
+            Ok(vec![
+                MaybeRelocatable::from(Felt::from(proof_facts.0.len())),
+                vm.gen_arg(&proof_facts.0.iter().map(MaybeRelocatable::from).collect::<Vec<_>>())?,
+            ])
+        })
+        .collect::<VmUtilsResult<Vec<Vec<MaybeRelocatable>>>>()?
+        .concat();
+    let tx_proof_facts_end = vm.load_data(tx_proof_facts_start, &tx_proof_facts)?;
     // A cairo dict from contract address to StateEntry (class_hash, storage_dict_ptr, nonce).
     // See StateEntryManager::storage_dict_ptr for an explanation about storage_dict_ptr.
     let state_dict_ptr_start = state_diff_writer.get_state_dict_ptr();
@@ -280,8 +297,10 @@ pub(crate) fn write_full_os_output(
         Felt::from(state_diff.classes.len()).into(),
     ])?;
 
-    let initial_carried_outputs = vm.gen_arg(&vec![messages_to_l1_start, messages_to_l2_start])?;
-    let final_carried_outputs = vm.gen_arg(&vec![messages_to_l1_end, messages_to_l2_end])?;
+    let initial_carried_outputs =
+        vm.gen_arg(&vec![messages_to_l1_start, messages_to_l2_start, tx_proof_facts_start])?;
+    let final_carried_outputs =
+        vm.gen_arg(&vec![messages_to_l1_end, messages_to_l2_end, tx_proof_facts_end])?;
 
     Ok(vm.load_data(
         address,
