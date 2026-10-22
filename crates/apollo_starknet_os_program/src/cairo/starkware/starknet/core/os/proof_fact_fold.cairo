@@ -1,9 +1,17 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode, encode_felt252s_to_u32s
+from starkware.starknet.core.os.output import ProofFacts
 from starkware.starknet.core.os.virtual_os_output import ProofHeader
 
 const BLAKE2S_DIGEST_N_WORDS = 8;
 const PROOF_ENTRY_N_WORDS = 2 * BLAKE2S_DIGEST_N_WORDS;
+
+// A proof tree is passed as a list with one entry per node: FLAT_TREE_FOLD for a node that
+// verifies two child proofs, and FLAT_TREE_LEAF for a transaction's proof. Each fold is followed
+// by the list of its left subtree, then the list of its right subtree. For example, [1, 1, 0, 0, 0]
+// is a fold whose left child folds two leaves and whose right child is a leaf.
+const FLAT_TREE_LEAF = 0;
+const FLAT_TREE_FOLD = 1;
 
 // Writes a transaction's leaf output digest (blake2s hash of its proof facts from program hash
 // onwards) to `output_digest`.
@@ -50,13 +58,11 @@ func write_multiverifier_circuit_hash(circuit_hash: felt*) {
 }
 
 // Writes a transaction's entry in the multiverifier output to `proof_entry`.
-func write_leaf_proof_entry{range_check_ptr}(
-    proof_facts_size: felt, proof_facts: felt*, proof_entry: felt*
-) {
+func write_leaf_proof_entry{range_check_ptr}(proof_facts: ProofFacts, proof_entry: felt*) {
     write_leaf_verifier_circuit_hash(circuit_hash=proof_entry);
     compute_leaf_output_digest(
-        proof_facts_size=proof_facts_size,
-        proof_facts=proof_facts,
+        proof_facts_size=proof_facts.proof_facts_size,
+        proof_facts=proof_facts.proof_facts,
         output_digest=&proof_entry[BLAKE2S_DIGEST_N_WORDS],
     );
     return ();
@@ -74,15 +80,68 @@ func compute_processed_proof_output_digest{range_check_ptr}(
     alloc_locals;
     let (local multiverifier_output: felt*) = alloc();
     write_leaf_proof_entry(
-        proof_facts_size=left_proof_facts_size,
-        proof_facts=left_proof_facts,
+        proof_facts=ProofFacts(
+            proof_facts_size=left_proof_facts_size, proof_facts=left_proof_facts
+        ),
         proof_entry=multiverifier_output,
     );
     write_leaf_proof_entry(
-        proof_facts_size=right_proof_facts_size,
-        proof_facts=right_proof_facts,
+        proof_facts=ProofFacts(
+            proof_facts_size=right_proof_facts_size, proof_facts=right_proof_facts
+        ),
         proof_entry=&multiverifier_output[PROOF_ENTRY_N_WORDS],
     );
     blake_with_opcode(len=2 * PROOF_ENTRY_N_WORDS, data=multiverifier_output, out=output_digest);
+    return ();
+}
+
+// Writes to `root_entry` the entry (circuit hash and output digest) of the root of a proof tree,
+// whose leaves are the given transactions' proof facts, in order.
+//
+// `flat_tree` is the tree's list of nodes (see FLAT_TREE_LEAF).
+func write_proof_tree_root_entry{range_check_ptr}(
+    flat_tree_size: felt,
+    flat_tree: felt*,
+    n_proof_facts: felt,
+    proof_facts_list: ProofFacts*,
+    root_entry: felt*,
+) {
+    alloc_locals;
+    // TODO(Einat): support the single-leaf tree.
+    assert flat_tree[0] = FLAT_TREE_FOLD;
+    let flat_tree_start = flat_tree;
+    let proof_facts_list_start = proof_facts_list;
+    with flat_tree, proof_facts_list {
+        write_subtree_entry(entry=root_entry);
+    }
+    // Every node and every transaction's proof facts must be used.
+    assert flat_tree = &flat_tree_start[flat_tree_size];
+    assert proof_facts_list = &proof_facts_list_start[n_proof_facts];
+    return ();
+}
+
+// Writes to `entry` the entry of the subtree that starts at `flat_tree`, and advances `flat_tree`
+// past the subtree. Each leaf uses the next proof facts in `proof_facts_list`, and advances it.
+func write_subtree_entry{range_check_ptr, flat_tree: felt*, proof_facts_list: ProofFacts*}(
+    entry: felt*
+) {
+    alloc_locals;
+    if (flat_tree[0] == FLAT_TREE_LEAF) {
+        write_leaf_proof_entry(proof_facts=proof_facts_list[0], proof_entry=entry);
+        let flat_tree = &flat_tree[1];
+        let proof_facts_list = &proof_facts_list[1];
+        return ();
+    }
+
+    assert flat_tree[0] = FLAT_TREE_FOLD;
+    let flat_tree = &flat_tree[1];
+    write_multiverifier_circuit_hash(circuit_hash=entry);
+    // The children's entries, written where the fold's output digest hashes them.
+    let (local children_entries: felt*) = alloc();
+    write_subtree_entry(entry=children_entries);
+    write_subtree_entry(entry=&children_entries[PROOF_ENTRY_N_WORDS]);
+    blake_with_opcode(
+        len=2 * PROOF_ENTRY_N_WORDS, data=children_entries, out=&entry[BLAKE2S_DIGEST_N_WORDS]
+    );
     return ();
 }

@@ -68,6 +68,12 @@ struct MessageToL2Header {
     payload_size: felt,
 }
 
+// The proof facts of a transaction.
+struct ProofFacts {
+    proof_facts_size: felt,
+    proof_facts: felt*,
+}
+
 // Holds all the information that StarkNet's OS needs to output.
 // TODO(Yoni, 1/1/2026): rename to OsMessages.
 struct OsCarriedOutputs {
