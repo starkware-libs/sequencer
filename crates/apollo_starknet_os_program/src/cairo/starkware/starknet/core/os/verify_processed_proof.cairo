@@ -43,13 +43,9 @@ func verify_tx_proof_facts{range_check_ptr}(
         return ();
     }
 
-    local flat_tree_size: felt;
-    local flat_tree: felt*;
-    %{ GuessProofFactsTree %}
+    %{ LoadProofFactsTree %}
     let (root_entry: felt*) = alloc();
     write_proof_tree_root_entry(
-        flat_tree_size=flat_tree_size,
-        flat_tree=flat_tree,
         n_proof_facts=n_proof_facts,
         proof_facts_list=initial_carried_outputs.tx_proof_facts,
         root_entry=root_entry,
