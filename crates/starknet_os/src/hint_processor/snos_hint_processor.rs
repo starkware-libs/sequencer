@@ -11,6 +11,7 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_program_runner_lib::BootloaderHintProcessor;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData as Cairo0Hint,
@@ -127,6 +128,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     builtin_hint_processor: BuiltinHintProcessor,
+    bootloader_hint_processor: BootloaderHintProcessor<'static>,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
     // type is to be used.
     pub(crate) commitment_type: CommitmentType,
@@ -177,6 +179,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             os_hints_config,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
+            bootloader_hint_processor: BootloaderHintProcessor::new(None),
             deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
             deprecated_compiled_classes_iter: deprecated_compiled_classes.into_iter(),
             compiled_classes,
