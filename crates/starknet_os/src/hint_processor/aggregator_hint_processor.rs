@@ -15,6 +15,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use leaf_proof_format::PackedNode;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
@@ -30,6 +31,7 @@ use crate::hint_processor::test_hint::test_aggregator_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintContext, HintEnum};
+use crate::io::os_input::CircuitVerifierTaskInput;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
 #[derive(Deserialize, Debug, Clone)]
@@ -49,6 +51,14 @@ pub struct AggregatorInput {
     pub fee_token_address: Felt,
     pub chain_id: Felt,
     pub public_keys: Option<Vec<Felt>>,
+    /// The proving side's tree of the proofs of the transactions' proof facts (`packed_output` of
+    /// `stwo_run_and_prove_recursive_tree`). Required when the OS outputs have proof facts.
+    #[serde(default)]
+    pub proof_facts_tree: Option<PackedNode>,
+    /// The circuit verifier and the proof of the root of `proof_facts_tree`. Required when the OS
+    /// outputs have proof facts.
+    #[serde(default)]
+    pub proof_facts_verifier_task: Option<CircuitVerifierTaskInput>,
 }
 
 impl AggregatorInput {

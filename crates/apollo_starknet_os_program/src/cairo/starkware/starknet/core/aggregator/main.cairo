@@ -10,6 +10,7 @@ from starkware.starknet.core.os.os_config.os_config import (
     get_starknet_os_config_hash,
 )
 from starkware.starknet.core.os.output import OsOutput, serialize_os_output
+from starkware.starknet.core.os.verify_processed_proof import verify_tx_proof_facts
 
 func main{
     output_ptr: felt*,
@@ -51,6 +52,11 @@ func main{
         os_program_hash=os_program_hash,
         use_kzg_da=use_kzg_da,
         full_output=full_output,
+    );
+
+    verify_tx_proof_facts(
+        initial_carried_outputs=combined_output.initial_carried_outputs,
+        final_carried_outputs=combined_output.final_carried_outputs,
     );
 
     // Output the bootloader output of the inner OsOutput instances.

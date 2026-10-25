@@ -63,11 +63,19 @@ impl TryFrom<DeprecatedSyscallSelector> for DeprecatedSyscallHint {
     }
 }
 
+/// The program's hints, except those of the simple bootloader's code, which the aggregator runs
+/// with the bootloader's hint processor (`cairo-program-runner-lib`) to run the circuit verifier.
 fn program_hints(program: &Program) -> HashSet<String> {
     program
         .shared_program_data
         .hints_collection
         .iter_hints()
+        .filter(|hint| {
+            !hint
+                .accessible_scopes
+                .iter()
+                .any(|scope| scope.starts_with("starkware.cairo.bootloaders."))
+        })
         .map(|hint| hint.code.clone())
         .collect()
 }
