@@ -49,8 +49,12 @@ pub(crate) fn write_storage_key_for_revert<S: StateReader>(
 
 pub(crate) fn generate_dummy_os_output_segment(mut ctx: HintContext<'_>) -> OsHintResult {
     let base = ctx.vm.add_memory_segment();
-    let segment_data =
-        [MaybeRelocatable::from(ctx.vm.add_memory_segment()), MaybeRelocatable::from(Felt::ZERO)];
+    // OsCarriedOutputs(messages_to_l1="empty segment", messages_to_l2=0, tx_proof_facts=0).
+    let segment_data = [
+        MaybeRelocatable::from(ctx.vm.add_memory_segment()),
+        MaybeRelocatable::from(Felt::ZERO),
+        MaybeRelocatable::from(Felt::ZERO),
+    ];
     ctx.vm.load_data(base, &segment_data)?;
     ctx.insert_value(Ids::Outputs, base)?;
     Ok(())

@@ -10,6 +10,7 @@ use num_traits::ToPrimitive;
 use starknet_api::block::{BlockNumber, PreviousBlockNumber};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
+use starknet_api::transaction::fields::ProofFacts;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
@@ -104,6 +105,23 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
     let payload = L2ToL1Payload(iter.take(payload_size).collect());
 
     Ok(MessageToL1 { from_address, to_address, payload })
+}
+
+/// Parses the proof facts of the transactions that have them: their number, followed by each
+/// transaction's proof facts size and proof facts.
+pub fn parse_tx_proof_facts<It: Iterator<Item = Felt>>(
+    output_iter: &mut It,
+) -> Result<Vec<ProofFacts>, OsOutputError> {
+    let n_tx_proof_facts: usize = wrap_missing_as(output_iter.next(), "n_tx_proof_facts")?;
+    (0..n_tx_proof_facts)
+        .map(|_| {
+            let proof_facts_size: usize = wrap_missing_as(output_iter.next(), "proof_facts_size")?;
+            let proof_facts = (0..proof_facts_size)
+                .map(|_| wrap_missing(output_iter.next(), "proof_facts"))
+                .collect::<Result<Vec<Felt>, OsOutputError>>()?;
+            Ok(ProofFacts::from(proof_facts))
+        })
+        .collect()
 }
 
 /// Parses messages to L1 from an output iterator.
@@ -290,6 +308,9 @@ impl TryFromOutputIter for OutputIterParsedData {
                 remaining: messages_to_l2_segment_size,
             });
         }
+        // Only the full output has the transactions' proof facts.
+        let tx_proof_facts =
+            if full_output { parse_tx_proof_facts(output_iter)? } else { Vec::new() };
         Ok(Self {
             common_os_output: CommonOsOutput {
                 initial_root,
@@ -302,6 +323,7 @@ impl TryFromOutputIter for OutputIterParsedData {
                 starknet_os_config_hash,
                 messages_to_l1,
                 messages_to_l2,
+                tx_proof_facts,
             },
             kzg_commitment_info,
             full_output,
@@ -332,6 +354,8 @@ pub struct CommonOsOutput {
     pub messages_to_l1: Vec<MessageToL1>,
     // Messages from L1 to L2.
     pub messages_to_l2: Vec<MessageToL2>,
+    // The proof facts of the transactions that have them, in order.
+    pub tx_proof_facts: Vec<ProofFacts>,
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
