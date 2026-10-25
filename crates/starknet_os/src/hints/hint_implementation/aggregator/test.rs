@@ -169,24 +169,10 @@ const MSG_TO_L2_1: [Felt; 5] = [
 ];
 
 // The proof facts sections of the multi-blocks' full outputs: their number of transactions' proof
-// facts, followed by each one's size and felts.
-const TX_PROOF_FACTS_0: [Felt; 5] = [
-    Felt::ONE,
-    Felt::THREE,
-    Felt::from_hex_unchecked("0x11"),
-    Felt::from_hex_unchecked("0x12"),
-    Felt::from_hex_unchecked("0x13"),
-];
-const TX_PROOF_FACTS_1: [Felt; 8] = [
-    Felt::TWO,
-    Felt::TWO,
-    Felt::from_hex_unchecked("0x21"),
-    Felt::from_hex_unchecked("0x22"),
-    Felt::THREE,
-    Felt::from_hex_unchecked("0x31"),
-    Felt::from_hex_unchecked("0x32"),
-    Felt::from_hex_unchecked("0x33"),
-];
+// facts, followed by each one's size and felts. They are empty.
+// TODO(Einat): use the golden leaves' proof facts.
+const TX_PROOF_FACTS_0: [Felt; 1] = [Felt::ZERO];
+const TX_PROOF_FACTS_1: [Felt; 1] = [Felt::ZERO];
 
 const NUMBER_OF_BLOCKS_IN_MULTI_BLOCK: usize = 13;
 
@@ -821,6 +807,8 @@ fn test_aggregator(
         fee_token_address: Felt::ZERO,
         chain_id: Felt::ZERO,
         public_keys: None,
+        proof_facts_tree: None,
+        proof_facts_verifier_task: None,
     };
 
     // Create the aggregator hint processor.

@@ -68,6 +68,13 @@ fn program_hints(program: &Program) -> HashSet<String> {
         .shared_program_data
         .hints_collection
         .iter_hints()
+        // The bootloader's hint processor runs the simple bootloader's hints.
+        .filter(|hint| {
+            !hint
+                .accessible_scopes
+                .iter()
+                .any(|scope| scope.starts_with("starkware.cairo.bootloaders."))
+        })
         .map(|hint| hint.code.clone())
         .collect()
 }

@@ -69,24 +69,13 @@ pub fn compute_verification_digest(
 pub struct UnsupportedProofFactsTreeNode(pub String);
 
 /// Flattens the proving side's proof tree (`packed_output` of `stwo_run_and_prove_recursive_tree`)
-/// into the pre-order list that the Cairo `write_proof_tree_root_entry` reads.
+/// into the pre-order nodes that the Cairo `write_proof_tree_root_entry` guesses. Only trees of at
+/// least two leaves are guessed, so the single-leaf tree (a root fold over one leaf) is rejected.
 pub fn flatten_proof_facts_tree(
     packed_tree: &PackedNode,
 ) -> Result<Vec<Felt>, UnsupportedProofFactsTreeNode> {
-    let tree = match packed_tree {
-        // A single-leaf tree is a root fold over just the leaf; flatten it as the leaf.
-        PackedNode::Composite { subtasks, .. } => match subtasks.as_slice() {
-            [leaf @ PackedNode::Composite { subtasks: leaf_subtasks, .. }]
-                if matches!(leaf_subtasks.as_slice(), [PackedNode::Plain { .. }]) =>
-            {
-                leaf
-            }
-            _ => packed_tree,
-        },
-        PackedNode::Plain { .. } => packed_tree,
-    };
     let mut flat_tree = Vec::new();
-    write_flat_subtree(tree, &mut flat_tree)?;
+    write_flat_subtree(packed_tree, &mut flat_tree)?;
     Ok(flat_tree)
 }
 
