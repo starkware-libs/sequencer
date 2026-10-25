@@ -39,7 +39,7 @@
   "components.committer.remote_server_config.keepalive_interval_ms": 30000,
   "components.committer.remote_server_config.keepalive_timeout_ms": 10000,
   "components.committer.remote_server_config.max_concurrency": 128,
-  "components.committer.remote_server_config.max_request_body_bytes": "$$$_COMPONENTS-COMMITTER-REMOTE_SERVER_CONFIG-MAX_REQUEST_BODY_BYTES_$$$",
+  "components.committer.remote_server_config.max_request_body_bytes": 16777216,
   "components.committer.remote_server_config.max_streams_per_connection": 8,
   "components.committer.remote_server_config.set_tcp_nodelay": true,
   "components.committer.url": "$$$_COMPONENTS-COMMITTER-URL_$$$",

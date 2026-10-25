@@ -6,4 +6,3 @@ config:
     gateway_config.static_config.proof_archive_writer_config.bucket_name: starkware-starknet-mainnet
     gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v1: true
     gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2: false
-    gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.minor: 5

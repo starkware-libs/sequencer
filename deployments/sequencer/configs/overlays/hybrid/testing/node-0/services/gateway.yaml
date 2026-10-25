@@ -27,7 +27,6 @@ config:
     gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2: true
     gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size: 81920
     gateway_config.static_config.stateless_tx_validator_config.min_gas_price: 3000000000
-    gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.minor: 1
     http_server_config.static_config.port: 8080
 
 service:

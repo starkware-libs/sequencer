@@ -10,4 +10,3 @@ config:
     base_layer_config.bpo2_start_block_number: 24168146
     base_layer_config.fusaka_no_bpo_start_block_number: 23934586
     base_layer_config.starknet_contract_address: '0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4'
-    l1_gas_price_provider_config.chainlink_oracle_config.sampling_interval_seconds: 300

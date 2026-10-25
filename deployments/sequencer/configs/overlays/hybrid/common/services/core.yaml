@@ -33,7 +33,6 @@ config:
     components.class_manager.port: 55001
     components.class_manager.url: sequencer-core-service
     components.committer.port: 55013
-    components.committer.remote_client_config.max_response_body_bytes: 8388608
     components.committer.url: sequencer-committer-service
     components.l1_events_provider.port: 55004
     components.l1_events_provider.url: sequencer-l1-service
