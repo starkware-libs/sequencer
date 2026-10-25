@@ -48,9 +48,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
             InfraPortAllocator::new(ports, HYBRID_NODE_REQUIRED_PORTS_NUM);
         let batcher = Self::Core.component_config_pair(infra_port_allocator.next());
         let class_manager = Self::Core.component_config_pair(infra_port_allocator.next());
-        let committer = Self::Committer
-            .component_config_pair(infra_port_allocator.next())
-            .with_max_body_bytes(
+        let committer =
+            Self::Committer.component_config_pair(infra_port_allocator.next()).with_max_body_bytes(
                 COMMITTER_MAX_REQUEST_BODY_BYTES,
                 COMMITTER_MAX_RESPONSE_BODY_BYTES,
             );
