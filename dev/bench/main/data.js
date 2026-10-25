@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792586056002,
+  "lastUpdate": 1792917443566,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7887,6 +7887,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1393.3335490299999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2c9479123f0789b24583a84d155de67ee69831a1",
+          "message": "echonet: support the hybrid sequencer layout (#15184)\n\n* echonet: support the hybrid sequencer layout\n\n`sequencer_layout` in the keys file (default consolidated) selects the sequencer workloads echonet\nrestarts together, the service whose config it patches and logs it reads, and the HTTP service it\nforwards transactions to.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* echonet: name sequencer layouts with an enum and scale down every layout on deploy\n\nSequencerLayout is a keyword-only frozen dataclass, keyed by a SequencerLayoutName enum. Deploy scales\ndown the existing workloads of every layout, so switching layouts tears down the old one, and rejects an\nunknown `sequencer_layout` before anything is torn down.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-25T08:08:50Z",
+          "tree_id": "ad24add15dbab0d9ae166207756c5db52957b4a6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2c9479123f0789b24583a84d155de67ee69831a1"
+        },
+        "date": 1792917443039,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 803.20484255,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1376.0689043,
             "unit": "ms"
           }
         ]
