@@ -99,6 +99,7 @@ define_string_enum! {
         (LeftChild),
         (NSelectedBuiltins),
         (Node),
+        (ProofTreeNodes),
         (RightChild),
         (SyscallHandlerType),
         (UseKzgDa),
