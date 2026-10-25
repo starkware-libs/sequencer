@@ -33,6 +33,9 @@ use crate::test_utils::FIX_BINARY_NAME;
 
 const SERVICES_DIR_NAME: &str = "services/";
 const REMOTE_SERVICE_URL_PLACEHOLDER: &str = "remote_service";
+// Body limits for traffic to and from the committer (the live mainnet values).
+pub(crate) const COMMITTER_MAX_REQUEST_BODY_BYTES: usize = 16 * 1024 * 1024;
+pub(crate) const COMMITTER_MAX_RESPONSE_BODY_BYTES: usize = 64 * 1024 * 1024;
 
 // TODO(Tsabary): remove ports and mempool ttl from this list.
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
@@ -49,6 +52,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.static_config.block_builder_config.execute_config.n_workers",
+    "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode",
     "batcher_config.static_config.first_block_with_partial_block_hash.#is_none",
     "batcher_config.static_config.first_block_with_partial_block_hash.block_hash",
     "batcher_config.static_config.first_block_with_partial_block_hash.block_number",
@@ -83,8 +87,11 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "eth_fee_token_address",
     "gateway_config.static_config.authorized_declarer_accounts.#is_none",
     "gateway_config.static_config.authorized_declarer_accounts",
+    "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode",
     "gateway_config.static_config.proof_archive_writer_config.bucket_name",
     "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap",
+    "gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v1",
+    "gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2",
     "gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size",
     "gateway_config.static_config.stateless_tx_validator_config.min_gas_price",
     "http_server_config.static_config.port",
@@ -423,6 +430,18 @@ impl ComponentConfigPair {
 
     pub(crate) fn remote(&self) -> ReactiveComponentExecutionConfig {
         self.remote.clone()
+    }
+
+    /// Sets the largest request the component's server accepts and the largest response its
+    /// clients accept.
+    pub(crate) fn with_max_body_bytes(
+        mut self,
+        max_request_body_bytes: usize,
+        max_response_body_bytes: usize,
+    ) -> Self {
+        self.local = self.local.with_max_request_body_bytes(max_request_body_bytes);
+        self.remote = self.remote.with_max_response_body_bytes(max_response_body_bytes);
+        self
     }
 }
 

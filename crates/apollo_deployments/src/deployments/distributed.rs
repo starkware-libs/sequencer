@@ -11,7 +11,13 @@ use strum::{AsRefStr, Display, EnumIter, IntoEnumIterator};
 
 use crate::deployment_definitions::{ComponentConfigInService, RETRIES_FOR_L1_SERVICES};
 use crate::scale_policy::ScalePolicy;
-use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::service::{
+    GetComponentConfigs,
+    NodeService,
+    ServiceNameInner,
+    COMMITTER_MAX_REQUEST_BODY_BYTES,
+    COMMITTER_MAX_RESPONSE_BODY_BYTES,
+};
 use crate::utils::InfraPortAllocator;
 
 // Number of infra-required ports for a distributed node service distribution.
@@ -49,7 +55,11 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             InfraPortAllocator::new(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
         let batcher = Self::Batcher.component_config_pair(infra_port_allocator.next());
         let class_manager = Self::ClassManager.component_config_pair(infra_port_allocator.next());
-        let committer = Self::Committer.component_config_pair(infra_port_allocator.next());
+        let committer =
+            Self::Committer.component_config_pair(infra_port_allocator.next()).with_max_body_bytes(
+                COMMITTER_MAX_REQUEST_BODY_BYTES,
+                COMMITTER_MAX_RESPONSE_BODY_BYTES,
+            );
         let gateway = Self::Gateway.component_config_pair(infra_port_allocator.next());
         let l1_gas_price_provider = Self::L1.component_config_pair(infra_port_allocator.next());
         let l1_events_provider = Self::L1.component_config_pair(infra_port_allocator.next());

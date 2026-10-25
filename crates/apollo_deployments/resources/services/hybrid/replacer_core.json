@@ -48,7 +48,7 @@
   "components.committer.remote_client_config.idle_connections": 10,
   "components.committer.remote_client_config.initial_retry_delay_ms": 1,
   "components.committer.remote_client_config.keepalive_timeout_ms": 30000,
-  "components.committer.remote_client_config.max_response_body_bytes": 8388608,
+  "components.committer.remote_client_config.max_response_body_bytes": 67108864,
   "components.committer.remote_client_config.max_retry_interval_ms": 1000,
   "components.committer.remote_client_config.request_timeout_ms": 30000,
   "components.committer.remote_client_config.retries": 15,
