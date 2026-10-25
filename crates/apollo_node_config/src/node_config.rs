@@ -25,6 +25,7 @@ use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
+use url::Url;
 use validator::{Validate, ValidationError};
 
 use crate::component_config::{ComponentConfig, ValidateTxIngestionComponentsDisabled};
@@ -239,8 +240,6 @@ impl SequencerNodeConfig {
     }
 
     fn cross_member_validations(&self) -> Result<(), ConfigError> {
-        self.validate_echonet_requires_consolidated()?;
-
         macro_rules! validate_component_config_is_set_iff_running_locally {
             ($component_field:ident, $config_field:ident) => {{
                 // The component config should be set iff its running locally.
@@ -536,29 +535,25 @@ impl SequencerNodeConfig {
         Ok(())
     }
 
-    /// In Echonet mode the gateway sets the process-global effective Starknet version at startup
-    /// (`set_effective_latest_version`), so versioned-constants lookups use the replayed network's
-    /// version. That override lives only in the gateway process's memory, so the batcher, which
-    /// executes with those versioned constants, must run in the same process. Require a
-    /// consolidated deployment.
-    fn validate_echonet_requires_consolidated(&self) -> Result<(), ConfigError> {
-        // A `Some` gateway_config means the gateway runs locally in this process, i.e. this is the
-        // process that sets the version.
-        let Some(gateway_config) = &self.gateway_config else {
-            return Ok(());
-        };
-        if gateway_config.static_config.behavior_mode == BehaviorMode::Echonet
-            && !self.components.batcher.is_running_locally()
-        {
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: "Echonet behavior mode requires a consolidated \
-                                            deployment: the batcher must run in the same process \
-                                            as the gateway, which sets the effective Starknet \
-                                            version process-locally."
-                    .to_string(),
-            });
-        }
-        Ok(())
+    /// The recorder URL of a component this process runs in Echonet mode, if any.
+    pub fn echonet_recorder_url(&self) -> Option<&Url> {
+        let is_echonet = |behavior_mode: &BehaviorMode| *behavior_mode == BehaviorMode::Echonet;
+        let consensus = self
+            .consensus_manager_config
+            .as_ref()
+            .filter(|config| is_echonet(&config.context_config.static_config.behavior_mode));
+        let gateway = self
+            .gateway_config
+            .as_ref()
+            .filter(|config| is_echonet(&config.static_config.behavior_mode));
+        let mempool = self
+            .mempool_config
+            .as_ref()
+            .filter(|config| is_echonet(&config.static_config.behavior_mode));
+        consensus
+            .map(|config| &config.cende_config.recorder_url)
+            .or(gateway.map(|config| &config.static_config.recorder_url))
+            .or(mempool.map(|config| &config.static_config.recorder_url))
     }
 
     /// Validates that when `validation_only=true`, all tx-ingestion components are disabled.
