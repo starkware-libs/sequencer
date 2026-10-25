@@ -91,7 +91,6 @@ func write_proof_tree_root_entry{range_check_ptr}(
         return ();
     }
 
-    // Only a tree of at least two leaves is guessed, so only it needs the proof tree.
     %{ LoadProofFactsTree %}
     write_guessed_proof_tree_root_entry(
         n_proof_facts=n_proof_facts, proof_facts_list=proof_facts_list, root_entry=root_entry

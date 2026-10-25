@@ -331,7 +331,6 @@ fn multi_block0_output(full_output: bool, with_proof_facts: bool) -> Vec<Felt> {
         // Messages to L2.
         vec![MSG_TO_L2_0.len().into()],
         MSG_TO_L2_0.to_vec(),
-        // Proof facts, only in the full output: the first two golden leaves', if any.
         if full_output { serialize_tx_proof_facts(tx_proof_facts) } else { vec![] },
     ]
     .concat();
@@ -434,7 +433,6 @@ fn multi_block1_output(
         // Messages to L2.
         vec![MSG_TO_L2_1.len().into()],
         MSG_TO_L2_1.to_vec(),
-        // Proof facts, only in the full output: the third golden leaf's, if any.
         if full_output { serialize_tx_proof_facts(&tx_proof_facts) } else { vec![] },
     ]
     .concat();
@@ -647,7 +645,6 @@ fn combined_output(full_output: bool, use_kzg_da: bool, with_proof_facts: bool) 
         vec![Felt::from(MSG_TO_L2_0.len() + MSG_TO_L2_1.len())],
         MSG_TO_L2_0.to_vec(),
         MSG_TO_L2_1.to_vec(),
-        // Proof facts, only in the full output: the two multi-blocks' lists, joined.
         if full_output { serialize_tx_proof_facts(tx_proof_facts) } else { vec![] },
         if use_kzg_da { vec![] } else { da },
     ]
@@ -663,8 +660,6 @@ fn serialize_tx_proof_facts(tx_proof_facts: &[[Felt; GOLDEN_PROOF_FACTS_SIZE]]) 
         .collect()
 }
 
-/// The proving side's tree of the three golden leaves' proofs: the first two fold together, and the
-/// third is carried up to fold with them at the root.
 fn proof_facts_tree() -> PackedNode {
     packed_fold(vec![packed_fold(vec![packed_leaf(), packed_leaf()]), packed_leaf()])
 }
