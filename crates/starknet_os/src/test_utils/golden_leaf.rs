@@ -94,8 +94,6 @@ const CIRCUIT_VERIFIER_EXECUTABLE_GZ: &[u8] = include_bytes!(
 );
 const GOLDEN_PROCESSED_PROOF_GZ: &[u8] =
     include_bytes!("../../resources/circuit_verifier/one_leaf_root_proof.json.gz");
-/// The root proof of the three golden leaves' tree, folded by `stwo_run_and_prove_recursive_tree`
-/// at proving commit `b75d21f9`.
 const GOLDEN_THREE_LEAF_ROOT_PROOF_GZ: &[u8] =
     include_bytes!("../../resources/circuit_verifier/three_leaf_root_proof.json.gz");
 
