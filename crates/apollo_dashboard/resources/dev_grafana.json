@@ -861,9 +861,7 @@
           "exprs": [
             "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)"
           ],
-          "extra_params": {
-            "log_query": "\"Adding transaction to mempool\""
-          }
+          "extra_params": {}
         },
         {
           "title": "Transactions Committed",

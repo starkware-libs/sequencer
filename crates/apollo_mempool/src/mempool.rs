@@ -584,7 +584,7 @@ impl Mempool {
 
     fn add_tx_inner(&mut self, args: AddTransactionArgs) {
         let AddTransactionArgs { tx, account_state } = args;
-        info!("Adding transaction to mempool.");
+        trace!("Adding transaction to mempool.");
         trace!("{tx:#?}");
 
         let tx_reference = TransactionReference::new(&tx);
