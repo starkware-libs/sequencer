@@ -109,6 +109,14 @@ impl CommonHintProcessor for AggregatorHintProcessor<'_> {
         self.input.public_keys.as_deref()
     }
 
+    fn get_proof_facts_tree(&self) -> Option<&PackedNode> {
+        self.input.proof_facts_tree.as_ref()
+    }
+
+    fn get_proof_facts_verifier_task(&self) -> Option<&CircuitVerifierTaskInput> {
+        self.input.proof_facts_verifier_task.as_ref()
+    }
+
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
         panic!("Aggregator should not use randomness.");
     }

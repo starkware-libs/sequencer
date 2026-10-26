@@ -98,6 +98,8 @@ impl From<VirtualOsBlockInput> for OsHints {
             os_block_inputs: vec![os_block_input],
             deprecated_compiled_classes: BTreeMap::new(),
             compiled_classes: virtual_os_block_input.compiled_classes,
+            proof_facts_tree: None,
+            proof_facts_verifier_task: None,
         };
 
         OsHints {
