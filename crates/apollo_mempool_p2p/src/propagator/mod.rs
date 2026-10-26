@@ -104,7 +104,7 @@ impl MempoolP2pPropagator {
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorResult<()> {
-        debug!(
+        trace!(
             "Continuing propagation of received transaction. Transaction metadata: {:?}",
             broadcasted_message_metadata
         );
