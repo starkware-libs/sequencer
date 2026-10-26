@@ -1016,6 +1016,8 @@ impl<S: FlowTestState> TestBuilder<S> {
             os_block_inputs,
             deprecated_compiled_classes: self.execution_contracts.executed.deprecated_contracts,
             compiled_classes: self.execution_contracts.executed.contracts,
+            proof_facts_tree: None,
+            proof_facts_verifier_task: None,
         };
         let os_hints =
             OsHints { os_input: starknet_os_input, os_hints_config: self.os_hints_config };

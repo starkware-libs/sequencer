@@ -42,18 +42,6 @@
     "StatelessHint": "ComputeCommitmentsOnFinalizedStateWithAliases"
   },
   {
-    "StatelessHint": "DictionaryFromBucket"
-  },
-  {
-    "StatelessHint": "GetPrevOffset"
-  },
-  {
-    "StatelessHint": "CompressionHint"
-  },
-  {
-    "StatelessHint": "SetDecompressedDst"
-  },
-  {
     "StatelessHint": "SegmentsAddTempInitialTxsRangeCheckPtr"
   },
   {
@@ -105,16 +93,7 @@
     "StatelessHint": "SearchSortedOptimistic"
   },
   {
-    "StatelessHint": "Log2Ceil"
-  },
-  {
     "StatelessHint": "SetStateUpdatesStart"
-  },
-  {
-    "StatelessHint": "SetCompressedStart"
-  },
-  {
-    "StatelessHint": "SetNUpdatesSmall"
   },
   {
     "StatelessHint": "IsCaseRight"
