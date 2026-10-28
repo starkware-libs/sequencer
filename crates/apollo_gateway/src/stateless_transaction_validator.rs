@@ -265,6 +265,11 @@ impl StatelessTransactionValidator {
         &self,
         tx: &RpcInvokeTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
+        // Replayed txs were accepted under their block's protocol version, so only the
+        // blockifier's per-version gate applies (e.g. 0.14.4 still allows V1).
+        if self.behavior_mode == BehaviorMode::Echonet {
+            return Ok(());
+        }
         let RpcInvokeTransaction::V3(tx) = tx;
         let Ok(ProofFactsVariant::Snos(snos_proof_facts)) =
             ProofFactsVariant::try_from(&tx.proof_facts)
