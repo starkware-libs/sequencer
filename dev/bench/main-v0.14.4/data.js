@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792413789308,
+  "lastUpdate": 1793177510024,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1019,6 +1019,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1226.79330165,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3a10c1ac07ddef02eb1ba1a80acc09e2da6c3a37",
+          "message": "workspace: upgrade cairo-native to v0.9.0-rc.9 (#15261)\n\nClaude-Session: https://claude.ai/code/session_01X6L1QTSz3DgKXZiiJUiHus\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-10-28T08:11:34Z",
+          "tree_id": "afed1bdd7dee7900a4a95f4015b98354e9a27c5c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3a10c1ac07ddef02eb1ba1a80acc09e2da6c3a37"
+        },
+        "date": 1793177509473,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 828.79340199,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1353.83904491,
             "unit": "ms"
           }
         ]
