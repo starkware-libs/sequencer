@@ -708,6 +708,27 @@ fn test_allow_proof_version(#[case] proof_version: ProofVersion, #[case] should_
     }
 }
 
+// In Echonet mode the version gate is left to the blockifier, which applies the replayed block's
+// protocol version.
+#[rstest]
+#[case::v0(ProofVersion::V0)]
+#[case::v1(ProofVersion::V1)]
+#[case::v2(ProofVersion::V2)]
+fn test_allow_proof_version_in_echonet_mode(#[case] proof_version: ProofVersion) {
+    let mut proof_facts = create_valid_proof_facts_for_testing();
+    Arc::make_mut(&mut proof_facts.0)[0] = proof_version.as_felt();
+    let tx = rpc_tx_for_testing(
+        TransactionType::Invoke,
+        RpcTransactionArgs { proof_facts, proof: Proof::proof_for_testing(), ..Default::default() },
+    );
+    let tx_validator = StatelessTransactionValidator {
+        config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+        behavior_mode: BehaviorMode::Echonet,
+    };
+
+    assert_matches!(tx_validator.validate(&tx), Ok(()));
+}
+
 // Tests that the proof facts and the proof must be either both empty or both non-empty.
 #[rstest]
 #[case::both_empty(ProofFacts::default(), Proof::default(), true)]
