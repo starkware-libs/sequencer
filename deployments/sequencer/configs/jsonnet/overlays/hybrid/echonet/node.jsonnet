@@ -108,8 +108,6 @@ local echonetOverrides = {
         max_allowed_nonce_gap: 500,
       },
       stateless_tx_validator_config: {
-        // Replayed mainnet private txs carry V1 proof facts; main defaults V1 to rejected.
-        allow_proof_version_v1: true,
         max_contract_class_object_size: 8089446,
         max_sierra_version: { patch: 1 },
       },
