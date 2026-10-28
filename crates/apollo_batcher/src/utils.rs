@@ -5,6 +5,7 @@ use apollo_batcher_types::errors::BatcherError;
 use blockifier::abi::constants;
 use chrono::Utc;
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
 use crate::block_builder::BlockBuilderError;
@@ -21,6 +22,7 @@ pub(crate) struct ProposalTask {
     // Optional handle for awaiting completion of the pre-confirmed block writer task,
     // which streams transaction execution states to Cende during block construction.
     pub writer_join_handle: Option<tokio::task::JoinHandle<()>>,
+    pub writer_cancellation_token: Option<CancellationToken>,
 }
 
 pub(crate) fn deadline_as_instant(
