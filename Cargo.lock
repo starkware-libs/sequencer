@@ -4921,9 +4921,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.9.0-rc.8"
+version = "0.9.0-rc.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73b70c1dceaeb725deb9cb9ff61e43394d5eb0c1d3b5c4d00f4cf04f883aede0"
+checksum = "385a19aa0c7e747f8d1228c3278a556252c61353f98eac1cc5258f8bfe6409bc"
 dependencies = [
  "aquamarine",
  "ark-ec 0.5.0",
@@ -4994,9 +4994,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-starknet-syscalls"
-version = "0.9.0-rc.8"
+version = "0.9.0-rc.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f40b20f2153d7110b1559e9d36d7a6903355e5c99929ed56f09fcd4d3dc583b"
+checksum = "7a1745da5bd68f092189b800561932ac88d8d5896e5c35bdde85e9fbd61988b6"
 dependencies = [
  "serde",
  "starknet-types-core",
