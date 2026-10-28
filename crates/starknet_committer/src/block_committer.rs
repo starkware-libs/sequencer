@@ -2,6 +2,8 @@ pub mod commit;
 #[cfg(test)]
 pub mod commit_test;
 pub mod errors;
+#[cfg(any(feature = "testing", test))]
+pub mod in_memory_commit;
 pub mod input;
 pub mod measurements_util;
 #[cfg(any(feature = "testing", test))]
