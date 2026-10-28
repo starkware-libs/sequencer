@@ -13,6 +13,7 @@ use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use crate::cende_client_types::{
@@ -41,6 +42,8 @@ pub type PreconfirmedTxSender = tokio::sync::mpsc::Sender<(
 /// Coordinates the flow of pre-confirmed block data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
 /// Cende client to communicate the updates to the Cende recorder.
+/// Closing the transaction channel flushes everything received so far; cancelling the writer ends
+/// it without that final write, so a proposal that failed to build never reaches the feed.
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait PreconfirmedBlockWriterTrait: Send {
@@ -52,6 +55,7 @@ pub struct PreconfirmedBlockWriter {
     pre_confirmed_tx_receiver: PreconfirmedTxReceiver,
     cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     write_block_interval_millis: u64,
+    cancellation_token: CancellationToken,
 }
 
 impl PreconfirmedBlockWriter {
@@ -60,12 +64,14 @@ impl PreconfirmedBlockWriter {
         pre_confirmed_tx_receiver: PreconfirmedTxReceiver,
         cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
         write_block_interval_millis: u64,
+        cancellation_token: CancellationToken,
     ) -> Self {
         Self {
             pre_confirmed_block_writer_input,
             pre_confirmed_tx_receiver,
             cende_client,
             write_block_interval_millis,
+            cancellation_token,
         }
     }
 
@@ -147,6 +153,15 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
 
         loop {
             tokio::select! {
+                biased;
+                () = self.cancellation_token.cancelled() => {
+                    info!(
+                        "Pre confirmed block writer cancelled, dropping {} buffered transactions \
+                         without a final write",
+                        transactions_map.len()
+                    );
+                    return;
+                }
                 _ = write_pre_confirmed_txs_timer.tick() => {
                     // TODO(noamsp): Extract to a function.
                     // Only send if there are pending changes to avoid unnecessary calls
@@ -213,7 +228,7 @@ pub trait PreconfirmedBlockWriterFactoryTrait: Send + Sync {
         block_number: BlockNumber,
         proposal_round: Round,
         block_metadata: CendeBlockMetadata,
-    ) -> (Box<dyn PreconfirmedBlockWriterTrait>, PreconfirmedTxSender);
+    ) -> (Box<dyn PreconfirmedBlockWriterTrait>, PreconfirmedTxSender, CancellationToken);
 }
 
 pub struct PreconfirmedBlockWriterFactory {
@@ -227,10 +242,11 @@ impl PreconfirmedBlockWriterFactoryTrait for PreconfirmedBlockWriterFactory {
         block_number: BlockNumber,
         round: Round,
         block_metadata: CendeBlockMetadata,
-    ) -> (Box<dyn PreconfirmedBlockWriterTrait>, PreconfirmedTxSender) {
+    ) -> (Box<dyn PreconfirmedBlockWriterTrait>, PreconfirmedTxSender, CancellationToken) {
         info!("Create pre confirmed block writer for block {block_number}, round {round}");
         let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.channel_buffer_capacity);
+        let cancellation_token = CancellationToken::new();
 
         let cende_client = self.cende_client.clone();
 
@@ -242,8 +258,9 @@ impl PreconfirmedBlockWriterFactoryTrait for PreconfirmedBlockWriterFactory {
             pre_confirmed_tx_receiver,
             cende_client,
             self.config.write_block_interval_millis,
+            cancellation_token.clone(),
         ));
-        (pre_confirmed_block_writer, pre_confirmed_tx_sender)
+        (pre_confirmed_block_writer, pre_confirmed_tx_sender, cancellation_token)
     }
 }
 

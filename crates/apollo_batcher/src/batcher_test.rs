@@ -108,6 +108,7 @@ use starknet_api::{class_hash, invoke_tx_args, tx_hash};
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio_util::sync::CancellationToken;
 use validator::Validate;
 
 use crate::batcher::{
@@ -147,6 +148,10 @@ use crate::metrics::{
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SYNCED_TRANSACTIONS,
+};
+use crate::pre_confirmed_block_writer::{
+    MockPreconfirmedBlockWriterFactoryTrait,
+    MockPreconfirmedBlockWriterTrait,
 };
 use crate::test_utils::{
     get_number_of_items_in_channel_from_receiver,
@@ -3098,4 +3103,66 @@ async fn block_info_reports_the_committed_data_availability_mode(
     let block_info = batcher.get_block_info(LAST_COMMITTED_HEIGHT).unwrap();
 
     assert_eq!(block_info.use_kzg_da, l1_da_mode.is_use_kzg_da());
+}
+
+fn pre_confirmed_block_writer_factory_with_token(
+    cancellation_token: CancellationToken,
+) -> MockPreconfirmedBlockWriterFactoryTrait {
+    let mut factory = MockPreconfirmedBlockWriterFactoryTrait::new();
+    factory.expect_create().return_once(move |_, _, _| {
+        let (pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+        let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
+        mock_writer.expect_run().return_once(|| ());
+        (mock_writer, pre_confirmed_tx_sender, cancellation_token)
+    });
+    factory
+}
+
+async fn propose_block_and_await(
+    build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
+    cancellation_token: CancellationToken,
+) {
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    mock_create_builder_for_propose_block(&mut block_builder_factory, vec![], build_block_result);
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut batcher = create_batcher(MockDependencies {
+        clients: MockClients {
+            block_builder_factory,
+            l1_provider_client,
+            pre_confirmed_block_writer_factory: pre_confirmed_block_writer_factory_with_token(
+                cancellation_token,
+            ),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .await;
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+}
+
+/// A proposal that fails to build (here: aborted) cancels its pre-confirmed block writer, so the
+/// discarded proposal is never flushed to the feed.
+#[rstest]
+#[tokio::test]
+async fn failed_proposal_cancels_pre_confirmed_block_writer() {
+    let cancellation_token = CancellationToken::new();
+    propose_block_and_await(Err(BlockBuilderError::Aborted), cancellation_token.clone()).await;
+    assert!(cancellation_token.is_cancelled());
+}
+
+/// A proposal that builds successfully leaves its writer to flush on channel close.
+#[rstest]
+#[tokio::test]
+async fn successful_proposal_keeps_pre_confirmed_block_writer() {
+    let cancellation_token = CancellationToken::new();
+    propose_block_and_await(
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
+        cancellation_token.clone(),
+    )
+    .await;
+    assert!(!cancellation_token.is_cancelled());
 }
