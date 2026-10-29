@@ -111,9 +111,6 @@ pub struct ContextStaticConfig {
     /// When adding a synced block, fetch its accessed keys from the recorder so the node can build
     /// the state commitment infos locally.
     pub fetch_accessed_keys_from_centralized: bool,
-    /// For each height whose state commitment infos are sent to the cende recorder, send an empty
-    /// object instead of the one stored by the batcher.
-    pub send_empty_state_commitment_infos_only: bool,
 }
 
 impl Default for ContextStaticConfig {
@@ -129,7 +126,6 @@ impl Default for ContextStaticConfig {
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
             behavior_mode: BehaviorMode::default(),
             fetch_accessed_keys_from_centralized: false,
-            send_empty_state_commitment_infos_only: false,
         }
     }
 }
