@@ -52,6 +52,33 @@ pub enum RunnerError {
     TaskJoin(#[from] tokio::task::JoinError),
 }
 
+impl RunnerError {
+    /// Returns the fixed log reason naming the runner step that failed. Unlike the error text, it
+    /// carries no transaction data or node URL, so it is safe to log. Proof provider failures also
+    /// name the provider error, so a failed RPC call reads differently from a malformed proof
+    /// response.
+    pub fn log_reason(&self) -> &'static str {
+        match self {
+            RunnerError::ClassesProvider(_) => "classes_provider",
+            RunnerError::ProofProvider(proof_provider_error) => match proof_provider_error {
+                ProofProviderError::InvalidStateDiff(_) => "proof_provider_invalid_state_diff",
+                ProofProviderError::Rpc(_) => "proof_provider_rpc",
+                ProofProviderError::UpstreamRpcError { .. } => "proof_provider_upstream_rpc",
+                ProofProviderError::SerializationError(_) => "proof_provider_serialization",
+                ProofProviderError::InvalidProofResponse(_) => {
+                    "proof_provider_invalid_proof_response"
+                }
+                ProofProviderError::BlockCommitmentError(_) => "proof_provider_block_commitment",
+            },
+            RunnerError::VirtualBlockExecutor(_) => "virtual_block_executor",
+            RunnerError::OsExecution(_) => "os_execution",
+            RunnerError::InputGenerationError(_) => "input_generation",
+            RunnerError::TransactionHashError(_) => "transaction_hash",
+            RunnerError::TaskJoin(_) => "task_join",
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ProofProviderError {
     #[error("Invalid state diff: {0}")]
@@ -139,6 +166,13 @@ pub enum ProvingError {
 }
 
 /// Error type for the virtual SNOS prover.
+///
+/// Never log an error's `Display` text. These failures reach the operator's log aggregator, and
+/// every payload-carrying variant can embed data derived from the client's transaction:
+/// `InvalidTransactionInput` quotes the fee inputs, a reverted transaction carries its hash and
+/// revert reason, runner, output-parse and proving errors can quote transaction-derived program
+/// output, and a transport error renders the node URL with any credentials in it. Log
+/// [`Self::metric_outcome`] instead, which is a bounded label set.
 #[derive(Debug, Error)]
 pub enum VirtualSnosProverError {
     #[error("Invalid transaction type: {0}")]

@@ -19,7 +19,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn, Instrument, Span};
 use url::Url;
 
 use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
@@ -189,20 +189,30 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         block_id: BlockId,
         transaction: RpcTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
-        // Validate block_id is not pending.
+        // Origin logs carry only bounded event and reason codes, never the error text. See
+        // `VirtualSnosProverError` for why.
         if matches!(block_id, BlockId::Pending) {
+            warn!(event = "validation_error", reason = "pending_block_unsupported");
             return Err(VirtualSnosProverError::ValidationError(
                 "Pending blocks are not supported; only finalized blocks can be proven."
                     .to_string(),
             ));
         }
 
-        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone())?;
-        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
+        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone()).inspect_err(|_err| {
+            warn!(event = "validation_error", reason = "non_invoke_transaction");
+        })?;
+        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields).inspect_err(
+            |_err| {
+                warn!(event = "validation_error", reason = "invalid_transaction_input");
+            },
+        )?;
         let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
         match &self.blocking_check_client {
-            None => self.run_and_prove(block_id, vec![invoke_tx]).await,
+            None => {
+                self.run_and_prove(block_id, vec![invoke_tx]).await.inspect_err(log_pipeline_error)
+            }
             Some(client) => {
                 self.prove_with_blocking_check(client, block_id, transaction, invoke_tx).await
             }
@@ -259,10 +269,13 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         invoke_tx: InvokeTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         // Kick off proving in parallel with the check. Clone is cheap: inner fields are
-        // Arcs or small configs.
+        // Arcs or small configs. `instrument` carries the ambient tracing span (request id and
+        // tx fields) into the spawned task, which starts without a span otherwise.
         let prover = self.clone();
-        let prove_handle =
-            tokio::spawn(async move { prover.run_and_prove(block_id, vec![invoke_tx]).await });
+        let prove_handle = tokio::spawn(
+            async move { prover.run_and_prove(block_id, vec![invoke_tx]).await }
+                .instrument(Span::current()),
+        );
 
         let timeout_duration = std::time::Duration::from_millis(client.timeout_millis);
         let check_outcome =
@@ -296,7 +309,7 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         }
 
         let mut result = match prove_handle.await {
-            Ok(prove_result) => prove_result?,
+            Ok(prove_result) => prove_result.inspect_err(log_pipeline_error)?,
             Err(err) if err.is_panic() => std::panic::resume_unwind(err.into_panic()),
             Err(err) => unreachable!("prove task cancelled unexpectedly: {err}"),
         };
@@ -344,6 +357,18 @@ fn record_prove_transaction_metrics<T>(
         .record(total_duration.as_secs_f64());
     metrics::counter!(names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome).increment(1);
     outcome
+}
+
+/// Logs the stage where a `run_and_prove` failure started. Callers log where they consume the
+/// result, not inside `run_and_prove`, so a background proof that a blocking check discards leaves
+/// no failure record in the request's span.
+fn log_pipeline_error(err: &VirtualSnosProverError) {
+    match err {
+        VirtualSnosProverError::RunnerError(runner_error) => {
+            warn!(event = "os_run_error", reason = runner_error.log_reason());
+        }
+        _ => warn!(event = "proving_error", outcome = err.metric_outcome()),
+    }
 }
 
 /// Proves a Virtual Starknet OS run fdirectly from a `RunnerOutput`.

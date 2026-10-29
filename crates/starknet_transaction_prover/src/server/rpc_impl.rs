@@ -101,7 +101,15 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         let (_worker_slot_guard, _permit) = self.acquire_worker_slot().await?;
 
         self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
+            // The origin logs name the step that failed. The prover already logs the outcome of
+            // every call in `prove_transaction completed`. This record repeats it at warn level
+            // so failures stand out. `outcome` is a bounded label set, so it is safe to log. The
+            // error text is not (see `VirtualSnosProverError`).
+            warn!(
+                event = "prove_transaction_failed",
+                outcome = err.metric_outcome(),
+                "prove_transaction failed"
+            );
             ErrorObjectOwned::from(err)
         })
     }
