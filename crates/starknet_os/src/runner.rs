@@ -98,7 +98,14 @@ pub fn run_os<S: StateReader>(
     layout: LayoutName,
     OsHints {
         os_hints_config,
-        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
+        os_input:
+            StarknetOsInput {
+                os_block_inputs,
+                deprecated_compiled_classes,
+                compiled_classes,
+                proof_facts_tree,
+                proof_facts_verifier_task,
+            },
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
@@ -109,6 +116,8 @@ pub fn run_os<S: StateReader>(
         os_block_inputs.iter().collect(),
         deprecated_compiled_classes,
         compiled_classes,
+        proof_facts_tree,
+        proof_facts_verifier_task,
         state_readers,
     )?;
 
@@ -215,7 +224,14 @@ fn validate_tracked_resources(os_block_inputs: &[OsBlockInput]) -> Result<(), St
 pub fn run_virtual_os(
     OsHints {
         os_hints_config,
-        os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
+        os_input:
+            StarknetOsInput {
+                os_block_inputs,
+                deprecated_compiled_classes,
+                compiled_classes,
+                proof_facts_tree,
+                proof_facts_verifier_task,
+            },
     }: OsHints,
 ) -> Result<VirtualOsRunnerOutput, StarknetOsError> {
     // Validate that all tracked resources are SierraGas.
@@ -228,6 +244,8 @@ pub fn run_virtual_os(
         os_block_inputs.iter().collect(),
         deprecated_compiled_classes,
         compiled_classes,
+        proof_facts_tree,
+        proof_facts_verifier_task,
         vec![PanickingStateReader; os_block_inputs.len()],
     )?;
 
