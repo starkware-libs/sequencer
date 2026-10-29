@@ -53,10 +53,10 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 /// - `RequestSpanLayer` sits BELOW `OhttpLayer` so it spans the decapsulated inner request with a
 ///   fresh, envelope-unlinkable id (see `request_span`).
 macro_rules! prover_http_middleware {
-    ($metrics_layer:expr, $cors_layer:expr, $ohttp_layer:expr $(,)?) => {
+    ($health_layer:expr, $metrics_layer:expr, $cors_layer:expr, $ohttp_layer:expr $(,)?) => {
         ServiceBuilder::new()
             .layer(RequestLogLayer)
-            .layer(HealthLayer)
+            .layer($health_layer)
             .layer($metrics_layer)
             .layer(HttpMetricsLayer)
             .option_layer($cors_layer)
@@ -113,6 +113,7 @@ pub struct ServerLayers {
     pub cors_layer: Option<CorsLayer>,
     pub ohttp_layer: Option<OhttpJsonrpseeLayer>,
     pub metrics_layer: MetricsLayer,
+    pub health_layer: HealthLayer,
 }
 
 /// Starts the JSON-RPC server in either HTTP or HTTPS mode depending on the transport.
@@ -126,7 +127,7 @@ pub async fn start_server(
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
-            let ServerLayers { cors_layer, ohttp_layer, metrics_layer } = layers;
+            let ServerLayers { cors_layer, ohttp_layer, metrics_layer, health_layer } = layers;
             let server_config = ServerConfig::builder()
                 .max_connections(max_connections)
                 .max_request_body_size(max_request_body_size)
@@ -134,7 +135,12 @@ pub async fn start_server(
             let server = ServerBuilder::default()
                 .set_config(server_config)
                 // See `prover_http_middleware!` for the full layer-order rationale.
-                .set_http_middleware(prover_http_middleware!(metrics_layer, cors_layer, ohttp_layer))
+                .set_http_middleware(prover_http_middleware!(
+                    health_layer,
+                    metrics_layer,
+                    cors_layer,
+                    ohttp_layer
+                ))
                 .build(&addr)
                 .await
                 .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
