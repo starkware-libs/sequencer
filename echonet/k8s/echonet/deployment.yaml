@@ -98,7 +98,8 @@ spec:
               python -m pip install --no-cache-dir --disable-pip-version-check
               flask gunicorn requests aiohttp 'kubernetes<36' eth_abi 'cairo-lang==0.14.0.1' zstandard &&
               echo "[echonet] starting gunicorn on :80 (1 worker, 8 threads, 300s timeout)" &&
-              gunicorn -w 1 --threads 8 -b 0.0.0.0:80 echonet.echo_center:app --timeout 300 --access-logfile -
+              gunicorn -w 1 --threads 8 -b 0.0.0.0:80 echonet.echo_center:app --timeout 300
+              --keep-alive 75 --access-logfile -
           workingDir: /app
           resources:
             # Sized for 8 OS-runner workers + flask + transient blob parsing
