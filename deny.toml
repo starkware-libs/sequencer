@@ -150,6 +150,10 @@ registries = [
 multiple-versions = "warn"
 # Lint level for when a crate version requirement is `*`
 wildcards = "deny"
+# Workspace path dependencies carry no version requirement. Exempt them from the wildcard check
+# where they cannot reach crates.io anyway: dev-dependencies, and crates marked `publish = false`.
+# A publishable crate's path dependencies still need a version, so those stay reported.
+allow-wildcard-paths = true
 # The graph highlighting used when creating dotgraphs for crates
 # with multiple versions
 # * lowest-version - The path to the lowest versioned duplicate is highlighted
