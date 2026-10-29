@@ -7,7 +7,7 @@ use apollo_gateway_config::config::GatewayConfig;
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncStaticConfig};
-use apollo_storage::{StorageConfig, StorageScope};
+use apollo_storage_config::{StorageConfig, StorageScope};
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::contract_address;
