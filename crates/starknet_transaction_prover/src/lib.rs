@@ -17,6 +17,7 @@
 //! * `cairo_native` — enables Cairo Native compilation via blockifier.
 
 pub(crate) mod blocking_check;
+pub(crate) mod blocking_task;
 pub mod config;
 pub mod errors;
 pub mod proving;
