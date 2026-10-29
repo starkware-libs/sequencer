@@ -17,6 +17,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::InvokeTransaction;
+use tracing_test::traced_test;
 use url::Url;
 
 use crate::blocking_check::BlockingCheckClient;
@@ -83,13 +84,16 @@ async fn prove(prover: &VirtualSnosProver<MockRunner>) -> Result<(), VirtualSnos
 }
 
 #[tokio::test]
+#[traced_test]
 async fn test_no_blocking_check_configured_proceeds_to_proving() {
     let prover = build_prover(MockRunner, None);
     let result = prove(&prover).await;
     assert_runner_error(&result);
+    assert!(logs_contain("os_run_error"), "a runner failure must log where it started");
 }
 
 #[tokio::test]
+#[traced_test]
 async fn test_check_blocked_returns_blocked() {
     let mut server = Server::new_async().await;
     let _mock = server
@@ -105,9 +109,13 @@ async fn test_check_blocked_returns_blocked() {
 
     let result = prove(&prover).await;
     assert_blocked(&result);
+    // The runner fails while the check request is in flight; a blocked request discards that
+    // failure, so its span must not carry an `os_run_error` record.
+    assert!(!logs_contain("os_run_error"), "a discarded proving failure must not be logged");
 }
 
 #[tokio::test]
+#[traced_test]
 async fn test_check_allowed_proceeds_to_proving() {
     let mut server = Server::new_async().await;
     let _mock = server
@@ -123,6 +131,7 @@ async fn test_check_allowed_proceeds_to_proving() {
 
     let result = prove(&prover).await;
     assert_runner_error(&result);
+    assert!(logs_contain("os_run_error"), "an allowed request must log its runner failure");
 }
 
 #[tokio::test]
