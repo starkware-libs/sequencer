@@ -86,7 +86,13 @@ pub mod outcomes {
     /// The blocking check timed out or was inconclusive, and the fail-close policy rejected the
     /// transaction. The client receives the same JSON-RPC error as for `failure_blocked`.
     pub const FAILURE_BLOCKING_CHECK_UNAVAILABLE: &str = "failure_blocking_check_unavailable";
+    /// A runner failure that the client receives as an internal error (-32603). This includes
+    /// reverts other than out-of-gas, so it does not measure service faults alone.
     pub const FAILURE_RUNNER: &str = "failure_runner";
+    /// A runner failure that the client receives with a client-facing JSON-RPC error code. It is
+    /// an out-of-gas revert (1000) or an upstream error with a non-negative i32 code, forwarded
+    /// as-is.
+    pub const FAILURE_RUNNER_CLIENT: &str = "failure_runner_client";
     pub const FAILURE_OUTPUT_PARSE: &str = "failure_output_parse";
     pub const FAILURE_PROVING: &str = "failure_proving";
     pub const FAILURE_UNSUPPORTED_BUILTIN: &str = "failure_unsupported_builtin";
