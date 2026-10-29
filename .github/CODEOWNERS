@@ -4,3 +4,8 @@
 
 # Require approval from the sequencer-cargo-owners team for workspace dependency changes
 /Cargo.toml @starkware-libs/sequencer-cargo-owners
+
+# The blockifier release tooling decides what gets published to crates.io.
+/.github/workflows/blockifier_publish.yml @starkware-libs/sequencer-cargo-owners
+/scripts/publish_blockifier.py @starkware-libs/sequencer-cargo-owners
+/.claude/skills/publish-blockifier/ @starkware-libs/sequencer-cargo-owners
