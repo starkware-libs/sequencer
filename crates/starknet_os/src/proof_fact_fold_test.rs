@@ -24,6 +24,7 @@ use super::{
     Blake2sDigestWords,
     MULTIVERIFIER_CIRCUIT_HASH,
 };
+use crate::hints::vars::Scope;
 use crate::io::os_input::CircuitVerifierTaskInput;
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
@@ -70,8 +71,6 @@ fn tx_proof_facts_arg(proof_facts_list: &[&[Felt]]) -> EndpointArg {
     ))
 }
 
-/// The flattened single-leaf tree.
-const SINGLE_LEAF_FLAT_TREE: [u8; 1] = [0];
 /// The flattened four-leaf tree, in pre-order: the root fold, the fold of the first two leaves, the
 /// two leaves, the fold of the last two leaves, and the two leaves.
 const FOUR_LEAF_FLAT_TREE: [u8; 7] = [1, 1, 0, 0, 1, 0, 0];
@@ -84,10 +83,11 @@ fn golden_proof_facts_copies(n_tx_proof_facts: usize) -> Vec<&'static [Felt]> {
     vec![GOLDEN_PROOF_FACTS.as_slice(); n_tx_proof_facts]
 }
 
-/// Runs the Cairo `write_proof_tree_root_entry` on a flattened tree whose leaves are the given
-/// transactions' proof facts, giving it a pointer to `expected_root_output_digest`, after the
-/// multiverifier's circuit hash, to write the root entry to.
-fn run_cairo_proof_tree_root_entry(
+/// Runs the Cairo `entry_point`, which guesses the nodes of `flat_tree`, on the given transactions'
+/// proof facts. Its output buffer is pre-filled with the expected root entry, so a different root
+/// entry fails the run (Cairo memory is write-once).
+fn run_cairo_root_entry_point(
+    entry_point: &str,
     flat_tree: &[u8],
     tx_proof_facts: &[&[Felt]],
     expected_root_output_digest: &Blake2sDigestWords,
@@ -97,20 +97,20 @@ fn run_cairo_proof_tree_root_entry(
         .chain(expected_root_output_digest)
         .map(|word| Felt::from(*word))
         .collect();
+    let proof_tree_nodes: Box<dyn Any> =
+        Box::new(flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>().into_iter());
     initialize_and_run_cairo_0_entry_point(
         &entrypoint_runner_config(),
         PROOF_FACT_FOLD_BYTES,
-        "write_proof_tree_root_entry",
+        entry_point,
         &[
-            EndpointArg::from(flat_tree.len()),
-            felt_array_arg(&flat_tree.iter().map(|flag| Felt::from(*flag)).collect::<Vec<_>>()),
             EndpointArg::from(tx_proof_facts.len()),
             tx_proof_facts_arg(tx_proof_facts),
             felt_array_arg(&expected_root_entry),
         ],
         &[ImplicitArg::Builtin(BuiltinName::range_check)],
         &[],
-        HashMap::new(),
+        HashMap::from([(String::from(Scope::ProofTreeNodes), proof_tree_nodes)]),
         None,
     )?;
     Ok(())
@@ -136,12 +136,7 @@ fn run_cairo_verify_processed_proof(
     )?;
     run_cairo_0_entrypoint_with_hint_processor(
         entrypoint,
-        &[
-            EndpointArg::from(SINGLE_LEAF_FLAT_TREE.len()),
-            felt_array_arg(&SINGLE_LEAF_FLAT_TREE.map(Felt::from)),
-            EndpointArg::from(1),
-            tx_proof_facts_arg(&[proof_facts]),
-        ],
+        &[EndpointArg::from(1), tx_proof_facts_arg(&[proof_facts])],
         &implicit_args,
         &mut cairo_runner,
         &program,
@@ -218,12 +213,20 @@ fn test_cairo_verify_processed_proof_rejects_other_verifier_program() {
     assert!(error.contains("assert [output_ptr + 1] = program_hash;"), "Unexpected error: {error}");
 }
 
+/// A single transaction's proof facts are a single leaf, whose root is computed without guessing
+/// any node.
+#[test]
+fn test_cairo_single_leaf_proof_tree_root_matches_proving_side_golden() {
+    run_cairo_root_entry_point(
+        "write_proof_tree_root_entry",
+        &[],
+        &golden_proof_facts_copies(1),
+        &GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST,
+    )
+    .unwrap();
+}
+
 #[rstest]
-#[case::single_leaf(
-    &SINGLE_LEAF_FLAT_TREE,
-    golden_proof_facts_copies(1),
-    GOLDEN_PROCESSED_PROOF_OUTPUT_DIGEST
-)]
 #[case::three_leaves_with_carried_leaf(
     &THREE_LEAF_FLAT_TREE,
     GOLDEN_THREE_LEAF_PROOF_FACTS.iter().map(|proof_facts| proof_facts.as_slice()).collect(),
@@ -239,8 +242,13 @@ fn test_cairo_proof_tree_root_matches_proving_side_golden(
     #[case] tx_proof_facts: Vec<&[Felt]>,
     #[case] expected_root_output_digest: Blake2sDigestWords,
 ) {
-    run_cairo_proof_tree_root_entry(flat_tree, &tx_proof_facts, &expected_root_output_digest)
-        .unwrap();
+    run_cairo_root_entry_point(
+        "write_guessed_proof_tree_root_entry",
+        flat_tree,
+        &tx_proof_facts,
+        &expected_root_output_digest,
+    )
+    .unwrap();
 }
 
 /// The tree must use every transaction's proof facts, and no more.
@@ -248,7 +256,8 @@ fn test_cairo_proof_tree_root_matches_proving_side_golden(
 #[case::missing_proof_facts(3)]
 #[case::unused_proof_facts(5)]
 fn test_cairo_proof_tree_root_rejects_other_proof_facts_count(#[case] n_tx_proof_facts: usize) {
-    run_cairo_proof_tree_root_entry(
+    run_cairo_root_entry_point(
+        "write_guessed_proof_tree_root_entry",
         &FOUR_LEAF_FLAT_TREE,
         &golden_proof_facts_copies(n_tx_proof_facts),
         &GOLDEN_FOUR_LEAF_ROOT_OUTPUT_DIGEST,
@@ -258,7 +267,6 @@ fn test_cairo_proof_tree_root_rejects_other_proof_facts_count(#[case] n_tx_proof
 
 /// Each packed tree flattens to the flat tree that the Cairo walk's golden tests use.
 #[rstest]
-#[case::single_leaf(packed_fold(vec![packed_leaf()]), &SINGLE_LEAF_FLAT_TREE)]
 #[case::three_leaves_with_carried_leaf(
     packed_fold(vec![packed_fold(vec![packed_leaf(), packed_leaf()]), packed_leaf()]),
     &THREE_LEAF_FLAT_TREE
@@ -283,6 +291,7 @@ fn test_flatten_proof_facts_tree(
 /// Rejects nodes that are neither a leaf nor a fold of two subtrees.
 #[rstest]
 #[case::preimage(PackedNode::Plain { output_preimage: vec![] })]
+#[case::single_leaf(packed_fold(vec![packed_leaf()]))]
 #[case::fold_of_three(packed_fold(vec![packed_leaf(), packed_leaf(), packed_leaf()]))]
 #[case::fold_with_preimage(packed_fold(vec![packed_leaf(), PackedNode::Plain { output_preimage: vec![] }]))]
 fn test_flatten_proof_facts_tree_rejects_unsupported_node(#[case] packed_tree: PackedNode) {
