@@ -32,14 +32,12 @@ use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_N
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
+use starknet_committer::block_committer::in_memory_commit::commit_state_diff_to_index_db;
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_committer::db::index_db::IndexDb;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_transaction_prover::running::committer_utils::{
-    commit_state_diff_to_index_db,
-    state_maps_to_committer_state_diff,
-};
+use starknet_transaction_prover::running::committer_utils::state_maps_to_committer_state_diff;
 use starknet_types_core::felt::Felt;
 
 use crate::test_manager::{

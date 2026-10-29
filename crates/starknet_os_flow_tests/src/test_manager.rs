@@ -63,6 +63,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_api::{declare_tx_args, invoke_tx_args};
+use starknet_committer::block_committer::in_memory_commit::commit_state_diff_with_witnesses;
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -82,7 +83,6 @@ use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_transaction_prover::running::committer_utils::{
-    commit_state_diff_with_witnesses,
     commitment_state_diff_to_committer_state_diff,
     state_maps_to_committer_state_diff,
 };
