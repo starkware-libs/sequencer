@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793269445286,
+  "lastUpdate": 1793277809742,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7955,6 +7955,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1378.13450681,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f2d0c93a057675f6c9eab7292c2fcb13a6dea24d",
+          "message": "workspace: bump advisory-flagged transitive dependencies in Cargo.lock (#15108)\n\nTargeted lockfile-only bump of the crates carrying open RUSTSEC advisories that\nresolve within the existing version requirements, rather than a blanket\ncargo update.\n\nanyhow 1.0.100 -> 1.0.104\naws-lc-sys 0.33.0 -> 0.45.0\nbytes 1.10.1 -> 1.12.1\nchacha20 0.10.0 -> 0.10.2\ncrossbeam-epoch 0.9.18 -> 0.9.21\nh2 0.4.12 -> 0.4.19\nkeccak 0.1.5 -> 0.1.6\nopenssl 0.10.75 -> 0.10.81\nquinn-proto 0.11.13 -> 0.11.19\nrand 0.8.5 -> 0.8.8\nrkyv 0.8.14 -> 0.8.18\nruint 1.17.0 -> 1.20.0\nrustls 0.23.35 -> 0.23.46\nrustls-webpki 0.103.8 -> 0.103.16\nserde_with 3.15.1 -> 3.22.0\nspin 0.9.8 -> 0.9.9\nthin-vec 0.2.14 -> 0.2.19\ntime 0.3.44 -> 0.3.55\ntokio 1.52.3 -> 1.54.1\nwebpki-root-certs 1.0.5 -> 1.0.11\nwebpki-roots 1.0.4 -> 1.0.11\nyamux 0.13.8 -> 0.13.10\nzstd-sys 2.0.16+zstd.1.5.7 -> 2.1.2+zstd.1.5.7\n\nStill flagged after this bump: h2 0.3.27, hickory-proto 0.25.2, lru\n0.12.5/0.13.0, memmap2 0.8.0, pyo3 0.19.2, crypto-bigint 0.5.5, zip 0.6.6, zstd\n0.13.3 / zstd-safe 7.2.4, and the unmaintained atomic-polyfill, bincode, core2,\nderivative, instant, paste and proc-macro-error2 — each is held back by a\ndependent that would itself have to move (or has no upstream fix), which needs a\nversion-requirement change rather than a lockfile bump.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-29T12:12:07Z",
+          "tree_id": "a68d6c566e75e60e80de1044599811e4be28a5cb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f2d0c93a057675f6c9eab7292c2fcb13a6dea24d"
+        },
+        "date": 1793277808711,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 915.38570892,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1394.84533222,
             "unit": "ms"
           }
         ]
