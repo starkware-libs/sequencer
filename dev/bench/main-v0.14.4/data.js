@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793177510024,
+  "lastUpdate": 1793262676239,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1053,6 +1053,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1353.83904491,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6c2a797e1b4739b00dbfe0b83a02364f736f394",
+          "message": "apollo_batcher: cancel the pre-confirmed writer when a proposal fails to build (#15262)\n\nA proposal that fails to build (aborted or errored) never becomes a block, yet the\nwriter flushed everything it had buffered once the block builder dropped the channel,\nso the feed could show transactions of a discarded proposal. The writer now carries a\ncancellation token, cancelled by the proposal task on any build error and by the\nbatcher as soon as it aborts the proposal; cancellation ends the writer without the\nfinal write. Successful proposals still flush on channel close.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-29T08:08:24Z",
+          "tree_id": "d130162e1f9525f88fa2423f7e0c84cdba653b3d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f6c2a797e1b4739b00dbfe0b83a02364f736f394"
+        },
+        "date": 1793262675401,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1345.5341265,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 2129.70836826,
             "unit": "ms"
           }
         ]
