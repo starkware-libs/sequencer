@@ -84,6 +84,7 @@ pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+pub mod saturation;
 pub mod shutdown;
 #[cfg(test)]
 pub mod test_recorder;
@@ -94,6 +95,7 @@ pub use http_metrics::HttpMetricsLayer;
 pub use metrics::{MetricsLayer, METRICS_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 pub use request_span::RequestSpanLayer;
+pub use saturation::SaturationMonitor;
 
 #[cfg(test)]
 mod rpc_spec_test;
