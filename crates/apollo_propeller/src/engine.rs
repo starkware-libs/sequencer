@@ -4,6 +4,7 @@
 //! management). The engine runs as an async task and communicates with the libp2p
 //! `NetworkBehaviour` adapter in `behaviour.rs` via command/output channels.
 
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroUsize;
 use std::pin::Pin;
@@ -312,74 +313,83 @@ impl Engine {
             return;
         }
 
-        // Spawn tasks if this is a new message.
-        if !self.message_to_unit_tx.contains_key(&message_key) {
-            let nonce = self.peer_nonce.get(&claimed_publisher).copied().unwrap_or(0);
-            if nonce >= claimed_nonce {
-                warn_every_n_ms!(
-                    2000,
-                    "Message nonce is too old, dropping unit to prevent replay attacks"
-                );
-                return;
-            }
+        // Use the Entry API so the common hot-path (message processor already exists) pays a
+        // single hash computation instead of two separate contains_key + get lookups.  The vacant
+        // branch (new message) also avoids the extra insert + get pair, going from three lookups
+        // to one.  MessageKey is Copy, so entry(message_key) does not consume the local binding.
+        let mut spawned_new_processor = false;
+        {
+            let unit_sender = match self.message_to_unit_tx.entry(message_key) {
+                Entry::Occupied(occupied) => occupied.into_mut(),
+                Entry::Vacant(vacant) => {
+                    let nonce = self.peer_nonce.get(&claimed_publisher).copied().unwrap_or(0);
+                    if nonce >= claimed_nonce {
+                        warn_every_n_ms!(
+                            2000,
+                            "Message nonce is too old, dropping unit to prevent replay attacks"
+                        );
+                        return;
+                    }
 
-            debug!(?message_key, "[ENGINE] Spawning new message processor");
+                    debug!(?message_key, "[ENGINE] Spawning new message processor");
 
-            let schedule_manager = committee_data.schedule_manager.clone();
-            let Some(publisher_public_key) =
-                committee_data.peer_public_keys.get(&claimed_publisher).cloned()
-            else {
-                warn!(?claimed_publisher, "Received unit for unregistered publisher, dropping");
-                return;
+                    let schedule_manager = committee_data.schedule_manager.clone();
+                    let Some(publisher_public_key) =
+                        committee_data.peer_public_keys.get(&claimed_publisher).cloned()
+                    else {
+                        warn!(
+                            ?claimed_publisher,
+                            "Received unit for unregistered publisher, dropping"
+                        );
+                        return;
+                    };
+                    let my_unit_index_result =
+                        schedule_manager.get_my_unit_index_given_publisher(&claimed_publisher);
+                    let Ok(my_unit_index) = my_unit_index_result else {
+                        warn!(
+                            ?claimed_publisher,
+                            ?claimed_committee_id,
+                            ?my_unit_index_result,
+                            "Received unit for publisher not in committee, dropping"
+                        );
+                        return;
+                    };
+
+                    let (unit_tx, unit_rx) = mpsc::unbounded_channel();
+
+                    // TODO(AndrewL): track task handle to see if it panics or is killed.
+                    // TODO(AndrewL): abort the task if committee is removed.
+                    let processor = MessageProcessor {
+                        committee_id: claimed_committee_id,
+                        publisher: claimed_publisher,
+                        nonce: claimed_nonce,
+                        message_root: claimed_root,
+                        my_unit_index,
+                        publisher_public_key,
+                        tree_manager: Arc::clone(&schedule_manager),
+                        local_peer_id: self.local_peer_id,
+                        unit_rx,
+                        engine_tx: self.state_manager_tx.clone(),
+                        timeout: self.config.stale_message_timeout,
+                        state: ReconstructionState::Uninitialized,
+                    };
+                    tokio::spawn(processor.run());
+                    spawned_new_processor = true;
+
+                    vacant.insert(unit_tx)
+                }
             };
-            let my_unit_index_result =
-                schedule_manager.get_my_unit_index_given_publisher(&claimed_publisher);
-            let Ok(my_unit_index) = my_unit_index_result else {
-                warn!(
-                    ?claimed_publisher,
-                    ?claimed_committee_id,
-                    ?my_unit_index_result,
-                    "Received unit for publisher not in committee, dropping"
-                );
-                return;
-            };
 
-            // Create channel for Engine -> MessageProcessor communication
-            let (unit_tx, unit_rx) = mpsc::unbounded_channel();
+            // This may fail if the message is already finalized.
+            let _ = unit_sender.send((sender_peer_id, unit));
+        } // unit_sender (and its borrow of message_to_unit_tx) dropped here.
 
-            // Create and spawn message processor
-            let processor = MessageProcessor {
-                committee_id: claimed_committee_id,
-                publisher: claimed_publisher,
-                nonce: claimed_nonce,
-                message_root: claimed_root,
-                my_unit_index,
-                publisher_public_key,
-                tree_manager: Arc::clone(&schedule_manager),
-                local_peer_id: self.local_peer_id,
-                unit_rx,
-                engine_tx: self.state_manager_tx.clone(),
-                timeout: self.config.stale_message_timeout,
-                state: ReconstructionState::Uninitialized,
-            };
-
-            // TODO(AndrewL): track task handle to see if it panics or is killed.
-            // TODO(AndrewL): abort the task if committee is removed.
-            tokio::spawn(processor.run());
-
-            self.message_to_unit_tx.insert(message_key, unit_tx);
+        if spawned_new_processor {
             let num_tasks = self.message_to_unit_tx.len();
             self.record_metric(|m| {
                 m.update_collection_length(CollectionLabel::ActiveProcessors, num_tasks)
             });
         }
-
-        // Send unit to message processor
-        let unit_tx =
-            self.message_to_unit_tx.get(&message_key).expect("Message processor must exist");
-
-        // This may fail if the message is already finalized
-        let _ = unit_tx.send((sender_peer_id, unit));
     }
 
     /// Handle a send error from the handler.
