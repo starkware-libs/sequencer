@@ -2,7 +2,12 @@ use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::core::{
+    calculate_contract_address,
+    AddressDerivationHash,
+    ClassHash,
+    ContractAddress,
+};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::{calldata, felt};
 
@@ -38,9 +43,14 @@ fn test_calculate_contract_address() {
             initial_gas: versioned_constants.infinite_gas_for_vm_mode(),
             ..Default::default()
         };
-        let contract_address =
-            calculate_contract_address(salt, class_hash, constructor_calldata, deployer_address)
-                .unwrap();
+        let contract_address = calculate_contract_address(
+            salt,
+            class_hash,
+            constructor_calldata,
+            deployer_address,
+            AddressDerivationHash::Pedersen,
+        )
+        .unwrap();
 
         assert_eq!(
             entry_point_call.execute_directly(state).unwrap().execution,
