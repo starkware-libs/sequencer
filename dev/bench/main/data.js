@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792917443566,
+  "lastUpdate": 1793269445286,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7921,6 +7921,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1376.0689043,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4e4cf23eaedcce2e732d8b314671ca6e43e9a427",
+          "message": "workspace,scripts: mark workspace-only crates publish = false and enforce it when publishing (#15115)\n\nOnly the 15 crates that carry a version in the workspace manifest are ever published; the\nother 100 members are referenced by path alone. Marking them `publish = false` states that\nexplicitly, makes `cargo publish` refuse them, and turns their versionless path dependencies\ninto private-crate paths that cargo-deny's `allow-wildcard-paths` (enabled in the next commit)\ncan exempt instead of reporting as wildcards. starknet_proof_verifier keeps its version and\nstays reported: it depends on a git dependency with no crates.io version, so it cannot be\npublished until that is resolved.\n\npublish_crates.py now builds the publish order from `cargo metadata` and fails early if the\norder contains a crate marked `publish = false`. The order holds every workspace member that\nthe published manifest keeps, since `cargo publish` resolves each of them against crates.io:\nnormal and build dependencies, optional ones included, and dev-dependencies that carry a\nversion. Cargo drops path-only dev-dependencies, so the workspace test helpers stay out of the\norder. scripts/test_publish_crates.py covers each dependency kind and the `publish = false`\ncheck, and asserts that the blockifier and apollo_starknet_os_program orders publish their\noptional and versioned dev-dependencies first. A workspace test keeps the `publish = false`\nflag aligned with the version-based publishing rule.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-10-29T09:51:08Z",
+          "tree_id": "f6a7fba51f0c15a79cf5572aacd84aae10497cc2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4e4cf23eaedcce2e732d8b314671ca6e43e9a427"
+        },
+        "date": 1793269444662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 870.04229674,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1378.13450681,
             "unit": "ms"
           }
         ]
