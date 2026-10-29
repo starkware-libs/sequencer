@@ -15,9 +15,10 @@ use tower_http::cors::CorsLayer;
 use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 
-use crate::server::health::{HealthLayer, HEALTH_PATH};
+use crate::server::health::HEALTH_PATH;
 use crate::server::http_metrics::{names, HttpMetricsLayer};
 use crate::server::metrics::{configured_builder, MetricsLayer, METRICS_PATH};
+use crate::server::middleware_test_utils::unsaturated_health_layer;
 use crate::server::request_log::RequestLogLayer;
 use crate::server::request_span::RequestSpanLayer;
 use crate::server::test_recorder::metric_value;
@@ -97,6 +98,7 @@ async fn probe_and_scrape_traffic_is_excluded_from_http_metrics() {
     let handle = recorder.handle();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let svc = prover_http_middleware!(
+        unsaturated_health_layer(),
         MetricsLayer::new(handle.clone()),
         None::<CorsLayer>,
         None::<OhttpJsonrpseeLayer>,

@@ -12,6 +12,7 @@ use tokio::sync::Notify;
 
 use super::spawn_accept_loop;
 use crate::server::metrics::MetricsLayer;
+use crate::server::middleware_test_utils::unsaturated_health_layer;
 use crate::server::test_recorder::shared_handle;
 use crate::server::ServerLayers;
 
@@ -49,6 +50,7 @@ async fn stopped_waits_for_an_in_flight_request_to_finish() {
             cors_layer: None,
             ohttp_layer: None,
             metrics_layer: MetricsLayer::new(shared_handle().clone()),
+            health_layer: unsaturated_health_layer(),
         },
         |socket, _remote_addr| async move { Some(socket) },
     );
