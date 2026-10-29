@@ -16,6 +16,7 @@ use starknet_api::block::{
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tokio::sync::Notify;
+use tokio_util::sync::CancellationToken;
 
 use crate::cende_client_types::{CendeBlockMetadata, StarknetClientTransactionReceipt};
 use crate::pre_confirmed_block_writer::{
@@ -65,9 +66,10 @@ fn test_block_metadata() -> CendeBlockMetadata {
 fn create_writer(
     mock_client: MockPreconfirmedCendeClientTrait,
     write_interval_ms: u64,
-) -> (PreconfirmedBlockWriter, PreconfirmedTxSender) {
+) -> (PreconfirmedBlockWriter, PreconfirmedTxSender, CancellationToken) {
     let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =
         tokio::sync::mpsc::channel(CHANNEL_SIZE);
+    let cancellation_token = CancellationToken::new();
     let writer = PreconfirmedBlockWriter::new(
         PreconfirmedBlockWriterInput {
             block_number: TEST_BLOCK_NUMBER,
@@ -77,8 +79,9 @@ fn create_writer(
         pre_confirmed_tx_receiver,
         Arc::new(mock_client),
         write_interval_ms,
+        cancellation_token.clone(),
     );
-    (writer, pre_confirmed_tx_sender)
+    (writer, pre_confirmed_tx_sender, cancellation_token)
 }
 
 /// Closing the channel immediately triggers a single write with an empty transaction list
@@ -97,7 +100,8 @@ async fn write_empty_block_on_channel_close() {
         })
         .returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, WRITE_INTERVAL_MS);
 
     drop(pre_confirmed_tx_sender);
 
@@ -126,7 +130,8 @@ async fn write_pre_confirmed_transactions() {
         .returning(|_| Ok(()));
     mock_client.expect_write_pre_confirmed_block().returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -178,7 +183,8 @@ async fn final_write_includes_pending_changes() {
     // Use a large interval so the timer's second tick never fires during this test. The first tick
     // is always immediately ready, so the initial empty-block write still happens; subsequent ticks
     // are 60 s away, eliminating the select! race between the timer arm and the recv arm.
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -228,7 +234,8 @@ async fn writer_recovers_after_server_error() {
         Ok(())
     });
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, WRITE_INTERVAL_MS);
 
     // Send txs before spawning so the initial write includes transactions.
     for tx in test_txs(0..3) {
@@ -291,7 +298,8 @@ async fn failed_write_is_resent() {
         .withf(|block| block.write_iteration == 1)
         .returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -313,7 +321,8 @@ async fn rejected_write_is_not_retried() {
         Err(PreconfirmedCendeClientError::RequestFailed(StatusCode::BAD_REQUEST))
     });
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -361,7 +370,8 @@ async fn final_write_is_retried() {
         })
         .returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -417,6 +427,7 @@ async fn stuck_write_does_not_block_final_write() {
         pre_confirmed_tx_receiver,
         client.clone(),
         LONG_WRITE_INTERVAL_MS,
+        CancellationToken::new(),
     );
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
@@ -459,7 +470,8 @@ async fn final_write_gives_up_after_max_attempts() {
             });
     }
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+    let (mut writer, pre_confirmed_tx_sender, _cancellation_token) =
+        create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -515,4 +527,42 @@ async fn backoff_resets_after_success() {
 
     assert!(retry_state.should_resend_after(WriteOutcome::Failed));
     assert_write_allowed_after(&retry_state, Duration::from_millis(50)).await;
+}
+
+/// Cancelling the writer ends it without the final write: an aborted proposal's buffered
+/// transactions never reach the feed.
+#[tokio::test]
+async fn cancelled_writer_skips_final_write() {
+    let initial_write_done = Arc::new(Notify::new());
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+    // The first tick writes the empty initial block; nothing else may be written.
+    let notify_initial_write = initial_write_done.clone();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(|block| block.pre_confirmed_block.transactions.is_empty())
+        .returning(move |_| {
+            notify_initial_write.notify_one();
+            Ok(())
+        });
+
+    let (mut writer, pre_confirmed_tx_sender, cancellation_token) =
+        create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
+    let writer_handle = tokio::spawn(async move { writer.run().await });
+    initial_write_done.notified().await;
+
+    let tx = test_txs(0..1).pop().unwrap();
+    pre_confirmed_tx_sender
+        .send((tx, StarknetClientTransactionReceipt::default(), StateDiff::default()))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(WRITE_INTERVAL_MS)).await;
+
+    cancellation_token.cancel();
+    // The sender stays open: the writer must stop on cancellation alone.
+    tokio::time::timeout(Duration::from_secs(5), writer_handle)
+        .await
+        .expect("writer did not stop on cancellation")
+        .unwrap();
+    drop(pre_confirmed_tx_sender);
 }
