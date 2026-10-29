@@ -1,5 +1,11 @@
 [
   {
+    "StatelessHint": "SelectedBuiltins"
+  },
+  {
+    "StatelessHint": "SelectBuiltin"
+  },
+  {
     "StatelessHint": "SetStateUpdatesStart"
   },
   {
@@ -7,6 +13,9 @@
   },
   {
     "StatelessHint": "AllocateSegmentsForMessages"
+  },
+  {
+    "StatelessHint": "GuessProofTreeNode"
   },
   {
     "CommonHint": "SetProofFactTopology"
@@ -52,5 +61,11 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
+  },
+  {
+    "AggregatorHint": "LoadProofFactsTree"
+  },
+  {
+    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]
