@@ -6,7 +6,7 @@ use indexmap::IndexSet;
 use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue_trait::{BlockMetadata, RewindData, TransactionQueueTrait};
@@ -220,10 +220,14 @@ impl TransactionQueueTrait for FifoTransactionQueue {
             timestamp: metadata.timestamp,
             block_number: metadata.block_number,
         };
-        debug!(
-            "FIFO insert: tx_hash={}, timestamp={}, block_number={}, queue_before={:?}",
-            tx.tx_reference.tx_hash, tx.timestamp, tx.block_number, self.queue
+        info!(
+            "FIFO insert: tx_hash={}, timestamp={}, block_number={}, queue_len_before={}",
+            tx.tx_reference.tx_hash,
+            tx.timestamp,
+            tx.block_number,
+            self.queue.len()
         );
+        debug!("FIFO insert: queue_before={:?}", self.queue);
         InsertionSide::Back.push(&mut self.queue, tx);
     }
 
