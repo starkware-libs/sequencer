@@ -257,9 +257,8 @@ docker run -e LOG_FORMAT=json ... <IMAGE>
 and `span` keys. The `text` format may include ANSI colour codes. `json` never does, so use
 `--log-format json` in containers and in production. A URL can carry credentials in its userinfo
 component, so the service redacts every logged URL down to `scheme://host[:port]`. That covers
-`rpc_node_url` in the startup logs and in its CLI-override message, and `blocking_check_url` in its
-CLI-override message. The startup logs say only whether the blocking check is enabled, never its
-URL.
+`rpc_node_url` and `blocking_check_url` in the startup `config_resolved` log, and each of them
+again in its own CLI-override message.
 
 ## Compression
 
@@ -394,6 +393,26 @@ A failed `starknet_proveTransaction` request logs a `warn` record where the fail
 `prover_prove_transaction_outcome_total` label, such as `failure_validation` or `failure_runner`.
 None of these records carries the error text, which can hold fee values, revert reasons with
 contract addresses, and the node URL. Busy rejections log their own warning.
+
+### Startup logs
+
+Startup emits two `info` logs, plus an `OHTTP envelope encryption enabled` line between them when
+OHTTP is enabled. Before binding, an `event="config_resolved"` log records the build identity
+(version, git SHA) together with the resolved service and prover settings, which are the merge of
+the config file, environment variables, and CLI flags. Read that line to see the values the process
+runs with, instead of working the precedence rules out by hand. From the
+`contract_class_manager_config` and `runner_config` sub-configs it includes only the config-file
+settings `compiled_class_cache_size`, `prefetch_state`, and `use_latest_versioned_constants`. After
+the listener is bound, a second log records what the server came up on: local address, scheme
+(`http` or `https`), `max_concurrent_requests`, `max_connections`, `ohttp_enabled`, and the CORS
+mode and allowed origins.
+
+Both lines are redacted. The `config_resolved` line logs the RPC and blocking-check URLs host-only
+(see [Logging](#logging)), and neither line carries transaction-scoped data. For TLS they record
+only whether the transport is `http` or `https`, never the certificate and key paths. The paths do
+appear in the separate CLI-override lines, which startup logs whenever
+`TLS_CERT_FILE`/`--tls-cert-file` or `TLS_KEY_FILE`/`--tls-key-file` sets a path that differs from
+the config file's value, including when no config file is used.
 
 ### Shutdown
 
