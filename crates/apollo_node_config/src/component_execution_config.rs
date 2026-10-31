@@ -144,14 +144,6 @@ impl ReactiveComponentExecutionConfig {
         if self.connects_remotely() { resolve_url(&self.url) } else { Ok(()) }
     }
 
-    pub fn with_idle_connections(mut self, idle_connections: usize) -> Self {
-        self.remote_client_config
-            .as_mut()
-            .expect("Remote client config should be available")
-            .idle_connections = idle_connections;
-        self
-    }
-
     pub fn with_retries(mut self, retries: usize) -> Self {
         self.remote_client_config
             .as_mut()
