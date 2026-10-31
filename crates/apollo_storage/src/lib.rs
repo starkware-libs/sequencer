@@ -657,18 +657,6 @@ impl StorageWriter {
         state.commit_counter = 0;
     }
 
-    /// Forces an immediate commit of any pending batched writes and resets the batch counter.
-    ///
-    /// This should be called before error recovery/retry paths to ensure that
-    /// uncommitted writes are persisted. Without this, a StorageReader's RO transaction
-    /// would not see the uncommitted writes from the current batch.
-    ///
-    /// This is a no-op if there are no pending writes (commit_counter == 0).
-    pub fn flush_pending_writes(&mut self) -> StorageResult<()> {
-        let mut guard = self.shared_state.lock().unwrap();
-        Self::flush_pending_locked(&self.file_writers, &mut guard)
-    }
-
     /// Changes the batch size at runtime.
     ///
     /// If the pending batch has already reached the new (smaller) threshold
@@ -926,11 +914,6 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     ) -> StorageResult<TableHandle<'_, K, V, T>> {
         <Self as StorageTransaction>::open_table(self, table_id)
     }
-}
-
-/// Returns the names of the tables in the storage.
-pub fn table_names() -> &'static [&'static str] {
-    Tables::field_names()
 }
 
 struct_field_names! {
