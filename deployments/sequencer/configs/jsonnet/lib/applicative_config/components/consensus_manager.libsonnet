@@ -89,7 +89,6 @@ function(chain_params, node_params)
         l1_da_mode: true,
         proposal_buffer_size: 512,
         retrospective_block_hash_retry_interval_millis: 500,
-        send_empty_state_commitment_infos_only: false,
         validate_proposal_margin_millis: 10000,
       },
     },

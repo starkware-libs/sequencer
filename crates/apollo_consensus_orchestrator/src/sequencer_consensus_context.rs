@@ -71,11 +71,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_committer::patricia_merkle_tree::types::{
-    CompressedPayload,
-    CompressedStateCommitmentInfos,
-    STATE_COMMITMENT_INFOS_VERSION,
-};
+use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -856,21 +852,12 @@ impl SequencerConsensusContext {
     }
 
     /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
-    /// `None` if the batcher has none. With `send_empty_state_commitment_infos_only` on, an empty
-    /// object stands in for the stored one, which is not read.
+    /// `None` if the batcher has none.
     async fn state_commitment_infos_to_send(
         &self,
         block_number: BlockNumber,
     ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
-        if !self.config.static_config.send_empty_state_commitment_infos_only {
-            return self.deps.batcher.get_state_commitment_infos(block_number).await;
-        }
-        let has_state_commitment_infos =
-            self.deps.batcher.has_state_commitment_infos(block_number).await?;
-        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos {
-            version: STATE_COMMITMENT_INFOS_VERSION,
-            payload: CompressedPayload(Vec::new()),
-        }))
+        self.deps.batcher.get_state_commitment_infos(block_number).await
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored
