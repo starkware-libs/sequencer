@@ -28,6 +28,7 @@ use tracing::field::display;
 use tracing::{info, Span};
 use url::Url;
 
+use crate::blocking_task::spawn_blocking_in_current_span;
 use crate::errors::RunnerError;
 use crate::running::classes_provider::ClassesProvider;
 use crate::running::storage_proofs::{
@@ -302,7 +303,7 @@ where
         // Execute virtual block to get execution data including L2 to L1 messages.
         // Execute in a blocking thread pool to avoid blocking the async runtime.
         // The RPC state reader uses request::blocking which would block the tokio runtime.
-        let execution_data = tokio::task::spawn_blocking(move || {
+        let execution_data = spawn_blocking_in_current_span(move || {
             virtual_block_executor.execute(block_id, contract_class_manager, txs_with_hashes)
         })
         .await??;
