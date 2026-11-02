@@ -1330,6 +1330,7 @@ fn metrics_correctness() {
             txs_received_deploy_account: 0,
             txs_committed: 3,
             txs_dropped_expired: 1,
+            txs_dropped_expired_behind_gap: 0,
             txs_dropped_rejected: 1,
             txs_dropped_evicted: 1,
             pool_size: 3,
@@ -2264,6 +2265,40 @@ fn stuck_txs_counter_expiry_removes_gap_account_with_multiple_stuck_txs() {
     // only acts while the account is tracked), and only then be removed. Merging decrement and
     // removal into one loop would no-op the second tx's decrement and leave stuck_txs == 1.
     assert_gap_metrics(&mempool, 0, 0);
+}
+
+#[test]
+fn expired_txs_behind_gap_are_counted_separately() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+
+    // Gap account "0x0" holds nonces 2 and 3 with account nonce 0; account "0x1" holds an
+    // eligible (queued) tx that is never batched.
+    let stuck_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    let stuck_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    let eligible = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    for tx in [&stuck_nonce_2, &stuck_nonce_3, &eligible] {
+        add_tx(&mut mempool, tx);
+    }
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Expire all three in one sweep, triggered by a tx for another address.
+    fake_clock.advance(Duration::from_secs(61));
+    let trigger = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &trigger);
+
+    let metrics = MempoolMetrics::from_recorder(&recorder);
+    assert_eq!(metrics.txs_dropped_expired_behind_gap, 2);
+    assert_eq!(metrics.txs_dropped_expired, 1);
 }
 
 #[test]

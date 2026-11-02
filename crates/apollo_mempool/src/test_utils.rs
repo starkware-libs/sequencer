@@ -325,6 +325,7 @@ pub struct MempoolMetrics {
     pub txs_received_deploy_account: u64,
     pub txs_committed: u64,
     pub txs_dropped_expired: u64,
+    pub txs_dropped_expired_behind_gap: u64,
     pub txs_dropped_rejected: u64,
     pub txs_dropped_evicted: u64,
     pub pool_size: u64,
@@ -366,6 +367,12 @@ impl MempoolMetrics {
                 .parse_numeric_metric::<u64>(
                     metrics,
                     &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())],
+                )
+                .unwrap(),
+            txs_dropped_expired_behind_gap: MEMPOOL_TRANSACTIONS_DROPPED
+                .parse_numeric_metric::<u64>(
+                    metrics,
+                    &[(LABEL_NAME_DROP_REASON, DropReason::ExpiredBehindGap.into())],
                 )
                 .unwrap(),
             txs_dropped_rejected: MEMPOOL_TRANSACTIONS_DROPPED
