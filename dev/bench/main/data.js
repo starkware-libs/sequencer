@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793277809742,
+  "lastUpdate": 1793612301115,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -7989,6 +7989,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1394.84533222,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "00d0761bd58fd8d8981d48c8e14c8cf8c2797314",
+          "message": "blockifier_test_utils: delete dead code (unsure, review carefully) (#14881)\n\nRemoves two unused `pub fn` helpers and their now-orphaned imports:\n\n- `FeatureContract::all_cairo1_casm_compiler_versions` (contracts.rs) and the\n  `use std::collections::HashSet;` it was the sole user of.\n- `cairo1_compiler_tag` (cairo_compile.rs) and the\n  `use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;`\n  import it was the sole user of (that symbol is still used elsewhere in\n  contracts.rs, so its import there is retained).\n\nEvidence of deadness: a workspace-wide grep for each identifier finds only the\ndefinition site -- no callers in any crate, in `tests/`/`benches/`, or in the\nsibling repos `starkware-industries/sequencer-devops` and\n`starkware-industries/starkware`. These are inherent `pub fn` (not behind a\ntrait, macro, `serde`, or reflection), so grep fully captures their references.\n\nVerification (env workarounds: `RUSTC_WRAPPER=`, `CARGO_INCREMENTAL=0`):\n- `cargo build -p blockifier_test_utils` -- clean, zero warnings.\n- `cargo build -p blockifier_test_utils --tests` -- clean, zero warnings.\n- `cargo clippy -p blockifier_test_utils --all-targets` -- clean.\n- `SEED=0 cargo test -p blockifier_test_utils` -- all tests pass.\n\nFiled as low-confidence: `blockifier_test_utils` is a test-utility crate whose\n`pub fn`s form its public API. They have no in-workspace or sibling-repo callers,\nbut I cannot rule out an external consumer (e.g. another repo's test harness)\ndepending on them, which is the reachability uncertainty a human owner must\nadjudicate.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T08:42:26Z",
+          "tree_id": "07e9ba08795cc36ffcc1d56af656aae0a0d5eb77",
+          "url": "https://github.com/starkware-libs/sequencer/commit/00d0761bd58fd8d8981d48c8e14c8cf8c2797314"
+        },
+        "date": 1793612300527,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1241.06023599,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1392.07805914,
             "unit": "ms"
           }
         ]
