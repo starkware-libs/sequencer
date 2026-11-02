@@ -44,7 +44,7 @@ pub(crate) fn get_primary_l1_endpoint_down_too_long_alerts() -> Vec<Alert> {
                 alert_name,
                 format!("Primary L1 endpoint down too long ({scraper_str})"),
                 EvaluationRate::Default,
-                format!("max((time() - {metric}) and ({metric} > 0))"),
+                format!("max((time() - {metric}) * ({metric} > bool 0))"),
                 vec![AlertCondition::new(
                     AlertComparisonOp::GreaterThan,
                     MAX_PRIMARY_DOWN_SECONDS,
