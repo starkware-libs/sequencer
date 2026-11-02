@@ -1500,7 +1500,7 @@
       "name": "l1_handler_transaction_waiting_in_L1",
       "title": "L1 handler transaction waiting in L1 too long",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "((time() - l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"}) and (l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"} > 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "((time() - l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"}) * (l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"} > bool 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -1784,14 +1784,14 @@
     },
     {
       "name": "mempool_transaction_drop_ratio",
-      "title": "Mempool transaction drop ratio",
+      "title": "Mempool transactions dropped",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / clamp_min(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason!=\"expired_behind_gap\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.2
+              500.0
             ],
             "type": "gt"
           },
