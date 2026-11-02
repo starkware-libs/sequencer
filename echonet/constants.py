@@ -31,16 +31,16 @@ IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA = (
 # ---------------------------------------------------------------------------
 
 # Filenames (define once).
-ECHONET_KEYS_FILENAME = "echonet_keys.json"
+ECHONET_CONFIG_FILENAME = "echonet_config.json"
 ECHONET_SECRETS_FILENAME = "echonet_secrets.json"
 
 # Env overrides for paths (define once).
-ECHONET_ENV_KEYS_PATH = "ECHONET_KEYS_PATH"
+ECHONET_ENV_CONFIG_PATH = "ECHONET_CONFIG_PATH"
 ECHONET_ENV_SECRETS_PATH = "ECHONET_SECRETS_PATH"
 
 
 class SequencerLayoutName(str, Enum):
-    """Values of `sequencer_layout` in the echonet keys file."""
+    """Values of `sequencer_layout` in the echonet config file."""
 
     CONSOLIDATED = "consolidated"
     HYBRID = "hybrid"

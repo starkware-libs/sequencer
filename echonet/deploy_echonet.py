@@ -3,7 +3,7 @@
 Python wrapper to deploy echonet via Kustomize.
 
 - packages echonet source into a configmap-friendly bundle
-- copies `echonet/echonet_keys.json` into `echonet/k8s/echonet/generated/echonet_keys.json`
+- copies `echonet/echonet_config.json` into `echonet/k8s/echonet/generated/echonet_config.json`
 - `kubectl apply -k` on the kustomize dir
 
 Secrets must be applied separately (once):
@@ -29,7 +29,7 @@ from pathlib import Path
 
 from constants import (
     DEFAULT_SEQUENCER_LAYOUT,
-    ECHONET_KEYS_FILENAME,
+    ECHONET_CONFIG_FILENAME,
     SEQUENCER_LAYOUTS,
     SequencerLayoutName,
 )
@@ -294,21 +294,21 @@ def _scale_down_sequencer_workloads(namespace_args: list[str]) -> None:
         _run(["kubectl", *namespace_args, "rollout", "status", workload])
 
 
-def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
+def _copy_generated_config(config_in_repo: Path, generated_path: Path) -> None:
     """
-    Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
+    Copy the non-secret echonet config JSON into the kustomize generated/ directory.
 
-    This file is consumed by the kustomize configMapGenerator (`echonet-keys`),
-    then copied into the echonet PVC at /data/echonet/echonet_keys.json by an initContainer.
+    This file is consumed by the kustomize configMapGenerator (`echonet-config`),
+    then copied into the echonet PVC at /data/echonet/echonet_config.json by an initContainer.
     """
     generated_path.parent.mkdir(parents=True, exist_ok=True)
-    data = read_json_object(keys_in_repo)
+    data = read_json_object(config_in_repo)
     if "start_block" not in data:
         raise ValueError("Missing required key: start_block")
 
     if int(data["start_block"]) == 0:
         logger.error(
-            f"Refusing to deploy: start_block is 0 in {keys_in_repo}. "
+            f"Refusing to deploy: start_block is 0 in {config_in_repo}. "
             "Set a non-zero start_block and re-run."
         )
         raise SystemExit(1)
@@ -316,8 +316,8 @@ def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     # Reject an unknown layout before anything is torn down; echonet itself would crash on it.
     SequencerLayoutName(data.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
 
-    shutil.copyfile(keys_in_repo, generated_path)
-    logger.info(f"Copied keys file: {keys_in_repo} -> {generated_path}")
+    shutil.copyfile(config_in_repo, generated_path)
+    logger.info(f"Copied config file: {config_in_repo} -> {generated_path}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -375,10 +375,10 @@ def main(argv: list[str] | None = None) -> int:
     bundle_path = generated_dir / "echonet-src.tgz.b64"
     _build_source_bundle(echonet_dir=script_dir, out_path=bundle_path)
 
-    # Write non-secret echonet keys file into generated/ so kustomize can build the configmap.
-    keys_in_repo = script_dir / ECHONET_KEYS_FILENAME
-    generated_keys_path = generated_dir / ECHONET_KEYS_FILENAME
-    _copy_generated_keys(keys_in_repo=keys_in_repo, generated_path=generated_keys_path)
+    # Write non-secret echonet config file into generated/ so kustomize can build the configmap.
+    config_in_repo = script_dir / ECHONET_CONFIG_FILENAME
+    generated_config_path = generated_dir / ECHONET_CONFIG_FILENAME
+    _copy_generated_config(config_in_repo=config_in_repo, generated_path=generated_config_path)
 
     namespace_args = _namespace_args(args.namespace)
 
