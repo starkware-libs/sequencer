@@ -31,8 +31,9 @@ pub(crate) fn get_l1_message_scraper_no_successes_alert() -> Alert {
 
 /// Fires when a single L1 handler transaction has been waiting in L1 (uncommitted to L2) for too
 /// long. The provider exports the L1 block timestamp of the oldest pending tx, so the current age
-/// is `time() - <timestamp>`. The `and (... > 0)` guard suppresses the alert when nothing is
-/// pending (the metric reports 0 in that case, which would otherwise look infinitely old).
+/// is `time() - <timestamp>`. Multiplying by `(... > bool 0)` zeroes the age when nothing is
+/// pending (the metric reports 0 then, which would otherwise look infinitely old) while still
+/// returning a sample, so the rule can leave the Alerting state once the backlog clears.
 pub(crate) fn get_l1_handler_transaction_waiting_in_l1_alert() -> Alert {
     const ALERT_NAME: &str = "l1_handler_transaction_waiting_in_L1";
     // 10 minutes; well above the proposal cooldown, so normal cooldown waits don't trip it.
@@ -43,7 +44,7 @@ pub(crate) fn get_l1_handler_transaction_waiting_in_l1_alert() -> Alert {
         ALERT_NAME,
         "L1 handler transaction waiting in L1 too long",
         EvaluationRate::Default,
-        format!("(time() - {oldest_pending_timestamp}) and ({oldest_pending_timestamp} > 0)"),
+        format!("(time() - {oldest_pending_timestamp}) * ({oldest_pending_timestamp} > bool 0)"),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
             MAX_PENDING_SECONDS,
