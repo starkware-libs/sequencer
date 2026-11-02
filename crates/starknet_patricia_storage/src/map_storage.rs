@@ -202,10 +202,6 @@ impl<S: Storage> CachedStorage<S> {
             include_inner_stats: config.include_inner_stats,
         }
     }
-
-    pub fn total_writes(&self) -> u128 {
-        self.writes
-    }
 }
 
 /// [ImmutableReadOnlyStorage] implementation for [CachedStorage].
