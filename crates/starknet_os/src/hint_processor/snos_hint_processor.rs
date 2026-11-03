@@ -23,6 +23,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use leaf_proof_format::PackedNode;
 use rand::SeedableRng;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass;
@@ -49,7 +50,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintContext, HintEnum};
 use crate::hints::vars::CairoStruct;
-use crate::io::os_input::{OsBlockInput, OsHintsConfig, OsInputError};
+use crate::io::os_input::{CircuitVerifierTaskInput, OsBlockInput, OsHintsConfig, OsInputError};
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
@@ -126,6 +127,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
     pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    proof_facts_tree: Option<PackedNode>,
+    proof_facts_verifier_task: Option<CircuitVerifierTaskInput>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     builtin_hint_processor: BuiltinHintProcessor,
     bootloader_hint_processor: BootloaderHintProcessor<'static>,
@@ -151,6 +154,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_block_inputs: Vec<&'a OsBlockInput>,
         deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
         compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+        proof_facts_tree: Option<PackedNode>,
+        proof_facts_verifier_task: Option<CircuitVerifierTaskInput>,
         state_readers: Vec<S>,
     ) -> Result<Self, StarknetOsError> {
         if state_readers.len() != os_block_inputs.len() {
@@ -183,6 +188,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
             deprecated_compiled_classes_iter: deprecated_compiled_classes.into_iter(),
             compiled_classes,
+            proof_facts_tree,
+            proof_facts_verifier_task,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
@@ -302,6 +309,14 @@ impl<S: StateReader> CommonHintProcessor for SnosHintProcessor<'_, S> {
         self.os_hints_config.public_keys.as_deref()
     }
 
+    fn get_proof_facts_tree(&self) -> Option<&PackedNode> {
+        self.proof_facts_tree.as_ref()
+    }
+
+    fn get_proof_facts_verifier_task(&self) -> Option<&CircuitVerifierTaskInput> {
+        self.proof_facts_verifier_task.as_ref()
+    }
+
     fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
         &mut self.rng
     }
@@ -367,6 +382,8 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             block_inputs,
             BTreeMap::new(),
             BTreeMap::new(),
+            None,
+            None,
             vec![state_reader],
         )?;
         hint_processor.execution_helpers_manager.increment_current_helper_index();
