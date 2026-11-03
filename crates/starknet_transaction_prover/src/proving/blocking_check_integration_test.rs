@@ -5,8 +5,11 @@
 //! needing the `stwo_proving` feature while still exercising the blocking check
 //! integration points.
 //!
-//! The key distinction: when the blocking check short-circuits, we get
-//! `TransactionBlocked`; when proving proceeds, we get `RunnerError`.
+//! When the blocking check short-circuits, the result is `TransactionBlocked`, or
+//! `BlockingCheckUnavailable` under the fail-close policy. When proving proceeds, it is
+//! `RunnerError`.
+
+use std::net::TcpListener;
 
 use async_trait::async_trait;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -29,8 +32,8 @@ use crate::test_utils::resource_bounds_for_client_side_tx;
 /// A mock runner that always returns an error.
 ///
 /// Returns `RunnerError::InputGenerationError` to avoid needing the `stwo_proving`
-/// feature. Tests distinguish blocking check outcomes by checking for
-/// `TransactionBlocked` vs `RunnerError`.
+/// feature. Tests tell a short-circuited check (`TransactionBlocked` or
+/// `BlockingCheckUnavailable`) from one that proceeded to proving (`RunnerError`).
 #[derive(Clone)]
 struct MockRunner;
 
@@ -75,6 +78,14 @@ fn assert_blocked(result: &Result<(), VirtualSnosProverError>) {
     assert!(
         matches!(result, Err(VirtualSnosProverError::TransactionBlocked)),
         "Expected TransactionBlocked, got: {result:?}"
+    );
+}
+
+/// Asserts the result is BlockingCheckUnavailable (no verdict, rejected by the fail-close policy).
+fn assert_blocking_check_unavailable(result: &Result<(), VirtualSnosProverError>) {
+    assert!(
+        matches!(result, Err(VirtualSnosProverError::BlockingCheckUnavailable)),
+        "Expected BlockingCheckUnavailable, got: {result:?}"
     );
 }
 
@@ -221,7 +232,8 @@ async fn test_inconclusive_fail_open_proceeds_to_proving() {
 }
 
 #[tokio::test]
-async fn test_inconclusive_fail_close_returns_blocked() {
+#[traced_test]
+async fn test_inconclusive_fail_close_returns_blocking_check_unavailable() {
     let mut server = Server::new_async().await;
     let _mock = server
         .mock("POST", "/")
@@ -235,12 +247,17 @@ async fn test_inconclusive_fail_close_returns_blocked() {
     let prover = build_prover(MockRunner, Some(client));
 
     let result = prove(&prover).await;
-    assert_blocked(&result);
+    assert_blocking_check_unavailable(&result);
+    assert!(
+        logs_contain(r#"event="blocking_check_unavailable" reason="inconclusive""#),
+        "the rejection must be logged with its bounded reason"
+    );
 }
 
 #[tokio::test]
 async fn test_timeout_fail_open_proceeds_to_proving() {
-    // Zero timeout + hanging URL forces the timeout path without real-time waits.
+    // A zero timeout ends in a timeout, or in an inconclusive check when the connect fails first.
+    // Fail-open proceeds to proving on both paths.
     let url = Url::parse("http://10.255.255.1:1").unwrap();
     let client = BlockingCheckClient::new(url, 0, true);
     let prover = build_prover(MockRunner, Some(client));
@@ -250,12 +267,20 @@ async fn test_timeout_fail_open_proceeds_to_proving() {
 }
 
 #[tokio::test]
-async fn test_timeout_fail_close_returns_blocked() {
-    // Zero timeout + hanging URL forces the timeout path without real-time waits.
-    let url = Url::parse("http://10.255.255.1:1").unwrap();
-    let client = BlockingCheckClient::new(url, 0, false);
+#[traced_test]
+async fn test_timeout_fail_close_returns_blocking_check_unavailable() {
+    // The kernel completes the handshake into the listener's backlog, but nothing ever reads the
+    // request, so only the check timeout ends the wait. A failed connect would make the check
+    // inconclusive instead.
+    let silent_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = Url::parse(&format!("http://{}", silent_listener.local_addr().unwrap())).unwrap();
+    let client = BlockingCheckClient::new(url, 100, false);
     let prover = build_prover(MockRunner, Some(client));
 
     let result = prove(&prover).await;
-    assert_blocked(&result);
+    assert_blocking_check_unavailable(&result);
+    assert!(
+        logs_contain(r#"event="blocking_check_unavailable" reason="timeout""#),
+        "the rejection must be logged with its bounded reason"
+    );
 }

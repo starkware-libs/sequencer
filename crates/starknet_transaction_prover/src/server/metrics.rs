@@ -83,6 +83,9 @@ pub mod outcomes {
     pub const SUCCESS: &str = "success";
     pub const FAILURE_VALIDATION: &str = "failure_validation";
     pub const FAILURE_BLOCKED: &str = "failure_blocked";
+    /// The blocking check timed out or was inconclusive, and the fail-close policy rejected the
+    /// transaction. The client receives the same JSON-RPC error as for `failure_blocked`.
+    pub const FAILURE_BLOCKING_CHECK_UNAVAILABLE: &str = "failure_blocking_check_unavailable";
     pub const FAILURE_RUNNER: &str = "failure_runner";
     pub const FAILURE_OUTPUT_PARSE: &str = "failure_output_parse";
     pub const FAILURE_PROVING: &str = "failure_proving";

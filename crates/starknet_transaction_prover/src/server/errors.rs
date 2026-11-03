@@ -19,7 +19,7 @@ use crate::errors::{
     VirtualSnosProverError,
 };
 
-#[cfg(all(test, feature = "stwo_proving"))]
+#[cfg(test)]
 #[path = "errors_test.rs"]
 mod errors_test;
 
@@ -133,7 +133,10 @@ impl From<VirtualSnosProverError> for ErrorObjectOwned {
             VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
             VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),
             VirtualSnosProverError::ProgramOutputError(e) => internal_server_error(e),
-            VirtualSnosProverError::TransactionBlocked => transaction_blocked(),
+            // A fail-close rejection reaches the client as a block. The outcome label and the
+            // origin log tell the two apart.
+            VirtualSnosProverError::TransactionBlocked
+            | VirtualSnosProverError::BlockingCheckUnavailable => transaction_blocked(),
         }
     }
 }
