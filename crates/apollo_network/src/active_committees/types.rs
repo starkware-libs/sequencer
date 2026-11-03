@@ -1,8 +1,6 @@
-/// Committee identifier, derived as a hash of the sorted committee members's staker IDs.
-pub use apollo_propeller::types::CommitteeId;
 use libp2p::PeerId;
-pub use starknet_api::staking::EpochId;
 use starknet_api::staking::StakingWeight;
+pub use starknet_api::staking::{CommitteeId, EpochId};
 
 // TODO(AndrewL): Consider moving `CommitteeMember` to `starknet_api::staking` (as
 // `NetworkCommitteeMember`) to unify with `apollo_staking::committee_provider::Staker`. Currently
