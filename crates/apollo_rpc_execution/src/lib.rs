@@ -68,7 +68,6 @@ use starknet_api::contract_class::{
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
-pub use starknet_api::fee_token_defaults::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
@@ -93,31 +92,10 @@ use tracing::trace;
 
 use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
 
-const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
-
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
-/// Parameters that are needed for execution.
-pub struct ExecutionConfig {
-    /// The strk address to receive fees
-    pub strk_fee_contract_address: ContractAddress,
-    /// The eth address to receive fees
-    pub eth_fee_contract_address: ContractAddress,
-    /// The initial gas cost for a transaction
-    pub default_initial_gas_cost: u64,
-}
-
-impl Default for ExecutionConfig {
-    fn default() -> Self {
-        ExecutionConfig {
-            strk_fee_contract_address: *STRK_FEE_CONTRACT_ADDRESS,
-            eth_fee_contract_address: *ETH_FEE_CONTRACT_ADDRESS,
-            default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
-        }
-    }
-}
+pub use apollo_rpc_config::ExecutionConfig;
 
 #[allow(missing_docs)]
 /// The error type for the execution module.
