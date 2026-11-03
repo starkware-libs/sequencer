@@ -7,9 +7,11 @@ use blockifier::execution::contract_class::TrackedResource;
 use blockifier::transaction::errors::TransactionExecutionError;
 use blockifier::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use blockifier::transaction::transaction_execution::Transaction;
+use cairo_vm::Felt252;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::EntryPointSelector;
 use starknet_api::transaction::constants::{FELT_TRUE, VALIDATE_RETDATA};
+use tracing::warn;
 
 #[cfg(test)]
 #[path = "storage_access_filter_test.rs"]
@@ -42,6 +44,15 @@ pub(crate) fn create_storage_access_filter(
     Some(Arc::new(StorageAccessFilter { config: config.clone() }))
 }
 
+fn is_signature_validation_selector(selector: EntryPointSelector) -> bool {
+    selector == *IS_VALID_SIGNATURE_SNAKE || selector == *IS_VALID_SIGNATURE_CAMEL
+}
+
+fn is_valid_signature_retdata(retdata: &[Felt252]) -> bool {
+    matches!(retdata, [])
+        || matches!(retdata, [x] if *x == FELT_TRUE.into() || *x == *VALIDATE_RETDATA)
+}
+
 /// Rejects transactions in which a caller running in `CairoSteps` mode receives a non-reverting
 /// `is_valid_signature` or `isValidSignature` return value other than `[]`, `[1]`, or `['VALID']`.
 struct SignatureReturnDataFilter {
@@ -57,22 +68,25 @@ impl TransactionFilter for SignatureReturnDataFilter {
         if let Some(inner) = &self.inner {
             inner.check(tx, tx_execution_info)?;
         }
-        let has_invalid_signature_return = tx_execution_info
+        let invalid_call = tx_execution_info
             .non_optional_call_infos()
             .flat_map(CallInfo::iter)
             .filter(|caller| caller.tracked_resource == TrackedResource::CairoSteps)
-            .flat_map(|caller| &caller.inner_calls)
-            .any(|call_info| {
-                let selector = call_info.call.entry_point_selector;
-                (selector == *IS_VALID_SIGNATURE_SNAKE || selector == *IS_VALID_SIGNATURE_CAMEL)
-                    && !call_info.execution.failed
-                    && !matches!(call_info.execution.retdata.0.as_slice(), [])
-                    && !matches!(
-                        call_info.execution.retdata.0.as_slice(),
-                        [x] if *x == FELT_TRUE.into() || *x == *VALIDATE_RETDATA
-                    )
+            .flat_map(|caller| caller.inner_calls.iter().map(move |callee| (caller, callee)))
+            .find(|(_, callee)| {
+                !callee.execution.failed
+                    && is_signature_validation_selector(callee.call.entry_point_selector)
+                    && !is_valid_signature_retdata(&callee.execution.retdata.0)
             });
-        if has_invalid_signature_return {
+        if let Some((caller, callee)) = invalid_call {
+            warn!(
+                tx_hash = %Transaction::tx_hash(tx),
+                caller_address = %caller.call.storage_address,
+                callee_address = %callee.call.storage_address,
+                selector = %callee.call.entry_point_selector.0,
+                retdata_len = callee.execution.retdata.0.len(),
+                "Rejected transaction due to invalid signature validation return data."
+            );
             return Err(TransactionExecutionError::RejectedByTransactionFilter);
         }
         Ok(())

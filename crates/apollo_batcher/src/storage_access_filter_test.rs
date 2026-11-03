@@ -115,6 +115,13 @@ fn sig_call(entry_point_name: &str, retdata: Vec<Felt>, failed: bool) -> CallInf
     false,
     true
 )]
+#[case::cairo_steps_multi_element_retdata_rejected(
+    TrackedResource::CairoSteps,
+    "is_valid_signature",
+    vec![felt!(1_u8), felt!(0_u8)],
+    false,
+    true
+)]
 #[case::cairo_steps_valid_magic_accepted(
     TrackedResource::CairoSteps,
     "is_valid_signature",
@@ -179,4 +186,101 @@ fn test_signature_return_data_filter(
 
     let result = create_transaction_filter(&dynamic_config).unwrap().check(&tx, &tx_execution_info);
     assert_eq!(result.is_err(), expect_rejected, "{result:?}");
+}
+
+#[rstest]
+#[case::nested_under_sierra_gas_root(
+    None,
+    Some(CallInfo {
+        tracked_resource: TrackedResource::SierraGas,
+        inner_calls: vec![CallInfo {
+            tracked_resource: TrackedResource::CairoSteps,
+            inner_calls: vec![sig_call("is_valid_signature", vec![felt!(0_u8)], false)],
+            ..Default::default()
+        }],
+        ..Default::default()
+    }),
+    None,
+    true
+)]
+#[case::validate_phase_rejected(
+    Some(CallInfo {
+        tracked_resource: TrackedResource::CairoSteps,
+        inner_calls: vec![sig_call("is_valid_signature", vec![felt!(0_u8)], false)],
+        ..Default::default()
+    }),
+    None,
+    None,
+    true
+)]
+#[case::fee_transfer_phase_rejected(
+    None,
+    None,
+    Some(CallInfo {
+        tracked_resource: TrackedResource::CairoSteps,
+        inner_calls: vec![sig_call("isValidSignature", vec![felt!(0_u8)], false)],
+        ..Default::default()
+    }),
+    true
+)]
+fn test_signature_return_data_filter_call_trees(
+    #[case] validate_call_info: Option<CallInfo>,
+    #[case] execute_call_info: Option<CallInfo>,
+    #[case] fee_transfer_call_info: Option<CallInfo>,
+    #[case] expect_rejected: bool,
+) {
+    let dynamic_config =
+        BatcherDynamicConfig { reject_invalid_signature_return_data: true, ..Default::default() };
+    let tx = Transaction::Account(AccountTransaction::new_for_sequencing(executable_invoke_tx(
+        invoke_tx_args!(),
+    )));
+    let tx_execution_info = TransactionExecutionInfo {
+        validate_call_info,
+        execute_call_info,
+        fee_transfer_call_info,
+        ..Default::default()
+    };
+
+    let result = create_transaction_filter(&dynamic_config).unwrap().check(&tx, &tx_execution_info);
+    assert_eq!(result.is_err(), expect_rejected, "{result:?}");
+}
+
+#[test]
+fn test_create_transaction_filter_composition() {
+    let tx = Transaction::Account(AccountTransaction::new_for_sequencing(executable_invoke_tx(
+        invoke_tx_args!(sender_address: ContractAddress::from(0x1_u8)),
+    )));
+
+    assert!(create_transaction_filter(&BatcherDynamicConfig::default()).is_none());
+
+    let dynamic_config = BatcherDynamicConfig {
+        reject_invalid_signature_return_data: true,
+        storage_access_filter_config: StorageAccessFilterConfig {
+            blocked_storage_keys: BTreeSet::from([StorageKey::from(BLOCKED_STORAGE_KEY)]),
+            exempt_account_address: Some(ContractAddress::from(EXEMPT_ACCOUNT_ADDRESS)),
+        },
+        ..Default::default()
+    };
+    let filter = create_transaction_filter(&dynamic_config).unwrap();
+
+    let blocked_storage_info = TransactionExecutionInfo {
+        execute_call_info: Some(call_info(BLOCKED_STORAGE_KEY, vec![])),
+        ..Default::default()
+    };
+    assert!(filter.check(&tx, &blocked_storage_info).is_err());
+
+    let exempt_tx = Transaction::Account(AccountTransaction::new_for_sequencing(
+        executable_invoke_tx(invoke_tx_args!(
+            sender_address: ContractAddress::from(EXEMPT_ACCOUNT_ADDRESS)
+        )),
+    ));
+    let invalid_sig_on_exempt_info = TransactionExecutionInfo {
+        execute_call_info: Some(CallInfo {
+            tracked_resource: TrackedResource::CairoSteps,
+            inner_calls: vec![sig_call("is_valid_signature", vec![felt!(0_u8)], false)],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert!(filter.check(&exempt_tx, &invalid_sig_on_exempt_info).is_err());
 }
