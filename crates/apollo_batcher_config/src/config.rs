@@ -452,8 +452,8 @@ impl SerializeConfig for BatcherDynamicConfig {
                 "reject_invalid_signature_return_data",
                 &self.reject_invalid_signature_return_data,
                 "Reject transactions containing a non-reverting Cairo-steps call to \
-                 is_valid_signature or isValidSignature whose return data is not empty, [1], or \
-                 ['VALID'].",
+                 is_valid_signature or isValidSignature whose return data is not empty, [1], \
+                 ['VALID'], or [0x1626ba7e].",
                 ParamPrivacyInput::Public,
             ),
         ]);

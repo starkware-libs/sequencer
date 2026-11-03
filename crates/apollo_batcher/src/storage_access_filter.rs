@@ -21,6 +21,7 @@ static IS_VALID_SIGNATURE_SNAKE: LazyLock<EntryPointSelector> =
     LazyLock::new(|| selector_from_name("is_valid_signature"));
 static IS_VALID_SIGNATURE_CAMEL: LazyLock<EntryPointSelector> =
     LazyLock::new(|| selector_from_name("isValidSignature"));
+const EIP1271_MAGIC_VALUE: u32 = 0x1626ba7e;
 
 /// Returns the composite post-execution filter for `dynamic_config`, or `None` if all checks are
 /// disabled.
@@ -50,11 +51,17 @@ fn is_signature_validation_selector(selector: EntryPointSelector) -> bool {
 
 fn is_valid_signature_retdata(retdata: &[Felt252]) -> bool {
     matches!(retdata, [])
-        || matches!(retdata, [x] if *x == FELT_TRUE.into() || *x == *VALIDATE_RETDATA)
+        || matches!(
+            retdata,
+            [x] if *x == FELT_TRUE.into()
+                || *x == *VALIDATE_RETDATA
+                || *x == EIP1271_MAGIC_VALUE.into()
+        )
 }
 
 /// Rejects transactions in which a caller running in `CairoSteps` mode receives a non-reverting
-/// `is_valid_signature` or `isValidSignature` return value other than `[]`, `[1]`, or `['VALID']`.
+/// `is_valid_signature` or `isValidSignature` return value other than `[]`, `[1]`, `['VALID']`, or
+/// `[0x1626ba7e]`.
 struct SignatureReturnDataFilter {
     inner: Option<SharedTransactionFilter>,
 }

@@ -60,7 +60,7 @@
     "value": 1500
   },
   "batcher_config.dynamic_config.reject_invalid_signature_return_data": {
-    "description": "Reject transactions containing a non-reverting Cairo-steps call to is_valid_signature or isValidSignature whose return data is not empty, [1], or ['VALID'].",
+    "description": "Reject transactions containing a non-reverting Cairo-steps call to is_valid_signature or isValidSignature whose return data is not empty, [1], ['VALID'], or [0x1626ba7e].",
     "privacy": "Public",
     "value": false
   },

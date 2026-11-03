@@ -129,6 +129,13 @@ fn sig_call(entry_point_name: &str, retdata: Vec<Felt>, failed: bool) -> CallInf
     false,
     false
 )]
+#[case::cairo_steps_eip1271_magic_accepted(
+    TrackedResource::CairoSteps,
+    "is_valid_signature",
+    vec![felt!(0x1626ba7e_u32)],
+    false,
+    false
+)]
 #[case::cairo_steps_one_accepted(
     TrackedResource::CairoSteps,
     "isValidSignature",
