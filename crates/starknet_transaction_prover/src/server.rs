@@ -17,6 +17,7 @@ use tower_http::map_response_body::MapResponseBodyLayer;
 use tower_ohttp::OhttpLayer;
 
 use self::config::TransportMode;
+use self::rpc_log::prover_rpc_middleware;
 
 /// `OhttpLayer` specialized for jsonrpsee's response body type. The
 /// `fn(...)` body builder is `Fn + Send + Sync + 'static` automatically.
@@ -84,6 +85,7 @@ pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+pub mod rpc_log;
 pub mod saturation;
 pub mod shutdown;
 #[cfg(test)]
@@ -134,6 +136,7 @@ pub async fn start_server(
                 .build();
             let server = ServerBuilder::default()
                 .set_config(server_config)
+                .set_rpc_middleware(prover_rpc_middleware(&methods))
                 // See `prover_http_middleware!` for the full layer-order rationale.
                 .set_http_middleware(prover_http_middleware!(
                     health_layer,
