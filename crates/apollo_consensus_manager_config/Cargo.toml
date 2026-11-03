@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
-apollo_network.workspace = true
+apollo_network_config.workspace = true
 apollo_reverts.workspace = true
 apollo_staking_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
