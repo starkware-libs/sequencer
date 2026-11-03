@@ -1268,13 +1268,15 @@ async fn consecutive_proposal_generation_success() {
 }
 
 #[rstest]
-#[case::no_blocked_storage_keys(BTreeSet::new())]
-#[case::blocked_storage_keys(BTreeSet::from([StorageKey::from(0x1_u8)]))]
+#[case::no_filters(BTreeSet::new(), false)]
+#[case::blocked_storage_keys(BTreeSet::from([StorageKey::from(0x1_u8)]), false)]
+#[case::reject_invalid_signature_return_data(BTreeSet::new(), true)]
 #[tokio::test]
 async fn block_builders_get_storage_access_filter(
     #[case] blocked_storage_keys: BTreeSet<StorageKey>,
+    #[case] reject_invalid_signature_return_data: bool,
 ) {
-    let expect_filter = !blocked_storage_keys.is_empty();
+    let expect_filter = !blocked_storage_keys.is_empty() || reject_invalid_signature_return_data;
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     let propose_artifacts = BlockExecutionArtifacts::create_for_testing().await;
     block_builder_factory
@@ -1317,6 +1319,8 @@ async fn block_builders_get_storage_access_filter(
         .dynamic_config
         .storage_access_filter_config
         .blocked_storage_keys = blocked_storage_keys;
+    mock_dependencies.batcher_config.dynamic_config.reject_invalid_signature_return_data =
+        reject_invalid_signature_return_data;
     let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 

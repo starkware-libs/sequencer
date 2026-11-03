@@ -3,6 +3,7 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_core.json
   sequencerConfig:
     batcher_config.dynamic_config.proposer_idle_detection_delay_millis: 1500
+    batcher_config.dynamic_config.reject_invalid_signature_return_data: false
     batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys: ""
     batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address: "0x0"
     batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none: true
