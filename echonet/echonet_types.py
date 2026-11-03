@@ -10,9 +10,9 @@ from typing import Any, FrozenSet, Mapping, TypeAlias, TypedDict
 from echonet import helpers
 from echonet.constants import (
     DEFAULT_SEQUENCER_LAYOUT,
-    ECHONET_ENV_KEYS_PATH,
+    ECHONET_CONFIG_FILENAME,
+    ECHONET_ENV_CONFIG_PATH,
     ECHONET_ENV_SECRETS_PATH,
-    ECHONET_KEYS_FILENAME,
     ECHONET_SECRETS_FILENAME,
     MAX_BLOCK_NUMBER,
     SEQUENCER_LAYOUTS,
@@ -257,21 +257,21 @@ class EchonetConfig:
     notifications: NotificationsConfig
 
     @classmethod
-    def from_files(cls, keys_path: Path, secrets_path: Path) -> "EchonetConfig":
+    def from_files(cls, config_path: Path, secrets_path: Path) -> "EchonetConfig":
         """
         Load config from:
-        - keys_path: non-secret parameters persisted on the echonet PVC.
+        - config_path: non-secret parameters persisted on the echonet PVC.
         - secrets_path: secret parameters mounted from a Kubernetes Secret.
         """
 
-        keys = helpers.read_json_object(keys_path)
+        config_values = helpers.read_json_object(config_path)
         secrets = helpers.read_json_object(secrets_path)
 
-        start_block = int(keys["start_block"])
-        blocked_senders_csv = str(keys.get("blocked_senders", ""))
-        max_block_lead_before_pausing = int(keys.get("max_block_lead_before_pausing", 10))
+        start_block = int(config_values["start_block"])
+        blocked_senders_csv = str(config_values.get("blocked_senders", ""))
+        max_block_lead_before_pausing = int(config_values.get("max_block_lead_before_pausing", 10))
         sequencer_layout = SEQUENCER_LAYOUTS[
-            SequencerLayoutName(keys.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
+            SequencerLayoutName(config_values.get("sequencer_layout", DEFAULT_SEQUENCER_LAYOUT))
         ]
 
         feeder_bypass = str(secrets.get("feeder_x_throttling_bypass", "")).strip()
@@ -288,13 +288,13 @@ class EchonetConfig:
         return cls(
             feeder=FeederGatewayConfig(
                 base_url=str(
-                    keys.get("feeder_base_url", "https://feeder.alpha-mainnet.starknet.io")
+                    config_values.get("feeder_base_url", "https://feeder.alpha-mainnet.starknet.io")
                 ),
                 headers=feeder_headers,
             ),
             sequencer=SequencerGatewayConfig(
                 base_url_default=str(
-                    keys.get(
+                    config_values.get(
                         "sequencer_base_url_default",
                         f"http://sequencer-{sequencer_layout.http_service}-service:8080",
                     )
@@ -303,11 +303,13 @@ class EchonetConfig:
             ),
             blocks=BlockRangeDefaults(
                 start_block=start_block,
-                end_block=int(keys.get("end_block_default", MAX_BLOCK_NUMBER)),
+                end_block=int(config_values.get("end_block_default", MAX_BLOCK_NUMBER)),
             ),
             resync=ResyncConfig(
-                bounded_revert_enabled=bool(keys.get("resync_bounded_revert_enabled", False)),
-                revert_lookback_blocks=int(keys.get("resync_revert_lookback_blocks", 100)),
+                bounded_revert_enabled=bool(
+                    config_values.get("resync_bounded_revert_enabled", False)
+                ),
+                revert_lookback_blocks=int(config_values.get("resync_revert_lookback_blocks", 100)),
             ),
             sleep=SleepConfig(),
             tx_sender=TxSenderTuning(
@@ -340,23 +342,23 @@ class EchonetConfig:
 
 
 def load_config(
-    keys_path: Path = (Path("/data/echonet") / ECHONET_KEYS_FILENAME),
+    config_path: Path = (Path("/data/echonet") / ECHONET_CONFIG_FILENAME),
     secrets_path: Path = (Path("/etc/echonet") / ECHONET_SECRETS_FILENAME),
 ) -> EchonetConfig:
     """
     Load config from file paths.
 
     Paths can be overridden via environment variables:
-    - ECHONET_KEYS_PATH (default: /data/echonet/echonet_keys.json)
+    - ECHONET_CONFIG_PATH (default: /data/echonet/echonet_config.json)
     - ECHONET_SECRETS_PATH (default: /etc/echonet/echonet_secrets.json)
     """
-    keys_path = Path(os.environ.get(ECHONET_ENV_KEYS_PATH, str(keys_path)))
+    config_path = Path(os.environ.get(ECHONET_ENV_CONFIG_PATH, str(config_path)))
     secrets_path = Path(os.environ.get(ECHONET_ENV_SECRETS_PATH, str(secrets_path)))
 
-    if not Path(keys_path).exists():
+    if not Path(config_path).exists():
         raise RuntimeError(
-            f"Echonet keys file not found: {keys_path}. "
-            f"Expected it to exist on the PVC at /data/echonet/{ECHONET_KEYS_FILENAME}."
+            f"Echonet config file not found: {config_path}. "
+            f"Expected it to exist on the PVC at /data/echonet/{ECHONET_CONFIG_FILENAME}."
         )
     if not Path(secrets_path).exists():
         raise RuntimeError(
@@ -364,7 +366,7 @@ def load_config(
             f"Expected it to exist at /etc/echonet/{ECHONET_SECRETS_FILENAME}."
         )
 
-    return EchonetConfig.from_files(keys_path=Path(keys_path), secrets_path=Path(secrets_path))
+    return EchonetConfig.from_files(config_path=Path(config_path), secrets_path=Path(secrets_path))
 
 
 _CONFIG_CACHE: EchonetConfig | None = None
