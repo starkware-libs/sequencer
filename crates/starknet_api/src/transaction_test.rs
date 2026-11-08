@@ -1,6 +1,7 @@
 use rstest::{fixture, rstest};
+use starknet_types_core::felt::Felt;
 
-use super::Transaction;
+use super::{L1HandlerTransaction, Transaction};
 use crate::block::NonzeroGasPrice;
 use crate::core::ChainId;
 use crate::executable_transaction::{
@@ -10,6 +11,7 @@ use crate::executable_transaction::{
 };
 use crate::execution_resources::GasAmount;
 use crate::test_utils::{read_json_file, TransactionTestData};
+use crate::transaction::fields::Calldata;
 use crate::transaction::Fee;
 
 const CHAIN_ID: ChainId = ChainId::Mainnet;
@@ -69,4 +71,14 @@ fn test_invoke_executable_transaction_conversion(mut transactions_data: Vec<Tran
         }));
 
     verify_transaction_conversion(&transaction_data.transaction, expected_executable_tx);
+}
+
+/// The leading calldata felt is the L1 `from_address`, which is not part of the payload.
+#[test]
+fn l1_handler_payload_size_excludes_leading_from_address() {
+    let tx = L1HandlerTransaction {
+        calldata: Calldata(vec![Felt::ONE, Felt::TWO, Felt::THREE].into()),
+        ..Default::default()
+    };
+    assert_eq!(tx.payload_size(), 2);
 }

@@ -33,6 +33,7 @@ use crate::fifo_transaction_queue::FifoTransactionQueue;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_evicted_txs,
+    metric_count_expired_behind_gap_txs,
     metric_count_expired_txs,
     metric_count_rejected_txs,
     metric_set_get_txs_size,
@@ -584,7 +585,7 @@ impl Mempool {
 
     fn add_tx_inner(&mut self, args: AddTransactionArgs) {
         let AddTransactionArgs { tx, account_state } = args;
-        info!("Adding transaction to mempool.");
+        trace!("Adding transaction to mempool.");
         trace!("{tx:#?}");
 
         let tx_reference = TransactionReference::new(&tx);
@@ -835,10 +836,15 @@ impl Mempool {
         incoming_value >= escalation_qualified_value
     }
 
+    fn count_txs_behind_gap(&self, txs: &[TransactionReference]) -> usize {
+        txs.iter().filter(|tx| self.accounts_with_gap.contains(&tx.address)).count()
+    }
+
     #[instrument(skip_all, parent = None)]
-    fn log_and_count_expired_txs(&self, expired_txs: &[TransactionReference]) {
+    fn log_and_count_expired_txs(&self, expired_txs: &[TransactionReference], n_behind_gap: usize) {
         if !expired_txs.is_empty() {
-            metric_count_expired_txs(expired_txs.len());
+            metric_count_expired_txs(expired_txs.len() - n_behind_gap);
+            metric_count_expired_behind_gap_txs(n_behind_gap);
             info!(
                 "Removed expired transactions: {:?}",
                 expired_txs.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
@@ -851,6 +857,7 @@ impl Mempool {
             .tx_pool
             .remove_txs_older_than(self.config.dynamic_config.transaction_ttl, &self.state.staged);
 
+        let n_behind_gap = self.count_txs_behind_gap(&removed_txs);
         for tx_ref in &removed_txs {
             self.decrement_stuck_txs_if_gap_account(tx_ref.address, 1);
         }
@@ -868,7 +875,7 @@ impl Mempool {
 
         let queued_txs = self.tx_queue.remove_txs(&removed_txs);
 
-        self.log_and_count_expired_txs(&removed_txs);
+        self.log_and_count_expired_txs(&removed_txs, n_behind_gap);
         self.update_state_metrics();
         queued_txs
             .into_iter()
@@ -897,7 +904,8 @@ impl Mempool {
         // Remove old transactions from the pool.
         // Also remove from queue internals (relevant for FIFO staged rewind tracking).
         let _ = self.tx_queue.remove_txs(&old_txs);
-        self.log_and_count_expired_txs(&old_txs);
+        let n_behind_gap = self.count_txs_behind_gap(&old_txs);
+        self.log_and_count_expired_txs(&old_txs, n_behind_gap);
         let account_nonce_updates: AddressToNonce = old_txs
             .into_iter()
             .map(|tx| {

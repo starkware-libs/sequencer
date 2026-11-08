@@ -8,7 +8,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockFeeMarketInfo, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -187,6 +187,8 @@ pub struct StartHeightInput {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
+    /// Persisted with the block so consensus can restore its fee market state after a restart.
+    pub fee_market_info: BlockFeeMarketInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

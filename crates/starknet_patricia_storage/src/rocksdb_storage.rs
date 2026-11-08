@@ -1,5 +1,6 @@
 use core::fmt;
 use std::num::NonZeroUsize;
+use std::ops::RangeInclusive;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -34,6 +35,10 @@ use crate::storage_trait::{
     StorageConfigTrait,
     StorageStats,
 };
+
+#[cfg(test)]
+#[path = "rocksdb_storage_test.rs"]
+mod rocksdb_storage_test;
 
 // General database Options.
 
@@ -94,6 +99,9 @@ impl RocksDbOptions {
             config.max_write_buffers.try_into().expect("max_write_buffers should fit in i32"),
         );
         opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(KEY_PREFIX_BYTES_LENGTH));
+        if config.ttl_seconds > 0 {
+            opts.set_ttl(config.ttl_seconds);
+        }
 
         opts.set_allow_mmap_reads(config.use_mmap_reads);
 
@@ -118,6 +126,11 @@ impl RocksDbOptions {
         }
 
         opts.set_block_based_table_factory(&block);
+
+        if !config.extra_options.is_empty() {
+            opts.set_options_from_string(config.extra_options.as_str())
+                .expect("extra_options is validated by RocksDbStorageConfig::validate");
+        }
 
         let mut write_options = WriteOptions::default();
         write_options.set_sync(true);
@@ -165,6 +178,14 @@ pub struct RocksDbStorageConfig {
     /// Max parallel disk reads per multi-key batch (disk queue depth). Higher trades provisioned
     /// IOPS for faster large batches; 1 disables splitting. Small batches use fewer tasks.
     pub max_read_tasks: NonZeroUsize,
+    /// Non-bottom-level SST files whose data is older than this are compacted down, cascading to
+    /// the bottom level, so that tombstones reach the values they delete. 0 keeps RocksDB's
+    /// default (30 days).
+    pub ttl_seconds: u64,
+    /// RocksDB option string (`name=value;name=value`, see the RocksDB wiki on option strings),
+    /// applied after all the settings above and overriding them. Lets any RocksDB option be set
+    /// from config without a code change.
+    pub extra_options: String,
 }
 
 impl Default for RocksDbStorageConfig {
@@ -187,16 +208,209 @@ impl Default for RocksDbStorageConfig {
             spawn_blocking_reads: true,
             max_read_tasks: NonZeroUsize::new(MAX_READ_TASKS)
                 .expect("MAX_READ_TASKS should be nonzero"),
+            ttl_seconds: 0,
+            extra_options: String::new(),
         }
     }
 }
 
 impl Validate for RocksDbStorageConfig {
     fn validate(&self) -> Result<(), validator::ValidationErrors> {
-        Ok(())
+        if self.extra_options.is_empty() {
+            return Ok(());
+        }
+        Options::default().set_options_from_string(self.extra_options.as_str()).map(|_| ()).map_err(
+            |err| {
+                let mut error = validator::ValidationError::new("extra_options");
+                error.message = Some(err.to_string().into());
+                let mut errors = validator::ValidationErrors::new();
+                errors.add("extra_options", error);
+                errors
+            },
+        )
     }
 }
 
+<<<<<<< HEAD
+||||||| 01e4b43fa6
+impl SerializeConfig for RocksDbStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "num_threads",
+                &self.num_threads,
+                "Number of threads for parallelism",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_background_jobs",
+                &self.max_background_jobs,
+                "Maximum number of background compaction and flush jobs",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bytes_per_sync",
+                &self.bytes_per_sync,
+                "Bytes to sync to disk incrementally during writes",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "write_buffer_size",
+                &self.write_buffer_size,
+                "Amount of data to build up in memory before writing to disk",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_write_buffers",
+                &self.max_write_buffers,
+                "Maximum number of write buffers (memtables)",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_subcompactions",
+                &self.max_subcompactions,
+                "Maximum number of subcompactions for parallel compaction",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "cache_size",
+                &self.cache_size,
+                "Size of the block cache in bytes",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bloom_filter_bits",
+                &self.bloom_filter_bits,
+                "Number of bits in the bloom filter per key",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "enable_statistics",
+                &self.enable_statistics,
+                "Flag that determines whether to enable RocksDB statistics collection",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "use_mmap_reads",
+                &self.use_mmap_reads,
+                "Whether to use mmap for reading SST files",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "spawn_blocking_reads",
+                &self.spawn_blocking_reads,
+                "Whether to spawn blocking tasks for read operations",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_read_tasks",
+                &self.max_read_tasks,
+                "Max parallel disk reads per multi-key batch (disk queue depth). Higher trades \
+                 provisioned IOPS for faster large batches; 1 disables splitting. Small batches \
+                 use fewer tasks.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+=======
+impl SerializeConfig for RocksDbStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "num_threads",
+                &self.num_threads,
+                "Number of threads for parallelism",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_background_jobs",
+                &self.max_background_jobs,
+                "Maximum number of background compaction and flush jobs",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bytes_per_sync",
+                &self.bytes_per_sync,
+                "Bytes to sync to disk incrementally during writes",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "write_buffer_size",
+                &self.write_buffer_size,
+                "Amount of data to build up in memory before writing to disk",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_write_buffers",
+                &self.max_write_buffers,
+                "Maximum number of write buffers (memtables)",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_subcompactions",
+                &self.max_subcompactions,
+                "Maximum number of subcompactions for parallel compaction",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "cache_size",
+                &self.cache_size,
+                "Size of the block cache in bytes",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bloom_filter_bits",
+                &self.bloom_filter_bits,
+                "Number of bits in the bloom filter per key",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "enable_statistics",
+                &self.enable_statistics,
+                "Flag that determines whether to enable RocksDB statistics collection",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "use_mmap_reads",
+                &self.use_mmap_reads,
+                "Whether to use mmap for reading SST files",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "spawn_blocking_reads",
+                &self.spawn_blocking_reads,
+                "Whether to spawn blocking tasks for read operations",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_read_tasks",
+                &self.max_read_tasks,
+                "Max parallel disk reads per multi-key batch (disk queue depth). Higher trades \
+                 provisioned IOPS for faster large batches; 1 disables splitting. Small batches \
+                 use fewer tasks.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "ttl_seconds",
+                &self.ttl_seconds,
+                "Non-bottom-level SST files whose data is older than this many seconds are \
+                 compacted down to the bottom level. 0 keeps RocksDB's default of 30 days.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "extra_options",
+                &self.extra_options,
+                "RocksDB option string (name=value;name=value) applied after and overriding the \
+                 explicit settings. Lets any RocksDB option be set without a code change.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+>>>>>>> origin/main-v0.14.4
 impl StorageConfigTrait for RocksDbStorageConfig {}
 
 impl RocksDbStorage {
@@ -326,6 +540,22 @@ impl Storage for RocksDbStorage {
             }
         }
         Ok(self.db.write_opt(&batch, &self.options.write_options)?)
+    }
+
+    /// Writes a range tombstone, then drops every SST file that lies entirely inside `keys`, which
+    /// frees their space without a compaction. L0 files and files that straddle the range edges
+    /// are kept; the tombstone hides their keys until compaction drops them.
+    async fn free_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        let (first, last) = keys.into_inner();
+        // The smallest key above `last`: the range tombstone's end is exclusive.
+        let end = [last.0.as_slice(), &[0]].concat();
+        let mut batch = WriteBatch::default();
+        batch.delete_range(&first.0, &end);
+        self.db.write_opt(&batch, &self.options.write_options)?;
+        // Safe if the file drop fails: the tombstone alone deletes the range, and the next call
+        // over the range frees its files.
+        // Unlinks the SST files below L0 whose keys all lie in the range, without reading them.
+        Ok(self.db.delete_file_in_range(&first.0, &last.0)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {

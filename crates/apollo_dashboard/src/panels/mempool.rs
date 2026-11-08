@@ -35,7 +35,6 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
         ),
         PanelType::TimeSeries,
     )
-    .with_log_query("Adding transaction to mempool")
 }
 fn get_panel_mempool_transactions_committed() -> Panel {
     Panel::new(

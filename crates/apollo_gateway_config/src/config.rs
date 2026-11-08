@@ -1,9 +1,39 @@
 use apollo_config::behavior_mode::BehaviorMode;
+<<<<<<< HEAD
+||||||| 01e4b43fa6
+use apollo_config::converters::{
+    deserialize_comma_separated_str,
+    serialize_optional_comma_separated,
+};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+=======
+use apollo_config::converters::{
+    deserialize_comma_separated_str,
+    serialize_optional_comma_separated,
+};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_versioned_constants::VersionedConstants;
+>>>>>>> origin/main-v0.14.4
 use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use url::Url;
 use validator::Validate;
@@ -100,8 +130,6 @@ impl Default for GatewayDynamicConfig {
 pub struct StatelessTransactionValidatorConfig {
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds: bool,
-    // TODO(AlonH): Remove the `min_gas_price` field from this struct and use the one from the
-    // versioned constants.
     pub min_gas_price: u128,
     pub max_l2_gas_amount: u64,
     pub max_calldata_length: usize,
@@ -122,7 +150,7 @@ impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
-            min_gas_price: 8_000_000_000,
+            min_gas_price: VersionedConstants::latest_constants().min_gas_price.0,
             max_l2_gas_amount: 1_210_000_000,
             max_calldata_length: 5000,
             max_signature_length: 4000,

@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EventsProviderConfig {
     #[serde(
@@ -108,6 +112,15 @@ pub struct L1EventsScraperConfig {
     /// request.
     #[validate(range(min = 1))]
     pub max_blocks_per_fetch: u64,
+    /// Max number of payload felts (calldata without the leading `from_address`) an L1→L2 message
+    /// may carry; the scraper drops longer messages before they reach the provider, so this node
+    /// never proposes them. Node ingestion policy, not a protocol rule, but liveness-relevant:
+    /// every validator of a network must use the same value. A proposer with a higher limit has
+    /// its proposals rejected (`NotFound`) by stricter validators, and a stricter validator falls
+    /// back to sync whenever laxer nodes commit such a message. Values above the batcher
+    /// bouncer's message-segment block capacity are a no-op.
+    #[validate(range(min = 1))]
+    pub max_l1_handler_payload_length: usize,
 }
 
 impl Default for L1EventsScraperConfig {
@@ -123,6 +136,123 @@ impl Default for L1EventsScraperConfig {
             // (~1k-10k) and the 1s base-layer timeout. Operators on permissive private RPCs may
             // raise it.
             max_blocks_per_fetch: 1000,
+            max_l1_handler_payload_length: 20,
         }
     }
 }
+<<<<<<< HEAD
+||||||| 01e4b43fa6
+
+impl SerializeConfig for L1EventsScraperConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "startup_rewind_time_seconds",
+                &self.startup_rewind_time_seconds.as_secs(),
+                "Duration in seconds to rewind from latest L1 block when starting scraping.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "finality",
+                &self.finality,
+                "Number of blocks to wait for finality",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "polling_interval_seconds",
+                &self.polling_interval_seconds.as_secs(),
+                "Interval in Seconds between each scraping attempt of L1.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "set_provider_historic_height_to_l2_genesis",
+                &self.set_provider_historic_height_to_l2_genesis,
+                "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). \
+                             This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_block_time_seconds",
+                &self.l1_block_time_seconds.as_secs(),
+                "The time it takes for a new L1 block to be created.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_blocks_per_fetch",
+                &self.max_blocks_per_fetch,
+                "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the \
+                 catch-up window so a large backlog is drained over successive polls instead of in \
+                 one unbounded request.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+=======
+
+impl SerializeConfig for L1EventsScraperConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "startup_rewind_time_seconds",
+                &self.startup_rewind_time_seconds.as_secs(),
+                "Duration in seconds to rewind from latest L1 block when starting scraping.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "finality",
+                &self.finality,
+                "Number of blocks to wait for finality",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "polling_interval_seconds",
+                &self.polling_interval_seconds.as_secs(),
+                "Interval in Seconds between each scraping attempt of L1.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "set_provider_historic_height_to_l2_genesis",
+                &self.set_provider_historic_height_to_l2_genesis,
+                "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). \
+                             This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_block_time_seconds",
+                &self.l1_block_time_seconds.as_secs(),
+                "The time it takes for a new L1 block to be created.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_blocks_per_fetch",
+                &self.max_blocks_per_fetch,
+                "Maximum number of L1 blocks fetched per events (eth_getLogs) request. Caps the \
+                 catch-up window so a large backlog is drained over successive polls instead of in \
+                 one unbounded request.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l1_handler_payload_length",
+                &self.max_l1_handler_payload_length,
+                "Max number of payload felts (calldata without the leading from_address) an L1 to \
+                 L2 message may carry; the scraper drops longer messages. Must be identical on \
+                 every validator of the network.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+>>>>>>> origin/main-v0.14.4

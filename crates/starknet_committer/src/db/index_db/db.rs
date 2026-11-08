@@ -112,9 +112,31 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
 
-/// The db key prefix of the lowest height whose commitment infos are stored.
+/// The db key prefix of the lowest height whose commitment infos were stored. No longer written,
+/// but existing storages still hold the key, so new prefixes must be derived past this one.
+#[allow(dead_code)]
 static COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&PATRICIA_PATHS_PREFIX) + Felt::ONE).to_bytes_be());
+
+/// The number of db keys holding the commitment infos of a block.
+pub const N_COMMITMENT_INFOS_KEYS_PER_BLOCK: usize = 2;
+
+/// The per-block commitment infos prefixes, each with its height-0 key, where their range deletion
+/// starts.
+static COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS: LazyLock<
+    [(&[u8; 32], DbKey); N_COMMITMENT_INFOS_KEYS_PER_BLOCK],
+> = LazyLock::new(|| {
+    [&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX, &*PATRICIA_PATHS_PREFIX]
+        .map(|prefix| (prefix, DbKey(block_number_based_key(prefix, DbBlockNumber::ZERO))))
+});
+
+/// Whether `key` holds the commitment infos of a block: its accessed keys digest or its Patricia
+/// paths. These are read right after being written, and deleted after the retention window.
+pub fn is_commitment_infos_key(key: &DbKey) -> bool {
+    COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS
+        .iter()
+        .any(|(prefix, _)| key.0.starts_with(prefix.as_slice()))
+}
 
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
@@ -305,9 +327,6 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
             ForestMetadataType::CommitmentOffset => {
                 singleton_metadata_key(&COMMITMENT_OFFSET_METADATA_PREFIX)
             }
-            ForestMetadataType::CommitmentInfosLowerBound => {
-                singleton_metadata_key(&COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX)
-            }
             ForestMetadataType::StateDiffHash(block_number) => {
                 block_number_based_key(&STATE_DIFF_HASH_METADATA_PREFIX, block_number)
             }
@@ -349,6 +368,8 @@ impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
     }
 }
 
+// The big-endian block number keeps the keys in height order, which the range deletion of
+// commitment infos relies on.
 fn block_number_based_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> Vec<u8> {
     let mut key = Vec::with_capacity(64);
     key.extend_from_slice(prefix);
@@ -485,6 +506,22 @@ impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
             Self::append_commitment_infos_update(&mut operations, commitment_infos_update);
         }
         Ok(self.write_updates(operations).await)
+    }
+
+    async fn delete_commitment_infos_below(
+        &mut self,
+        lower_bound: BlockNumber,
+    ) -> PatriciaStorageResult<()> {
+        let Some(last_height) = lower_bound.prev() else {
+            return Ok(());
+        };
+        // Starting at 0 also covers heights a failed earlier deletion left behind; the range
+        // tombstone costs the same however far down it reaches.
+        for (prefix, first_key) in COMMITMENT_INFOS_PREFIXES_AND_FIRST_KEYS.iter() {
+            let last_key = block_number_based_key(prefix, DbBlockNumber(last_height));
+            self.storage.free_range(first_key.clone()..=DbKey(last_key)).await?;
+        }
+        Ok(())
     }
 }
 

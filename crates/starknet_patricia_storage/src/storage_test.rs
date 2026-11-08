@@ -4,6 +4,7 @@ use std::path::Path;
 use rstest::rstest;
 use tempfile::TempDir;
 use tokio::task::JoinSet;
+use validator::Validate;
 
 use crate::mdbx_storage::MdbxStorage;
 use crate::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
@@ -95,4 +96,29 @@ async fn test_mget_empty_batch() {
     let temp_dir = TempDir::new().unwrap();
     let storage = RocksDbStorage::new(temp_dir.path(), RocksDbStorageConfig::default()).unwrap();
     assert!(ImmutableReadOnlyStorage::mget(&storage, &[]).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn test_rocksdb_ttl_and_extra_options() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = RocksDbStorageConfig {
+        ttl_seconds: 3600,
+        extra_options: "periodic_compaction_seconds=86400;ttl=7200".to_string(),
+        ..Default::default()
+    };
+    config.validate().unwrap();
+    let mut storage = RocksDbStorage::new(temp_dir.path(), config).unwrap();
+    let key = DbKey(b"key".to_vec());
+    let value = DbValue(b"value".to_vec());
+    storage.set(key.clone(), value.clone()).await.unwrap();
+    assert_eq!(ImmutableReadOnlyStorage::get(&storage, &key).await.unwrap(), Some(value));
+}
+
+#[test]
+fn test_rocksdb_invalid_extra_options_fail_validation() {
+    let config = RocksDbStorageConfig {
+        extra_options: "no_such_option=1".to_string(),
+        ..Default::default()
+    };
+    assert!(config.validate().is_err());
 }
