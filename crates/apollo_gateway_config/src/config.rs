@@ -1,33 +1,5 @@
 use apollo_config::behavior_mode::BehaviorMode;
-<<<<<<< HEAD
-||||||| 01e4b43fa6
-use apollo_config::converters::{
-    deserialize_comma_separated_str,
-    serialize_optional_comma_separated,
-};
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-=======
-use apollo_config::converters::{
-    deserialize_comma_separated_str,
-    serialize_optional_comma_separated,
-};
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_versioned_constants::VersionedConstants;
->>>>>>> origin/main-v0.14.4
 use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;

@@ -27,6 +27,7 @@ local constants = import 'lib/base_layer_constants.libsonnet';
   native_classes_whitelist: '["0x054c5afe61ed27be53b1e4dec5707209a9fcabdb14712fb800fbc60439090115"]',
   max_state_diff_in_block: 5000,
   n_execution_workers: 12,
+  cairo_native_mode: 'off',
   first_block_with_partial_block_hash: {
     block_hash: '0x12889b177c93baa28b5ee3afc80cb6f4836adac086af4bef25ae1ac762e8a62',
     block_number: 671813,

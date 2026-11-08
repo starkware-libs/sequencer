@@ -1,15 +1,1 @@
 include: configs/overlays/hybrid/common/services/gateway.yaml
-<<<<<<< HEAD
-||||||| 01e4b43fa6
-
-config:
-  sequencerConfig:
-    gateway_config.static_config.proof_archive_writer_config.bucket_name: starkware-starknet-alpha
-=======
-
-config:
-  sequencerConfig:
-    gateway_config.static_config.proof_archive_writer_config.bucket_name: starkware-starknet-alpha
-    gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v1: true
-    gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2: false
->>>>>>> origin/main-v0.14.4

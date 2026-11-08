@@ -93,41 +93,6 @@ impl Default for PreconfirmedCendeConfig {
     }
 }
 
-<<<<<<< HEAD
-||||||| 01e4b43fa6
-impl SerializeConfig for PreconfirmedCendeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
-
-=======
-impl SerializeConfig for PreconfirmedCendeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "recorder_url",
-                &self.recorder_url,
-                "The URL of the Pythonic cende_recorder",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "write_timeout_millis",
-                &self.write_timeout_millis,
-                "Maximal wall time (in milliseconds) of a single pre-confirmed block write, \
-                 including connecting to the recorder.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
->>>>>>> origin/main-v0.14.4
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct FirstBlockWithPartialBlockHash {
     pub block_number: BlockNumber,

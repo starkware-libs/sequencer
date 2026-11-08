@@ -18,7 +18,7 @@ function(chain_params)
       },
       contract_class_manager_config: {
         cairo_native_run_config: {
-          cairo_native_mode: 'lazy_compilation',
+          cairo_native_mode: chain_params.cairo_native_mode,
           channel_size: 2000,
           panic_on_compilation_failure: false,
         },
@@ -60,7 +60,7 @@ function(chain_params)
         min_gas_price: chain_params.min_gas_price,
         min_sierra_version: {
           major: 1,
-          minor: 1,
+          minor: 5,
           patch: 0,
         },
         validate_resource_bounds: defaults.VALIDATE_RESOURCE_BOUNDS,
