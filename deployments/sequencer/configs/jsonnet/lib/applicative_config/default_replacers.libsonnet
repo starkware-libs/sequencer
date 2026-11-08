@@ -9,10 +9,11 @@ local defaults = import '../defaults.libsonnet';
 
   n_concurrent_txs: 100,
   proposer_idle_detection_delay_millis: 1500,
-  max_events_in_block: 5000,
+  max_events_in_block: 10000,
   max_receipt_l2_gas_in_block: 5800000000,
   max_state_diff_in_block: 4000,
   n_execution_workers: 5,
+  cairo_native_mode: 'lazy_compilation',
   first_block_with_partial_block_hash: null,
 
   committer_cache_size: 10000000,
@@ -30,7 +31,7 @@ local defaults = import '../defaults.libsonnet';
   authorized_declarer_accounts: null,
   max_allowed_nonce_gap: 200,
   max_contract_bytecode_size: 81920,
-  min_gas_price: 8000000000,
+  min_gas_price: 3000000000,
 
   transaction_ttl: 300,
 

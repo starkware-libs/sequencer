@@ -27,7 +27,7 @@ function()
       eth_usd_feed_address: '0x06b2ef9b416ad0f996b2a8ac0dd771b1788196f51c96f5b000df2e47ac756d26',
       strk_usd_feed_address: '0x076a0254cdadb59b86da3b5960bf8d73779cac88edc5ae587cab3cedf03226ec',
       freshness: { max_staleness_seconds: 90000, max_future_updated_at_seconds: 300 },
-      sampling_interval_seconds: 900,
+      sampling_interval_seconds: 300,
       failure_retry_interval_seconds: 60,
     },
   }

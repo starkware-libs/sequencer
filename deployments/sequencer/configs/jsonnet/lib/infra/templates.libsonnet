@@ -27,6 +27,13 @@
     state_sync: 55009,
   },
 
+  // Body limits of components whose traffic exceeds the 8 MiB defaults (the live mainnet values):
+  // the largest request the component's server accepts and the largest response its clients
+  // accept.
+  componentBodyLimits:: {
+    committer: { max_request_body_bytes: 16777216, max_response_body_bytes: 67108864 },
+  },
+
   // LocalServerConfig::default().
   localServerConfig:: {
     high_priority_requests_channel_capacity: 1024,

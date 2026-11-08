@@ -9,36 +9,6 @@ image:
   digest: ''
   imagePullPolicy: IfNotPresent
 
-<<<<<<< HEAD
-||||||| 01e4b43fa6
-config:
-  sequencerConfig:
-    chain_id: "CHAIN_ID_SUBDIR"
-    eth_fee_token_address: "0x1001"
-    monitoring_endpoint_config.port: 8082
-    native_classes_whitelist: "All"
-    recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
-    starknet_url: "https://integration-sepolia.starknet.io/"
-    strk_fee_token_address: "0x1002"
-    validator_id: "0x64"
-    versioned_constants_overrides.#is_none: true
-    versioned_constants_overrides.max_n_events: 1000
-
-=======
-config:
-  sequencerConfig:
-    chain_id: "CHAIN_ID_SUBDIR"
-    eth_fee_token_address: "0x1001"
-    monitoring_endpoint_config.port: 8082
-    native_classes_whitelist: "All"
-    recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
-    starknet_url: "https://integration-sepolia.starknet.io/"
-    strk_fee_token_address: "0x1002"
-    validator_id: "0x64"
-    versioned_constants_overrides.#is_none: true
-    versioned_constants_overrides.max_n_events: 3000
-
->>>>>>> origin/main-v0.14.4
 service:
   ports:
   - name: monitoring-endpoint
