@@ -60,9 +60,36 @@ fn serialize_alert_not_applicable_to_observer_appends_is_observer_filter() {
 
     let serialized = serde_json::to_value(&alert).unwrap();
     // Expr should be wrapped in parentheses for PromQL precedence (`and` binds tighter than `or`).
-    let expected_expr = "(foo or vector(0)) and on() (is_observer{cluster=~\"$cluster\", \
-                         namespace=~\"$namespace\"} == 0)";
+    // An observer gets the threshold (10), which fails `> 10`, instead of no data.
+    let is_observer = "is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"}";
+    let expected_expr = format!(
+        "((foo or vector(0)) and on() ({is_observer} == 0)) or on() (vector(10) and on() \
+         ({is_observer} == 1))"
+    );
     assert_eq!(serialized["expr"], expected_expr);
+}
+
+#[test]
+fn observer_value_of_an_alert_with_a_placeholder_threshold_is_that_placeholder() {
+    let alert = Alert::new(
+        "Name",
+        "Message",
+        EvaluationRate::Default,
+        "foo".to_string(),
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
+            "threshold".to_string(),
+            AlertLogicalOp::And,
+        )],
+        "5m",
+        AlertSeverity::Sos,
+        ObserverApplicability::NotApplicable,
+    );
+
+    let serialized = serde_json::to_value(&alert).unwrap();
+    let placeholder = "$$$threshold-comparison_value$$$";
+    assert!(serialized["expr"].as_str().unwrap().contains(&format!("vector({placeholder})")));
+    assert_eq!(serialized["conditions"][0]["evaluator"]["params"][0], placeholder);
 }
 
 #[test]

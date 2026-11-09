@@ -132,6 +132,10 @@ impl AlertCondition {
         Self { comparison_op, comparison_value: comparison_value.into(), logical_op }
     }
 
+    pub(crate) fn comparison_value_promql(&self) -> String {
+        self.comparison_value.to_promql()
+    }
+
     pub(crate) fn get_comparison_value_placeholder_name(&self) -> Option<String> {
         match &self.comparison_value {
             ComparisonValueOrPlaceholder::Placeholder(_) => {
@@ -273,12 +277,22 @@ impl Alert {
         let expr = match observer_applicable {
             ObserverApplicability::Applicable => expr,
             ObserverApplicability::NotApplicable => {
+                // An observer evaluates to the threshold, which fails its condition, instead of
+                // to no data: under `noDataState: KeepLast`, a single sample taken while
+                // `is_observer` reads 0 (a restart) would otherwise keep the rule firing.
+                let observer_value = conditions
+                    .first()
+                    .expect("An alert needs at least one condition.")
+                    .comparison_value_promql();
+                let is_observer = IS_OBSERVER.get_name_with_filter();
                 ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
-                    // `and on()` ignores label sets so the unlabeled scalar produced by
-                    // aggregations like sum() still matches the pod-labeled is_observer series.
-                    "({}) and on() ({} == 0)",
+                    // `on()` ignores label sets so the unlabeled scalar produced by aggregations
+                    // like sum() still matches the pod-labeled is_observer series. The observer
+                    // value stays unlabeled, so a later `or vector(..)` fallback merges with it.
+                    "(({}) and on() ({is_observer} == 0)) or on() (vector({}) and on() \
+                     ({is_observer} == 1))",
                     expr.to_alert_promql(),
-                    IS_OBSERVER.get_name_with_filter(),
+                    observer_value,
                 ))
             }
         };
