@@ -67,7 +67,6 @@ impl ComparisonValueOrPlaceholder {
         }
     }
 
-    /// The value as it appears in a PromQL expression; a placeholder is filled in at deployment.
     pub(crate) fn to_promql(&self) -> String {
         match self {
             ComparisonValueOrPlaceholder::ConcreteValue(value) => value.to_string(),
