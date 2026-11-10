@@ -35,7 +35,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
 use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::dynamic_gas_price::{fee_proposal_bounds, proposal_commitment_from};
 use crate::metrics::{
@@ -606,7 +606,7 @@ async fn handle_proposal_part(
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             // TODO(guyn): check that the length of txs and the number of batches we receive is not
             // so big it would fill up the memory (in case of a malicious proposal)
-            debug!("Received transaction batch with {} txs", txs.len());
+            trace!("Received transaction batch with {} txs", txs.len());
             let conversion_results =
                 futures::future::join_all(txs.into_iter().map(|tx| {
                     transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)

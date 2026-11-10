@@ -353,7 +353,7 @@ impl<
         );
 
         loop {
-            debug!("Selecting between block sync and state diff sync.");
+            trace!("Selecting between block sync and state diff sync.");
             let sync_event = select! {
               res = block_stream.next() => res,
               res = state_diff_stream.next() => res,
@@ -370,7 +370,7 @@ impl<
                 &compiled_class_request_tx,
             )
             .await?;
-            debug!("Finished processing sync event.");
+            trace!("Finished processing sync event.");
         }
         unreachable!("Fetching data loop should never return.");
     }

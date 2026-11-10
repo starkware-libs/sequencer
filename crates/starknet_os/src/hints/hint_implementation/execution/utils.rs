@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_maybe_relocatable_from_var_name,
     get_ptr_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
@@ -130,11 +131,13 @@ pub(crate) fn set_state_entry(key: &Felt, ctx: &mut HintContext<'_>) -> OsHintRe
     Ok(())
 }
 
-pub(crate) fn assert_retdata_as_expected<IG: IdentifierGetter>(
+/// Asserts that the retdata in the syscall response matches the retdata of the OS execution, and
+/// copies cells the caller appended after the response data to the retdata segment.
+pub(crate) fn postprocess_retdata<IG: IdentifierGetter>(
     retdata_start_field_name: &str,
     retdata_end_field_name: &str,
     response_type: CairoStruct,
-    vm: &VirtualMachine,
+    vm: &mut VirtualMachine,
     ap_tracking: &ApTracking,
     ids_data: &HashMap<String, HintReference>,
     identifier_getter: &IG,
@@ -159,7 +162,24 @@ pub(crate) fn assert_retdata_as_expected<IG: IdentifierGetter>(
     let response_len = (response_end - response_start)?;
     let expected_retdata = vm.get_continuous_range(response_start, response_len)?;
     let actual_retdata = extract_actual_retdata(vm, ids_data, ap_tracking)?;
-    compare_retdata(&actual_retdata, &expected_retdata)
+    compare_retdata(&actual_retdata, &expected_retdata)?;
+
+    // If the inner call fails, the caller may append values to the error data.
+    // Since it's written to a temporary segment and then relocated, we need to make the appended
+    // values available through the destination segment as well to allow future calls to read these
+    // values.
+    let retdata_base =
+        get_maybe_relocatable_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
+    if retdata_base != MaybeRelocatable::Int(Felt::ZERO) {
+        let retdata_end = (Relocatable::try_from(&retdata_base)? + actual_retdata.len())?;
+        let mut offset: usize = 0;
+        while let Some(value) = vm.get_maybe(&(response_end + offset)?) {
+            vm.insert_value((retdata_end + offset)?, value)?;
+            offset += 1;
+        }
+    }
+
+    Ok(())
 }
 
 pub(crate) fn extract_actual_retdata(

@@ -6,7 +6,7 @@ function(chain_params, node_params)
     broadcast_buffer_size: 10000,
     cende_config: {
       max_retry_duration_secs: 3,
-      max_retry_interval_ms: 1000,
+      max_retry_interval_ms: 1500,
       min_retry_interval_ms: 50,
       recorder_url: chain_params.mandatory.recorder_url,
     },

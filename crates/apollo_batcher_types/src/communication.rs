@@ -15,7 +15,7 @@ use blockifier::state::accessed_keys::AccessedKeys;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, ReplayBlockMetadata};
+use starknet_api::block::{BlockFeeMarketInfo, BlockHash, BlockNumber, ReplayBlockMetadata};
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
@@ -67,6 +67,12 @@ pub trait BatcherClient: Send + Sync {
         &self,
         block_number: BlockNumber,
     ) -> BatcherClientResult<bool>;
+    /// Gets the fee market info of a committed block. Returns `Ok(None)` when the block is not
+    /// committed, or was committed before the fee market info was persisted.
+    async fn get_fee_market_info(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<Option<BlockFeeMarketInfo>>;
     /// Gets the first height that is not written in the storage yet.
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
@@ -131,6 +137,7 @@ pub enum BatcherRequest {
     GetBlockHash(BlockNumber),
     GetStateCommitmentInfos(BlockNumber),
     HasStateCommitmentInfos(BlockNumber),
+    GetFeeMarketInfo(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     AbortProposal(ProposalId),
@@ -159,6 +166,7 @@ pub enum BatcherResponse {
     GetBlockHash(BatcherResult<BlockHash>),
     GetStateCommitmentInfos(BatcherResult<Option<CompressedStateCommitmentInfos>>),
     HasStateCommitmentInfos(BatcherResult<bool>),
+    GetFeeMarketInfo(BatcherResult<Option<BlockFeeMarketInfo>>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
@@ -239,6 +247,22 @@ where
             request,
             BatcherResponse,
             HasStateCommitmentInfos,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn get_fee_market_info(
+        &self,
+        block_number: BlockNumber,
+    ) -> BatcherClientResult<Option<BlockFeeMarketInfo>> {
+        let request = BatcherRequest::GetFeeMarketInfo(block_number);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            GetFeeMarketInfo,
             BatcherClientError,
             BatcherError,
             Direct

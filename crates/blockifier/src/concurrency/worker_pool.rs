@@ -120,13 +120,13 @@ impl<S: StateReader> WorkerThread<S> {
             self.receiver.recv().expect("Failed to receive worker executor.")
         {
             let block_number = worker_executor.block_context.block_info.block_number;
-            log::debug!(
+            log::trace!(
                 "Worker pool (thread {}) starting worker #{} (block number {block_number})",
                 self.thread_id,
                 i,
             );
             self._run_executor(&*worker_executor);
-            log::debug!(
+            log::trace!(
                 "Worker pool (thread {}) worker done #{} (block number {block_number})",
                 self.thread_id,
                 i,

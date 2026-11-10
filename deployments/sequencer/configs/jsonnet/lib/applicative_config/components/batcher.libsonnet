@@ -65,7 +65,7 @@ function(chain_params)
       },
       contract_class_manager_config: {
         cairo_native_run_config: {
-          cairo_native_mode: 'lazy_compilation',
+          cairo_native_mode: chain_params.cairo_native_mode,
           channel_size: 2000,
           panic_on_compilation_failure: false,
         },
@@ -88,6 +88,7 @@ function(chain_params)
       },
       pre_confirmed_cende_config: {
         recorder_url: chain_params.mandatory.recorder_url,
+        write_timeout_millis: 1000,
       },
       propose_l1_txs_every: 10,
       storage: {

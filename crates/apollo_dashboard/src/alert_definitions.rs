@@ -99,7 +99,7 @@ use crate::alert_scenarios::mempool_size::{
 };
 use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written;
 use crate::alert_scenarios::remote_server_connections::get_remote_server_number_of_connections_alert;
-use crate::alert_scenarios::sync_halt::{get_state_sync_lag, get_state_sync_stuck_vec};
+use crate::alert_scenarios::sync_halt::get_state_sync_stuck_vec;
 use crate::alert_scenarios::tps::{
     get_gateway_add_tx_idle,
     get_gateway_low_successful_transaction_rate,
@@ -299,8 +299,8 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        AlertSeverity::WorkingHours,
-        ObserverApplicability::NotApplicable,
+        AlertSeverity::DayOnly,
+        ObserverApplicability::Applicable,
     )
 }
 
@@ -693,7 +693,6 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_mempool_transaction_drop_ratio());
     alerts.push(get_preconfirmed_block_not_written());
     alerts.append(&mut get_all_remote_server_connection_alerts());
-    alerts.push(get_state_sync_lag());
     alerts.append(&mut get_state_sync_stuck_vec());
 
     Alerts::new(alerts)

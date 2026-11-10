@@ -100,8 +100,8 @@ pub(crate) const DEFAULT_STRK_TO_USD_RATE: u128 = 300_000_000_000_000_000;
 // L2 gas price minimum for the ceiling tests, and the ceiling it implies. Spelled out rather than
 // derived, so `test_price_constants_match_the_shipped_values` catches a change in the shipped
 // minimum or multiplier.
-pub(crate) const TEST_MIN_L2_GAS_PRICE: GasPrice = GasPrice(8_000_000_000);
-pub(crate) const TEST_MAX_L2_GAS_PRICE: GasPrice = GasPrice(80_000_000_000);
+pub(crate) const TEST_MIN_L2_GAS_PRICE: GasPrice = GasPrice(3_000_000_000);
+pub(crate) const TEST_MAX_L2_GAS_PRICE: GasPrice = GasPrice(51_000_000_000);
 
 // A ceiling no band can reach, for cases where the cap is not under test.
 pub(crate) const INERT_MAX_L2_GAS_PRICE: GasPrice = GasPrice(u128::MAX);
@@ -445,7 +445,7 @@ pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
         version_constant_commitment: Default::default(),
         // Required because LATEST >= V0_14_3. Match the proposer's default-fallback
         // fee_proposal.
-        fee_proposal_fri: Some(GasPrice(8_000_000_000)),
+        fee_proposal_fri: Some(VersionedConstants::latest_constants().min_gas_price),
     }
 }
 
@@ -461,10 +461,12 @@ pub(crate) async fn send_proposal_to_validator_context(
         .await
         .unwrap();
     // Match the validator's computed commitment: `proposal_init` emits
-    // `fee_proposal_fri = Some(8 gwei)` (the default-test fee_proposal value), and the
+    // `fee_proposal_fri = Some(min_gas_price)` (the default-test fee_proposal value), and the
     // validator chains that into the proposal commitment via `proposal_commitment_from`.
-    let expected_commitment =
-        proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(GasPrice(8_000_000_000)));
+    let expected_commitment = proposal_commitment_from(
+        PARTIAL_BLOCK_HASH,
+        Some(VersionedConstants::latest_constants().min_gas_price),
+    );
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProtoProposalCommitment(expected_commitment.0),

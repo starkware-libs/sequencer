@@ -28,7 +28,14 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_committer_types::committer_types::{CommitBlockRequest, ReadPathsAndCommitBlockRequest};
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    GetStateCommitmentInfosResponse,
+    ReadPathsAndCommitBlockRequest,
+};
+use apollo_committer_types::communication::MockCommitterClient;
+use apollo_committer_types::errors::CommitterClientError;
+use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -74,6 +81,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
+    BlockFeeMarketInfo,
     BlockHash,
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -100,6 +108,7 @@ use starknet_api::{class_hash, invoke_tx_args, tx_hash};
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio_util::sync::CancellationToken;
 use validator::Validate;
 
 use crate::batcher::{
@@ -139,6 +148,10 @@ use crate::metrics::{
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     SYNCED_TRANSACTIONS,
+};
+use crate::pre_confirmed_block_writer::{
+    MockPreconfirmedBlockWriterFactoryTrait,
+    MockPreconfirmedBlockWriterTrait,
 };
 use crate::test_utils::{
     get_number_of_items_in_channel_from_receiver,
@@ -326,6 +339,15 @@ fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
     state_diffs
 }
 
+/// Derives distinct fee market values per height, so committing the wrong block's info is caught.
+fn test_fee_market_info(height: BlockNumber) -> BlockFeeMarketInfo {
+    let base = u128::from(height.0) * 1000;
+    BlockFeeMarketInfo {
+        fee_proposal_fri: Some(GasPrice(base + 17)),
+        next_l2_gas_price: GasPrice(base + 23),
+    }
+}
+
 /// Expects a single `commit_proposal` call with the given arguments; `expect_accessed_keys`
 /// states whether accessed keys should be written with the state diff.
 fn expect_commit_proposal_once(
@@ -334,21 +356,29 @@ fn expect_commit_proposal_once(
     expected_state_diff: ThinStateDiff,
     expected_storage_commitment_block_hash: StorageCommitmentBlockHash,
     expect_accessed_keys: bool,
+    expected_fee_market_info: BlockFeeMarketInfo,
 ) {
     storage_writer
         .expect_commit_proposal()
         .times(1)
-        .withf(move |height, state_diff, storage_commitment_block_hash, accessed_keys| {
-            *height == expected_height
-                && *state_diff == expected_state_diff
-                && *storage_commitment_block_hash == expected_storage_commitment_block_hash
-                && accessed_keys.is_some() == expect_accessed_keys
-        })
-        .returning(|_, _, _, _| Ok(()));
+        .withf(
+            move |height,
+                  state_diff,
+                  storage_commitment_block_hash,
+                  accessed_keys,
+                  fee_market_info| {
+                *height == expected_height
+                    && *state_diff == expected_state_diff
+                    && *storage_commitment_block_hash == expected_storage_commitment_block_hash
+                    && accessed_keys.is_some() == expect_accessed_keys
+                    && *fee_market_info == expected_fee_market_info
+            },
+        )
+        .returning(|_, _, _, _, _| Ok(()));
 }
 
 fn expect_commit_proposal_success(storage_writer: &mut MockBatcherStorageWriter) {
-    storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
+    storage_writer.expect_commit_proposal().returning(|_, _, _, _, _| Ok(()));
 }
 
 fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &ThinStateDiff) {
@@ -359,6 +389,7 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
             state_diff.clone(),
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
             None,
+            test_fee_market_info(height),
         )
         .expect("set_state_diff failed");
 }
@@ -541,7 +572,12 @@ async fn batcher_propose_and_commit_block(
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await
+    batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(INITIAL_HEIGHT),
+        })
+        .await
 }
 
 fn mock_create_builder_for_validate_block(
@@ -1429,6 +1465,16 @@ async fn add_sync_block(
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
+    let BlockFeeMarketInfo { fee_proposal_fri, next_l2_gas_price } =
+        test_fee_market_info(block_number);
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number,
+        starknet_version,
+        fee_proposal_fri,
+        next_l2_gas_price,
+        ..Default::default()
+    };
+
     let mut storage_writer = MockBatcherStorageWriter::new();
     expect_commit_proposal_once(
         &mut storage_writer,
@@ -1436,6 +1482,7 @@ async fn add_sync_block(
         test_state_diff(),
         storage_commitment_block_hash,
         accessed_keys.is_some(),
+        (&block_header_without_hash).into(),
     );
 
     mock_clients
@@ -1467,11 +1514,7 @@ async fn add_sync_block(
     let n_synced_transactions = l1_transaction_hashes.len();
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number,
-            starknet_version,
-            ..Default::default()
-        },
+        block_header_without_hash,
         state_diff: test_state_diff(),
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         block_header_commitments,
@@ -1600,6 +1643,16 @@ async fn add_sync_block_for_first_new_block() {
         .times(1)
         .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()), eq(DUMMY_BLOCK_HASH))
         .returning(|_, _| Ok(()));
+    let BlockFeeMarketInfo { fee_proposal_fri, next_l2_gas_price } =
+        test_fee_market_info(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH);
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+        starknet_version: StarknetVersion::LATEST,
+        parent_hash: DUMMY_BLOCK_HASH,
+        fee_proposal_fri,
+        next_l2_gas_price,
+        ..Default::default()
+    };
     expect_commit_proposal_once(
         &mut mock_dependencies.storage_writer,
         FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
@@ -1609,6 +1662,7 @@ async fn add_sync_block_for_first_new_block() {
             ..Default::default()
         }),
         false,
+        (&block_header_without_hash).into(),
     );
 
     mock_dependencies
@@ -1626,12 +1680,7 @@ async fn add_sync_block_for_first_new_block() {
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-            starknet_version: StarknetVersion::LATEST,
-            parent_hash: DUMMY_BLOCK_HASH,
-            ..Default::default()
-        },
+        block_header_without_hash,
         block_header_commitments: Some(Default::default()),
         ..Default::default()
     };
@@ -1823,6 +1872,7 @@ async fn decision_reached() {
         expected_artifacts.thin_state_diff(),
         StorageCommitmentBlockHash::Partial(expected_partial_block_hash),
         true,
+        test_fee_market_info(INITIAL_HEIGHT),
     );
 
     mock_dependencies
@@ -1878,8 +1928,12 @@ async fn decision_reached_no_executed_proposal() {
     let mut batcher = create_batcher(MockDependencies::default()).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
-    let decision_reached_result =
-        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
+    let decision_reached_result = batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(INITIAL_HEIGHT),
+        })
+        .await;
     assert_eq!(decision_reached_result, Err(expected_error));
 }
 
@@ -2084,8 +2138,8 @@ async fn get_block_hash_after_reading_commitment_results() {
         mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
     set_global_root_expectation.times(1);
     set_global_root_expectation
-        .with(eq(INITIAL_HEIGHT), eq(global_root), always(), always())
-        .returning(|_, _, _, _| Ok(()));
+        .with(eq(INITIAL_HEIGHT), eq(global_root), always())
+        .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -2126,7 +2180,7 @@ async fn get_state_commitment_infos_after_reading_commitment_results() {
         .storage_writer
         .expect_set_global_root_and_block_hash()
         .times(1)
-        .returning(|_, _, _, _| Ok(()));
+        .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -2148,6 +2202,79 @@ async fn get_state_commitment_infos_after_reading_commitment_results() {
         Ok(Some(test_state_commitment_infos(INITIAL_HEIGHT)))
     );
     assert_eq!(batcher.has_state_commitment_infos(INITIAL_HEIGHT), Ok(true));
+}
+
+fn mock_dependencies_with_committer_client(
+    committer_client: MockCommitterClient,
+) -> MockDependencies {
+    MockDependencies {
+        clients: MockClients {
+            committer_client: MockCommitterClientWithOffset::new(
+                committer_client,
+                Some(INITIAL_HEIGHT),
+            ),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn start_loads_recent_state_commitment_infos() {
+    let start_height =
+        BlockNumber(INITIAL_HEIGHT.0.saturating_sub(constants::STORED_BLOCK_HASH_BUFFER));
+    let n_requested_heights = usize::try_from(INITIAL_HEIGHT.0 - start_height.0).unwrap();
+    let mut committer_client = MockCommitterClient::new();
+    committer_client
+        .expect_get_state_commitment_infos()
+        .withf(move |request| start_height <= request.height && request.height < INITIAL_HEIGHT)
+        .times(n_requested_heights)
+        .returning(|request| {
+            Box::pin(async move {
+                Ok(GetStateCommitmentInfosResponse {
+                    state_commitment_infos: (request.height == LATEST_BLOCK_IN_STORAGE)
+                        .then(|| test_state_commitment_infos(request.height)),
+                })
+            })
+        });
+
+    let mut batcher =
+        create_batcher(mock_dependencies_with_committer_client(committer_client)).await;
+
+    assert_eq!(
+        batcher.get_state_commitment_infos(LATEST_BLOCK_IN_STORAGE),
+        Ok(Some(test_state_commitment_infos(LATEST_BLOCK_IN_STORAGE)))
+    );
+    assert_eq!(batcher.commitment_manager.recent_state_commitment_infos_cache.len(), 1);
+}
+
+#[tokio::test]
+async fn start_skips_state_commitment_infos_load_failures() {
+    let start_height =
+        BlockNumber(INITIAL_HEIGHT.0.saturating_sub(constants::STORED_BLOCK_HASH_BUFFER));
+    let n_requested_heights = usize::try_from(INITIAL_HEIGHT.0 - start_height.0).unwrap();
+    let mut committer_client = MockCommitterClient::new();
+    committer_client.expect_get_state_commitment_infos().times(n_requested_heights).returning(
+        move |request| {
+            Box::pin(async move {
+                if request.height == start_height {
+                    return Err(CommitterClientError::ClientError(
+                        ClientError::CommunicationFailure("committer is down".to_string()),
+                    ));
+                }
+                Ok(GetStateCommitmentInfosResponse {
+                    state_commitment_infos: (request.height == LATEST_BLOCK_IN_STORAGE)
+                        .then(|| test_state_commitment_infos(request.height)),
+                })
+            })
+        },
+    );
+
+    let batcher = create_batcher(mock_dependencies_with_committer_client(committer_client)).await;
+
+    let cache = &batcher.commitment_manager.recent_state_commitment_infos_cache;
+    assert_eq!(cache.len(), 1);
+    assert!(cache.contains(&LATEST_BLOCK_IN_STORAGE));
 }
 
 #[tokio::test]
@@ -2292,7 +2419,13 @@ async fn validation_only_decision_reached_skips_mempool_notification() {
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     // decision_reached must succeed and not call mempool_client.commit_block.
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    batcher
+        .decision_reached(DecisionReachedInput {
+            proposal_id: PROPOSAL_ID,
+            fee_market_info: test_fee_market_info(INITIAL_HEIGHT),
+        })
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -2970,4 +3103,87 @@ async fn block_info_reports_the_committed_data_availability_mode(
     let block_info = batcher.get_block_info(LAST_COMMITTED_HEIGHT).unwrap();
 
     assert_eq!(block_info.use_kzg_da, l1_da_mode.is_use_kzg_da());
+}
+
+fn pre_confirmed_block_writer_factory_with_token(
+    cancellation_token: CancellationToken,
+) -> MockPreconfirmedBlockWriterFactoryTrait {
+    let mut factory = MockPreconfirmedBlockWriterFactoryTrait::new();
+    factory.expect_create().return_once(move |_, _, _| {
+        let (pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+        let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
+        mock_writer.expect_run().return_once(|| ());
+        (mock_writer, pre_confirmed_tx_sender, cancellation_token)
+    });
+    factory
+}
+
+async fn propose_block_with_writer_token(
+    build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
+    cancellation_token: CancellationToken,
+) -> Batcher {
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    mock_create_builder_for_propose_block(&mut block_builder_factory, vec![], build_block_result);
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut batcher = create_batcher(MockDependencies {
+        clients: MockClients {
+            block_builder_factory,
+            l1_provider_client,
+            pre_confirmed_block_writer_factory: pre_confirmed_block_writer_factory_with_token(
+                cancellation_token,
+            ),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .await;
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher
+}
+
+/// A proposal that fails to build (here: aborted) cancels its pre-confirmed block writer, so the
+/// discarded proposal is never flushed to the feed.
+#[rstest]
+#[tokio::test]
+async fn failed_proposal_cancels_pre_confirmed_block_writer() {
+    let cancellation_token = CancellationToken::new();
+    let mut batcher = propose_block_with_writer_token(
+        Err(BlockBuilderError::Aborted),
+        cancellation_token.clone(),
+    )
+    .await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+    assert!(cancellation_token.is_cancelled());
+}
+
+/// A proposal that builds successfully leaves its writer to flush on channel close.
+#[rstest]
+#[tokio::test]
+async fn successful_proposal_keeps_pre_confirmed_block_writer() {
+    let cancellation_token = CancellationToken::new();
+    let mut batcher = propose_block_with_writer_token(
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
+        cancellation_token.clone(),
+    )
+    .await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+    assert!(!cancellation_token.is_cancelled());
+}
+
+/// Aborting the active proposal cancels its writer at once, without waiting for the block builder
+/// to notice the abort signal, and even when the build already completed.
+#[rstest]
+#[tokio::test]
+async fn abort_active_proposal_cancels_pre_confirmed_block_writer() {
+    let cancellation_token = CancellationToken::new();
+    let mut batcher = propose_block_with_writer_token(
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
+        cancellation_token.clone(),
+    )
+    .await;
+    batcher.abort_active_height().await;
+    assert!(cancellation_token.is_cancelled());
 }

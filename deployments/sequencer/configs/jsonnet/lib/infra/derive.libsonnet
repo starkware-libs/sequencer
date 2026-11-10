@@ -1,6 +1,7 @@
 // Derives one service's `components` map from a layout descriptor. Layout-agnostic; the per-layout
 // data lives in lib/layouts/<layout>.libsonnet.
 local component_block = import 'component_block.libsonnet';
+local templates = import 'templates.libsonnet';
 
 // The service hosting each remote-served reactive component, derived by inverting services[*].runs.
 local homeOf(layout) = {
@@ -15,12 +16,19 @@ local reactiveEntry(layout, homeByComponent, service, component) =
   local home = homeByComponent[component];
   local url = layout.serviceDns[home];
   local port = layout.ports[component];
+  local bodyLimits = std.get(templates.componentBodyLimits, component, {});
   if std.member(serviceComponents.uses, component) then
     component_block.remote(url, port, layout.scale[home].retries, layout.scale[home].idle)
+    + (if std.objectHas(bodyLimits, 'max_response_body_bytes')
+       then { remote_client_config+: { max_response_body_bytes: bodyLimits.max_response_body_bytes } }
+       else {})
   else if std.member(serviceComponents.runs, component) then
     (if std.member(layout.localOnly, component)
      then component_block.localRemoteDisabled()
-     else component_block.localRemoteEnabled(url, port))
+     else component_block.localRemoteEnabled(url, port)
+          + (if std.objectHas(bodyLimits, 'max_request_body_bytes')
+             then { remote_server_config+: { max_request_body_bytes: bodyLimits.max_request_body_bytes } }
+             else {}))
   else component_block.disabledReactive();
 
 local activeEntry(layout, service, component) =

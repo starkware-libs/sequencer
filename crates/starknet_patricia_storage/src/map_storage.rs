@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::num::NonZeroUsize;
+use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
@@ -90,6 +91,11 @@ impl Storage for MapStorage {
         Ok(())
     }
 
+    async fn free_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        self.0.retain(|key, _| !keys.contains(key));
+        Ok(())
+    }
+
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
     }
@@ -102,11 +108,17 @@ impl Storage for MapStorage {
 
 impl GatherableStorage for MapStorage {}
 
+pub type DbCache = LruCache<DbKey, Option<DbValue>>;
+
 /// A storage wrapper that adds an LRU cache to an underlying storage.
 /// Only getter methods are cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
-    pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache: DbCache,
+    /// Holds the keys matching `is_short_lived`, which `cache` never holds: keys read soon after
+    /// being written and rarely afterwards.
+    pub short_lived_cache: Option<DbCache>,
+    is_short_lived: fn(&DbKey) -> bool,
     reads: AtomicU64,
     cached_reads: AtomicU64,
     writes: u128,
@@ -117,6 +129,9 @@ pub struct CachedStorage<S: Storage> {
 pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
     // Max number of entries in the cache.
     pub cache_size: NonZeroUsize,
+
+    // Max number of entries in the cache of the short-lived keys; None when no key is short-lived.
+    pub short_lived_cache_size: Option<NonZeroUsize>,
 
     // If true, the inner stats are included when collecting statistics.
     pub include_inner_stats: bool,
@@ -129,6 +144,7 @@ impl<InnerStorageConfig: StorageConfigTrait> Default for CachedStorageConfig<Inn
     fn default() -> Self {
         Self {
             cache_size: NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap(),
+            short_lived_cache_size: None,
             include_inner_stats: true,
             inner_storage_config: InnerStorageConfig::default(),
         }
@@ -196,11 +212,37 @@ impl<S: Storage> CachedStorage<S> {
         Self {
             storage,
             cache: LruCache::new(config.cache_size),
+            short_lived_cache: config.short_lived_cache_size.map(LruCache::new),
+            is_short_lived: |_| false,
             reads: AtomicU64::new(0),
             cached_reads: AtomicU64::new(0),
             writes: 0,
             include_inner_stats: config.include_inner_stats,
         }
+    }
+
+    /// Caches the keys matching `is_short_lived` in the short-lived cache.
+    pub fn with_short_lived_keys(mut self, is_short_lived: fn(&DbKey) -> bool) -> Self {
+        self.is_short_lived = is_short_lived;
+        self
+    }
+
+    fn cache_for(&self, key: &DbKey) -> &DbCache {
+        match &self.short_lived_cache {
+            Some(short_lived_cache) if (self.is_short_lived)(key) => short_lived_cache,
+            _ => &self.cache,
+        }
+    }
+
+    fn cache_for_mut(&mut self, key: &DbKey) -> &mut DbCache {
+        match &mut self.short_lived_cache {
+            Some(short_lived_cache) if (self.is_short_lived)(key) => short_lived_cache,
+            _ => &mut self.cache,
+        }
+    }
+
+    pub fn total_writes(&self) -> u128 {
+        self.writes
     }
 }
 
@@ -211,7 +253,7 @@ impl<S: Storage> CachedStorage<S> {
 impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedStorage<S> {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        if let Some(cached_value) = self.cache.peek(key) {
+        if let Some(cached_value) = self.cache_for(key).peek(key) {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
             return Ok(cached_value.clone());
         }
@@ -224,7 +266,7 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
         let mut indices_to_fetch = Vec::new();
 
         for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.peek(key) {
+            if let Some(cached_value) = self.cache_for(key).peek(key) {
                 values[index] = cached_value.clone();
             } else {
                 keys_to_fetch.push(*key);
@@ -256,7 +298,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> GatherableStorage for Cach
     {
         let (reads, outputs) = run_tasks_and_collect_reads(&*self, tasks).await;
         for (key, value) in reads {
-            self.cache.put(key, Some(value));
+            self.cache_for_mut(&key).put(key, Some(value));
         }
         outputs
     }
@@ -266,13 +308,13 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> GatherableStorage for Cach
 impl<S: Storage + ImmutableReadOnlyStorage + 'static> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        if let Some(cached_value) = self.cache.get(key) {
+        if let Some(cached_value) = self.cache_for_mut(key).get(key).cloned() {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
-            return Ok(cached_value.clone());
+            return Ok(cached_value);
         }
 
         let storage_value = self.storage.get_mut(key).await?;
-        self.cache.put(key.clone(), storage_value.clone());
+        self.cache_for_mut(key).put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
@@ -282,7 +324,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> ReadOnlyStorage for Cached
         let mut indices_to_fetch = Vec::new();
 
         for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.get(key) {
+            if let Some(cached_value) = self.cache_for_mut(key).get(key) {
                 values[index] = cached_value.clone();
             } else {
                 keys_to_fetch.push(*key);
@@ -299,7 +341,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> ReadOnlyStorage for Cached
         let fetched_values = self.storage.mget_mut(keys_to_fetch.as_slice()).await?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
-                self.cache.put((*key).clone(), value.clone());
+                self.cache_for_mut(key).put((*key).clone(), value.clone());
                 values[*index] = value;
             },
         );
@@ -319,7 +361,7 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
         self.storage.set(key.clone(), value.clone()).await?;
-        self.cache.put(key.clone(), Some(value.clone()));
+        self.cache_for_mut(&key).put(key, Some(value));
         Ok(())
     }
 
@@ -327,13 +369,13 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone()).await?;
         for (key, value) in key_to_value.into_iter() {
-            self.cache.put(key, Some(value));
+            self.cache_for_mut(&key).put(key, Some(value));
         }
         Ok(())
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.cache.pop(key);
+        self.cache_for_mut(key).pop(key);
         self.storage.delete(key).await
     }
 
@@ -346,15 +388,21 @@ impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<
             match operation {
                 DbOperation::Set(value) => {
                     self.writes += 1;
-                    self.cache.put(key, Some(value));
+                    self.cache_for_mut(&key).put(key, Some(value));
                 }
                 DbOperation::Delete => {
-                    self.cache.pop(&key);
+                    self.cache_for_mut(&key).pop(&key);
                 }
             };
         }
 
         Ok(())
+    }
+
+    /// Leaves the caches as is: scanning them for the keys in the range is slow, and they hold no
+    /// storage space.
+    async fn free_range(&mut self, keys: RangeInclusive<DbKey>) -> PatriciaStorageResult<()> {
+        self.storage.free_range(keys).await
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
