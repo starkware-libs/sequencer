@@ -78,7 +78,7 @@ pub mod validators;
 
 /// A serialized type of a configuration parameter.
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Display)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum SerializationType {
     Boolean,
     Float,
@@ -88,7 +88,7 @@ pub enum SerializationType {
 }
 
 /// Errors at the configuration dumping and loading process.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
     #[error("Changing {param_path} from required type {required} to {given} is not allowed.")]

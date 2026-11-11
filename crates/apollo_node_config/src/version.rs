@@ -21,10 +21,9 @@ pub const VERSION: &str = version_str();
 pub const VERSION_FULL: &str = full_version_str();
 
 const DEV_VERSION_META: &str = "dev";
-#[allow(dead_code)]
 const STABLE_VERSION_META: &str = "stable";
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(PartialEq)]
 enum Metadata {
     Dev,
@@ -44,7 +43,7 @@ const fn full_version_str() -> &'static str {
     }
 }
 
-#[allow(dead_code)]
+#[cfg_attr(not(test), expect(dead_code))]
 const fn metadata_str(metadata: Metadata) -> &'static str {
     match metadata {
         Metadata::Dev => DEV_VERSION_META,

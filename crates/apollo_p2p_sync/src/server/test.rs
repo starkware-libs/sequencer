@@ -385,7 +385,6 @@ async fn run_test<T, F, TQuery>(
 }
 
 pub struct TestArgs {
-    #[allow(clippy::type_complexity)]
     pub p2p_sync_server: P2pSyncServer,
     pub storage_reader: StorageReader,
     pub header_sender: Sender<ServerQueryManager<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
@@ -397,7 +396,6 @@ pub struct TestArgs {
     pub event_sender: Sender<ServerQueryManager<EventQuery, DataOrFin<(Event, TransactionHash)>>>,
 }
 
-#[allow(clippy::type_complexity)]
 fn setup_sync_server_and_storage() -> TestArgs {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
 

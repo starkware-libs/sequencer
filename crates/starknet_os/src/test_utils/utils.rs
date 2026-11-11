@@ -18,7 +18,7 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
 };
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn run_cairo_function_and_check_result(
     runner_config: &EntryPointRunnerConfig,
     program_bytes: &[u8],
@@ -54,7 +54,7 @@ pub static DEFAULT_PRIME: LazyLock<BigInt> = LazyLock::new(|| {
     )
 });
 
-#[allow(clippy::too_many_arguments, dead_code)]
+#[expect(clippy::too_many_arguments)]
 pub(crate) fn test_cairo_function(
     runner_config: &EntryPointRunnerConfig,
     program_bytes: &[u8],
@@ -78,7 +78,6 @@ pub(crate) fn test_cairo_function(
     .unwrap();
 }
 
-#[allow(dead_code)]
 pub(crate) fn seeded_random_prng() -> StdRng {
     StdRng::seed_from_u64(42)
 }

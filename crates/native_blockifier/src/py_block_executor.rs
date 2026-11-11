@@ -350,7 +350,7 @@ impl PyBlockExecutor {
 
     #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version, enable_casm_hash_migration))]
     #[staticmethod]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
         contract_class_manager_config: PyContractClassManagerConfig,

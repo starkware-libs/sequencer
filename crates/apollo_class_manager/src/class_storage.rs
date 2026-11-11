@@ -259,7 +259,7 @@ pub struct ClassHashStorage {
     reader: apollo_storage::StorageReader,
     writer: Arc<Mutex<apollo_storage::StorageWriter>>,
     // Kept alive to maintain the server running.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     storage_reader_server_handle: Arc<AbortHandle>,
 }
 

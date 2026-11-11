@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 // TODO(Matan): Add links to the spec.
-// TODO(Matan): fix #[allow(missing_docs)].
+// TODO(Matan): fix #[expect(missing_docs)].
 //! A consensus implementation for a [Starknet](https://www.starknet.io/) node. The consensus
 //! algorithm is based on [Tendermint](https://arxiv.org/pdf/1807.04938).
 //!
@@ -24,24 +24,22 @@
 //! 1. The outbound messages are not sent as responses to the inbound messages.
 //! 2. It generates and runs its own events (e.g. timeouts).
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub mod types;
 pub use manager::{run_consensus, RunConsensusArguments};
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub mod metrics;
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub mod simulation_network_receiver;
 pub mod storage;
 pub mod stream_handler;
 
 mod manager;
-#[allow(missing_docs)]
 mod single_height_consensus;
-#[allow(missing_docs)]
 mod state_machine;
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub mod votes_threshold;
 
 #[cfg(any(test, feature = "testing"))]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub mod test_utils;

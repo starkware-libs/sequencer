@@ -353,7 +353,7 @@ where
 
     // Handle a message that was received from the network.
     #[instrument(skip_all, level = "warn")]
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     fn handle_inbound_message(
         &mut self,
         message: Option<(

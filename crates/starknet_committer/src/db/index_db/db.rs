@@ -114,7 +114,7 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 
 /// The db key prefix of the lowest height whose commitment infos were stored. No longer written,
 /// but existing storages still hold the key, so new prefixes must be derived past this one.
-#[allow(dead_code)]
+#[expect(dead_code)]
 static COMMITMENT_INFOS_LOWER_BOUND_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&PATRICIA_PATHS_PREFIX) + Felt::ONE).to_bytes_be());
 

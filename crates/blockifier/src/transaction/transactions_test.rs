@@ -270,7 +270,7 @@ fn user_initial_gas_from_bounds(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn expected_validate_call_info(
     class_hash: ClassHash,
     entry_point_selector_name: &str,

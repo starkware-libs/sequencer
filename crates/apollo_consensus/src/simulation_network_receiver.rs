@@ -96,13 +96,13 @@ impl NetworkReceiver {
     }
 
     fn should_drop_msg(&self, msg_hash: u64) -> bool {
-        #[allow(clippy::as_conversions)]
+        #[expect(clippy::as_conversions)]
         let prob = (msg_hash as f64) / (u64::MAX as f64);
         prob <= self.drop_probability
     }
 
     fn maybe_invalidate_msg(&mut self, mut msg: Vote, msg_hash: u64) -> Vote {
-        #[allow(clippy::as_conversions)]
+        #[expect(clippy::as_conversions)]
         if (msg_hash as f64) / (u64::MAX as f64) > self.invalid_probability {
             return msg;
         }

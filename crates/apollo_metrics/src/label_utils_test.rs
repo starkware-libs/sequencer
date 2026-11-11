@@ -4,7 +4,7 @@ use std::hash::Hash;
 
 use strum::VariantNames;
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug, VariantNames, Clone, Copy)]
 enum Color {
     Red,
@@ -12,7 +12,7 @@ enum Color {
     Blue,
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug, VariantNames, Clone, Copy)]
 enum Size {
     Small,

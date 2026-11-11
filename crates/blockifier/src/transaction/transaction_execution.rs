@@ -32,7 +32,7 @@ use crate::transaction::objects::{
 use crate::transaction::transactions::ExecutableTransaction;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 #[derive(Clone, Debug, derive_more::From)]
 pub enum Transaction {
     Account(AccountTransaction),

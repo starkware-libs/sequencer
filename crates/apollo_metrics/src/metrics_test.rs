@@ -15,13 +15,13 @@ const HISTOGRAM_TEST_METRIC: MetricHistogram =
 const LABEL_TYPE_NAME: &str = "label";
 const VALUE_TYPE_NAME: &str = "value";
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug, VariantNames, Clone, Copy)]
 enum TestLabelType {
     Label1,
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug, VariantNames, Clone, Copy)]
 enum TestLabelValue {
     Value1,

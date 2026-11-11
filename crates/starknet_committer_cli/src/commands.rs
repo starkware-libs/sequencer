@@ -416,7 +416,7 @@ fn apply_interference<S: AsyncStorage>(
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub async fn run_storage_benchmark<S: Storage>(
     seed: u64,
     n_iterations: usize,

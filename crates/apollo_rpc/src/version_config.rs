@@ -12,7 +12,7 @@ pub const VERSION_PATTERN: &str = "[Vv][0-9]+_[0-9]+(_[0-9]+)?";
 #[derive(Clone, Copy, Debug)]
 pub enum VersionState {
     Supported,
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     Deprecated,
 }
 // TODO(Lev): Since we stop support versioning and stay only with V0_8, we need to get rid of the

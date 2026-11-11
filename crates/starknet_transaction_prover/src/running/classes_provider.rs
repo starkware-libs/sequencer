@@ -68,6 +68,10 @@ fn fetch_class<S>(
 where
     S: FetchCompiledClasses + Send + Sync + 'static,
 {
+    // Whether the `_` arm below is reachable depends on feature unification, so the lint cannot be
+    // `expect`ed.
+    #![allow(unreachable_patterns)]
+
     let compiled_class = state_reader_and_contract_manager.get_compiled_class(class_hash)?;
 
     let compiled_class_hash = state_reader_and_contract_manager
@@ -89,7 +93,6 @@ where
         }
         // Required when blockifier's `cairo_native` feature is enabled via feature unification
         // but this crate's `cairo_native` feature is not (e.g. clippy with --all-features).
-        #[allow(unreachable_patterns)]
         _ => unreachable!(),
     }
 }

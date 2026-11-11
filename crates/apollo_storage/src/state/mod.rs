@@ -135,7 +135,6 @@ pub(crate) type CompiledClassHashTable<'env> = TableHandle<
 //   nonce of `contract_address` was changed to `nonce`.
 // * compiled_class_hash_table: (class_hash, block_num) -> (compiled_class_hash). Specifies that at
 //   `block_num`, the compiled class hash of `class_hash` was changed to `compiled_class_hash`.
-#[allow(private_interfaces)]
 pub trait StateStorageReader<Mode: TransactionKind> {
     /// The state marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
@@ -173,7 +172,7 @@ where
     ) -> StorageResult<(Self, Option<RevertedStateDiff>)>;
 }
 
-#[allow(private_interfaces)]
+#[expect(private_interfaces)]
 impl<T: StorageTransaction> StateStorageReader<T::Mode> for T {
     // The block number marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber> {

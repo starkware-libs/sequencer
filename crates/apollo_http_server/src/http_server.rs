@@ -232,7 +232,6 @@ fn check_new_transactions_are_allowed(accept_new_txs: bool) -> HttpServerResult<
     }
 }
 
-#[allow(clippy::result_large_err)]
 fn validate_supported_tx_version_str(tx: &str) -> HttpServerResult<()> {
     // 1. Remove all whitespace
     let mut compact = String::with_capacity(tx.len());

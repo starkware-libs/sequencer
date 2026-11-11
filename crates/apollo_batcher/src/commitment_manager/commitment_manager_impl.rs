@@ -63,7 +63,7 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) results_receiver: Receiver<CommitterTaskOutput>,
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub(crate) state_committer: S,
     pub(crate) task_timer: TaskTimer,
     pub(crate) recent_block_hashes_cache: LruCache<BlockNumber, BlockHash>,
@@ -97,7 +97,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Adds a commitment task to the state committer. If the task height does not match the
     /// task offset, an error is returned.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub(crate) async fn add_commitment_task<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,

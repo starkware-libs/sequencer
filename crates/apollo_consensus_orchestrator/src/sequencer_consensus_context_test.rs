@@ -1661,7 +1661,7 @@ async fn override_prices_behavior(
     let (mut deps, _network) = create_test_and_network_deps();
 
     // Setup dependencies and mocks.
-    #[allow(clippy::as_conversions)]
+    #[expect(clippy::as_conversions)]
     deps.setup_deps_for_build(SetupDepsArgs {
         number_of_times: build_success as usize,
         l2_gas_used: Some(high_l2_gas_used),

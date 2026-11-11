@@ -354,7 +354,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
-    #[allow(clippy::result_large_err)]
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,

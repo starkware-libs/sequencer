@@ -25,7 +25,6 @@ impl GithubBenchmarkEntry {
 
 /// Criterion benchmark estimates.
 #[derive(Debug, Deserialize, Default)]
-#[allow(dead_code)]
 pub struct Estimates {
     pub mean: Stat,
     pub median: Stat,
@@ -39,7 +38,6 @@ pub struct Estimates {
 
 /// Statistical estimate with confidence interval.
 #[derive(Debug, Deserialize, Default)]
-#[allow(dead_code)]
 pub struct Stat {
     pub point_estimate: f64,
     #[serde(default)]
@@ -49,7 +47,6 @@ pub struct Stat {
 
 /// Confidence interval bounds.
 #[derive(Debug, Deserialize, Default)]
-#[allow(dead_code)]
 pub struct ConfidenceInterval {
     #[serde(default)]
     pub confidence_level: f64,

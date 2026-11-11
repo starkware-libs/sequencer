@@ -61,7 +61,7 @@ pub struct TransactionSimulationOutput {
 }
 
 /// The execution trace of a transaction.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum TransactionTrace {
@@ -114,7 +114,7 @@ pub struct FeeEstimation {
 
 /// The reason for a reverted transaction.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum RevertReason {
     #[serde(rename = "revert_reason")]
     RevertReason(String),
@@ -279,7 +279,7 @@ impl TryFrom<TransactionExecutionInfo> for L1HandlerTransactionTrace {
 /// Wether the function invocation succeeded or reverted.
 // Not using `Result` because it is not being serialized according to the spec.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[serde(untagged)]
 pub enum FunctionInvocationResult {
     Ok(FunctionInvocation),
@@ -402,7 +402,7 @@ fn vm_resources_to_execution_resources(
 
 /// library call or regular call.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CallType {
     Call,

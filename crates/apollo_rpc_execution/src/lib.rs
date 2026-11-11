@@ -119,7 +119,7 @@ impl Default for ExecutionConfig {
     }
 }
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 /// The error type for the execution module.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutionError {
@@ -173,7 +173,7 @@ pub type OnlyQuery = bool;
 type BlockifierError = anyhow::Error;
 
 /// Executes a StarkNet call and returns the execution result.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
 // instead.
 pub fn execute_call(
@@ -386,7 +386,7 @@ pub type SierraSize = usize;
 /// The transaction input to be executed.
 // TODO(yair): This should use broadcasted transactions instead of regular transactions, but the
 // blockifier expects regular transactions. Consider changing the blockifier to use broadcasted txs.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Clone, Debug)]
 pub enum ExecutableTransactionInput {
     Invoke(InvokeTransaction, OnlyQuery),
@@ -569,7 +569,7 @@ pub struct RevertedTransaction {
 pub type FeeEstimationResult = Result<Vec<FeeEstimation>, RevertedTransaction>;
 
 /// Returns the fee estimation for a series of transactions.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
 // instead.
 pub fn estimate_fee(
@@ -622,7 +622,7 @@ struct TransactionExecutionOutput {
 
 // Executes a series of transactions and returns the execution results.
 // TODO(yair): Return structs instead of tuples.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
 // instead.
 fn execute_transactions(
@@ -927,7 +927,7 @@ fn to_blockifier_tx(
 // TODO(yair): Return structs instead of tuples.
 // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
 // instead.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn simulate_transactions(
     txs: Vec<ExecutableTransactionInput>,
     tx_hashes: Option<Vec<TransactionHash>>,
