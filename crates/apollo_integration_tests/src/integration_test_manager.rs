@@ -15,7 +15,11 @@ use apollo_l1_gas_price_config::config::{ExchangeRateOracleConfig, L1GasPriceScr
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
-use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use apollo_node::test_utils::node_runner::{
+    get_node_executable_path,
+    spawn_run_node,
+    NodeProcessHandle,
+};
 use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
@@ -44,8 +48,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
-use tokio::time::{sleep, timeout, Instant};
-use tokio_util::task::AbortOnDropHandle;
+use tokio::time::{sleep, timeout, timeout_at, Instant};
 use tracing::{info, instrument};
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutableId};
@@ -99,6 +102,7 @@ const ALLOW_BOOTSTRAP_TXS: bool = false;
 // TODO(Tsabary,NoamSp): consider reducing the number of attempts.
 const AWAIT_ALIVE_INTERVAL_MS: u64 = 100;
 const AWAIT_ALIVE_ATTEMPTS: usize = 2500;
+const NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
 fn block_max_capacity_gas() -> GasAmount {
     BouncerWeights::default().proving_gas
@@ -277,7 +281,7 @@ impl NodeSetup {
         }
     }
 
-    pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
+    pub fn run_service(&self, service: NodeService) -> NodeProcessHandle {
         let executable_setup = self.get_executable_by_service(service);
         spawn_run_node(
             executable_setup.node_config_paths(),
@@ -298,7 +302,7 @@ impl NodeSetup {
                     ),
                 )
             })
-            .collect::<HashMap<NodeService, AbortOnDropHandle<()>>>();
+            .collect::<HashMap<NodeService, NodeProcessHandle>>();
 
         RunningNode { node_setup: self, executable_handles }
     }
@@ -335,7 +339,7 @@ impl NodeSetup {
 
 pub struct RunningNode {
     node_setup: NodeSetup,
-    executable_handles: HashMap<NodeService, AbortOnDropHandle<()>>,
+    executable_handles: HashMap<NodeService, NodeProcessHandle>,
 }
 
 impl RunningNode {
@@ -371,12 +375,12 @@ impl RunningNode {
         }
     }
 
-    pub fn shutdown_service(&mut self, service: NodeService) {
+    fn remove_service_handle(&mut self, service: NodeService) -> NodeProcessHandle {
         let handle = self.executable_handles.remove(&service).unwrap_or_else(|| {
             panic!("Service {service:?} does not exist in the running executables map.")
         });
         assert!(!handle.is_finished(), "Handle should still be running.");
-        handle.abort();
+        handle
     }
 
     pub fn get_node_index(&self) -> usize {
@@ -499,7 +503,7 @@ impl IntegrationTestManager {
         info!("Rerunning shut-down services for specified nodes: {nodes_services_to_run:?}.");
 
         // Assert no service is already running before spawning anything. Checking up-front avoids
-        // silently overwriting an existing AbortOnDropHandle (which would abort the running
+        // silently overwriting an existing NodeProcessHandle (which would abort the running
         // service) and avoids spawning any processes when the call is invalid.
         for (&node_index, services) in &nodes_services_to_run {
             let running_node = self
@@ -516,7 +520,7 @@ impl IntegrationTestManager {
 
         // Spawn all services up-front. NodeSetup::run_service only needs &self, so all
         // spawns can be issued before any handle is inserted into the map.
-        let new_handles: Vec<(usize, NodeService, AbortOnDropHandle<()>)> = nodes_services_to_run
+        let new_handles: Vec<(usize, NodeService, NodeProcessHandle)> = nodes_services_to_run
             .iter()
             .flat_map(|(&node_index, services)| {
                 let node_setup = &self
@@ -632,25 +636,30 @@ impl IntegrationTestManager {
         self.running_nodes.keys().cloned().collect()
     }
 
-    pub fn shutdown_node_services(
+    pub async fn shutdown_node_services(
         &mut self,
         node_services_to_shutdown: HashMap<usize, Vec<NodeService>>,
     ) {
-        node_services_to_shutdown.into_iter().for_each(|(node_index, node_services)| {
+        let mut service_handles = Vec::new();
+        for (node_index, node_services) in node_services_to_shutdown {
             let running_node = self
                 .running_nodes
                 .get_mut(&node_index)
                 .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
 
             for service in node_services {
-                running_node.shutdown_service(service);
-                info!("Node {node_index} service {service:?} has been shut down.");
+                service_handles.push((
+                    node_index,
+                    service,
+                    running_node.remove_service_handle(service),
+                ));
             }
-        });
+        }
+        shutdown_service_handles(service_handles).await;
     }
 
     pub async fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
-        let mut all_handles: Vec<AbortOnDropHandle<()>> = Vec::new();
+        let mut service_handles = Vec::new();
 
         for index in nodes_to_shutdown {
             let running_node = self
@@ -659,38 +668,21 @@ impl IntegrationTestManager {
                 .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
             // TODO(Tsabary): should this function call `shutdown_node_services` per node as well?
             let RunningNode { node_setup, executable_handles } = running_node;
-            let handles: Vec<AbortOnDropHandle<()>> = executable_handles.into_values().collect();
-            for handle in &handles {
+            for handle in executable_handles.values() {
                 assert!(!handle.is_finished(), "Node {index} should still be running.");
-                handle.abort();
             }
             assert!(
                 self.idle_nodes.insert(index, node_setup).is_none(),
                 "Node {index} is already in the idle map."
             );
-            info!("Node {index} has been aborted and should shut down soon.");
-            all_handles.extend(handles);
+            info!("Shutting down node {index}.");
+            service_handles.extend(
+                executable_handles.into_iter().map(|(service, handle)| (index, service, handle)),
+            );
         }
 
-        // Wait for all tasks to be cancelled. When each task is cancelled its Child process handle
-        // is dropped, which triggers kill_on_drop and sends SIGKILL to the child process.
-        let results = tokio::time::timeout(Duration::from_secs(10), join_all(all_handles))
-            .await
-            .expect("Node tasks did not cancel within timeout.");
-
-        // Assert that all tasks were cancelled. Any shutdown for any other reason should be
-        // considered a bug.
-        for result in results {
-            match result {
-                Err(e) if e.is_cancelled() => {}
-                Ok(()) => panic!("A node task exited before shutdown — node may have crashed."),
-                Err(e) => panic!("A node task failed during shutdown: {e:?}"),
-            }
-        }
+        shutdown_service_handles(service_handles).await;
         info!("All nodes have been shut down.");
-
-        // Brief pause to let the OS release ports after SIGKILL before new processes bind them.
-        sleep(Duration::from_secs(2)).await;
     }
 
     pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
@@ -1247,6 +1239,28 @@ pub fn nonce_to_usize(nonce: Nonce) -> usize {
     let prefixed_hex = nonce.0.to_hex_string();
     let unprefixed_hex = prefixed_hex.split_once("0x").unwrap().1;
     usize::from_str_radix(unprefixed_hex, 16).unwrap()
+}
+
+/// Shuts down each `(node_index, service, handle)` in `service_handles` concurrently, within one
+/// `NODE_SHUTDOWN_TIMEOUT`. Panics on a timeout or a task failure, such as a service that stopped
+/// before the shutdown.
+async fn shutdown_service_handles(service_handles: Vec<(usize, NodeService, NodeProcessHandle)>) {
+    let shutdown_deadline = Instant::now() + NODE_SHUTDOWN_TIMEOUT;
+    join_all(service_handles.into_iter().map(|(node_index, service, handle)| async move {
+        timeout_at(shutdown_deadline, handle.shutdown())
+            .await
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Node {node_index} service {service:?} did not exit within \
+                     {NODE_SHUTDOWN_TIMEOUT:?}."
+                )
+            })
+            .unwrap_or_else(|error| {
+                panic!("Node {node_index} service {service:?} failed during shutdown: {error:?}")
+            });
+        info!("Node {node_index} service {service:?} has been shut down.");
+    }))
+    .await;
 }
 
 async fn get_sequencer_setup_configs(
