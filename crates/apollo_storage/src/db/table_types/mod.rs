@@ -8,7 +8,6 @@ use super::{DbResult, DbTransaction, TransactionKind, RW};
 
 mod dup_sort_tables;
 mod simple_table;
-#[allow(unused_imports)]
 pub(crate) use dup_sort_tables::CommonPrefix;
 pub(crate) use simple_table::SimpleTable;
 #[cfg(test)]
@@ -24,7 +23,7 @@ pub(crate) trait Table<'env> {
 
     // TODO(dvir): consider move this to the cursor trait and get rid of the TableVariant type.
     // Create a cursor for the table.
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     fn cursor<'txn, Mode: TransactionKind>(
         &'env self,
         txn: &'txn DbTransaction<'env, Mode>,
@@ -74,15 +73,15 @@ pub(crate) trait DbCursorTrait {
     type Value: ValueSerde + Debug;
 
     // Position at the previous key.
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     fn prev(&mut self) -> DbResult<Option<(Self::Key, <Self::Value as ValueSerde>::Value)>>;
 
     // Position at the next key.
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     fn next(&mut self) -> DbResult<Option<(Self::Key, <Self::Value as ValueSerde>::Value)>>;
 
     // Position at first key greater than or equal to specified key.
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     fn lower_bound(
         &mut self,
         key: &Self::Key,

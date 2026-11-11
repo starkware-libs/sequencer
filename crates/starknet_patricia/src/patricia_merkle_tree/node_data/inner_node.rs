@@ -47,7 +47,7 @@ impl EdgePath {
     pub const BITS: u8 = SubTreeHeight::ACTUAL_HEIGHT.0;
 
     /// [EdgePath] constant that represents the longest path (from some node) in a tree.
-    #[allow(clippy::as_conversions)]
+    #[expect(clippy::as_conversions)]
     pub const MAX: Self =
         Self(U256::from_words(u128::MAX >> (U256::BITS - Self::BITS as u32), u128::MAX));
 
@@ -118,7 +118,7 @@ impl From<EdgePathLength> for Felt {
     }
 }
 
-#[allow(clippy::manual_non_exhaustive)]
+#[expect(clippy::manual_non_exhaustive)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PathToBottom {
     pub path: EdgePath,

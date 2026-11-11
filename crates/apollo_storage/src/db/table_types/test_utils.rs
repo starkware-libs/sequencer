@@ -21,7 +21,7 @@ auto_storage_serde! {
 }
 
 // A generic test for all table types.
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 pub(crate) fn table_test<T: TableType>(
     create_table: fn(
         &mut DbWriter,

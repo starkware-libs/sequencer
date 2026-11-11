@@ -88,7 +88,7 @@ pub mod consensus;
 pub mod fee_market;
 pub mod global_root;
 pub mod global_root_marker;
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
 pub mod storage_metrics;
@@ -361,6 +361,7 @@ fn set_version_if_needed(writer: &mut StorageWriter) -> StorageResult<()> {
     match existing_storage_version {
         StorageVersion::FullArchive(FullArchiveVersion { state_version, blocks_version }) => {
             // This allow is for when STORAGE_VERSION_STATE.minor = 0.
+            #[expect(clippy::allow_attributes)]
             #[allow(clippy::absurd_extreme_comparisons)]
             if STORAGE_VERSION_STATE.major == state_version.major
                 && STORAGE_VERSION_STATE.minor > state_version.minor
@@ -372,6 +373,7 @@ fn set_version_if_needed(writer: &mut StorageWriter) -> StorageResult<()> {
                 wtxn = wtxn.set_state_version(&STORAGE_VERSION_STATE)?;
             }
             // This allow is for when STORAGE_VERSION_BLOCKS.minor = 0.
+            #[expect(clippy::allow_attributes)]
             #[allow(clippy::absurd_extreme_comparisons)]
             if STORAGE_VERSION_BLOCKS.major == blocks_version.major
                 && STORAGE_VERSION_BLOCKS.minor > blocks_version.minor
@@ -385,6 +387,7 @@ fn set_version_if_needed(writer: &mut StorageWriter) -> StorageResult<()> {
         }
         StorageVersion::StateOnly(StateOnlyVersion { state_version }) => {
             // This allow is for when STORAGE_VERSION_STATE.minor = 0.
+            #[expect(clippy::allow_attributes)]
             #[allow(clippy::absurd_extreme_comparisons)]
             if STORAGE_VERSION_STATE.major == state_version.major
                 && STORAGE_VERSION_STATE.minor > state_version.minor
@@ -985,7 +988,6 @@ struct_field_names! {
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($(#[$attr:meta])* $fname:ident : $ftype:ty),* }) => {
-        #[allow(dead_code)]
         pub(crate) struct $name {
             $($(#[$attr])* $fname : $ftype),*
         }
@@ -1010,7 +1012,7 @@ pub struct TransactionMetadata {
 
 // TODO(Yair): sort the variants alphabetically.
 /// Error type for the storage crate.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(thiserror::Error, Debug)]
 pub enum StorageError {
     /// Errors related to the underlying database.
@@ -1065,7 +1067,7 @@ pub type StorageWithServer<RequestHandler, Request, Response> =
     (StorageReader, StorageWriter, StorageReaderServer<RequestHandler, Request, Response>);
 
 /// A struct for the configuration of the storage.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Serialize, Debug, Default, Deserialize, Clone, PartialEq, Validate)]
 pub struct StorageConfig {
     #[validate(nested)]
@@ -1116,7 +1118,7 @@ pub enum MarkerKind {
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
     // TODO(Dori): fill in the missing doc.
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     GlobalRoot,
 }
 

@@ -31,7 +31,7 @@ struct ReplayCounters {
 /// Runs continuous RPC replay from `start_block` to `end_block` (or forever if `None`),
 /// using `n_workers` worker threads. Each block is reexecuted and the resulting state diff
 /// is compared against the expected one from the chain.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub async fn run_rpc_replay(
     node_url: String,
     chain_id: starknet_api::core::ChainId,
