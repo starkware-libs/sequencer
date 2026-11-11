@@ -381,6 +381,10 @@ jobs:
       - name: List all pods in namespace ${{ env.namespace }}
         if: always()
         run: |
+          if ! kubectl cluster-info --request-timeout=3s > /dev/null 2>&1; then
+            echo "Cluster is not reachable, skipping."
+            exit 0
+          fi
           # ============================================
           # List all pods in the namespace
           # ============================================
@@ -394,7 +398,11 @@ jobs:
       - name: Get container logs
         if: always()
         run: |
-          pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}')
+          if ! kubectl cluster-info --request-timeout=3s > /dev/null 2>&1; then
+            echo "Cluster is not reachable, skipping."
+            exit 0
+          fi
+          pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}' || echo "")
           echo "📥 Getting pod logs and descriptions from namespace: $namespace"
           echo "---------------------------------------------"
           echo ""
