@@ -145,6 +145,7 @@ jobs:
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
       - name: Create k3d cluster (Local k8s)
+        id: create_k3d_cluster
         uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
         with:
           # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
@@ -379,7 +380,7 @@ jobs:
         run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: List all pods in namespace ${{ env.namespace }}
-        if: always()
+        if: always() && steps.create_k3d_cluster.outcome == 'success'
         run: |
           # ============================================
           # List all pods in the namespace
@@ -392,7 +393,7 @@ jobs:
           echo ""
 
       - name: Get container logs
-        if: always()
+        if: always() && steps.create_k3d_cluster.outcome == 'success'
         run: |
           pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}')
           echo "📥 Getting pod logs and descriptions from namespace: $namespace"
