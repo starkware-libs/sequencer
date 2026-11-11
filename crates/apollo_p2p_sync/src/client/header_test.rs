@@ -118,7 +118,6 @@ async fn signed_headers_basic_flow() {
         sync_result = p2p_sync.run() => {
             sync_result.unwrap();
             // If return type is no longer Never we still want the unreachable! check.
-            #[allow(unreachable_code)]
             {
                 unreachable!("Return type Never should never be constructed.");
             }
@@ -197,7 +196,6 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
         sync_result = p2p_sync.run() => {
             sync_result.unwrap();
             // If return type is no longer Never we still want the unreachable! check.
-            #[allow(unreachable_code)]
             {
                 unreachable!("Return type Never should never be constructed.");
             }

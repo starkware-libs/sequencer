@@ -251,7 +251,7 @@ fn add_headers(headers_num: u64, writer: &mut StorageWriter) {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn test_pending_sync(
     reader: StorageReader,
     old_pending_data: PendingData,

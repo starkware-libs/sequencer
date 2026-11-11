@@ -334,7 +334,7 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
 }
 
 // TODO(dvir): consider adding unchecked version of the append function.
-#[allow(private_bounds)]
+#[expect(private_bounds)]
 impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + DupSortUtils<K, V>>
     TableHandle<'env, K, V, T>
 {

@@ -370,7 +370,7 @@ pub(crate) struct DbIter<'cursor, 'txn, Mode: TransactionKind, K: Key, V: ValueS
 impl<'cursor, 'txn, Mode: TransactionKind, K: Key, V: ValueSerde, T: TableType>
     DbIter<'cursor, 'txn, Mode, K, V, T>
 {
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn new(cursor: &'cursor mut DbCursor<'txn, Mode, K, V, T>) -> Self {
         Self { cursor, _key_type: PhantomData {}, _value_type: PhantomData {} }
     }

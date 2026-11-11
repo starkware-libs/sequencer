@@ -63,8 +63,8 @@ pub struct ExecutableSetup {
     pub base_app_config: DeploymentBaseAppConfig,
     // Handles for the config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handles, private visibility suffices, and
-    // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
-    #[allow(dead_code)]
+    // as such, the '#[expect(dead_code)]' attributes are used to suppress the warning.
+    #[expect(dead_code)]
     node_config_dir_handle: Option<TempDir>,
 }
 

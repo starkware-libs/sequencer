@@ -64,7 +64,6 @@ impl PyValidator {
 
     // Transaction Execution API.
 
-    #[allow(clippy::result_large_err)]
     #[pyo3(signature = (tx, optional_py_class_info, deploy_account_tx_hash))]
     pub fn perform_validations(
         &mut self,
@@ -94,7 +93,7 @@ impl PyValidator {
     // If the DeployAccount transaction of the account was submitted but not processed yet, it
     // should be skipped for subsequent transactions for a better user experience. (they will
     // otherwise fail solely because the deploy account hasn't been processed yet).
-    #[allow(clippy::result_large_err)]
+    #[expect(clippy::result_large_err)]
     pub fn should_run_stateful_validations(
         &mut self,
         account_tx: &AccountTransaction,

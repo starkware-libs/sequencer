@@ -511,7 +511,7 @@ impl From<GasPrice> for Felt {
 
 impl GasPrice {
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
-        #[allow(clippy::as_conversions)]
+        #[expect(clippy::as_conversions)]
         Fee(self.0.saturating_mul(rhs.0 as u128))
     }
 

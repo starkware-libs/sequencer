@@ -18,7 +18,7 @@ pub enum HeightVotedStorageError {
     /// The storage state is invalid (e.g. trying to set a lower height than the current one).
     #[error("Inconsistent storage state: {error_msg}")]
     InconsistentStorageState {
-        #[allow(missing_docs)]
+        #[expect(missing_docs)]
         error_msg: String,
     },
 }

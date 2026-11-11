@@ -31,7 +31,6 @@ pub struct PendingClasses {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-#[allow(clippy::large_enum_variant)]
 pub enum ApiContractClass {
     DeprecatedContractClass(DeprecatedContractClass),
     ContractClass(SierraContractClass),

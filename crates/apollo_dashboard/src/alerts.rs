@@ -237,7 +237,7 @@ pub(crate) enum ObserverApplicability {
 }
 
 impl Alert {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         name: impl ToString,
         title: impl ToString,
