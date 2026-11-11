@@ -66,7 +66,6 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 
 /// Setup an anvil base layer with some blocks on it.
 // Need to allow dead code as this is only used in some of the test crates.
-#[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
     let mut ports_gen =
         AvailablePortsGenerator::new(TestIdentifier::L1EventsProviderUnitTests.into());
@@ -178,7 +177,6 @@ pub(crate) async fn setup_scraper_and_provider<
 
 /// Send a message from L1 to L2 and return the transaction hash on L2.
 // Need to allow dead code as this is only used in some of the test crates.
-#[allow(dead_code)]
 pub(crate) async fn send_message_from_l1_to_l2(
     base_layer: &mut AnvilBaseLayer,
     call_data: &[u8],
@@ -236,7 +234,6 @@ pub(crate) async fn send_message_from_l1_to_l2(
 }
 
 // Need to allow dead code as this is only used in some of the test crates.
-#[allow(dead_code)]
 pub(crate) async fn send_cancellation_request(
     base_layer: &AnvilBaseLayer,
     call_data: &[u8],
@@ -258,7 +255,6 @@ pub(crate) async fn send_cancellation_request(
 }
 
 // Need to allow dead code as this is only used in some of the test crates.
-#[allow(dead_code)]
 pub(crate) async fn send_cancellation_finalization(
     base_layer: &AnvilBaseLayer,
     call_data: &[u8],

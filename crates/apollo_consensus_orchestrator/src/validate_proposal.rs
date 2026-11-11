@@ -493,7 +493,7 @@ async fn await_verify_and_store_proof_task(task: VerifyAndStoreProofTask) -> Res
 /// 1. Receives the proposal part from the network.
 /// 2. Pass this to the batcher.
 /// 3. Once finished, receive the commitment from the batcher.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,

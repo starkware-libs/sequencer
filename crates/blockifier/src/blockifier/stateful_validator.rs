@@ -43,7 +43,6 @@ pub type StatefulValidatorResult<T> = Result<T, StatefulValidatorError>;
 
 #[cfg_attr(any(test, feature = "mocks"), mockall::automock)]
 pub trait StatefulValidatorTrait {
-    #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()>;
 }
 

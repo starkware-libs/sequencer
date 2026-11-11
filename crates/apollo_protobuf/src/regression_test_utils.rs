@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::process::Command;
-use std::{env, io};
+use std::{env, fs, io};
 
 use tracing::{debug, info};
 
@@ -57,6 +57,16 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
                 .collect::<Vec<_>>(),
             &[project_root.join("src/proto").to_str().unwrap()],
         )?;
+
+    // prost-build 0.12 puts `#[allow(clippy::derive_partial_eq_without_eq)]` on every message,
+    // which `clippy::allow_attributes` rejects.
+    let generated_path = out_dir.join("_.rs");
+    let generated = fs::read_to_string(&generated_path)?;
+    let stripped: Vec<&str> = generated
+        .lines()
+        .filter(|line| line.trim() != "#[allow(clippy::derive_partial_eq_without_eq)]")
+        .collect();
+    fs::write(&generated_path, stripped.join("\n") + "\n")?;
 
     Ok(())
 }

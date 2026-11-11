@@ -29,7 +29,7 @@ impl<'de> Deserialize<'de> for TreeFlowInput {
     }
 }
 
-#[allow(clippy::unwrap_used)]
+#[expect(clippy::unwrap_used)]
 /// Parse input for single storage tree flow test.
 /// Returns the leaf modifications, fetched nodes (in storage) and the root hash.
 pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>) -> TreeFlowInput {

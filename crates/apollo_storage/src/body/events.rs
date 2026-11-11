@@ -142,7 +142,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
 // TODO(dvir): add transaction hash to the return value. In the RPC when returning events this is
 // with the transaction hash. We can do it efficiently here because we anyway read the relevant
 // entry in the transaction_metadata table..
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 /// A wrapper of two iterators [`EventIterByContractAddress`] and [`EventIterByEventIndex`].
 pub enum EventIter<'txn, 'env> {
     ByContractAddress(EventIterByContractAddress<'env, 'txn>),

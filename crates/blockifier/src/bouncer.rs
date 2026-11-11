@@ -481,7 +481,7 @@ impl Bouncer {
 
     /// Updates the bouncer with a new transaction.
     // TODO(Dan): refactor to reduce the number of arguments.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn try_update<S: StateReader>(
         &mut self,
         state_reader: &S,
@@ -765,7 +765,7 @@ fn compute_proving_gas(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn get_tx_weights<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -933,7 +933,7 @@ pub fn get_patricia_update_resources(
 }
 
 // TODO(Dan): refactor to reduce the number of arguments.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,

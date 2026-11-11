@@ -131,7 +131,7 @@ pub trait BatcherClient: Send + Sync {
     derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetBlockHash(BlockNumber),

@@ -172,7 +172,7 @@ pub struct CachedStorageStats<S: StorageStats> {
 
 impl<S: StorageStats> CachedStorageStats<S> {
     fn cache_hit_rate(&self) -> f64 {
-        #[allow(clippy::as_conversions)]
+        #[expect(clippy::as_conversions)]
         let ratio = self.cached_reads as f64 / self.reads as f64;
         ratio
     }
