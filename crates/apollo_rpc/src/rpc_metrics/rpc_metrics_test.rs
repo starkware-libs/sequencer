@@ -1,6 +1,6 @@
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 use std::sync::Arc;
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 use std::time::Instant;
 
 use apollo_storage::body::BodyStorageWriter;
@@ -8,12 +8,12 @@ use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 use apollo_test_utils::{prometheus_is_contained, send_request};
 use jsonrpsee::Methods;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use pretty_assertions::assert_eq;
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 use prometheus_parse::Value::Counter;
 use starknet_api::block::{BlockBody, BlockHeader, BlockNumber};
 use starknet_api::state::ThinStateDiff;
@@ -46,7 +46,6 @@ fn get_method_and_version_test() {
 // TODO(victork): Update to use current jsonrpsee 0.24 API when re-enabling this test.
 // The API for creating MethodCallback and MethodResponse has changed significantly.
 #[ignore]
-#[allow(unused_imports, unused_variables)]
 #[test]
 fn logger_test() {
     let full_method_name = "starknet_V0_8_0_blockNumber";

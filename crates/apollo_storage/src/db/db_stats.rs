@@ -59,7 +59,7 @@ impl DbReader {
             leaf_pages: stat.leaf_pages(),
             overflow_pages: stat.overflow_pages(),
             total_size: stat.total_size(),
-            #[allow(clippy::as_conversions)]
+            #[expect(clippy::as_conversions)]
             db_portion: stat.total_size() as f64 / self.env.stat()?.total_size() as f64,
         })
     }
@@ -98,7 +98,7 @@ fn readable_bytes<S>(bytes_num: &u64, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    #[allow(clippy::as_conversions)]
+    #[expect(clippy::as_conversions)]
     s.serialize_str(&human_bytes(*bytes_num as f64))
 }
 

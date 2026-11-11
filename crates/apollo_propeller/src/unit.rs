@@ -72,7 +72,7 @@ pub struct PropellerUnit {
 impl PropellerUnit {
     // TODO(guyn): consider removing this constructor entirely and initializing the struct directly.
     // Need fields to be public.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         committee_id: CommitteeId,
         publisher: PeerId,

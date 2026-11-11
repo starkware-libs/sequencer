@@ -724,7 +724,7 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
-#[allow(clippy::as_conversions)]
+#[expect(clippy::as_conversions)]
 // TODO(Ariel): Consider adding fetch witnesses measurements.
 fn update_metrics(
     height: BlockNumber,
@@ -806,7 +806,7 @@ fn update_metrics(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn log_block_measurements(
     height: BlockNumber,
     durations: &BlockDurations,

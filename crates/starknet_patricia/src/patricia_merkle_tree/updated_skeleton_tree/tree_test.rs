@@ -17,7 +17,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTreeImpl,
 };
 
-#[allow(clippy::as_conversions)]
+#[expect(clippy::as_conversions)]
 const TREE_HEIGHT: usize = SubTreeHeight::ACTUAL_HEIGHT.0 as usize;
 
 #[fixture]

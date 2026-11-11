@@ -54,7 +54,6 @@ pub(crate) enum PeerManagerError {
     PeerIsBlocked(PeerId),
 }
 
-#[allow(dead_code)]
 impl PeerManager {
     pub(crate) fn new(config: PeerManagerConfig) -> Self {
         let peers = HashMap::new();
@@ -195,6 +194,7 @@ impl PeerManager {
         }
     }
 
+    #[cfg_attr(not(test), expect(dead_code))]
     fn report_session(
         &mut self,
         outbound_session_id: OutboundSessionId,

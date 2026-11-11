@@ -385,7 +385,7 @@ async fn test_create_original_skeleton_forest_index_layout(
     .await;
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn test_create_original_skeleton_forest<Reader: ForestReader>(
     input: Input<Reader::InitialReadContext>,
     storage: MapStorage,

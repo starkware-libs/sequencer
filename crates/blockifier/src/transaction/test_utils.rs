@@ -496,7 +496,7 @@ pub struct ExpectedExecutionInfo {
 }
 
 impl ExpectedExecutionInfo {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         only_query: bool,
         account_address: ContractAddress,

@@ -400,7 +400,6 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
-#[allow(dead_code)]
 pub(crate) struct RpcVirtualBlockExecutor {
     /// The state reader for the virtual block executor.
     pub(crate) rpc_state_reader: RpcStateReader,
