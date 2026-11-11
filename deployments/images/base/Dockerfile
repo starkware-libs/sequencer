@@ -20,11 +20,9 @@ COPY rust-toolchain.toml .
 COPY crates/apollo_infra_utils/src/cairo_compiler_version.txt crates/apollo_infra_utils/src/cairo_compiler_version.txt
 COPY crates/apollo_compile_to_native/src/native_compiler_version.txt crates/apollo_compile_to_native/src/native_compiler_version.txt
 
-RUN apt update && apt -y install \
-    bzip2 \
-    curl \
-    tini \
-    unzip
+RUN bash -c '. scripts/apt_utils.sh \
+    && apt_update_with_retry \
+    && apt_install_with_retry -y bzip2 curl tini unzip'
 
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
