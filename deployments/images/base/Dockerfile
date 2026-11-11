@@ -20,11 +20,14 @@ COPY rust-toolchain.toml .
 COPY crates/apollo_infra_utils/src/cairo_compiler_version.txt crates/apollo_infra_utils/src/cairo_compiler_version.txt
 COPY crates/apollo_compile_to_native/src/native_compiler_version.txt crates/apollo_compile_to_native/src/native_compiler_version.txt
 
-RUN apt update && apt -y install \
-    bzip2 \
-    curl \
-    tini \
-    unzip
+# Retried as a unit. --error-on=any fails the update when an index fetch fails, instead of exiting 0.
+RUN for attempt in 1 2 3 4 5; do \
+        apt-get -o Acquire::Retries=3 update --error-on=any \
+        && apt-get -o Acquire::Retries=3 install -y bzip2 curl tini unzip \
+        && exit 0; \
+        [ "$attempt" -lt 5 ] && sleep $((attempt * 5)); \
+    done; \
+    exit 1
 
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}

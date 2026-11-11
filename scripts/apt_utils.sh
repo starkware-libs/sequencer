@@ -15,6 +15,7 @@ function log_step() {
 }
 
 # Retry apt-get update with cache cleanup to handle transient mirror sync issues.
+# --error-on=any makes a failed index fetch a non-zero exit, so it is retried.
 function apt_update_with_retry() {
     local max_attempts=5
     local attempt=1
@@ -22,7 +23,7 @@ function apt_update_with_retry() {
 
     while [ $attempt -le $max_attempts ]; do
         echo "apt-get update attempt $attempt of $max_attempts..."
-        if apt-get update; then
+        if apt-get update --error-on=any; then
             echo "apt-get update succeeded on attempt $attempt"
             return 0
         fi
@@ -44,6 +45,7 @@ function apt_update_with_retry() {
 }
 
 # Retry apt-get install to handle transient network issues.
+# Each retry first refreshes the package index, since a missing package usually means an empty index.
 function apt_install_with_retry() {
     local max_attempts=5
     local attempt=1
@@ -62,6 +64,7 @@ function apt_install_with_retry() {
             echo "Retrying in ${delay}s..."
             sleep $delay
             delay=$((delay * 2))
+            apt-get update --error-on=any || echo "apt-get update failed before install attempt $((attempt + 1))"
         fi
 
         attempt=$((attempt + 1))

@@ -51,11 +51,18 @@ ENV BUILD_MODE=${BUILD_MODE}
 
 # Required for https requests: ca-certificates
 # Required for starknet-native-compile: binutils libc6-dev
-RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
+# Retried as a unit. --error-on=any fails the update when an index fetch fails, instead of exiting 0.
+RUN for attempt in 1 2 3 4 5; do \
+        apt-get -o Acquire::Retries=3 update --error-on=any \
+        && apt-get -o Acquire::Retries=3 install -y ca-certificates binutils libc6-dev \
+        && exit 0; \
+        [ "$attempt" -lt 5 ] && sleep $((attempt * 5)); \
+    done; \
+    exit 1
 
 # Install heaptrack for on-demand memory profiling (profiling builds only).
 RUN if [ "$BUILD_MODE" = "profiling" ]; then \
-        apt-get install -y heaptrack; \
+        apt-get -o Acquire::Retries=3 install -y heaptrack; \
     fi
 
 ENV ID=1001
