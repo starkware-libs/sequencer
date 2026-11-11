@@ -67,6 +67,12 @@ jobs:
       - name: Install Python Dependencies
         run: pip install -r scripts/requirements.txt
 
+      # On a runner with a stale toolchain directory, rustup skips the profile components, so cargo and rustc are added explicitly.
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install --no-self-update
+          rustup component add cargo rustc
+
       - name: Check for system-test-triggering changes
         id: system_check
         run: |
