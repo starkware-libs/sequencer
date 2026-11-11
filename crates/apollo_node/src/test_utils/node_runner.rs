@@ -1,7 +1,7 @@
 use std::fs::create_dir_all;
-use std::io::{stdout, Stdout, Write};
+use std::io::{self, stdout, Stdout, Write};
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 use std::sync::{Mutex, OnceLock};
 
 use apollo_config::CONFIG_FILE_ARG;
@@ -10,9 +10,14 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
-use tokio::task;
+use tokio::task::{self, JoinError};
+use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, info, instrument};
+
+#[cfg(test)]
+#[path = "node_runner_test.rs"]
+mod node_runner_test;
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/apollo_node";
 const TEMP_LOGS_DIR: &str = "integration_test_temporary_logs";
@@ -45,6 +50,26 @@ async fn write_file_line(file: &mut Option<File>, line: &str) {
     }
 }
 
+/// Handle to the task running a node process. Dropping it kills the process without waiting for it
+/// to exit.
+pub struct NodeProcessHandle {
+    task: AbortOnDropHandle<()>,
+    shutdown_token: CancellationToken,
+}
+
+impl NodeProcessHandle {
+    pub fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
+    /// Kills the node process and returns once the process exited, so its sockets are closed.
+    /// Returns an error if the task panicked, as it does when the node stops on its own.
+    pub async fn shutdown(self) -> Result<(), JoinError> {
+        self.shutdown_token.cancel();
+        self.task.await
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NodeRunner {
     node_index: usize,
@@ -70,31 +95,63 @@ impl NodeRunner {
 pub fn spawn_run_node(
     node_config_paths: Vec<PathBuf>,
     node_runner: NodeRunner,
-) -> AbortOnDropHandle<()> {
-    AbortOnDropHandle::new(task::spawn(async move {
+) -> NodeProcessHandle {
+    spawn_run_node_executable(get_node_executable_path(), node_config_paths, node_runner)
+}
+
+fn spawn_run_node_executable(
+    node_executable: String,
+    node_config_paths: Vec<PathBuf>,
+    node_runner: NodeRunner,
+) -> NodeProcessHandle {
+    let shutdown_token = CancellationToken::new();
+    let task_shutdown_token = shutdown_token.clone();
+    let task = AbortOnDropHandle::new(task::spawn(async move {
         info!("Running the node from its spawned task.");
         // Obtain handles, as the processes and task are terminated when their handles are dropped.
-        let (mut node_handle, _pipe_task) =
-            spawn_node_child_process(node_config_paths, node_runner.clone()).await;
-        let exit_status = node_handle.
-            wait(). // Runs the node until completion, should be running indefinitely.
-            await; // Awaits the completion of the node.
+        let (mut node_process, _pipe_task) =
+            spawn_node_child_process(&node_executable, &node_config_paths, node_runner.clone())
+                .await;
+        let Some(exit_status) =
+            wait_for_exit_or_shutdown(&mut node_process, &task_shutdown_token).await
+        else {
+            info!("Node {node_runner:?} has been shut down.");
+            return;
+        };
         panic!("Node {node_runner:?} stopped unexpectedly. Exit status: {exit_status:?}.");
-    }))
+    }));
+    NodeProcessHandle { task, shutdown_token }
+}
+
+/// Returns the node's exit status if it exited before `shutdown_token` is cancelled. Otherwise
+/// kills the node and returns `None` once it exited.
+async fn wait_for_exit_or_shutdown(
+    node_process: &mut Child,
+    shutdown_token: &CancellationToken,
+) -> Option<io::Result<ExitStatus>> {
+    tokio::select! {
+        exit_status = node_process.wait() => Some(exit_status),
+        () = shutdown_token.cancelled() => {
+            // `wait` lags an exit until the runtime's driver processes it, so check it directly.
+            if let Some(exit_status) = node_process.try_wait().transpose() {
+                return Some(exit_status);
+            }
+            node_process.kill().await.expect("Killing the node should succeed.");
+            None
+        }
+    }
 }
 
 #[instrument(skip(node_runner))]
 async fn spawn_node_child_process(
-    node_config_paths: Vec<PathBuf>,
+    node_executable: &str,
+    node_config_paths: &[PathBuf],
     node_runner: NodeRunner,
 ) -> (Child, AbortOnDropHandle<()>) {
-    info!("Getting the node executable.");
-    let node_executable = get_node_executable_path();
-
     // The node loads its config natively: the paths are a nested base config followed by a flat
     // secrets file, matching `load_native`'s `[base, secret]` arity.
     let config_file_args: Vec<String> = node_config_paths
-        .into_iter()
+        .iter()
         .flat_map(|path| {
             let path_str = path.to_str().expect("Invalid path").to_string();
             vec![CONFIG_FILE_ARG.to_string(), path_str]
@@ -102,7 +159,7 @@ async fn spawn_node_child_process(
         .collect();
 
     info!("Running the node from: {}", node_executable);
-    let mut node_process: Child = create_shell_command(node_executable.as_str())
+    let mut node_process: Child = create_shell_command(node_executable)
         .args(config_file_args)
         .stderr(Stdio::inherit())
         .stdout(Stdio::piped())

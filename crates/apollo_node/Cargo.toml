@@ -64,5 +64,6 @@ apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 nix.workspace = true
 rstest.workspace = true
+tempfile.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
 tracing-test.workspace = true

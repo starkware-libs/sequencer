@@ -55,7 +55,7 @@ pub async fn run() {
             .collect::<HashMap<usize, Vec<NodeService>>>();
 
         info!("Shutting down service {hybrid_node_service:?} for all nodes.");
-        integration_test_manager.shutdown_node_services(node_services_to_shutdown.clone());
+        integration_test_manager.shutdown_node_services(node_services_to_shutdown.clone()).await;
         info!("Running service {hybrid_node_service:?} for all nodes.");
         integration_test_manager.run_node_services(node_services_to_shutdown).await;
 

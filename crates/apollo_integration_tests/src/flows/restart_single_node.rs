@@ -58,7 +58,7 @@ pub async fn run() {
             info!("Shutting down service {hybrid_node_service:?} for node {RESTART_NODE}.");
             let restart_node_service =
                 HashMap::from([(RESTART_NODE, vec![hybrid_node_service.into()])]);
-            integration_test_manager.shutdown_node_services(restart_node_service.clone());
+            integration_test_manager.shutdown_node_services(restart_node_service.clone()).await;
 
             // Verify that the other nodes are still running properly.
             integration_test_manager
