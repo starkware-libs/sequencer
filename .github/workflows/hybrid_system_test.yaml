@@ -14,6 +14,10 @@ env:
   layout: hybrid
   overlay: hybrid.testing.node-0
   cluster_name: hybrid-system-test
+  # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
+  # asset that the current k3d install.sh fetches (with --fail), so its install 404s. v5.5.0
+  # is the earliest release that ships checksums.txt (smallest bump from the old default).
+  k3d_version: v5.5.0
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/hybrid_system_test.yaml,.github/actions/install_anvil/**,scripts/**,deployments/sequencer/**,deployments/images/**"
   path_triggers_exclude: "scripts/prod/**"
@@ -150,16 +154,31 @@ jobs:
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
+      # The action's own install has no retry. Once this version is installed, install.sh skips its
+      # download. `timeout` bounds the downloads inside install.sh, which take no curl flags from here;
+      # a healthy attempt takes a few seconds.
+      - name: Install k3d
+        shell: bash
+        env:
+          K3D_VERSION: ${{ env.k3d_version }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            timeout 60 bash -o pipefail -c 'curl --fail --silent --show-error --location \
+              https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh \
+              | TAG="${K3D_VERSION}" bash' && exit 0
+            if [ "$attempt" -lt 5 ]; then sleep $((attempt * 10)); fi
+          done
+          exit 1
+
       - name: Create k3d cluster (Local k8s)
         id: create_k3d_cluster
+        # Normally about 15 s. The action waits for NotReady nodes with no time limit.
+        timeout-minutes: 5
         uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 # v2.4.0
         with:
-          # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
-          # asset that the current k3d install.sh fetches (with --fail), so its install 404s. v5.5.0
-          # is the earliest release that ships checksums.txt (smallest bump from the old default).
-          # Must be the k3d-version input (the composite action maps it to K3D_VERSION); a plain env
-          # var is overridden by the action's own empty input default.
-          k3d-version: v5.5.0
+          # `K3D_VERSION` must come through this input: the action sets it from the input, whose
+          # empty default overrides an env var.
+          k3d-version: ${{ env.k3d_version }}
           # Assumption: only one PR can run per machine at a time.
           cluster-name: ${{ env.cluster_name }}
           args: >-
