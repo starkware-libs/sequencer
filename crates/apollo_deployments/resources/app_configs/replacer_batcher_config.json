@@ -1,6 +1,7 @@
 {
   "batcher_config.dynamic_config.n_concurrent_txs": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-N_CONCURRENT_TXS_$$$",
   "batcher_config.dynamic_config.proposer_idle_detection_delay_millis": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-PROPOSER_IDLE_DETECTION_DELAY_MILLIS_$$$",
+  "batcher_config.dynamic_config.reject_invalid_signature_return_data": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-REJECT_INVALID_SIGNATURE_RETURN_DATA_$$$",
   "batcher_config.dynamic_config.results_polling_interval_millis": 10,
   "batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-STORAGE_ACCESS_FILTER_CONFIG-BLOCKED_STORAGE_KEYS_$$$",
   "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-STORAGE_ACCESS_FILTER_CONFIG-EXEMPT_ACCOUNT_ADDRESS_$$$",
