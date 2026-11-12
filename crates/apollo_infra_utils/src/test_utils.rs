@@ -7,10 +7,16 @@ use socket2::{Domain, Socket, Type};
 use strum::EnumCount;
 use tracing::instrument;
 
+#[cfg(test)]
+#[path = "test_utils_test.rs"]
+mod test_utils_test;
+
 const PORTS_PER_INSTANCE: u16 = 80;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 26;
 #[allow(clippy::as_conversions)]
 const MAX_NUMBER_OF_TESTS: u16 = TestIdentifier::COUNT as u16;
+// The allocated ranges overlap the kernel's ephemeral port range, so a port `is_port_in_use`
+// reports free can be assigned to an outbound connection before the server under test binds it.
 const BASE_PORT: u16 = 11000;
 
 // Ensure available ports don't exceed u16::MAX.
@@ -110,9 +116,10 @@ impl AvailablePorts {
     }
 }
 
-// Checks if a port is occupied, without side effects.
+// Checks if a port is occupied, without side effects. Probes the unspecified address, so a port
+// held on any interface is reported in use.
 fn is_port_in_use(port: u16) -> bool {
-    let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), port);
     let socket =
         Socket::new(Domain::IPV4, Type::STREAM, None).expect("Should be able to create a socket.");
     // Enable SO_REUSEADDR, which enables later binding to the address
