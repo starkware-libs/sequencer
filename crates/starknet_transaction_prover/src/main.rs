@@ -9,8 +9,10 @@ fn main() {
 #[cfg(feature = "stwo_proving")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use std::io::IsTerminal;
     use std::net::SocketAddr;
     use std::sync::Arc;
+    use std::time::Duration;
 
     use anyhow::Context;
     use clap::Parser;
@@ -21,14 +23,19 @@ async fn main() -> anyhow::Result<()> {
         TransportMode,
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
-    use starknet_transaction_prover::server::log_redact::redact_url_host;
+    use starknet_transaction_prover::server::health::HealthLayer;
+    use starknet_transaction_prover::server::log_redact::text_log_ansi_enabled;
+    use starknet_transaction_prover::server::metrics::{install_exporter, spawn_upkeep};
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
+    use starknet_transaction_prover::server::saturation::SaturationMonitor;
     use starknet_transaction_prover::server::shutdown::spawn_signal_bridge;
     use starknet_transaction_prover::server::{
         start_server,
+        MetricsLayer,
         OhttpJsonrpseeLayer,
+        ServerLayers,
         OHTTP_JSONRPSEE_BODY_BUILDER,
     };
     use tower_ohttp::OhttpGateway;
@@ -43,9 +50,16 @@ async fn main() -> anyhow::Result<()> {
         EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
     let registry = tracing_subscriber::registry().with(filter);
+    // The JSON layer never emits ANSI styling.
     match args.log_format {
         LogFormat::Json => registry.with(fmt::layer().json()).init(),
-        LogFormat::Text => registry.with(fmt::layer()).init(),
+        LogFormat::Text => {
+            let ansi_enabled = text_log_ansi_enabled(
+                std::io::stdout().is_terminal(),
+                std::env::var_os("NO_COLOR"),
+            );
+            registry.with(fmt::layer().with_ansi(ansi_enabled)).init()
+        }
     }
 
     // Installed after tracing init so the hook's `error!` reaches the subscriber.
@@ -54,22 +68,23 @@ async fn main() -> anyhow::Result<()> {
 
     let config = ServiceConfig::from_args(args)?;
 
-    // Startup banner — version + chain id + redacted RPC host only. No URLs
-    // with userinfo, no fee token address, no TLS paths, no tx data.
-    info!(
-        version = env!("CARGO_PKG_VERSION"),
-        git_sha = option_env!("GIT_SHA").unwrap_or("unknown"),
-        chain_id = %config.prover_config.chain_id,
-        rpc_node_host = %redact_url_host(&config.prover_config.rpc_node_url),
-        validate_zero_fee_fields = config.prover_config.validate_zero_fee_fields,
-        blocking_check_enabled = config.prover_config.blocking_check_url.is_some(),
-        blocking_check_fail_open = config.prover_config.blocking_check_fail_open,
-        ohttp_enabled = config.ohttp_enabled,
-        "Starting Starknet transaction prover."
-    );
+    config.log_startup_summary();
 
-    // Build and start the JSON-RPC server.
-    let rpc_impl = ProvingRpcServerImpl::from_config(&config);
+    let prometheus_handle =
+        install_exporter(env!("CARGO_PKG_VERSION"), option_env!("GIT_SHA").unwrap_or("unknown"))
+            .context("Failed to install Prometheus exporter")?;
+    let metrics_layer = MetricsLayer::new(prometheus_handle.clone());
+    spawn_upkeep(prometheus_handle);
+
+    // Build and start the JSON-RPC server. The request path and the health probe share one
+    // saturation monitor. The request path records rejects and worker-slot progress, and the
+    // probe reads it.
+    let saturation_monitor = SaturationMonitor::default();
+    let health_layer = HealthLayer::new(
+        saturation_monitor.clone(),
+        Duration::from_millis(config.health_max_saturated_ms),
+    );
+    let rpc_impl = ProvingRpcServerImpl::from_config(&config, saturation_monitor);
     let addr = SocketAddr::new(config.ip, config.port);
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
@@ -98,8 +113,7 @@ async fn main() -> anyhow::Result<()> {
         rpc_impl.into_rpc().into(),
         config.max_connections,
         config.max_request_body_size,
-        cors_layer,
-        ohttp_layer,
+        ServerLayers { cors_layer, ohttp_layer, metrics_layer, health_layer },
     )
     .await?;
 

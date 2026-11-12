@@ -28,8 +28,8 @@ Expected response:
 The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is the
 `proving-api/starknet_proving_api_openrpc.json` document in
 [starknet-specs](https://github.com/starkware-libs/starknet-specs), pinned to the revision recorded
-in `resources/starknet_specs_rev.txt`. The service also serves one HTTP-only endpoint,
-`GET /health`, described under [Observability](#observability).
+in `resources/starknet_specs_rev.txt`. The service also serves two HTTP-only endpoints,
+`GET /health` and `GET /metrics`, described under [Observability](#observability).
 
 ### `starknet_specVersion`
 
@@ -177,6 +177,7 @@ and environment variables override values from the config file.
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
 | `LOG_FORMAT` | `--log-format` | `text` | Log output format. Accepts `text` or `json`. Use `json` in production so log aggregators (e.g. Datadog) parse the fields directly. |
+| `HEALTH_MAX_SATURATED_MS` | `--health-max-saturated-ms` | `10000` | How long a busy-reject window may stay open without worker-slot progress before `GET /health` flips to 503. See [`/health`](#health) under Observability. |
 
 ### TLS / HTTPS
 
@@ -221,6 +222,7 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
 | `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
 | `tls_key_file` | `TLS_KEY_FILE` | file path or null |
+| `health_max_saturated_ms` | `HEALTH_MAX_SATURATED_MS` | integer (ms) |
 
 ### Docker example with common options
 
@@ -251,13 +253,12 @@ docker run -e RUST_LOG=warn ... <IMAGE>
 docker run -e LOG_FORMAT=json ... <IMAGE>
 ```
 
-`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`,
-and `span` keys. The `text` format may include ANSI colour codes. `json` never does, so use
-`--log-format json` in containers and in production. A URL can carry credentials in its userinfo
-component, so the service redacts every logged URL down to `scheme://host[:port]`. That covers
-`rpc_node_url` in the startup logs and in its CLI-override message, and `blocking_check_url` in its
-CLI-override message. The startup logs say only whether the blocking check is enabled, never its
-URL.
+`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`, and
+`span` keys. The `text` format adds ANSI colour codes only when stdout is a terminal and `NO_COLOR`
+is unset or empty, and `json` never does. Use `--log-format json` in containers and in production.
+A URL can carry credentials in its userinfo component, so the service redacts every logged URL down
+to `scheme://host[:port]`. That covers `rpc_node_url` and `blocking_check_url` in the startup
+`config_resolved` log, and each of them again in its own CLI-override message.
 
 ## Compression
 
@@ -279,8 +280,9 @@ curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
 
 ## Observability
 
-Besides the JSON-RPC API, the service answers a `GET /health` probe and writes one structured log
-line per request, each carrying a request id.
+Besides the JSON-RPC API, the service answers a `GET /health` probe, serves a `GET /metrics`
+scrape, and writes one structured log line per HTTP request, each carrying a request id. It also
+logs one line per single JSON-RPC call and one per batch.
 
 ### `/health`
 
@@ -289,18 +291,60 @@ line per request, each carrying a request id.
 | Status | Body | Meaning |
 |---|---|---|
 | `200 OK` | `{"status":"ok"}` | Service is accepting requests. |
+| `503 Service Unavailable` | `{"status":"unhealthy","reason":"saturated"}` | A busy-reject window has been open for at least `HEALTH_MAX_SATURATED_MS` (default 10 seconds) with no worker-slot progress, and proving work still holds a worker slot. Load balancer should drain this pod. |
+
+The same busy-rejects that return JSON-RPC error `-32005` (Service busy) drive the 503. The first
+reject opens a saturation window, and `/health` flips once that window has been open for
+`HEALTH_MAX_SATURATED_MS`. Any forward progress closes the window, so the service is back to 200 on
+the first probe after a proving run ends or a queued request starts. Forward progress means a
+request acquiring a worker slot, or a slot coming free when proving finishes, fails, or the client
+disconnects. An idle service always reports 200, even when a reject lands after the last proving
+run finished, so a drained pod never waits for new traffic to recover.
 
 The endpoint is deliberately unauthenticated, so load balancers, orchestrators, and uptime checks
-can call it. The router answers probes before CORS, compression, and JSON-RPC parsing run.
+can call it. For that same reason the response body is opaque, with no timestamps, counters, or
+upstream URLs. The router answers probes before CORS, compression, and JSON-RPC parsing run.
+
+### `/metrics`
+
+`GET /metrics` returns every metric the service emits, in Prometheus text format. Like `/health`,
+scrapes bypass CORS and JSON-RPC parsing, and the endpoint is unauthenticated.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `prover_build_info` | gauge | `version`, `git_sha` | Always 1. Identifies the running build from a scrape. `git_sha` comes from the `GIT_SHA` docker build arg, and is `unknown` when the build doesn't pass one. |
+| `prover_http_requests_total` | counter | `method`, `status` | HTTP request count. `method` is a bounded enum (`GET`/`POST`/`PUT`/`DELETE`/`HEAD`/`OPTIONS`/`PATCH`/`other`); `status` is the HTTP status class (`1xx` through `5xx`, plus `other`, and `error` when the tower stack produced no response). Excludes `/health` and `/metrics` probes. |
+| `prover_http_request_duration_seconds` | histogram | `method`, `status` | End-to-end HTTP request latency, using the same bounded `method` and `status` label values as the request counter. Excludes `/health` and `/metrics` probes. |
+| `prover_http_inflight_requests` | gauge | none | Current count of HTTP requests being handled. Decremented via RAII so panics and cancellations don't leak. |
+| `prover_prove_transaction_outcome_total` | counter | `outcome` | Every proving request, whether served or rejected, so its total is the shared denominator for all proving rates. `outcome` is a bounded enum: `success`, `failure_validation`, `failure_blocked`, `failure_runner`, `failure_output_parse`, `failure_proving`, `failure_unsupported_builtin`, `rejected_queue_full`, `rejected_wait_timeout`. The two `rejected_*` values are the busy-rejects, which return JSON-RPC error `-32005`. `failure_unsupported_builtin` counts transactions rejected before proving because they use a builtin the prover does not support, which the client receives as JSON-RPC error `1002`. |
+| `prover_prove_transaction_duration_seconds` | histogram | `outcome` | Duration of the whole proving call, covering input validation, the optional blocking check, the virtual OS run and proving. Recorded for failures too, so filter on `outcome` for success-only percentiles. Rejected requests never reach it. |
+| `prover_os_run_duration_seconds` | histogram | none | Virtual OS execution time, recorded for successful runs only. |
+| `prover_stwo_prove_duration_seconds` | histogram | none | STWO proving time, recorded for successful runs only. Emitted only by builds with the `stwo_proving` feature. |
+| `prover_queue_waiting_requests` | gauge | none | Requests admitted to the queue but still waiting for a worker slot. Decremented via RAII on slot acquisition, timeout, or client disconnect. |
+| `prover_queue_wait_duration_seconds` | histogram | none | Time a request waited in the queue before acquiring a worker slot (successful acquisitions only). |
+| `prover_panics_total` | counter | none | Process panics caught by the global panic hook. Lets an alert watch the panic rate without a log search. |
+
+No user-controlled value becomes a label, so label cardinality stays bounded.
+
+**The HTTP metrics report transport status only.** jsonrpsee answers every JSON-RPC method call
+with `200 OK`, including calls that return a JSON-RPC error such as a validation or proving
+failure. A `4xx` or `5xx` `status` means the request failed before it reached a JSON-RPC method,
+for example an oversized body (`413`) or a body that is not a JSON object or array (`400`). Point
+proving error-rate alerts at `prover_prove_transaction_outcome_total` instead.
+
+For OHTTP requests (`Content-Type: message/ohttp-req`), the HTTP metrics describe the outer
+envelope. Once the service decrypts an envelope it answers `200 OK`, even when the inner request
+failed, so a `4xx` or `5xx` on an OHTTP request comes from the envelope itself. Plaintext requests
+still reach the server when OHTTP is enabled, and their labels keep the meaning described above.
 
 ### Request IDs
 
 Every HTTP request carries a `request_id`. The service reuses the inbound `x-request-id` header
 when it holds a short, printable-ASCII token (max 128 bytes), and otherwise generates a UUID v4.
 It echoes that id back in the same response header, so a caller who hit a failure can quote one id
-when reporting it. Every request except a `GET /health` probe is logged with its id. Probes still
-get the header echo but no log line, because at normal probe intervals they would drown out real
-traffic.
+when reporting it. Every request except a `GET /health` probe or a `GET /metrics` scrape is logged
+with its id. Probes and scrapes still get the header echo but no log line, because at normal probe
+and scrape intervals they would drown out real traffic.
 
 The service drops hostile header values (whitespace, non-printable bytes, oversized values) and
 generates a fresh id instead. That blocks header smuggling and stops a caller from blowing up the
@@ -341,6 +385,52 @@ there was never a status.
 The logging layer never reads request bodies. Transaction calldata is private user data and stays
 out of the logs.
 
+### JSON-RPC log lines
+
+The `http_request` line carries no method name, and a failed JSON-RPC call still gets status 200.
+So each single call also logs one `info` line with `event="rpc_request"`, `rpc_method`, `outcome`
+(`success` or `error`), `rpc_error_code` on errors, and `latency_ms`. `rpc_method` is the method
+name only when the server registers that method, and `unknown` otherwise. No line carries params.
+A batch logs one `info` line with `event="rpc_batch"`, `batch_size`, and `latency_ms`, and its
+calls log no lines of their own. `batch_size` counts every entry, including notifications and
+entries jsonrpsee cannot parse. A notification outside a batch logs no JSON-RPC line, and
+jsonrpsee acknowledges it without running the method it names. A body that jsonrpsee cannot parse
+gets an error response and no JSON-RPC line. Over HTTP, both still get their `http_request` line.
+
+jsonrpsee handles a call or batch over HTTP inside the `http_request` span, so its line carries that
+span's `request_id` (the inner id for OHTTP traffic). Calls over a WebSocket connection, which
+jsonrpsee enables by default, carry no `request_id`.
+
+### Failed proving requests
+
+A failed `starknet_proveTransaction` request logs a `warn` record where the failure starts, such as
+`event="validation_error"` with a `reason` field, `event="os_run_error"` or
+`event="proving_error"`. The service then logs one `warn` record with
+`event="prove_transaction_failed"` and an `outcome` field holding the request's
+`prover_prove_transaction_outcome_total` label, such as `failure_validation` or `failure_runner`.
+None of these records carries the error text, which can hold fee values, revert reasons with
+contract addresses, and the node URL. Busy rejections log their own warning.
+
+### Startup logs
+
+Startup emits two `info` logs, plus an `OHTTP envelope encryption enabled` line between them when
+OHTTP is enabled. Before binding, an `event="config_resolved"` log records the build identity
+(version, git SHA) together with the resolved service and prover settings, which are the merge of
+the config file, environment variables, and CLI flags. Read that line to see the values the process
+runs with, instead of working the precedence rules out by hand. From the
+`contract_class_manager_config` and `runner_config` sub-configs it includes only the config-file
+settings `compiled_class_cache_size`, `prefetch_state`, and `use_latest_versioned_constants`. After
+the listener is bound, a second log records what the server came up on: local address, scheme
+(`http` or `https`), `max_concurrent_requests`, `max_connections`, `ohttp_enabled`, and the CORS
+mode and allowed origins.
+
+Both lines are redacted. The `config_resolved` line logs the RPC and blocking-check URLs host-only
+(see [Logging](#logging)), and neither line carries transaction-scoped data. For TLS they record
+only whether the transport is `http` or `https`, never the certificate and key paths. The paths do
+appear in the separate CLI-override lines, which startup logs whenever
+`TLS_CERT_FILE`/`--tls-cert-file` or `TLS_KEY_FILE`/`--tls-key-file` sets a path that differs from
+the config file's value, including when no config file is used.
+
 ### Shutdown
 
 `SIGTERM` and `SIGINT` start a graceful shutdown. The server stops accepting new requests and lets
@@ -355,14 +445,15 @@ follow-up Ctrl+C would do nothing.
 
 ### Panics
 
-A global panic hook catches every panic and logs one `error`-level event with `event="panic"`. The
-event carries the panic location, the payload, and a forced backtrace. Only static string literals
-reach the log verbatim. A payload built at runtime can hold request or transaction data, so the
-hook replaces it with a placeholder.
+A global panic hook catches every panic. The hook increments `prover_panics_total` before it logs,
+so a recursive panic inside the logging cannot lose the count. It then logs one `error`-level event
+with `event="panic"`. The event carries the panic location, the payload, and a forced backtrace.
+Only static string literals reach the log verbatim. A payload built at runtime can hold request or
+transaction data, so the hook replaces it with a placeholder.
 
-The hook only logs. It does not call `process::abort()` and does not change unwinding behavior, so
-the tokio runtime still contains a panic raised inside a request task and the process keeps
-serving.
+The hook only logs and counts. It does not call `process::abort()` and does not change unwinding
+behavior, so the tokio runtime still contains a panic raised inside a request task and the process
+keeps serving. A rising `prover_panics_total` is therefore the signal to alert on.
 
 ## Limitations
 
