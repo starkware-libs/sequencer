@@ -273,11 +273,16 @@ impl Alert {
         let expr = match observer_applicable {
             ObserverApplicability::Applicable => expr,
             ObserverApplicability::NotApplicable => {
+                // Observers evaluate to the threshold, which never fires, instead of to no data.
+                let threshold =
+                    &conditions.first().expect("Alert has no conditions.").comparison_value;
                 ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
                     // `and on()` ignores label sets so the unlabeled scalar produced by
                     // aggregations like sum() still matches the pod-labeled is_observer series.
-                    "({}) and on() ({} == 0)",
+                    "(({}) and on() ({} == 0)) or on() (vector({}) and on() ({} == 1))",
                     expr.to_alert_promql(),
+                    IS_OBSERVER.get_name_with_filter(),
+                    threshold.to_promql(),
                     IS_OBSERVER.get_name_with_filter(),
                 ))
             }
