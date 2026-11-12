@@ -1280,7 +1280,7 @@ impl NetworkManager {
                 Err(bind_error) if bind_attempt < LISTEN_BIND_MAX_ATTEMPTS => {
                     warn!(
                         "Failed to bind to {listen_address} (attempt \
-                         {bind_attempt}/{LISTEN_BIND_MAX_ATTEMPTS}): {bind_error}. Retrying in \
+                         {bind_attempt}/{LISTEN_BIND_MAX_ATTEMPTS}): {bind_error:?}. Retrying in \
                          {LISTEN_BIND_RETRY_DELAY:?}."
                     );
                     // `new` is synchronous and runs once at startup; a brief blocking sleep here is
@@ -1291,7 +1291,7 @@ impl NetworkManager {
                 }
                 Err(bind_error) => panic!(
                     "Error while binding to {listen_address} after {LISTEN_BIND_MAX_ATTEMPTS} \
-                     attempts: {bind_error}"
+                     attempts: {bind_error:?}"
                 ),
             }
         }
