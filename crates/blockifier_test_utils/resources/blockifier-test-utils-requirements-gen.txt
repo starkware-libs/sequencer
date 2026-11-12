@@ -14,6 +14,9 @@
 # (undefined symbol Py_RETURN_RICHCOMPARE).
 bitarray<=3.9.0
 cairo-lang==0.14.0.1
+# cytoolz 1.1.0, built from source on PyPy 3.9, segfaults on import on some CI runners. eth-utils
+# imports it when installed, so starknet-compile-deprecated crashes before printing anything.
+cytoolz<=1.0.1
 # Keep pydantic on a release line that still has PyPy 3.9 wheels for pydantic_core.
 pydantic==2.11.7
 pydantic_core==2.33.2
