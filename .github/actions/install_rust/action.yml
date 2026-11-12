@@ -23,6 +23,6 @@ runs:
 
     # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged binaries.
     - name: Install Anvil
-      uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
+      uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1
       with:
         version: v1.5.1
