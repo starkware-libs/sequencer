@@ -210,7 +210,8 @@ pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_re
 }
 
 /// Used in random test to create a random generator, see for example storage_serde_test.
-/// Randomness can be seeded by setting and env variable `SEED` or by the OS (the rust default).
+/// Seeded from the env variable `SEED`, which `.cargo/config.toml` defaults to 0 under cargo.
+/// Seeded by the OS when `SEED` is unset, for example when a test binary runs outside cargo.
 pub fn get_rng() -> ChaCha8Rng {
     let seed: u64 = match env::var("SEED") {
         Ok(seed_str) => seed_str.parse().unwrap(),
