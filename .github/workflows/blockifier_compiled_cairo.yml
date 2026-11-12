@@ -66,3 +66,16 @@ jobs:
 
       - name: Verify cairo contract recompilation (both cairo versions).
         run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
+
+      - name: Cairo0 probe diagnostics.
+        if: failure()
+        run: |
+          echo "PATH=$PATH"; echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}"
+          which -a python python3 pypy3.9 starknet-compile-deprecated || true
+          python --version; python -c 'import sys; print(sys.executable)'
+          free -m; nproc
+          script=$(command -v starknet-compile-deprecated)
+          for i in $(seq 1 20); do
+            out=$(python "$script" --version 2>/tmp/probe_err); rc=$?
+            echo "probe $i rc=$rc stdout=[$out]"; [ $rc -ne 0 ] && cat /tmp/probe_err
+          done

@@ -124,8 +124,16 @@ pub fn cairo0_script_correct_version(
 ) -> Result<(), Cairo0ScriptVersionError> {
     let expected_version = script_type.required_version();
     let script = script_type.script_name();
-    let version = match script_type.command()?.arg("--version").output() {
-        Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
+    let (version, probe_report) = match script_type.command()?.arg("--version").output() {
+        Ok(output) => (
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            format!(
+                " [status: {:?}; stdout: {:?}; stderr: {:?}]",
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            ),
+        ),
         Err(error) => {
             return Err(Cairo0ScriptVersionError::CompilerNotFound {
                 script: *script_type,
@@ -136,7 +144,7 @@ pub fn cairo0_script_correct_version(
     if CairoLangVersion(version.trim().replace("==", " ").split(" ").nth(1).ok_or(
         Cairo0ScriptVersionError::CompilerNotFound {
             script: *script_type,
-            error: format!("No {script} version found."),
+            error: format!("No {script} version found.{probe_report}"),
         },
     )?) != expected_version
     {
