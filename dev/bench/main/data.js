@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794489892777,
+  "lastUpdate": 1794503161211,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8091,6 +8091,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1381.21883789,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2e5f2b57da18f00f1600e0bcf5ea036d6ed864c7",
+          "message": "apollo_integration_tests,apollo_node: wait for node services to exit on shutdown (#15287)\n\nShutting down a node service only aborted the task running its process, which drops the child\nand sends SIGKILL without waiting for the process to exit. A service respawned right after, with\nthe same config, could then fail to bind a port the old process still listened on.\n\nspawn_run_node now returns a NodeProcessHandle whose shutdown kills the process and returns once\nthe process exited. The per-service and full-node shutdown paths await it for all their services\nconcurrently, under one timeout, and the 2s sleep after a full-node shutdown is removed. A node\nthat exited on its own before the shutdown still fails it.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-12T16:14:47Z",
+          "tree_id": "4e58dd247ebf8ac17a2b2433aa8a7fcf4901b54b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2e5f2b57da18f00f1600e0bcf5ea036d6ed864c7"
+        },
+        "date": 1794503160710,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 806.0342941399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1268.27417823,
             "unit": "ms"
           }
         ]
