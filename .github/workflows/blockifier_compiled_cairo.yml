@@ -70,12 +70,15 @@ jobs:
       - name: Cairo0 probe diagnostics.
         if: failure()
         run: |
-          echo "PATH=$PATH"; echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}"
-          which -a python python3 pypy3.9 starknet-compile-deprecated || true
-          python --version; python -c 'import sys; print(sys.executable)'
-          free -m; nproc
+          set +e
+          lscpu | grep -E "Model name|Flags|Hypervisor"
           script=$(command -v starknet-compile-deprecated)
-          for i in $(seq 1 20); do
-            out=$(python "$script" --version 2>/tmp/probe_err); rc=$?
-            echo "probe $i rc=$rc stdout=[$out]"; [ $rc -ne 0 ] && cat /tmp/probe_err
+          for i in 1 2 3; do python "$script" --version; echo "probe $i rc=$?"; done
+          echo "== import trace of the probe"
+          python -X faulthandler -v "$script" --version > /tmp/probe_out 2> /tmp/probe_trace; echo "rc=$?"
+          grep -vE "^# (clear|cleanup|destroy)" /tmp/probe_trace | tail -40
+          echo "== per-module imports"
+          for module in bitarray cytoolz toolz fastecdsa yaml regex frozendict ckzg aiohttp multidict yarl frozenlist propcache pydantic_core Crypto.Hash.keccak eth_hash.auto lark marshmallow sympy mpmath; do
+            python -X faulthandler -c "import $module" > /dev/null 2>/tmp/import_err; rc=$?
+            echo "import $module rc=$rc"; [ $rc -ne 0 ] && tail -15 /tmp/import_err
           done
