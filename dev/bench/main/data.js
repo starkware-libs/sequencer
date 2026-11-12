@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794505534763,
+  "lastUpdate": 1794517314886,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8159,6 +8159,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1221.63769475,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "466446067df0410c73abec72503c5557fce49da7",
+          "message": "ci: run the benchmark jobs when bench_tools changes (#15292)\n\nBoth benchmark jobs run bench_tools, and the benchmark names they enforce limits on live in\nbench_tools, so a PR that changes only bench_tools must run them too.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-12T20:23:36Z",
+          "tree_id": "11ee50b37bf064f45ed8a587e66f16e245f025e1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/466446067df0410c73abec72503c5557fce49da7"
+        },
+        "date": 1794517314308,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 872.09175396,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1331.65312422,
             "unit": "ms"
           }
         ]
