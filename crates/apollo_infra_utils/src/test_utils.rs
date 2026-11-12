@@ -11,7 +11,11 @@ const PORTS_PER_INSTANCE: u16 = 80;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 26;
 #[allow(clippy::as_conversions)]
 const MAX_NUMBER_OF_TESTS: u16 = TestIdentifier::COUNT as u16;
-const BASE_PORT: u16 = 11000;
+// Below the kernel's ephemeral port range (32768-60999 on Linux), from which outgoing connections
+// get their local ports. A node's peers dial it before it listens, and a dial may get the target
+// port itself as its local port and connect to itself, so the node fails to bind it.
+const BASE_PORT: u16 = 1500;
+const EPHEMERAL_PORT_RANGE_START: u16 = 32768;
 
 // Ensure available ports don't exceed u16::MAX.
 const _: () = {
@@ -22,9 +26,25 @@ const _: () = {
     );
 };
 
+// Ensure the tests whose nodes dial each other, up to `ValidationOnlyNodeNeededForQuorumTest`, use
+// ports below the ephemeral port range.
+#[allow(clippy::as_conversions)]
+const _: () = {
+    assert!(
+        BASE_PORT
+            + (TestIdentifier::ValidationOnlyNodeNeededForQuorumTest as u16 + 1)
+                * MAX_NUMBER_OF_INSTANCES_PER_TEST
+                * PORTS_PER_INSTANCE
+            <= EPHEMERAL_PORT_RANGE_START,
+        "Ports of tests with nodes dialing each other reach the ephemeral port range"
+    );
+};
+
 #[repr(u16)]
 #[derive(Debug, Copy, Clone, IntoPrimitive, EnumCount)]
 // TODO(Nadin): Come up with a better name for this enum.
+// Tests whose nodes dial each other must come up to `ValidationOnlyNodeNeededForQuorumTest`, so
+// their ports are below the ephemeral port range.
 pub enum TestIdentifier {
     EndToEndFlowTest,
     EndToEndFlowTestBootstrapDeclare,
@@ -39,8 +59,8 @@ pub enum TestIdentifier {
     RestartServiceMultipleNodesFlowIntegrationTest,
     RestartServiceSingleNodeFlowIntegrationTest,
     RevertFlowIntegrationTest,
-    HttpServerUnitTests,
     SyncFlowIntegrationTest,
+    ValidationOnlyNodeNeededForQuorumTest,
     StorageReaderServerUnitTests,
     StorageReaderTypesUnitTests,
     L1EventsScraperEndToEndTest,
@@ -50,7 +70,7 @@ pub enum TestIdentifier {
     L1EventsProviderUnitTests,
     AnvilStartsWithNoContractTest,
     ClassManagerUnitTests,
-    ValidationOnlyNodeNeededForQuorumTest,
+    HttpServerUnitTests,
 }
 
 #[derive(Debug)]
