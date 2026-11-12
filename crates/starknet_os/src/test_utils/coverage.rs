@@ -17,11 +17,8 @@ pub fn expect_hint_coverage(unused_hints: &HashSet<AllHints>, test_name: &str) {
 #[cfg(test)]
 const UNCOVERED_HINTS: expect_test::Expect = expect_test::expect![[r#"
     [
-        "AggregatorHint(LoadCircuitVerifierTask)",
-        "AggregatorHint(LoadProofFactsTree)",
         "DeprecatedSyscallHint(Deploy)",
         "OsHint(GetClassHashAndCompiledClassFact)",
-        "StatelessHint(GuessProofTreeNode)",
         "StatelessHint(SetApToSegmentHashPoseidon)",
     ]
 "#]];

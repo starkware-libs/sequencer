@@ -12,6 +12,7 @@ use cairo_vm::vm::runners::cairo_pie::{
     PublicMemoryPage,
 };
 use itertools::Itertools;
+use leaf_proof_format::PackedNode;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::ToPrimitive;
@@ -55,6 +56,13 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 use crate::test_utils::coverage::expect_hint_coverage;
+use crate::test_utils::golden_leaf::{
+    packed_fold,
+    packed_leaf,
+    GoldenCircuitVerifierTask,
+    GOLDEN_PROOF_FACTS_SIZE,
+    GOLDEN_THREE_LEAF_PROOF_FACTS,
+};
 use crate::test_utils::validations::validate_builtins;
 
 // Dummy values for the test.
@@ -168,13 +176,10 @@ const MSG_TO_L2_1: [Felt; 5] = [
     Felt::ZERO,                         // PayloadSize.
 ];
 
-// The proof facts sections of the multi-blocks' full outputs: their number of transactions' proof
-// facts, followed by each one's size and felts. They are empty.
-// TODO(Einat): use the golden leaves' proof facts.
-const TX_PROOF_FACTS_0: [Felt; 1] = [Felt::ZERO];
-const TX_PROOF_FACTS_1: [Felt; 1] = [Felt::ZERO];
-
 const NUMBER_OF_BLOCKS_IN_MULTI_BLOCK: usize = 13;
+
+const PROOF_VERIFICATION_ERROR_MESSAGE: &str =
+    "The processed proof does not verify against its proof facts.";
 
 #[derive(Clone, Debug, PartialEq)]
 enum FailureModifier {
@@ -184,6 +189,7 @@ enum FailureModifier {
     None,
     OsConfigHash,
     ProgramHash,
+    ProofFacts,
     Root,
     StorageValue,
 }
@@ -295,7 +301,8 @@ impl FactTopology {
     }
 }
 
-fn multi_block0_output(full_output: bool) -> Vec<Felt> {
+fn multi_block0_output(full_output: bool, with_proof_facts: bool) -> Vec<Felt> {
+    let tx_proof_facts = if with_proof_facts { &GOLDEN_THREE_LEAF_PROOF_FACTS[..2] } else { &[] };
     let partial_res = [
         vec![
             // initial_root.
@@ -324,7 +331,7 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
         // Messages to L2.
         vec![MSG_TO_L2_0.len().into()],
         MSG_TO_L2_0.to_vec(),
-        if full_output { TX_PROOF_FACTS_0.to_vec() } else { vec![] },
+        if full_output { serialize_tx_proof_facts(tx_proof_facts) } else { vec![] },
     ]
     .concat();
     let da = [
@@ -387,7 +394,16 @@ fn multi_block0_output(full_output: bool) -> Vec<Felt> {
     [partial_res, if full_output { da } else { compress(&da) }].concat()
 }
 
-fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> {
+fn multi_block1_output(
+    full_output: bool,
+    modifier: FailureModifier,
+    with_proof_facts: bool,
+) -> Vec<Felt> {
+    // The proof tree's shape still fits a corrupted leaf, but its root proof does not.
+    let mut third_leaf_proof_facts = GOLDEN_THREE_LEAF_PROOF_FACTS[2];
+    let last_proof_fact = third_leaf_proof_facts.last_mut().unwrap();
+    *last_proof_fact = modifier.corrupt_for(*last_proof_fact, FailureModifier::ProofFacts);
+    let tx_proof_facts = if with_proof_facts { vec![third_leaf_proof_facts] } else { vec![] };
     let partial_res = [
         vec![
             // initial_root.
@@ -417,7 +433,7 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
         // Messages to L2.
         vec![MSG_TO_L2_1.len().into()],
         MSG_TO_L2_1.to_vec(),
-        if full_output { TX_PROOF_FACTS_1.to_vec() } else { vec![] },
+        if full_output { serialize_tx_proof_facts(&tx_proof_facts) } else { vec![] },
     ]
     .concat();
     let da = [
@@ -595,8 +611,9 @@ fn combined_kzg_info(da: &[Felt]) -> Vec<Felt> {
     vec![z.into(), n_blobs.into(), x, y, evaluation_low.into(), evaluation_high.into()]
 }
 
-fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
+fn combined_output(full_output: bool, use_kzg_da: bool, with_proof_facts: bool) -> Vec<Felt> {
     let da = combined_output_da(full_output);
+    let tx_proof_facts = if with_proof_facts { &GOLDEN_THREE_LEAF_PROOF_FACTS[..] } else { &[] };
     [
         vec![
             // initial_root.
@@ -628,25 +645,32 @@ fn combined_output(full_output: bool, use_kzg_da: bool) -> Vec<Felt> {
         vec![Felt::from(MSG_TO_L2_0.len() + MSG_TO_L2_1.len())],
         MSG_TO_L2_0.to_vec(),
         MSG_TO_L2_1.to_vec(),
-        // Proof facts, only in the full output: the two multi-blocks' lists, joined.
-        if full_output {
-            [
-                vec![TX_PROOF_FACTS_0[0] + TX_PROOF_FACTS_1[0]],
-                TX_PROOF_FACTS_0[1..].to_vec(),
-                TX_PROOF_FACTS_1[1..].to_vec(),
-            ]
-            .concat()
-        } else {
-            vec![]
-        },
+        if full_output { serialize_tx_proof_facts(tx_proof_facts) } else { vec![] },
         if use_kzg_da { vec![] } else { da },
     ]
     .concat()
 }
 
-fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> {
-    let block0 = multi_block0_output(full_output);
-    let block1 = multi_block1_output(full_output, modifier);
+/// A multi-block output's proof facts section: their number, followed by each one's size and felts.
+fn serialize_tx_proof_facts(tx_proof_facts: &[[Felt; GOLDEN_PROOF_FACTS_SIZE]]) -> Vec<Felt> {
+    std::iter::once(Felt::from(tx_proof_facts.len()))
+        .chain(tx_proof_facts.iter().flat_map(|proof_facts| {
+            std::iter::once(Felt::from(proof_facts.len())).chain(proof_facts.iter().copied())
+        }))
+        .collect()
+}
+
+fn proof_facts_tree() -> PackedNode {
+    packed_fold(vec![packed_fold(vec![packed_leaf(), packed_leaf()]), packed_leaf()])
+}
+
+fn bootloader_output(
+    full_output: bool,
+    modifier: FailureModifier,
+    with_proof_facts: bool,
+) -> Vec<Felt> {
+    let block0 = multi_block0_output(full_output, with_proof_facts);
+    let block1 = multi_block1_output(full_output, modifier, with_proof_facts);
     [
         vec![
             // Number of multi-blocks.
@@ -665,10 +689,12 @@ fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> 
 fn test_parse_and_output(
     #[values(0, 1)] block_idx: usize,
     #[values(false, true)] full_output_result: bool,
+    #[values(false, true)] with_proof_facts: bool,
 ) {
     // Prepare input.
     let full_output = true;
-    let bootloader_output_data = bootloader_output(full_output, FailureModifier::None);
+    let bootloader_output_data =
+        bootloader_output(full_output, FailureModifier::None, with_proof_facts);
     let FullOsOutputsData { outputs, n_outputs, .. } =
         FullOsOutputsData::try_from_output_iter(&mut bootloader_output_data.into_iter(), None)
             .unwrap();
@@ -742,10 +768,13 @@ fn test_parse_and_output(
     };
     let output_array = output_array.iter().map(|f| f.get_int().unwrap()).collect::<Vec<Felt>>();
     if block_idx == 0 {
-        assert_eq!(output_array, multi_block0_output(full_output_result));
+        assert_eq!(output_array, multi_block0_output(full_output_result, with_proof_facts));
     } else {
         assert_eq!(block_idx, 1);
-        assert_eq!(output_array, multi_block1_output(full_output_result, FailureModifier::None));
+        assert_eq!(
+            output_array,
+            multi_block1_output(full_output_result, FailureModifier::None, with_proof_facts)
+        );
     }
 }
 
@@ -785,6 +814,12 @@ fn test_parse_and_output(
     FailureModifier::CompiledClassHash,
     Some(format!("{COMPILED_CLASS_HASH0_1} != {}", COMPILED_CLASS_HASH0_1 + 10))
 )]
+#[case(
+    true,
+    false,
+    FailureModifier::ProofFacts,
+    Some(PROOF_VERIFICATION_ERROR_MESSAGE.to_string())
+)]
 fn test_aggregator(
     #[case] full_output: bool,
     #[case] use_kzg_da: bool,
@@ -794,7 +829,8 @@ fn test_aggregator(
     let temp_file = NamedTempFile::new().unwrap();
     let temp_file_path = temp_file.path();
 
-    let bootloader_output_data = bootloader_output(true, modifier.clone());
+    let bootloader_output_data = bootloader_output(true, modifier.clone(), true);
+    let golden_verifier_task = GoldenCircuitVerifierTask::decompress_three_leaf_tree();
     let aggregator_input = AggregatorInput {
         bootloader_output: Some(bootloader_output_data.clone()),
         full_output,
@@ -807,8 +843,8 @@ fn test_aggregator(
         fee_token_address: Felt::ZERO,
         chain_id: Felt::ZERO,
         public_keys: None,
-        proof_facts_tree: None,
-        proof_facts_verifier_task: None,
+        proof_facts_tree: Some(proof_facts_tree()),
+        proof_facts_verifier_task: Some(golden_verifier_task.task_input()),
     };
 
     // Create the aggregator hint processor.
@@ -831,7 +867,7 @@ fn test_aggregator(
 
     validate_builtins(&mut cairo_runner);
 
-    let combined_output = combined_output(full_output, use_kzg_da);
+    let combined_output = combined_output(full_output, use_kzg_da, true);
     assert_eq!(
         raw_output.iter().collect::<Vec<&Felt>>(),
         bootloader_output_data.iter().chain(combined_output.iter()).collect::<Vec<_>>()
@@ -862,5 +898,79 @@ fn test_aggregator(
     expect_hint_coverage(
         &aggregator_hint_processor.unused_hints,
         &format!("test_aggregator_{full_output}_{use_kzg_da}_{modifier:?}"),
+    );
+}
+
+/// Without proof facts, the aggregator needs neither a proof facts tree nor a verifier task.
+#[rstest]
+fn test_aggregator_without_proof_facts(#[values(false, true)] full_output: bool) {
+    let bootloader_output_data = bootloader_output(true, FailureModifier::None, false);
+    let aggregator_input = AggregatorInput {
+        bootloader_output: Some(bootloader_output_data.clone()),
+        full_output,
+        da: DataAvailability::CallData,
+        debug_mode: false,
+        fee_token_address: Felt::ZERO,
+        chain_id: Felt::ZERO,
+        public_keys: None,
+        proof_facts_tree: None,
+        proof_facts_verifier_task: None,
+    };
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+
+    let RunnerReturnObject { raw_output, mut cairo_runner, .. } =
+        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)
+            .unwrap();
+
+    validate_builtins(&mut cairo_runner);
+    assert_eq!(
+        raw_output,
+        [bootloader_output_data, combined_output(full_output, false, false)].concat()
+    );
+}
+
+/// The tree must have a leaf for each transaction's proof facts, and no more: a missing leaf leaves
+/// proof facts unused, and an extra leaf reads past them.
+#[rstest]
+#[case::missing_leaf(
+    packed_fold(vec![packed_leaf(), packed_leaf()]),
+    "assert proof_facts_list = &proof_facts_list_start[n_proof_facts];"
+)]
+#[case::extra_leaf(
+    packed_fold(vec![
+        packed_fold(vec![packed_leaf(), packed_leaf()]),
+        packed_fold(vec![packed_leaf(), packed_leaf()]),
+    ]),
+    "write_leaf_proof_entry(proof_facts=proof_facts_list[0], proof_entry=entry);"
+)]
+fn test_aggregator_rejects_tree_of_other_proof_facts_count(
+    #[case] proof_facts_tree: PackedNode,
+    #[case] expected_error: &str,
+) {
+    let golden_verifier_task = GoldenCircuitVerifierTask::decompress_three_leaf_tree();
+    let aggregator_input = AggregatorInput {
+        bootloader_output: Some(bootloader_output(true, FailureModifier::None, true)),
+        full_output: true,
+        da: DataAvailability::CallData,
+        debug_mode: false,
+        fee_token_address: Felt::ZERO,
+        chain_id: Felt::ZERO,
+        public_keys: None,
+        proof_facts_tree: Some(proof_facts_tree),
+        proof_facts_verifier_task: Some(golden_verifier_task.task_input()),
+    };
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+
+    let Err(error) =
+        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)
+    else {
+        panic!("Expected error '{expected_error}', got success.");
+    };
+    let error_string = error.to_string();
+    assert!(
+        error_string.contains(expected_error),
+        "Expected error '{expected_error}', got: {error_string}."
     );
 }
