@@ -4,7 +4,7 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     serialize_duration_as_milliseconds,
 };
-use apollo_network::NetworkConfig;
+use apollo_network_config::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 

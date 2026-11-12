@@ -51,7 +51,7 @@ validator.workspace = true
 [dev-dependencies]
 apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
-apollo_network.workspace = true
+apollo_network_config.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
