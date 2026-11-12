@@ -24,7 +24,7 @@ use super::block_data_stream_builder::{
 use super::{P2pSyncClientError, ALLOWED_SIGNATURES_LENGTH};
 
 impl BlockData for SignedBlockHeader {
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+    #[expect(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn write_to_storage<'a>(
         self: Box<Self>,
         storage_writer: &'a mut StorageWriter,

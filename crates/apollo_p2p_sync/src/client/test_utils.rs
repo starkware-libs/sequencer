@@ -86,14 +86,11 @@ pub(crate) type ClassTestPayload =
 
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
-    #[allow(clippy::type_complexity)]
     pub p2p_sync: P2pSyncClient,
     pub storage_reader: StorageReader,
     pub mock_header_response_manager: GenericReceiver<HeaderTestPayload>,
     pub mock_state_diff_response_manager: GenericReceiver<StateDiffTestPayload>,
-    #[allow(dead_code)]
     pub mock_transaction_response_manager: GenericReceiver<TransactionTestPayload>,
-    #[allow(dead_code)]
     pub mock_class_response_manager: GenericReceiver<ClassTestPayload>,
 }
 
@@ -137,10 +134,8 @@ pub fn setup() -> TestArgs {
 #[derive(Eq, PartialEq, Hash)]
 pub enum DataType {
     Header,
-    #[allow(dead_code)]
     Transaction,
     StateDiff,
-    #[allow(dead_code)]
     Class,
 }
 
@@ -167,7 +162,6 @@ pub enum Action {
     /// Check that a report was sent on the current header query.
     ValidateReportSent(DataType),
     /// Sends an internal block to the sync.
-    #[allow(dead_code)]
     SendInternalBlock(SyncBlock),
     /// Sleep for SLEEP_DURATION_TO_LET_SYNC_ADVANCE duration.
     SleepToLetSyncAdvance,
@@ -338,7 +332,6 @@ pub async fn run_test(
         }) => {
             res.unwrap();
             // If return type is no longer Never we still want the unreachable! check.
-            #[allow(unreachable_code)]
             {
                 unreachable!("Return type Never should never be constructed.");
             }

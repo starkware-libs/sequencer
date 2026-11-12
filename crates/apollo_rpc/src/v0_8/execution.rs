@@ -19,7 +19,6 @@ use super::transaction::{ComputationResources, ExecutionResources};
 // The only difference between this and TransactionTrace in the execution crate is the
 // ExecutionResources inside FunctionInvocation.
 /// The execution trace of a transaction.
-#[allow(missing_docs)]
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum TransactionTrace {
@@ -96,7 +95,6 @@ pub struct DeployAccountTransactionTrace {
 /// Wether the function invocation succeeded or reverted.
 // Not using `Result` because it is not being serialized according to the spec.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[allow(missing_docs)]
 #[serde(untagged)]
 pub enum FunctionInvocationResult {
     Ok(FunctionInvocation),

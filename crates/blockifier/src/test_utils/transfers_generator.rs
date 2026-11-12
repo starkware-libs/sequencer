@@ -88,7 +88,7 @@ pub struct TransfersGenerator {
 }
 
 /// Enum to wrap both executor types for unified handling.
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 pub enum ExecutorWrapper {
     Concurrent(
         ConcurrentTransactionExecutor<DictStateReader>,

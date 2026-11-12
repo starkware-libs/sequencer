@@ -257,7 +257,7 @@ pub struct FlowSequencerSetup {
 }
 
 impl FlowSequencerSetup {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,

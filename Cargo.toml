@@ -462,6 +462,7 @@ debug = true
 inherits = "dev"
 
 [workspace.lints.clippy]
+allow_attributes = "warn"
 as_conversions = "warn"
 await_holding_lock = "warn"
 await_holding_refcell_ref = "warn"

@@ -136,7 +136,7 @@ fn expect_all_events_are_close_connections(behaviour: &mut Behaviour) -> Vec<Pee
     disconnected
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 fn simulate_connection_established(
     behaviour: &mut Behaviour,
     peer_id: PeerId,

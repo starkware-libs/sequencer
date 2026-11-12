@@ -51,7 +51,7 @@ pub struct CallRequest {
 
 /// Returns a `Methods` object with all the methods from the supported APIs.
 /// Whenever adding a new API version we need to add the new version mapping here.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn get_methods_from_supported_apis(
     chain_id: &ChainId,
     execution_config: ExecutionConfig,
@@ -105,7 +105,7 @@ pub fn get_methods_from_supported_apis(
 }
 
 pub trait JsonRpcServerTrait: Sized {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         chain_id: ChainId,
         execution_config: ExecutionConfig,

@@ -144,7 +144,6 @@ pub enum StateSyncError {
     JoinError(#[from] JoinError),
 }
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum SyncEvent {
     NoProgress,
@@ -465,7 +464,7 @@ impl<
         fields(block_hash = format_args!("{:#066x}", block.header.block_hash.0)),
         err
     )]
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+    #[expect(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     async fn store_block(
         &mut self,
         block_number: BlockNumber,
@@ -896,7 +895,7 @@ fn extract_compiled_classes_from_state_diff(
 }
 
 // TODO(dvir): consider gathering in a single pending argument instead.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn stream_new_blocks<
     TCentralSource: CentralSourceTrait + Sync + Send + 'static,
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
@@ -1023,7 +1022,7 @@ pub fn sort_state_diff(diff: &mut StateDiff) {
 pub type StateSync = GenericStateSync<CentralSource, PendingSource, EthereumBaseLayerSource>;
 
 impl StateSync {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         config: SyncConfig,
         shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,

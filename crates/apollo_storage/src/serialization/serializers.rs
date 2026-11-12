@@ -566,7 +566,7 @@ auto_storage_serde! {
 ////////////////////////////////////////////////////////////////////////
 //  impl StorageSerde macro.
 ////////////////////////////////////////////////////////////////////////
-#[allow(unused_macro_rules)]
+#[expect(unused_macro_rules)]
 macro_rules! auto_storage_serde {
     () => {};
     // Tuple structs (no names associated with fields) - one field.
@@ -657,7 +657,7 @@ macro_rules! auto_storage_serde {
     ($(pub)? enum $name:ident { $($(#[$attr:meta])* $variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
         impl StorageSerde for $name {
             fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-                #[allow(clippy::as_conversions)]
+                #[expect(clippy::as_conversions)]
                 match self {
                     $(
                         $(#[$attr])*

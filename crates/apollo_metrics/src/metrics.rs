@@ -161,7 +161,7 @@ macro_rules! into_f64 {
     ($($ty:ty),*) => {
         $(
             impl LossyIntoF64 for $ty {
-                #[allow(clippy::as_conversions)]
+                #[expect(clippy::as_conversions)]
                 fn into_f64(self) -> f64 {
                     self as f64
                 }

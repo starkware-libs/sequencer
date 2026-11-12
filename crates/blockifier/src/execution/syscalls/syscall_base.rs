@@ -135,7 +135,6 @@ impl<'state> SyscallHandlerBase<'state> {
         syscall_usage.linear_factor += n;
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_block_hash(&mut self, requested_block_number: BlockNumber) -> SyscallResult<Felt> {
         // Note: we take the actual block number (and not the rounded one for validate)
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).

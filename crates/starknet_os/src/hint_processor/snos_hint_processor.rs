@@ -144,7 +144,6 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
 }
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         os_program: &'a Program,
         os_hints_config: OsHintsConfig,

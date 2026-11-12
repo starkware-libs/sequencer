@@ -58,7 +58,6 @@ pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
 }
 
 #[derive(Debug, Error)]
-#[allow(clippy::enum_variant_names)]
 pub enum ReexecutionError {
     #[error("Cannot discern chain ID from URL: {0}")]
     AmbiguousChainIdFromUrl(String),

@@ -44,7 +44,6 @@ pub fn compute_public_keys(private_keys: &[Felt]) -> Vec<Felt> {
 
 /// Encrypts a symmetric key for multiple recipients using Diffie-Hellman key exchange.
 /// Returns one encrypted version of the symmetric key for each recipient.
-#[allow(dead_code)]
 pub fn encrypt_symmetric_key(
     sn_private_keys: &[Felt],
     public_keys: &[Felt],
@@ -70,7 +69,6 @@ pub fn encrypt_symmetric_key(
         .collect()
 }
 
-#[allow(dead_code)]
 pub fn compute_starknet_public_keys(sn_private_keys: &[Felt]) -> Vec<Felt> {
     sn_private_keys
         .iter()
@@ -106,7 +104,6 @@ fn decrypt_iter<'a, It: Iterator<Item = Felt> + 'a>(
     iter.enumerate().map(move |(i, encrypted_felt)| decrypt_felt(&encrypted_felt, symmetric_key, i))
 }
 
-#[allow(dead_code)]
 pub fn encrypt_state_diff(symmetric_key: Felt, state_diff: &[Felt]) -> Vec<Felt> {
     // Encrypt the state_diff using the symmetric key.
     let encrypted_state_diff = state_diff
@@ -210,7 +207,6 @@ pub enum DecryptionError {
 }
 
 // TODO(Einat): Test this function in the OS tests.
-#[allow(dead_code)]
 pub fn decrypt_state_diff_from_blobs(
     blobs: Vec<[u8; BYTES_PER_BLOB]>,
     private_key: Felt,

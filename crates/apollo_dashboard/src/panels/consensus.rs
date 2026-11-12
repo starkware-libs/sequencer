@@ -377,7 +377,7 @@ fn get_panel_consensus_cende_state_commitment_infos_gap() -> Panel {
     // Proposing height H needs the commitment infos of H + 1 - STORED_BLOCK_HASH_BUFFER, and the
     // gap is measured at the decision of H - 1.
     const GAP_FAILURE_THRESHOLD: u64 = STORED_BLOCK_HASH_BUFFER - 1;
-    #[allow(clippy::as_conversions)]
+    #[expect(clippy::as_conversions)]
     let gap_failure_threshold = GAP_FAILURE_THRESHOLD as f64;
     Panel::new(
         "Consensus vs Cende State Commitment Infos Gap (blocks)",

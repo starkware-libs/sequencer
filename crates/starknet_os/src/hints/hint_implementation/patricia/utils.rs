@@ -29,7 +29,6 @@ pub enum DecodeNodeCase {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, derive_more::Display)]
 pub struct LayerIndex(BigUint);
 
-#[allow(clippy::as_conversions)]
 impl LayerIndex {
     pub const FIRST_LEAF: Self = Self(BigUint::ZERO);
 

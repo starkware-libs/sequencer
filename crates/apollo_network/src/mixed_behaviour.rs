@@ -74,7 +74,7 @@ pub trait BridgedBehaviour {
 impl MixedBehaviour {
     // TODO(Shahak): get config details from network manager config
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         streamed_bytes_config: sqmr::Config,
         discovery_config: DiscoveryConfig,

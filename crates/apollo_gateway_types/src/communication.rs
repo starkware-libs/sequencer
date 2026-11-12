@@ -1,3 +1,7 @@
+// `automock` expands `add_tx` into closures whose `Err` is large. The lint fires inside the
+// expansion, where an outer `expect` is never fulfilled.
+#![allow(clippy::result_large_err)]
+
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
@@ -29,7 +33,6 @@ use tracing::instrument;
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
-    #[allow(clippy::result_large_err)]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput>;
 }
 

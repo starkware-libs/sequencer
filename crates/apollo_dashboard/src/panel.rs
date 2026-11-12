@@ -27,7 +27,7 @@ pub(crate) enum PanelType {
 pub enum Unit {
     Bytes,
     Seconds,
-    #[allow(clippy::enum_variant_names)]
+    #[expect(clippy::enum_variant_names)]
     // The expected values for PercentUnit are [0,1]
     PercentUnit,
     MB,

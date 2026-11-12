@@ -1189,6 +1189,7 @@ impl FuzzTestContext {
     ///     0x6 (Panic),
     /// ]
     /// ```
+    #[cfg(feature = "fuzz_test_debug")]
     pub fn prettify_operations(&self) -> String {
         let mut output = vec![];
         for operation in self.operations.iter() {
@@ -1470,7 +1471,7 @@ impl FuzzTestManager {
         initial_state.context.get_all_operation_tails(max_length, filter)
     }
 
-    #[allow(unused)]
+    #[cfg(feature = "fuzz_test_debug")]
     pub fn prettify_operations(&self) -> String {
         self.context.prettify_operations()
     }

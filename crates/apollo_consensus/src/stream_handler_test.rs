@@ -87,7 +87,7 @@ impl BroadcastTopicClientTrait<StreamMessage> for FakeBroadcastClient {
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 fn setup_with_config(
     config: StreamHandlerConfig,
 ) -> (
@@ -126,7 +126,7 @@ fn setup_with_config(
     )
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 fn setup() -> (
     StreamHandler<
         ProposalPart,

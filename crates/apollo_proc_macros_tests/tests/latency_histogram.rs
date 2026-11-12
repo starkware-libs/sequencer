@@ -32,29 +32,29 @@ const BAR_HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
 type TestFn = fn() -> usize;
 
 #[latency_histogram("foo_histogram", false)]
+#[expect(clippy::let_and_return)]
 fn foo_for_papyrus_macro() -> usize {
-    #[allow(clippy::let_and_return)]
     let start_function_time = 1000;
     start_function_time
 }
 
 #[latency_histogram("bar_histogram", true)]
+#[expect(clippy::let_and_return)]
 fn bar_for_papyrus_macro() -> usize {
-    #[allow(clippy::let_and_return)]
     let start_function_time = 1000;
     start_function_time
 }
 
 #[sequencer_latency_histogram(FOO_HISTOGRAM_TEST_METRIC, false)]
+#[expect(clippy::let_and_return)]
 fn foo_for_sequencer_macro() -> usize {
-    #[allow(clippy::let_and_return)]
     let start_function_time = 1000;
     start_function_time
 }
 
 #[sequencer_latency_histogram(BAR_HISTOGRAM_TEST_METRIC, true)]
+#[expect(clippy::let_and_return)]
 fn bar_for_sequencer_macro() -> usize {
-    #[allow(clippy::let_and_return)]
     let start_function_time = 1000;
     start_function_time
 }

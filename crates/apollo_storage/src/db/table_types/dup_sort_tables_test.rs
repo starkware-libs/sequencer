@@ -32,7 +32,7 @@ const BOUNDARY_TEST_ENTRIES: [(TableKey, u32); 4] =
 
 /// Creates a SimpleTable and a CommonPrefix table, both populated with
 /// [`BOUNDARY_TEST_ENTRIES`]. Returns the reader and both table identifiers.
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 fn setup_boundary_test_tables() -> (
     DbReader,
     TableIdentifier<TableKey, TableValue, SimpleTable>,
@@ -396,7 +396,7 @@ fn common_prefix_append_greater_sub_key() {
     append_greater_sub_key_test(DbWriter::create_common_prefix_table);
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 fn append_greater_sub_key_test<T>(
     create_table: fn(
         &mut DbWriter,

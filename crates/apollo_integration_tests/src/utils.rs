@@ -312,7 +312,7 @@ impl TestScenario for ProofFlowTxs {
 }
 
 // TODO(Tsabary): clean the passed args.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn create_node_config(
     available_ports: &mut AvailablePorts,
     chain_info: ChainInfo,

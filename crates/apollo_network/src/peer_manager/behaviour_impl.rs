@@ -87,7 +87,6 @@ impl NetworkBehaviour for PeerManager {
 
     fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm<'_>) {
         // TODO(Shahak): consider if we should handle other events
-        #[allow(clippy::single_match)]
         match event {
             libp2p::swarm::FromSwarm::DialFailure(DialFailure {
                 peer_id: Some(peer_id),
