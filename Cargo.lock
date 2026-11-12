@@ -1803,7 +1803,6 @@ dependencies = [
  "strum",
  "tempfile",
  "tokio",
- "tokio-util",
  "tracing",
  "url",
 ]
@@ -2220,6 +2219,7 @@ dependencies = [
  "reqwest 0.12.24",
  "rstest",
  "starknet_api",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
