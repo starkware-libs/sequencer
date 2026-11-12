@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794503161211,
+  "lastUpdate": 1794505534763,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8125,6 +8125,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1268.27417823,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81dfd01e7764cc753c8154315eb1ba256d8635ea",
+          "message": "bench_tools,ci: rerun a failed benchmark comparison before failing the job (#14958)\n\nIn the blockifier and committer benchmark jobs, a failed comparison reruns the base and PR\nbenchmarks and compares again, up to 3 comparisons. The job fails only if all 3 fail. Both jobs\nrun this loop from scripts/compare_benchmarks_with_reruns.sh. The committer's base reruns use the\nsame saved inputs as its comparisons, and its PR runs get a 90-minute timeout to fit two reruns;\nits push and dispatch runs are unchanged. The relative and absolute-time limits apply to point\nestimates, with the regression limits unchanged at 8% for blockifier and 20% for the committer.\n\nA non-finite estimate fails the comparison, an absolute limit naming an unknown benchmark is\nrejected before any benchmark runs, and every benchmark's numbers are printed on passing runs too.\nThe blockifier absolute limits name the real benchmarks, transfers_sequential_benchmark_cairo_native\nand transfers_sequential_benchmark_vm, at 300 ms and 1600 ms.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-12T17:16:34Z",
+          "tree_id": "63d1e656bfaa8c252b59e35024fea4a437157ad5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/81dfd01e7764cc753c8154315eb1ba256d8635ea"
+        },
+        "date": 1794505534246,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 754.35813103,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1221.63769475,
             "unit": "ms"
           }
         ]
