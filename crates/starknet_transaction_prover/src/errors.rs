@@ -77,6 +77,53 @@ impl RunnerError {
             RunnerError::TaskJoin(_) => "task_join",
         }
     }
+
+    /// Returns the error the client receives with a client-facing JSON-RPC error code, or `None`
+    /// when the client receives this failure as an internal error (-32603). The JSON-RPC mapping
+    /// and the outcome label both read it, so they cannot disagree.
+    pub fn client_error(&self) -> Option<RunnerClientError<'_>> {
+        match self {
+            RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::TransactionReverted(
+                _,
+                revert_reason,
+            )) if revert_reason.contains("Out of gas") => {
+                Some(RunnerClientError::OutOfGas { revert_reason: revert_reason.as_str() })
+            }
+            // A non-negative code that fits in an i32 is a Starknet application error, which the
+            // client receives as-is. A negative code is a JSON-RPC infrastructure error, and a
+            // code above i32::MAX does not fit the client's i32 error code, so both reach the
+            // client as an internal error.
+            RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError {
+                code,
+                message,
+                data,
+            }) => i32::try_from(*code).ok().filter(|rpc_code| *rpc_code >= 0).map(|rpc_code| {
+                RunnerClientError::UpstreamApplicationError {
+                    code: rpc_code,
+                    message: message.as_str(),
+                    data: data.as_ref(),
+                }
+            }),
+            RunnerError::ClassesProvider(_)
+            | RunnerError::ProofProvider(_)
+            | RunnerError::VirtualBlockExecutor(_)
+            | RunnerError::OsExecution(_)
+            | RunnerError::InputGenerationError(_)
+            | RunnerError::TransactionHashError(_)
+            | RunnerError::TaskJoin(_) => None,
+        }
+    }
+}
+
+/// A runner failure that the client receives with a client-facing JSON-RPC error code instead of
+/// an internal error.
+#[derive(Debug)]
+pub enum RunnerClientError<'a> {
+    /// The transaction reverted with an out-of-gas revert reason. The client receives code 1000.
+    OutOfGas { revert_reason: &'a str },
+    /// The node returned a JSON-RPC error with a non-negative code that fits in an i32. The client
+    /// receives its code, message and data unchanged.
+    UpstreamApplicationError { code: i32, message: &'a str, data: Option<&'a serde_json::Value> },
 }
 
 #[derive(Debug, Error)]
@@ -210,7 +257,12 @@ impl VirtualSnosProverError {
             VirtualSnosProverError::BlockingCheckUnavailable => {
                 outcomes::FAILURE_BLOCKING_CHECK_UNAVAILABLE
             }
-            VirtualSnosProverError::RunnerError(_) => outcomes::FAILURE_RUNNER,
+            VirtualSnosProverError::RunnerError(runner_error) => {
+                match runner_error.client_error() {
+                    Some(_) => outcomes::FAILURE_RUNNER_CLIENT,
+                    None => outcomes::FAILURE_RUNNER,
+                }
+            }
             VirtualSnosProverError::OutputParseError(_)
             | VirtualSnosProverError::ProgramOutputError(_) => outcomes::FAILURE_OUTPUT_PARSE,
             // Names every ProvingError variant, so adding one fails to compile until it is given
