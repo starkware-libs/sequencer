@@ -16,6 +16,10 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Anvil
+        uses: ./.github/actions/install_anvil
+
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build

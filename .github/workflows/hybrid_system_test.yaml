@@ -15,7 +15,7 @@ env:
   overlay: hybrid.testing.node-0
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
-  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/**,deployments/sequencer/**,deployments/images/**"
+  path_triggers: ".github/workflows/hybrid_system_test.yaml,.github/actions/install_anvil/**,scripts/**,deployments/sequencer/**,deployments/images/**"
   path_triggers_exclude: "scripts/prod/**"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
@@ -293,9 +293,7 @@ jobs:
           echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
 
       - name: Install Anvil
-        uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1
-        with:
-          version: v1.5.1
+        uses: ./.github/actions/install_anvil
 
       - name: Restore executable permissions
         run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
