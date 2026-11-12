@@ -99,10 +99,7 @@ impl TestServerSetup {
     }
 }
 
-// Creates an `AvailablePorts` instance with a unique `instance_index`.
-// Each test that binds ports should use a different instance_index to get disjoint port ranges.
-// This is necessary to allow running tests concurrently in different processes, which do not have a
-// shared memory.
+// Leases a port range. `instance_index` only identifies the holder in the lease log line.
 fn available_ports_factory(instance_index: u16) -> AvailablePorts {
     AvailablePorts::new(TestIdentifier::StorageReaderTypesUnitTests.into(), instance_index)
 }

@@ -348,10 +348,7 @@ const TEST_LOCAL_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram = LabeledMetricHi
 pub(crate) const TEST_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&TEST_LOCAL_CLIENT_RESPONSE_TIMES);
 
-// Creates an `AvailablePorts` instance with a unique `instance_index`.
-// Each test that binds ports should use a different instance_index to get disjoint port ranges.
-// This is necessary to allow running tests concurrently in different processes, which do not have a
-// shared memory.
+// Leases a port range. `instance_index` only identifies the holder in the lease log line.
 pub(crate) fn available_ports_factory(instance_index: u16) -> AvailablePorts {
     AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), instance_index)
 }

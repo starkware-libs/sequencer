@@ -170,8 +170,8 @@ impl FlowTestSetup {
 
         tokio::spawn(tx_collector_task.collect_streamd_txs().in_current_span());
 
-        // Create nodes concurrently. Each node gets its own AvailablePorts slot derived from
-        // instance_base + 1 + node_index, guaranteeing non-overlapping port ranges across nodes.
+        // Create nodes concurrently. Each node leases its own port range, labeled
+        // instance_base + 1 + node_index in the lease log line.
         let sequencers = futures::future::join_all(
             consensus_manager_configs
                 .into_iter()
