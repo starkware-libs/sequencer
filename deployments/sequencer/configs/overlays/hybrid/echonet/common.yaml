@@ -1,0 +1,22 @@
+include: configs/overlays/hybrid/common/common.yaml
+
+image:
+  tag: "main-3c89157"
+
+# Flat dotted-key private params (crates/apollo_node/resources/config_secrets_schema.json); gitignored.
+secret:
+  enabled: true
+  type: "Opaque"
+  file: "deployments/sequencer/configs/overlays/hybrid/echonet/node_secrets.json"
+
+nodeSelector:
+  role: "sequencer"
+
+tolerations:
+  - key: role
+    operator: "Equal"
+    value: "sequencer"
+    effect: "NoSchedule"
+
+securityContext:
+  fsGroup: 1000
