@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793262676239,
+  "lastUpdate": 1794480700390,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1087,6 +1087,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 2129.70836826,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "823e67acb6adb3a7f8e1bd1c1cec23aa9026a9a0",
+          "message": "starknet_transaction_prover: backport the observability changes from main (#15288)\n\n* starknet_transaction_prover: expose Prometheus metrics with build identity (#14167)\n\n(cherry picked from commit 7d014c2402e2b25f1a4a19ebe3dce59ee7a394af)\n\n* starknet_transaction_prover: record proving outcomes and durations (#14168)\n\n(cherry picked from commit 8ff97f75f871b4291e109438fc54a211dc472552)\n\n* starknet_transaction_prover: HTTP request count, latency and in-flight metrics (#14169)\n\nAdds `HttpMetricsLayer` between the monitoring endpoints and the rest of the\nstack, so probes and scrapes don't distort the request-latency distribution. It\nrecords request count by bounded method/status labels, end-to-end latency with\nexplicit bucket bounds, and an in-flight gauge held by a shared `GaugeGuard`\nthat owns the increment as well as the decrement. The 2xx/4xx/5xx series are\npre-registered so a transport-failure alert reads zero instead of an absent\nseries. Tests install a per-test local recorder so their assertions are exact,\nand one pins the probe exclusion, which layer order alone had been enforcing.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>\n(cherry picked from commit 29443db2564754e5397b9a5632fbf921597317f2)\n\n* starknet_transaction_prover: bump prover_panics_total on panic hook fire (#14170)\n\nBumps the new `prover_panics_total` counter from the panic hook before\nconstructing the backtrace, so dashboards can alert on panic rate without\nlog search. The pre-registered zero observation in `install_exporter`\nkeeps the series visible at scrape time even before the first panic.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>\n(cherry picked from commit bed3170fb11a331f3d5839df45de98f208feb642)\n\n* starknet_transaction_prover: track saturation and queue depth on the request path (#15027)\n\nAdds the state `/health` will read in the next PR: a `SaturationMonitor` that\nopens a window on the first busy-reject and closes it on any forward progress.\nReleasing a worker slot has to count, because once 503 pulls traffic away a\nclear that waited for a new request would latch 503 forever. The monitor also\ncounts held worker slots and reports saturation only while one is held, so a\nreject recorded after the last run released its slot cannot latch an idle pod.\nBoth reject arms go through `record_busy_reject`. Queue depth and queue-wait are\nalso exposed.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\n(cherry picked from commit e3e4618aac9c459f881c7ce3ac214d7bf544d258)\n\n* starknet_transaction_prover: /health returns 503 when the service is saturated (#14171)\n\n`GET /health` now reports 503 once a busy-reject window has stayed open for\n`HEALTH_MAX_SATURATED_MS` (default 10s) with no worker slot acquired or\nreleased while proving work still holds a slot, so a load balancer can act on\nsustained overload instead of holding traffic on a pod that is only shedding\nit. It reads the saturation window from the previous PR, so recovery does not\ndepend on new traffic arriving, and an idle pod always reports 200.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\n(cherry picked from commit ff0b1fb1d3f2c452c66fa1df52919a10dba6bfb9)\n\n* starknet_transaction_prover: log errors at origin and keep transaction data out of failure logs (#14172)\n\n(cherry picked from commit 6e30e3c3f952663b081cc7cc91dd836c9251d199)\n\n* starknet_transaction_prover: log resolved config at startup (secrets redacted) (#14684)\n\nReplaces the startup banner with one `config_resolved` info log that records\nthe build identity (version, git SHA) together with the resolved service and\nprover settings, which are the merge of the config file, environment\nvariables and CLI flags. The log includes `compiled_class_cache_size`,\n`prefetch_state` and `use_latest_versioned_constants` from the class-manager\nand executor sub-configs. The RPC and blocking-check URLs are logged\nhost-only. For TLS the line records only the transport, never the\ncertificate and key paths. Those paths still appear in the existing\nCLI-override lines when a flag or env var sets them.\n\nOne test feeds credential-bearing URLs and asserts the hosts are logged while\nthe password and API-key path segment are not. Another sets the three\nsub-config fields to non-default values and asserts the summary logs them.\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>\n(cherry picked from commit afae23763086d77956396492e523647c3693d014)\n\n* starknet_transaction_prover: only style text logs when stdout is a terminal (#15196)\n\n`fmt::layer()` enables ANSI styling whenever the default-on `ansi` feature is\ncompiled and `NO_COLOR` is unset. It does not check for a terminal. Under a\ncontainer scheduler stdout is a pipe, so every text line reaches the log\naggregator wrapped in escape sequences (`[2m`, `[0m`, `[32m INFO`).\n\nGate styling on `stdout().is_terminal()` and an unset or empty `NO_COLOR`,\nkeeping colour for local runs. `with_ansi` replaces the layer's own `NO_COLOR`\ncheck, so `text_log_ansi_enabled` applies both rules and is unit-tested. The\nJSON layer already forces ANSI off. The README now says when the text format\nis styled.\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\n(cherry picked from commit 9c0aea43b5e029801db71eed8fbeb3ce2fa32282)\n\n* starknet_transaction_prover: run blocking tasks inside the caller's tracing span (#15201)\n\nThreads in the tokio blocking pool start with no span entered. Logs emitted\nduring virtual block execution, class fetching and stwo proving therefore\nlost the fields of the enclosing spans, such as request_id and tx_hash.\n\nAdd spawn_blocking_in_current_span, which captures the current span before\nspawning and enters it on the blocking thread. Use it at the three blocking\ncall sites. A traced test checks that a log line from inside the blocking\ntask carries a field of the enclosing span.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>\n(cherry picked from commit 4e8183bccb0caf0691067b1e06ab185822268aab)\n\n* starknet_transaction_prover: log JSON-RPC calls by bounded method name and batches by size (#15202)\n\nThe http_request line carries no method name, and a failed JSON-RPC call\nstill returns status 200, so the logs cannot tell calls apart. A jsonrpsee\nRPC middleware now logs one rpc_request line per single call with the\nmethod name, outcome, error code and latency, and one rpc_batch line per\nbatch with its size and latency, so a large batch cannot multiply the log\nvolume. The method name appears only when the server registers it, and no\nline carries params. Both transports install the middleware through\nprover_rpc_middleware.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>\n(cherry picked from commit 312f7f6ca120d9db3ca775ed70166a09d4cc04b1)\n\n---------\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-11-12T10:34:47Z",
+          "tree_id": "73293bedc72debdf6efa91de12b0326282674067",
+          "url": "https://github.com/starkware-libs/sequencer/commit/823e67acb6adb3a7f8e1bd1c1cec23aa9026a9a0"
+        },
+        "date": 1794480699695,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 833.82138574,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1408.9560659,
             "unit": "ms"
           }
         ]
