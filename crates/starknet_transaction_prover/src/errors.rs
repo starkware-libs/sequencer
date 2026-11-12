@@ -193,6 +193,10 @@ pub enum VirtualSnosProverError {
     OutputParseError(#[from] OsOutputError),
     #[error("Transaction blocked by external check")]
     TransactionBlocked,
+    /// The blocking check timed out or was inconclusive, and the fail-close policy rejected the
+    /// transaction.
+    #[error("Blocking check unavailable")]
+    BlockingCheckUnavailable,
 }
 
 impl VirtualSnosProverError {
@@ -203,6 +207,9 @@ impl VirtualSnosProverError {
             | VirtualSnosProverError::InvalidTransactionInput(_)
             | VirtualSnosProverError::ValidationError(_) => outcomes::FAILURE_VALIDATION,
             VirtualSnosProverError::TransactionBlocked => outcomes::FAILURE_BLOCKED,
+            VirtualSnosProverError::BlockingCheckUnavailable => {
+                outcomes::FAILURE_BLOCKING_CHECK_UNAVAILABLE
+            }
             VirtualSnosProverError::RunnerError(_) => outcomes::FAILURE_RUNNER,
             VirtualSnosProverError::OutputParseError(_)
             | VirtualSnosProverError::ProgramOutputError(_) => outcomes::FAILURE_OUTPUT_PARSE,
