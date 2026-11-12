@@ -1,13 +1,19 @@
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{ChildStderr, Command, Output, Stdio};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use apollo_infra_utils::cairo0_compiler::Cairo0Script;
 use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
-use tracing::info;
+use tracing::{info, warn};
+
+#[cfg(test)]
+#[path = "cairo_compile_test.rs"]
+mod cairo_compile_test;
 
 pub enum CompilationArtifacts {
     Cairo0 { casm: Vec<u8> },
@@ -71,36 +77,179 @@ pub fn generate_allowed_libfuncs_legacy_json() -> String {
     serde_json::json!({"allowed_libfuncs": keys}).to_string()
 }
 
+/// Maximum number of attempts to download and extract the Cairo package before giving up.
+const MAX_DOWNLOAD_ATTEMPTS: u32 = 3;
+
+/// Delay before retrying a failed download, scaled by the attempt number.
+const DOWNLOAD_RETRY_BACKOFF: Duration = Duration::from_secs(2);
+
+/// Seconds curl may spend establishing the connection.
+const CURL_CONNECT_TIMEOUT_SECS: &str = "10";
+
+/// curl aborts a transfer that stays below `CURL_STALL_BYTES_PER_SEC` for
+/// `CURL_STALL_SECS` seconds.
+const CURL_STALL_BYTES_PER_SEC: &str = "1024";
+const CURL_STALL_SECS: &str = "20";
+
+/// Exit code of `curl --fail` on an HTTP response status of 400 or above.
+const CURL_HTTP_ERROR_EXIT_CODE: i32 = 22;
+
+enum DownloadError {
+    /// May succeed on retry.
+    Transient(String),
+    /// An HTTP 4xx response that a retry cannot fix.
+    Permanent(String),
+}
+
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
 fn download_cairo_package(version: &String) {
     let directory = cairo1_package_dir(version);
     info!("Downloading Cairo package to {directory:?}.");
-    std::fs::create_dir_all(&directory).unwrap();
 
-    // Download the artifact.
     let filename = "release-x86_64-unknown-linux-musl.tar.gz";
     let package_url =
         format!("https://github.com/starkware-libs/cairo/releases/download/v{version}/{filename}");
-    let curl_result = run_and_verify_output(Command::new("curl").args(["-L", &package_url]));
-    let mut tar_command = Command::new("tar")
-        .args(["-xz", "-C", directory.to_str().unwrap()])
-        .stdin(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let tar_command_stdin = tar_command.stdin.as_mut().unwrap();
-    tar_command_stdin.write_all(&curl_result.stdout).unwrap();
-    let output = tar_command.wait_with_output().unwrap();
-    if !output.status.success() {
-        let stderr_output = String::from_utf8(output.stderr).unwrap();
-        panic!("{stderr_output}");
+
+    let mut last_error = String::new();
+    for attempt in 1..=MAX_DOWNLOAD_ATTEMPTS {
+        // Safe because the lock file used by `with_file_lock` lives beside this directory.
+        reset_directory(&directory);
+        match stream_download_and_extract(&package_url, &directory) {
+            Ok(()) => {
+                // Written last: acts as a commit marker so concurrent callers checking
+                // `cairo1_package_exists` never observe a half-extracted package.
+                let marker = cairo1_package_complete_marker(version);
+                fs::write(&marker, b"").unwrap_or_else(|error| {
+                    panic!("Failed to write download marker {marker:?}: {error}")
+                });
+                info!("Done.");
+                return;
+            }
+            Err(DownloadError::Permanent(error)) => {
+                panic!("Failed to download Cairo package from {package_url}: {error}");
+            }
+            Err(DownloadError::Transient(error)) => {
+                last_error = error;
+                if attempt < MAX_DOWNLOAD_ATTEMPTS {
+                    warn!(
+                        "Cairo package download attempt {attempt}/{MAX_DOWNLOAD_ATTEMPTS} failed, \
+                         retrying: {last_error}"
+                    );
+                    thread::sleep(DOWNLOAD_RETRY_BACKOFF * attempt);
+                }
+            }
+        }
     }
-    // Written last: acts as a commit marker so concurrent callers checking
-    // `cairo1_package_exists` never observe a half-extracted package.
-    let marker = cairo1_package_complete_marker(version);
-    fs::write(&marker, b"")
-        .unwrap_or_else(|e| panic!("Failed to write download marker {marker:?}: {e}"));
-    info!("Done.");
+    panic!(
+        "Failed to download Cairo package from {package_url} after {MAX_DOWNLOAD_ATTEMPTS} \
+         attempts. Last error: {last_error}"
+    );
+}
+
+/// Removes `directory` if it exists and recreates it empty.
+fn reset_directory(directory: &Path) {
+    match fs::remove_dir_all(directory) {
+        Ok(()) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => panic!("Failed to remove {directory:?}: {error}"),
+    }
+    fs::create_dir_all(directory)
+        .unwrap_or_else(|error| panic!("Failed to create {directory:?}: {error}"));
+}
+
+/// Streams the release tarball at `package_url` directly into `tar`, extracting it into
+/// `directory`, without buffering the whole archive in memory. Returns an error instead of
+/// panicking so the caller can retry.
+fn stream_download_and_extract(package_url: &str, directory: &Path) -> Result<(), DownloadError> {
+    let mut curl_process = Command::new("curl")
+        .args([
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--location",
+            "--connect-timeout",
+            CURL_CONNECT_TIMEOUT_SECS,
+            "--speed-limit",
+            CURL_STALL_BYTES_PER_SEC,
+            "--speed-time",
+            CURL_STALL_SECS,
+            package_url,
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| DownloadError::Transient(format!("Failed to spawn curl: {error}")))?;
+    let curl_stdout = curl_process.stdout.take().unwrap();
+
+    let mut tar_process = match Command::new("tar")
+        .args(["-xz", "-C"])
+        .arg(directory)
+        .stdin(Stdio::from(curl_stdout))
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(tar_process) => tar_process,
+        Err(error) => {
+            curl_process.kill().ok();
+            curl_process.wait().ok();
+            return Err(DownloadError::Transient(format!("Failed to spawn tar: {error}")));
+        }
+    };
+
+    // Drain both stderr pipes on background threads before waiting on either child: if a child
+    // writes enough to fill its stderr pipe, waiting on it before the pipe is drained would
+    // deadlock.
+    let curl_stderr_reader = spawn_stderr_reader(curl_process.stderr.take().unwrap());
+    let tar_stderr_reader = spawn_stderr_reader(tar_process.stderr.take().unwrap());
+
+    let curl_wait_result = curl_process.wait();
+    let tar_wait_result = tar_process.wait();
+    let curl_stderr = curl_stderr_reader.join().unwrap();
+    let tar_stderr = tar_stderr_reader.join().unwrap();
+    let curl_status = curl_wait_result
+        .map_err(|error| DownloadError::Transient(format!("Failed to wait for curl: {error}")))?;
+    let tar_status = tar_wait_result
+        .map_err(|error| DownloadError::Transient(format!("Failed to wait for tar: {error}")))?;
+
+    match (curl_status.success(), tar_status.success()) {
+        (true, true) => Ok(()),
+        (false, tar_succeeded) => {
+            let mut message = format!("curl failed: {curl_stderr}");
+            if !tar_succeeded {
+                message.push_str(&format!("; tar failed: {tar_stderr}"));
+            }
+            if curl_status.code() == Some(CURL_HTTP_ERROR_EXIT_CODE)
+                && is_permanent_http_error(&curl_stderr)
+            {
+                Err(DownloadError::Permanent(message))
+            } else {
+                Err(DownloadError::Transient(message))
+            }
+        }
+        (true, false) => Err(DownloadError::Transient(format!("tar failed: {tar_stderr}"))),
+    }
+}
+
+fn spawn_stderr_reader(mut stderr_pipe: ChildStderr) -> JoinHandle<String> {
+    thread::spawn(move || {
+        let mut stderr_bytes = Vec::new();
+        stderr_pipe.read_to_end(&mut stderr_bytes).ok();
+        String::from_utf8_lossy(&stderr_bytes).into_owned()
+    })
+}
+
+/// Whether `curl --fail` stderr reports an HTTP 4xx status other than 408 (Request Timeout) and
+/// 429 (Too Many Requests). curl prints the status as "The requested URL returned error: 404".
+fn is_permanent_http_error(curl_stderr: &str) -> bool {
+    let Some((_, after_marker)) = curl_stderr.split_once("returned error: ") else {
+        return false;
+    };
+    let status_digits: String = after_marker.chars().take_while(char::is_ascii_digit).collect();
+    match status_digits.parse::<u16>() {
+        Ok(status) => (400..500).contains(&status) && status != 408 && status != 429,
+        Err(_) => false,
+    }
 }
 
 fn cairo1_package_exists(version: &String) -> bool {
