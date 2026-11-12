@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794321201581,
+  "lastUpdate": 1794489892777,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8057,6 +8057,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1393.79158809,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e78c30bda5eee451d519f08645277d55648459f",
+          "message": "apollo_infra_utils: lease test port ranges below the ephemeral range (#14964)\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-11-12T12:49:24Z",
+          "tree_id": "1ed58be4c2bf344de5c6ba537573ebe97cc93156",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0e78c30bda5eee451d519f08645277d55648459f"
+        },
+        "date": 1794489892287,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 913.96741238,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1381.21883789,
             "unit": "ms"
           }
         ]
