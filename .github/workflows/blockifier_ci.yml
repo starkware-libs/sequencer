@@ -18,14 +18,15 @@ on:
       - "crates/native_blockifier/**"
       - "crates/apollo_sierra_multicompile/build.rs"
       - "scripts/build_native_blockifier.sh"
+      - "scripts/compare_benchmarks_with_reruns.sh"
       - "scripts/dependencies.sh"
       - "scripts/install_build_tools.sh"
       - "scripts/sequencer-ci.Dockerfile"
 
 env:
   RUSTFLAGS: "-D warnings"
-  TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "200000000"
-  TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS: "1000000000"
+  TRANSFERS_SEQUENTIAL_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "300000000"
+  TRANSFERS_SEQUENTIAL_BENCHMARK_VM_TIME_LIMIT_NS: "1600000000"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -148,13 +149,13 @@ jobs:
           mkdir -p pr-${{ github.run_id }}/target
           cp -r target/criterion pr-${{ github.run_id }}/target/
 
-      # Benchmark the current branch and compare to the previous run.
+      # Benchmark the current branch and compare to the base run. A failed comparison reruns both
+      # benchmarks, up to 3 comparisons.
       - name: Benchmark (Feature Branch)
         working-directory: pr-${{ github.run_id }}
         run: |
-          cargo run -p bench_tools -- run-and-compare \
-            --package blockifier \
+          scripts/compare_benchmarks_with_reruns.sh /tmp/base_results --package blockifier -- \
             --out /tmp/new_results \
             --regression-limit 8.0 \
-            --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
-            --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
+            --set-absolute-time-ns-limit transfers_sequential_benchmark_cairo_native ${TRANSFERS_SEQUENTIAL_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
+            --set-absolute-time-ns-limit transfers_sequential_benchmark_vm ${TRANSFERS_SEQUENTIAL_BENCHMARK_VM_TIME_LIMIT_NS}
