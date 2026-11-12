@@ -49,6 +49,9 @@ jobs:
       checks: read
       statuses: read
     steps:
+      # On a stacked PR (base other than main or a main-v* release branch), "Graphite /
+      # mergeability_check" stays in_progress until the base merges, so it is ignored there. When
+      # the PR is retargeted to main, the `edited` event reruns this job, which then waits on it.
       - name: Run merge-gatekeeper-new on pull request
         if: github.event_name == 'pull_request'
         uses: starkware-libs/merge-gatekeeper@91ecc049e7218d79336ff11ccd8d714da81f7580 # v1.4.1
@@ -56,7 +59,7 @@ jobs:
           self: merge-gatekeeper-new
           timeout: 3600
           interval: 30
-          ignored: "code-review/reviewable,build_docker_images"
+          ignored: ${{ (github.base_ref == 'main' || startsWith(github.base_ref, 'main-v')) && 'code-review/reviewable,build_docker_images' || 'code-review/reviewable,build_docker_images,Graphite / mergeability_check' }}
 
       - name: Run merge-gatekeeper-new on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
