@@ -509,6 +509,9 @@ impl ServiceConfig {
     /// settings that the config file exposes. Those are `compiled_class_cache_size` (the class
     /// manager's `contract_cache_size`), `prefetch_state` and `use_latest_versioned_constants`.
     ///
+    /// Every field is a plain value. An unset optional setting is left out of the line, and
+    /// `cors_allow_origin` is a comma-separated list.
+    ///
     /// It logs the RPC and blocking-check URLs host-only. For TLS it logs only the transport,
     /// never the key and certificate paths.
     pub fn log_startup_summary(&self) {
@@ -535,19 +538,19 @@ impl ServiceConfig {
             queue_wait_timeout_millis = self.queue_wait_timeout_millis,
             max_connections = self.max_connections,
             max_request_body_size = self.max_request_body_size,
-            cors_allow_origin = ?self.cors_allow_origin,
+            cors_allow_origin = %self.cors_allow_origin.join(","),
             ohttp_enabled = self.ohttp_enabled,
             ohttp_key_cache_max_age_secs = self.ohttp_key_cache_max_age_secs,
             health_max_saturated_ms = self.health_max_saturated_ms,
             chain_id = %self.prover_config.chain_id,
             rpc_node_host = %redact_url_host(&self.prover_config.rpc_node_url),
-            strk_fee_token_address = ?self.prover_config.strk_fee_token_address,
+            strk_fee_token_address = self.prover_config.strk_fee_token_address.map(display),
             validate_zero_fee_fields = self.prover_config.validate_zero_fee_fields,
             compiled_class_cache_size,
             prefetch_state = executor_config.prefetch_state,
             use_latest_versioned_constants = executor_config.use_latest_versioned_constants,
             blocking_check_enabled = self.prover_config.blocking_check_url.is_some(),
-            blocking_check_host = ?blocking_check_host,
+            blocking_check_host = blocking_check_host.as_deref().map(display),
             blocking_check_timeout_millis = self.prover_config.blocking_check_timeout_millis,
             blocking_check_fail_open = self.prover_config.blocking_check_fail_open,
             "Starting Starknet transaction prover."
