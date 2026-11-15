@@ -45,6 +45,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.starknet_contract_address",
     "batcher_config.dynamic_config.n_concurrent_txs",
     "batcher_config.dynamic_config.proposer_idle_detection_delay_millis",
+    "batcher_config.dynamic_config.reject_invalid_signature_return_data",
     "batcher_config.dynamic_config.storage_access_filter_config.blocked_storage_keys",
     "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address",
     "batcher_config.dynamic_config.storage_access_filter_config.exempt_account_address.#is_none",
