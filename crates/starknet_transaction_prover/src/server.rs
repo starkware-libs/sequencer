@@ -74,6 +74,7 @@ pub mod cors;
 pub mod errors;
 pub mod health;
 pub mod http_metrics;
+pub mod log_format;
 pub mod log_redact;
 pub mod metrics;
 #[cfg(test)]

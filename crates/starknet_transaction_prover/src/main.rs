@@ -24,6 +24,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::health::HealthLayer;
+    use starknet_transaction_prover::server::log_format::json_log_layer;
     use starknet_transaction_prover::server::log_redact::text_log_ansi_enabled;
     use starknet_transaction_prover::server::metrics::{install_exporter, spawn_upkeep};
     use starknet_transaction_prover::server::panic::install_panic_hook;
@@ -52,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
     let registry = tracing_subscriber::registry().with(filter);
     // The JSON layer never emits ANSI styling.
     match args.log_format {
-        LogFormat::Json => registry.with(fmt::layer().json()).init(),
+        LogFormat::Json => registry.with(json_log_layer(std::io::stdout)).init(),
         LogFormat::Text => {
             let ansi_enabled = text_log_ansi_enabled(
                 std::io::stdout().is_terminal(),

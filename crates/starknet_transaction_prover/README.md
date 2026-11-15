@@ -253,8 +253,10 @@ docker run -e RUST_LOG=warn ... <IMAGE>
 docker run -e LOG_FORMAT=json ... <IMAGE>
 ```
 
-`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`, and
-`span` keys. The `text` format adds ANSI colour codes only when stdout is a terminal and `NO_COLOR`
+`LOG_FORMAT=json` emits one JSON object per line with `severity`, `timestamp`, `level`, `target`,
+`message`, the event's own fields at the top level, and `span` and `spans` when the event is inside a
+span. `severity` is `level` in Google Cloud Logging's terms (`WARN` becomes `WARNING`, `TRACE`
+becomes `DEBUG`), so Cloud Logging shows each entry's level and uses `message` as its summary. The `text` format adds ANSI colour codes only when stdout is a terminal and `NO_COLOR`
 is unset or empty, and `json` never does. Use `--log-format json` in containers and in production.
 A URL can carry credentials in its userinfo component, so the service redacts every logged URL down
 to `scheme://host[:port]`. That covers `rpc_node_url` and `blocking_check_url` in the startup
@@ -363,18 +365,17 @@ Each HTTP request produces a single structured log line at `info` level with
 
 ```json
 {
+  "severity": "INFO",
   "timestamp": "...",
   "level": "INFO",
   "target": "starknet_transaction_prover::server::request_log",
-  "fields": {
-    "event": "http_request",
-    "request_id": "a1b2c3d4...",
-    "method": "POST",
-    "path": "/",
-    "status": 200,
-    "latency_ms": 1247,
-    "message": "HTTP request handled."
-  }
+  "message": "HTTP request handled.",
+  "event": "http_request",
+  "request_id": "a1b2c3d4...",
+  "method": "POST",
+  "path": "/",
+  "status": 200,
+  "latency_ms": 1247
 }
 ```
 
