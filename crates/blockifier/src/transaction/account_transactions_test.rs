@@ -63,6 +63,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     ProofFacts,
+    ProofVersion,
     Resource,
     ResourceBounds,
     SnosProofFacts,
@@ -2282,6 +2283,17 @@ fn proof_facts_with_zero_block_hash() -> ProofFacts {
         .unwrap()
 }
 
+/// Returns invalid proof_facts with a proof version the current protocol version rejects.
+fn proof_facts_with_disallowed_version() -> ProofFacts {
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.proof_version = ProofVersion::V0;
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
+}
+
 /// Returns invalid proof_facts with an invalid program hash.
 fn proof_facts_with_invalid_program_hash() -> ProofFacts {
     ProofFacts::custom_proof_facts_for_testing(Felt::from(0x12345678_u64), *TEST_OS_CONFIG_HASH)
@@ -2319,6 +2331,11 @@ fn proof_facts_with_invalid_config_hash() -> ProofFacts {
     proof_facts_with_zero_block_hash(),
     CURRENT_BLOCK_NUMBER,
     Some("block hash is zero")
+)]
+#[case::proof_version_disallowed(
+    proof_facts_with_disallowed_version(),
+    CURRENT_BLOCK_NUMBER,
+    Some("is not allowed under this protocol version")
 )]
 #[case::program_hash_invalid(
     proof_facts_with_invalid_program_hash(),
@@ -2363,6 +2380,49 @@ fn test_validate_proof_facts(
         None => {
             assert_matches!(result, Ok(()));
         }
+    }
+}
+
+/// Tests that proof facts are not checked for a query tx run without validation (simulation or
+/// fee estimation), and are still checked whenever either flag is off.
+#[rstest]
+fn test_proof_facts_not_validated_for_unvalidated_query(
+    default_all_resource_bounds: ValidResourceBounds,
+    #[values(
+        proof_facts_with_disallowed_version(),
+        proof_facts_with_too_recent_block(),
+        proof_facts_with_mismatched_hash(),
+        proof_facts_with_invalid_program_hash(),
+        proof_facts_with_invalid_config_hash()
+    )]
+    proof_facts: ProofFacts,
+    #[values(true, false)] validate: bool,
+    #[values(true, false)] only_query: bool,
+) {
+    let mut block_context = BlockContext::create_for_account_testing();
+    block_context.block_info.block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
+
+    let chain_info = &block_context.chain_info;
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let mut state = test_state(chain_info, BALANCE, &[(account, 1u16)]);
+
+    let tx = executable_invoke_tx(invoke_tx_args! {
+        sender_address: account.get_instance_address(0_u16),
+        resource_bounds: default_all_resource_bounds,
+        proof_facts,
+    });
+    let execution_flags =
+        AccountExecutionFlags { validate, only_query, ..AccountExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx, execution_flags };
+
+    let tx_context = block_context.to_tx_context(&account_tx);
+    let result = account_tx.perform_pre_validation_stage(&mut state, &tx_context);
+
+    if !validate && only_query {
+        assert_matches!(result, Ok(()));
+    } else {
+        assert_matches!(result, Err(TransactionPreValidationError::InvalidProofFacts(_)));
     }
 }
 
