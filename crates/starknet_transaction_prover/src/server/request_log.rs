@@ -5,9 +5,9 @@
 //! `event="http_request"`, `request_id`, `method`, `path`, `status`, and
 //! `latency_ms` per HTTP request, and echoes `request_id` on the response so
 //! callers can quote it. The id is accepted from the incoming `x-request-id`
-//! header or generated as a UUID v4. `GET /health` probes still get the id
-//! echo but are exempt from logging — at typical probe periods they would
-//! drown real traffic.
+//! header or generated as a UUID v4. `GET /health` probes and `GET /metrics`
+//! scrapes still get the id echo but no log line. At typical probe and scrape
+//! periods they would drown out real traffic.
 //!
 //! It deliberately does NOT bind the id to a span covering the downstream
 //! dispatch. For OHTTP traffic this layer runs on the *outer* envelope, whose
@@ -33,6 +33,7 @@ use tower::{Layer, Service};
 use tracing::{info, warn};
 
 use crate::server::health::HEALTH_PATH;
+use crate::server::metrics::METRICS_PATH;
 
 #[cfg(test)]
 #[path = "request_log_test.rs"]
@@ -86,8 +87,9 @@ where
         let id_header_value = request_id_header_value(&request_id);
         request.headers_mut().insert(REQUEST_ID_HEADER, id_header_value.clone());
         request.extensions_mut().insert(RequestId(request_id.clone()));
-        let is_health_probe =
-            request.method() == Method::GET && request.uri().path() == HEALTH_PATH;
+        let request_path = request.uri().path();
+        let is_probe_or_scrape = request.method() == Method::GET
+            && (request_path == HEALTH_PATH || request_path == METRICS_PATH);
         let method = request.method().clone();
         let path = truncated_log_path(request.uri().path());
         let start = Instant::now();
@@ -100,7 +102,7 @@ where
             match result {
                 Ok(mut response) => {
                     response.headers_mut().insert(REQUEST_ID_HEADER, id_header_value);
-                    if !is_health_probe {
+                    if !is_probe_or_scrape {
                         info!(
                             event = "http_request",
                             request_id = %request_id,

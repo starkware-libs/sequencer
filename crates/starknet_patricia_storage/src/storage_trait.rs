@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::future::Future;
+use std::ops::RangeInclusive;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
@@ -15,7 +16,7 @@ use validator::Validate;
 use crate::errors::DeserializationError;
 use crate::reads_collector_storage::ReadsCollectorStorage;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DbKey(pub Vec<u8>);
 
 #[derive(Clone, Eq, PartialEq, Serialize)]
@@ -60,6 +61,8 @@ pub enum PatriciaStorageError {
     #[cfg(any(test, feature = "rocksdb_storage"))]
     #[error("Failed to fetch RocksDb stats.")]
     NoStats,
+    #[error("The storage does not support freeing a key range.")]
+    FreeRangeNotSupported,
 }
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
@@ -241,6 +244,16 @@ pub trait Storage: ReadOnlyStorage {
         &mut self,
         key_to_operation: DbOperationMap,
     ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
+
+    /// Frees the storage space held by the keys in `keys`, which the caller no longer reads. The
+    /// keys are not guaranteed to be gone: a backend may still return some of them, e.g. from a
+    /// cache.
+    fn free_range(
+        &mut self,
+        _keys: RangeInclusive<DbKey>,
+    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send {
+        async { Err(PatriciaStorageError::FreeRangeNotSupported) }
+    }
 
     /// If implemented, returns the statistics of the storage.
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;

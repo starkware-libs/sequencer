@@ -20,6 +20,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
+use crate::blocking_task::spawn_blocking_in_current_span;
 use crate::errors::ClassesProviderError;
 
 /// Converts a `CompiledClassV1` to a `CasmContractClass` for OS execution.
@@ -120,14 +121,14 @@ where
         &self,
         executed_class_hashes: &HashSet<ClassHash>,
     ) -> Result<ClassesInput, ClassesProviderError> {
-        // Clone the Arc so we can move an owned value into `spawn_blocking`.
+        // Clone the Arc so we can move an owned value into each blocking task.
         let shared_contract_class_manager = self.clone();
 
         // Creating tasks to fetch classes in parallel.
         let tasks = executed_class_hashes.iter().map(|&class_hash| {
             let manager = shared_contract_class_manager.clone();
 
-            tokio::task::spawn_blocking(move || fetch_class(manager, class_hash))
+            spawn_blocking_in_current_span(move || fetch_class(manager, class_hash))
         });
 
         // Fetching classes in parallel.

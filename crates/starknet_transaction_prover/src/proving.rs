@@ -11,5 +11,3 @@ pub mod virtual_snos_prover;
 mod blocking_check_integration_test;
 #[cfg(all(test, feature = "stwo_proving"))]
 mod prover_test;
-#[cfg(test)]
-mod virtual_snos_prover_test;

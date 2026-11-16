@@ -3,7 +3,7 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_TOTAL,
 };
-use apollo_mempool::metrics::{MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED};
+use apollo_mempool::metrics::{DropReason, LABEL_NAME_DROP_REASON, MEMPOOL_TRANSACTIONS_DROPPED};
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_placeholders::SeverityValueOrPlaceholder;
@@ -55,21 +55,24 @@ pub(crate) fn get_http_server_internal_error_ratio() -> Alert {
     )
 }
 
+/// Expirations behind a nonce gap are the client's doing (see `DropReason::ExpiredBehindGap`), so
+/// they are excluded from the count.
 pub(crate) fn get_mempool_transaction_drop_ratio() -> Alert {
     const ALERT_NAME: &str = "mempool_transaction_drop_ratio";
+    const MAX_DROPPED_PER_HOUR: f64 = 500.0;
+    let behind_gap: &str = DropReason::ExpiredBehindGap.into();
+    let dropped = MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filer_and_additional_fields(&format!(
+        "{LABEL_NAME_DROP_REASON}!=\"{behind_gap}\""
+    ));
     Alert::new(
         ALERT_NAME,
-        "Mempool transaction drop ratio",
+        "Mempool transactions dropped",
         EvaluationRate::Default,
-        format!(
-            "increase({}[10m]) / clamp_min(increase({}[10m]), 1)",
-            MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filter(),
-            MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
-        ),
+        format!("sum(increase({dropped}[1h]))"),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
-            // TODO(leo): Decide on the final ratio and who should be alerted.
-            0.2,
+            // TODO(matanl): Decide on the final threshold and who should be alerted.
+            MAX_DROPPED_PER_HOUR,
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,

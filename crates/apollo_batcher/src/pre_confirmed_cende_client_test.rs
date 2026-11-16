@@ -1,7 +1,11 @@
+use std::time::Duration;
+
 use apollo_batcher_types::batcher_types::Round;
 use assert_matches::assert_matches;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockito::{Server, ServerGuard};
+use reqwest::StatusCode;
+use rstest::rstest;
 use starknet_api::block::{
     BlockNumber,
     BlockTimestamp,
@@ -37,7 +41,10 @@ const TEST_GAS_PRICE: GasPrice = GasPrice(1);
 const TEST_SEQUENCER_ADDRESS: &str = "0x111";
 
 fn test_cende_client(server: &mut ServerGuard) -> PreconfirmedCendeClient {
-    let config = PreconfirmedCendeConfig { recorder_url: server.url().parse::<Url>().unwrap() };
+    let config = PreconfirmedCendeConfig {
+        recorder_url: server.url().parse::<Url>().unwrap(),
+        ..Default::default()
+    };
     PreconfirmedCendeClient::new(config)
 }
 
@@ -111,8 +118,10 @@ async fn test_write_pre_confirmed_block_error_response() {
     let result = client.write_pre_confirmed_block(test_data).await;
 
     mock_response.assert_async().await;
+    let error = result.unwrap_err();
+    assert!(!error.is_retryable());
     let error_code = assert_matches!(
-        result.unwrap_err(),
+        error,
         PreconfirmedCendeClientError::RequestFailed(status_code) => status_code
     );
     assert_eq!(error_code, 400);
@@ -143,11 +152,73 @@ async fn test_write_pre_confirmed_block_server_error() {
     let result = client.write_pre_confirmed_block(test_data).await;
 
     mock_response.assert();
+    let error = result.unwrap_err();
+    assert!(error.is_retryable());
     let error_code = assert_matches!(
-        result.unwrap_err(),
+        error,
         PreconfirmedCendeClientError::RequestFailed(status_code) => status_code
     );
     assert_eq!(error_code, 500);
+}
+
+#[tokio::test]
+async fn test_write_pre_confirmed_block_times_out() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.register();
+
+    // Accepts connections but never responds.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let _server = tokio::spawn(async move {
+        let mut connections = Vec::new();
+        loop {
+            let (connection, _) = listener.accept().await.unwrap();
+            connections.push(connection);
+        }
+    });
+
+    let config = PreconfirmedCendeConfig {
+        recorder_url: format!("http://{address}").parse::<Url>().unwrap(),
+        write_timeout_millis: 100,
+    };
+    let client = PreconfirmedCendeClient::new(config);
+
+    let result = tokio::time::timeout(
+        Duration::from_secs(10),
+        client.write_pre_confirmed_block(test_preconfirmed_block_data()),
+    )
+    .await
+    .expect("The write should time out on its own.");
+
+    let error = result.unwrap_err();
+    assert!(error.is_retryable());
+    let PreconfirmedCendeClientError::RequestError(request_error) = error else {
+        panic!("Incorrect error type.")
+    };
+    assert!(request_error.is_timeout());
+
+    let metrics = recorder.handle().render();
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.assert_eq::<u64>(
+        &metrics,
+        1,
+        &[(
+            LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+            PreconfirmedBlockWriteFailureReason::Timeout.into(),
+        )],
+    );
+}
+
+#[rstest]
+#[case::bad_request(StatusCode::BAD_REQUEST, false)]
+#[case::request_timeout(StatusCode::REQUEST_TIMEOUT, true)]
+#[case::too_many_requests(StatusCode::TOO_MANY_REQUESTS, true)]
+#[case::internal_server_error(StatusCode::INTERNAL_SERVER_ERROR, true)]
+fn status_retryability(#[case] status: StatusCode, #[case] expected_retryable: bool) {
+    assert_eq!(
+        PreconfirmedCendeClientError::RequestFailed(status).is_retryable(),
+        expected_retryable
+    );
 }
 
 #[tokio::test]
@@ -158,14 +229,16 @@ async fn test_write_pre_confirmed_block_network_error() {
 
     let config = PreconfirmedCendeConfig {
         recorder_url: "http://invalid-url-that-should-not-exist.pmrewpohg".parse::<Url>().unwrap(),
+        // Long enough that a slow resolver still yields a connect error rather than a timeout.
+        write_timeout_millis: 30_000,
     };
     let client = PreconfirmedCendeClient::new(config);
     let test_data = test_preconfirmed_block_data();
     let result = client.write_pre_confirmed_block(test_data).await;
-    let PreconfirmedCendeClientError::RequestError(e) = result.unwrap_err() else {
+    let PreconfirmedCendeClientError::RequestError(error) = result.unwrap_err() else {
         panic!("Incorrect error type.")
     };
-    assert!(e.is_connect());
+    assert!(error.is_connect());
 
     let metrics = recorder.handle().render();
     PRECONFIRMED_BLOCK_WRITE_FAILURE.assert_eq::<u64>(

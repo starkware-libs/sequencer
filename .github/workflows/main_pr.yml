@@ -51,7 +51,7 @@ jobs:
     steps:
       - name: Run merge-gatekeeper-new on pull request
         if: github.event_name == 'pull_request'
-        uses: starkware-libs/merge-gatekeeper@c0535e7c50a3fc70a0f4857afd37ccd6cfcc59de # v1
+        uses: starkware-libs/merge-gatekeeper@91ecc049e7218d79336ff11ccd8d714da81f7580 # v1.4.1
         with:
           self: merge-gatekeeper-new
           timeout: 3600
@@ -60,7 +60,7 @@ jobs:
 
       - name: Run merge-gatekeeper-new on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
-        uses: starkware-libs/merge-gatekeeper@c0535e7c50a3fc70a0f4857afd37ccd6cfcc59de # v1
+        uses: starkware-libs/merge-gatekeeper@91ecc049e7218d79336ff11ccd8d714da81f7580 # v1.4.1
         with:
           self: merge-gatekeeper-new
           ref: ${{github.ref}}

@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 pub use apollo_batcher_config::config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
@@ -23,6 +25,21 @@ pub enum PreconfirmedCendeClientError {
     RequestError(#[from] reqwest::Error),
     #[error("Request failed with status code: {0}")]
     RequestFailed(reqwest::StatusCode),
+}
+
+impl PreconfirmedCendeClientError {
+    /// A client error (4xx) means the recorder rejected this write, e.g. because a newer one
+    /// exists, so resending the same block cannot succeed.
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::RequestError(error) => !error.is_builder(),
+            Self::RequestFailed(status) => {
+                !status.is_client_error()
+                    || *status == StatusCode::REQUEST_TIMEOUT
+                    || *status == StatusCode::TOO_MANY_REQUESTS
+            }
+        }
+    }
 }
 
 pub type PreconfirmedCendeClientResult<T> = Result<T, PreconfirmedCendeClientError>;
@@ -54,7 +71,11 @@ impl PreconfirmedCendeClient {
         recorder_url = recorder_url
             .join(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH)
             .expect("Failed to construct URL");
-        Self { write_pre_confirmed_block_url: recorder_url, client: Client::new() }
+        let client = Client::builder()
+            .timeout(Duration::from_millis(config.write_timeout_millis))
+            .build()
+            .expect("Failed to build the pre-confirmed Cende client");
+        Self { write_pre_confirmed_block_url: recorder_url, client }
     }
 }
 
@@ -91,7 +112,11 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         );
 
         let response = request_builder.send().await.inspect_err(|err| {
-            record_preconfirmed_block_write_failure(PreconfirmedBlockWriteFailureReason::SendError);
+            record_preconfirmed_block_write_failure(if err.is_timeout() {
+                PreconfirmedBlockWriteFailureReason::Timeout
+            } else {
+                PreconfirmedBlockWriteFailureReason::SendError
+            });
             warn!(
                 "Failed to send write_pre_confirmed_block request to Cende recorder. \
                  block_number={block_number}, round={round}, write iteration={write_iteration}, \

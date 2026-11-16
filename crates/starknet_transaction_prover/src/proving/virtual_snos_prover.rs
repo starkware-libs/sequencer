@@ -5,7 +5,7 @@
 
 #[cfg(feature = "stwo_proving")]
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -19,13 +19,18 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn, Instrument, Span};
 use url::Url;
 
 use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
 use crate::config::ProverConfig;
 use crate::errors::VirtualSnosProverError;
 use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
+use crate::server::metrics::{names, outcomes};
+
+#[cfg(test)]
+#[path = "virtual_snos_prover_test.rs"]
+mod virtual_snos_prover_test;
 
 /// Result of a successful prove transaction operation.
 ///
@@ -161,35 +166,63 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
     /// 1. Validates and extracts the invoke transaction.
     /// 2. Optionally awaits an external blocking check (with timeout) before proving.
     /// 3. Runs the Starknet OS and generates a proof via `prove_virtual_snos_run`.
-    #[instrument(skip(self, transaction), fields(block_id = ?block_id, tx_hash))]
+    ///
+    /// The `prove_transaction` span names the block with exactly one of `block_number`,
+    /// `block_hash` or `block_tag`. It never carries the transaction hash.
+    #[instrument(skip_all, fields(block_number, block_hash, block_tag))]
     pub async fn prove_transaction(
         &self,
         block_id: BlockId,
         transaction: RpcTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+        record_block_id_fields(&Span::current(), &block_id);
+        info!(event = "prove_started", "Starting transaction proving");
         let start_time = Instant::now();
+        let result = self.prove_transaction_inner(block_id, transaction).await;
+        let total_duration = start_time.elapsed();
+        let outcome = record_prove_transaction_metrics(&result, total_duration);
+        info!(
+            event = "prove_transaction_completed",
+            total_duration_ms = duration_millis(total_duration),
+            outcome,
+            "prove_transaction completed"
+        );
+        result
+    }
 
-        // Validate block_id is not pending.
+    async fn prove_transaction_inner(
+        &self,
+        block_id: BlockId,
+        transaction: RpcTransaction,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+        // Origin logs carry only bounded event and reason codes, never the error text. See
+        // `VirtualSnosProverError` for why.
         if matches!(block_id, BlockId::Pending) {
+            warn!(event = "validation_error", reason = "pending_block_unsupported");
             return Err(VirtualSnosProverError::ValidationError(
                 "Pending blocks are not supported; only finalized blocks can be proven."
                     .to_string(),
             ));
         }
 
-        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone())?;
-        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
+        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone()).inspect_err(|_err| {
+            warn!(event = "validation_error", reason = "non_invoke_transaction");
+        })?;
+        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields).inspect_err(
+            |_err| {
+                warn!(event = "validation_error", reason = "invalid_transaction_input");
+            },
+        )?;
         let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
-        let result = match &self.blocking_check_client {
-            None => self.run_and_prove(block_id, vec![invoke_tx]).await?,
-            Some(client) => {
-                self.prove_with_blocking_check(client, block_id, transaction, invoke_tx).await?
+        match &self.blocking_check_client {
+            None => {
+                self.run_and_prove(block_id, vec![invoke_tx]).await.inspect_err(log_pipeline_error)
             }
-        };
-
-        info!(total_duration_ms = %start_time.elapsed().as_millis(), "prove_transaction completed");
-        Ok(result)
+            Some(client) => {
+                self.prove_with_blocking_check(client, block_id, transaction, invoke_tx).await
+            }
+        }
     }
 
     /// Runs the OS and generates a proof. This is the core proving pipeline.
@@ -205,16 +238,23 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             .await
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
+        let os_duration = os_start.elapsed();
+        metrics::histogram!(names::OS_RUN_DURATION_SECONDS).record(os_duration.as_secs_f64());
         info!(
-            os_duration_ms = %os_start.elapsed().as_millis(),
+            event = "os_run_completed",
+            os_duration_ms = duration_millis(os_duration),
             "OS execution completed"
         );
 
         let prove_start = Instant::now();
         let result = self.prove_virtual_snos_run(runner_output).await?;
 
+        let prove_duration = prove_start.elapsed();
+        metrics::histogram!(names::STWO_PROVE_DURATION_SECONDS)
+            .record(prove_duration.as_secs_f64());
         info!(
-            prove_duration_ms = %prove_start.elapsed().as_millis(),
+            event = "proving_completed",
+            prove_duration_ms = duration_millis(prove_duration),
             "Proving completed"
         );
 
@@ -243,10 +283,13 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         invoke_tx: InvokeTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         // Kick off proving in parallel with the check. Clone is cheap: inner fields are
-        // Arcs or small configs.
+        // Arcs or small configs. `instrument` carries the ambient tracing span (request id and
+        // block fields) into the spawned task, which starts without a span otherwise.
         let prover = self.clone();
-        let prove_handle =
-            tokio::spawn(async move { prover.run_and_prove(block_id, vec![invoke_tx]).await });
+        let prove_handle = tokio::spawn(
+            async move { prover.run_and_prove(block_id, vec![invoke_tx]).await }
+                .instrument(Span::current()),
+        );
 
         let timeout_duration = std::time::Duration::from_millis(client.timeout_millis);
         let check_outcome =
@@ -257,19 +300,27 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         // timeout) carries no additional_data.
         let (allow, additional_data) = match check_outcome {
             Ok(BlockingCheckResult::Blocked) => {
-                info!("Transaction blocked by external check");
+                info!(event = "blocking_check_blocked", "Transaction blocked by external check");
                 (false, None)
             }
             Ok(BlockingCheckResult::Allowed(additional_data)) => {
-                info!("Transaction allowed by external check");
+                info!(event = "blocking_check_allowed", "Transaction allowed by external check");
                 (true, additional_data)
             }
             Ok(BlockingCheckResult::Inconclusive) => {
-                info!(fail_open = client.fail_open, "Blocking check inconclusive");
+                info!(
+                    event = "blocking_check_inconclusive",
+                    fail_open = client.fail_open,
+                    "Blocking check inconclusive"
+                );
                 (client.fail_open, None)
             }
             Err(_) => {
-                info!(fail_open = client.fail_open, "Blocking check timed out");
+                info!(
+                    event = "blocking_check_timed_out",
+                    fail_open = client.fail_open,
+                    "Blocking check timed out"
+                );
                 (client.fail_open, None)
             }
         };
@@ -280,7 +331,7 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         }
 
         let mut result = match prove_handle.await {
-            Ok(prove_result) => prove_result?,
+            Ok(prove_result) => prove_result.inspect_err(log_pipeline_error)?,
             Err(err) if err.is_panic() => std::panic::resume_unwind(err.into_panic()),
             Err(err) => unreachable!("prove task cancelled unexpectedly: {err}"),
         };
@@ -313,6 +364,49 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         runner_output: RunnerOutput,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         prove_virtual_snos_run_with_precomputes(runner_output, self.precomputes.clone()).await
+    }
+}
+
+fn record_prove_transaction_metrics<T>(
+    result: &Result<T, VirtualSnosProverError>,
+    total_duration: Duration,
+) -> &'static str {
+    let outcome = match result {
+        Ok(_) => outcomes::SUCCESS,
+        Err(error) => error.metric_outcome(),
+    };
+    metrics::histogram!(names::PROVE_TRANSACTION_DURATION_SECONDS, "outcome" => outcome)
+        .record(total_duration.as_secs_f64());
+    metrics::counter!(names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome).increment(1);
+    outcome
+}
+
+/// Records the requested block on `span` as a plain value: `block_number` for a number,
+/// `block_hash` (hex) for a hash, or `block_tag` for `latest` and `pending`.
+fn record_block_id_fields(span: &Span, block_id: &BlockId) {
+    match block_id {
+        BlockId::Number(block_number) => span.record("block_number", block_number.0),
+        BlockId::Hash(block_hash) => span.record("block_hash", block_hash.0.to_hex_string()),
+        BlockId::Latest => span.record("block_tag", "latest"),
+        BlockId::Pending => span.record("block_tag", "pending"),
+    };
+}
+
+/// Converts a duration to whole milliseconds as a `u64`, so JSON logs carry a number rather than
+/// the string that a `u128` formatted with `Display` would produce.
+fn duration_millis(duration: Duration) -> u64 {
+    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+}
+
+/// Logs the stage where a `run_and_prove` failure started. Callers log where they consume the
+/// result, not inside `run_and_prove`, so a background proof that a blocking check discards leaves
+/// no failure record in the request's span.
+fn log_pipeline_error(err: &VirtualSnosProverError) {
+    match err {
+        VirtualSnosProverError::RunnerError(runner_error) => {
+            warn!(event = "os_run_error", reason = runner_error.log_reason());
+        }
+        _ => warn!(event = "proving_error", outcome = err.metric_outcome()),
     }
 }
 

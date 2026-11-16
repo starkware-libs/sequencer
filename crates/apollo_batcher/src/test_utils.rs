@@ -46,6 +46,7 @@ use starknet_committer::patricia_merkle_tree::types::{
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 
 use crate::batcher::{
     MockBatcherStorageReader,
@@ -298,7 +299,7 @@ impl Default for MockClients {
             let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
             mock_writer.expect_run().return_once(|| ());
-            (mock_writer, non_working_pre_confirmed_tx_sender)
+            (mock_writer, non_working_pre_confirmed_tx_sender, CancellationToken::new())
         });
 
         let mut committer_client_inner = MockCommitterClient::new();

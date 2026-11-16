@@ -2,7 +2,7 @@
   "consensus_manager_config.assume_no_malicious_validators": true,
   "consensus_manager_config.broadcast_buffer_size": 10000,
   "consensus_manager_config.cende_config.max_retry_duration_secs": 3,
-  "consensus_manager_config.cende_config.max_retry_interval_ms": 1000,
+  "consensus_manager_config.cende_config.max_retry_interval_ms": 1500,
   "consensus_manager_config.cende_config.min_retry_interval_ms": 50,
   "consensus_manager_config.consensus_manager_config.dynamic_config.far_behind_proposal_threshold": 30,
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": 20,

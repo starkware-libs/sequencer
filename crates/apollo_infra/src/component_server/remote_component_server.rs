@@ -313,9 +313,13 @@ where
                                         .get(REQUEST_ID_HEADER)
                                         .and_then(|header| header.to_str().ok())
                                         .and_then(|s| s.parse::<RequestId>().ok())
-                                        .expect(
-                                            "Request ID should be present in the request headers",
-                                        );
+                                        .unwrap_or_else(|| {
+                                            warn!(
+                                                remote_addr = %client_peer_for_handler,
+                                                "Invalid request ID header, generating one."
+                                            );
+                                            RequestId::generate()
+                                        });
                                     Self::remote_component_server_handler(
                                         req,
                                         request_id,

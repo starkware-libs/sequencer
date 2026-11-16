@@ -477,6 +477,44 @@ async fn faulty_client_setup() {
     verify_error(faulty_a_client, &expected_error_contained_keywords).await;
 }
 
+/// A request without a valid request ID header must be served, not crash the server.
+#[rstest]
+#[case::missing_header(unique_u16!(), None)]
+#[case::non_numeric_header(unique_u16!(), Some("not-a-number"))]
+#[tokio::test]
+async fn invalid_request_id_header_is_served(
+    #[case] instance_index: u16,
+    #[case] request_id_header: Option<&str>,
+) {
+    let mut available_ports = available_ports_factory(instance_index);
+    let a_socket = available_ports.get_next_local_host_socket();
+    let b_socket = available_ports.get_next_local_host_socket();
+    let setup_value = Felt::from(90);
+    setup_for_tests(setup_value, a_socket, b_socket, MAX_CONCURRENCY, None).await;
+
+    let uri: Uri = format!("http://[{}]:{}/", a_socket.ip(), a_socket.port()).parse().unwrap();
+    let mut http_request_builder =
+        Request::post(uri).header(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
+    if let Some(header_value) = request_id_header {
+        http_request_builder = http_request_builder.header(REQUEST_ID_HEADER, header_value);
+    }
+    let http_request = http_request_builder
+        .body(Full::new(Bytes::from(
+            SerdeWrapper::new(ComponentARequest::AGetValue).wrapper_serialize().unwrap(),
+        )))
+        .unwrap();
+    let http_response =
+        Client::builder(TokioExecutor::new()).build_http().request(http_request).await.unwrap();
+
+    assert_eq!(http_response.status(), StatusCode::OK);
+    let body_bytes = http_response.into_body().collect().await.unwrap().to_bytes();
+    let response = SerdeWrapper::<ComponentAResponse>::wrapper_deserialize(&body_bytes).unwrap();
+    assert!(
+        matches!(response, ComponentAResponse::AGetValue(value) if value == setup_value),
+        "{response:?}"
+    );
+}
+
 #[tokio::test]
 async fn unconnected_server() {
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();

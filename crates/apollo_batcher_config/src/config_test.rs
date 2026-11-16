@@ -4,8 +4,9 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::SerializedContent;
 use serde_json::json;
 use starknet_api::state::StorageKey;
+use validator::Validate;
 
-use crate::config::StorageAccessFilterConfig;
+use crate::config::{PreconfirmedCendeConfig, StorageAccessFilterConfig};
 
 fn deserialize(blocked_storage_keys: &str) -> Result<StorageAccessFilterConfig, serde_json::Error> {
     serde_json::from_value(json!({
@@ -30,4 +31,11 @@ fn test_blocked_storage_keys_serialization() {
 
     assert!(deserialize("").unwrap().blocked_storage_keys.is_empty());
     assert!(deserialize("0x1,not_a_key").is_err());
+}
+
+#[test]
+fn zero_pre_confirmed_write_timeout_is_invalid() {
+    assert!(PreconfirmedCendeConfig::default().validate().is_ok());
+    let config = PreconfirmedCendeConfig { write_timeout_millis: 0, ..Default::default() };
+    assert!(config.validate().is_err());
 }

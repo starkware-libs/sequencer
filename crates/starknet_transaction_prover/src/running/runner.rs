@@ -24,10 +24,10 @@ use starknet_api::transaction::{
 use starknet_os::commitment_infos::CommitmentInfo;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::runner::run_virtual_os;
-use tracing::field::display;
-use tracing::{info, Span};
+use tracing::info;
 use url::Url;
 
+use crate::blocking_task::spawn_blocking_in_current_span;
 use crate::errors::RunnerError;
 use crate::running::classes_provider::ClassesProvider;
 use crate::running::storage_proofs::{
@@ -288,10 +288,6 @@ where
                 let tx_hash = tx
                     .calculate_transaction_hash(&chain_id, &version)
                     .map_err(|e| RunnerError::TransactionHashError(e.to_string()))?;
-                // Record tx_hash on the parent span (`prove_transaction`) so all
-                // subsequent logs carry it as a prefix.
-                Span::current().record("tx_hash", display(&tx_hash));
-                info!("Starting transaction proving");
                 Ok((tx, tx_hash))
             })
             .collect::<Result<Vec<_>, RunnerError>>()?;
@@ -302,7 +298,7 @@ where
         // Execute virtual block to get execution data including L2 to L1 messages.
         // Execute in a blocking thread pool to avoid blocking the async runtime.
         // The RPC state reader uses request::blocking which would block the tokio runtime.
-        let execution_data = tokio::task::spawn_blocking(move || {
+        let execution_data = spawn_blocking_in_current_span(move || {
             virtual_block_executor.execute(block_id, contract_class_manager, txs_with_hashes)
         })
         .await??;
@@ -326,6 +322,7 @@ where
         // Log execution resources.
         let resources = &output.cairo_pie.execution_resources;
         info!(
+            event = "os_execution_resources",
             n_steps = resources.n_steps,
             n_memory_holes = resources.n_memory_holes,
             builtins = ?resources.builtin_instance_counter,

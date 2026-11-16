@@ -2,4 +2,7 @@ include: configs/overlays/hybrid/common/services/gateway.yaml
 
 config:
   sequencerConfig:
+    gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode: 'off'
     gateway_config.static_config.proof_archive_writer_config.bucket_name: starkware-starknet-mainnet
+    gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v1: true
+    gateway_config.static_config.stateless_tx_validator_config.allow_proof_version_v2: false

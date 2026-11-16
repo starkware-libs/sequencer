@@ -127,6 +127,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_committer::patricia_merkle_tree::types::CompressedStateCommitmentInfos;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::AbortHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 use validator::Validate;
 
@@ -444,7 +445,7 @@ impl Batcher {
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
         let cende_block_metadata = CendeBlockMetadata::new(propose_block_input.block_info.clone());
-        let (pre_confirmed_block_writer, pre_confirmed_tx_sender) =
+        let (pre_confirmed_block_writer, pre_confirmed_tx_sender, writer_cancellation_token) =
             self.pre_confirmed_block_writer_factory.create(
                 propose_block_input.block_info.block_number,
                 propose_block_input.proposal_round,
@@ -494,7 +495,7 @@ impl Batcher {
             block_builder,
             abort_signal_sender,
             None,
-            Some(pre_confirmed_block_writer),
+            Some((pre_confirmed_block_writer, writer_cancellation_token)),
             proposal_metrics_handle,
         )
         .await?;
@@ -1305,7 +1306,10 @@ impl Batcher {
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
         final_n_executed_txs_sender: Option<tokio::sync::oneshot::Sender<usize>>,
-        pre_confirmed_block_writer: Option<Box<dyn PreconfirmedBlockWriterTrait>>,
+        pre_confirmed_block_writer: Option<(
+            Box<dyn PreconfirmedBlockWriterTrait>,
+            CancellationToken,
+        )>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         self.set_active_proposal(proposal_id).await?;
@@ -1313,6 +1317,9 @@ impl Batcher {
 
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
+        let (pre_confirmed_block_writer, writer_cancellation_token) =
+            pre_confirmed_block_writer.unzip();
+        let execution_writer_cancellation_token = writer_cancellation_token.clone();
 
         let execution_join_handle = tokio::spawn(
             async move {
@@ -1328,6 +1335,15 @@ impl Batcher {
                     Err(e) => Err(e),
                 }
                 .map_err(Arc::new);
+
+                // A proposal that failed to build never becomes a block, so its buffered
+                // pre-confirmed transactions must not be flushed when the block builder drops the
+                // channel below.
+                if result.is_err() {
+                    if let Some(writer_cancellation_token) = &execution_writer_cancellation_token {
+                        writer_cancellation_token.cancel();
+                    }
+                }
 
                 // The proposal is done, clear the active proposal.
                 // Keep the proposal result only if it is the same as the active proposal.
@@ -1361,6 +1377,7 @@ impl Batcher {
             final_n_executed_txs_sender,
             execution_join_handle,
             writer_join_handle,
+            writer_cancellation_token,
         });
         Ok(())
     }
@@ -1390,6 +1407,9 @@ impl Batcher {
         self.active_proposal.lock().await.take();
         if let Some(proposal_task) = self.active_proposal_task.take() {
             proposal_task.abort_signal_sender.send(()).ok();
+            if let Some(writer_cancellation_token) = proposal_task.writer_cancellation_token {
+                writer_cancellation_token.cancel();
+            }
         }
     }
 

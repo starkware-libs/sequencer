@@ -127,6 +127,10 @@ RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
         cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json; \
     fi
 
+# Keep GIT_SHA after the cargo-chef cook step so it does not invalidate the dependency cache.
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+
 # Copy source and build starknet_transaction_prover (without cairo_native feature).
 COPY . .
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml

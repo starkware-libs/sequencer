@@ -11,6 +11,7 @@ use privacy_prove::{privacy_recursive_prove, RecursiveProverPrecomputes};
 use starknet_api::transaction::fields::Proof;
 use starknet_proof_verifier::ProgramOutput;
 
+use crate::blocking_task::spawn_blocking_in_current_span;
 use crate::errors::ProvingError;
 
 /// Output from the prover containing the proof and associated program output.
@@ -24,8 +25,9 @@ pub(crate) struct ProverOutput {
 
 /// Proves a Cairo PIE using the privacy recursive prover.
 ///
-/// Calls `privacy_recursive_prove` with the CairoPie and precomputed data on a blocking thread.
-/// A PIE that uses builtins the prover does not support is rejected before proving starts.
+/// Calls `privacy_recursive_prove` with the CairoPie and precomputed data on a blocking thread,
+/// inside the caller's tracing span. A PIE that uses builtins the prover does not support is
+/// rejected before proving starts.
 pub(crate) async fn prove(
     cairo_pie: CairoPie,
     precomputes: Arc<RecursiveProverPrecomputes>,
@@ -36,7 +38,7 @@ pub(crate) async fn prove(
         return Err(ProvingError::UnsupportedBuiltins { unsupported_builtins });
     }
 
-    let proof_output = tokio::task::spawn_blocking(move || {
+    let proof_output = spawn_blocking_in_current_span(move || {
         privacy_recursive_prove(cairo_pie, precomputes).map_err(|e| e.to_string())
     })
     .await

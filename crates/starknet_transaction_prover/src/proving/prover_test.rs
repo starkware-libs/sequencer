@@ -23,8 +23,8 @@ use privacy_prove::{
     RecursiveProverPrecomputes,
 };
 use rstest::rstest;
-use starknet_api::transaction::fields::VIRTUAL_SNOS;
-use starknet_proof_verifier::ProgramOutput;
+use starknet_api::transaction::fields::{Proof, VIRTUAL_SNOS};
+use starknet_proof_verifier::{verify_proof, ProgramOutput};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::ProvingError;
@@ -315,6 +315,26 @@ fn test_large_prover_proves_selected_builtin(#[case] selected_builtin: SelectedB
         .unwrap_or_else(|error| panic!("Failed to prove with {selected_builtin:?}: {error}"));
 
     verify_recursive_circuit(&proof_output).expect("Failed to verify proof");
+}
+
+/// Not run in CI, since it is slow. Run with:
+/// ```shell
+/// cargo test -p starknet_transaction_prover --release --features stwo_proving \
+///     test_large_prover_proof_verifies_from_proof_facts -- --ignored
+/// ```
+#[test]
+#[ignore = "slow: runs the stwo prover"]
+fn test_large_prover_proof_verifies_from_proof_facts() {
+    let cairo_pie = CairoPie::read_zip_file(&resolve_resource_path(CAIRO_PIE_FILE))
+        .expect("Failed to read Cairo PIE from zip file");
+
+    let PrivacyProofOutput { proof, output_preimage } =
+        privacy_recursive_prove_large(cairo_pie).expect("Failed to prove Cairo PIE");
+    let proof_facts = ProgramOutput::from(output_preimage)
+        .try_into_proof_facts(VIRTUAL_SNOS)
+        .expect("Failed to convert program output to proof facts");
+
+    verify_proof(proof_facts, Proof::from(proof)).expect("Failed to verify proof");
 }
 
 #[rstest]

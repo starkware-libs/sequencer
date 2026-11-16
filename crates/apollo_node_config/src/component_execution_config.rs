@@ -197,6 +197,22 @@ impl ReactiveComponentExecutionConfig {
         self
     }
 
+    pub fn with_max_request_body_bytes(mut self, max_request_body_bytes: usize) -> Self {
+        self.remote_server_config
+            .as_mut()
+            .expect("Remote server config should be available")
+            .max_request_body_bytes = max_request_body_bytes;
+        self
+    }
+
+    pub fn with_max_response_body_bytes(mut self, max_response_body_bytes: usize) -> Self {
+        self.remote_client_config
+            .as_mut()
+            .expect("Remote client config should be available")
+            .max_response_body_bytes = max_response_body_bytes;
+        self
+    }
+
     #[cfg(any(feature = "testing", test))]
     pub fn set_url_to_localhost(&mut self) {
         self.url = std::net::Ipv4Addr::LOCALHOST.to_string();

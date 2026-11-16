@@ -241,6 +241,7 @@ where
     fn storage_config(&self) -> <Self::Storage as Storage>::Config {
         CachedStorageConfig {
             cache_size: NonZeroUsize::new(self.cache_size).unwrap(),
+            short_lived_cache_size: None,
             include_inner_stats: self.include_inner_stats,
             inner_storage_config: self.storage_args.storage_config(),
         }

@@ -46,7 +46,10 @@ generate_permutation_labels! {
 #[derive(IntoStaticStr, EnumIter, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum DropReason {
+    /// Reached the TTL while eligible for batching or behind an eligible tx of its account.
     Expired,
+    /// Reached the TTL while its account had a nonce gap, so it was never eligible for batching.
+    ExpiredBehindGap,
     Rejected,
     Evicted,
 }
@@ -55,6 +58,13 @@ pub(crate) fn metric_count_expired_txs(n_txs: usize) {
     MEMPOOL_TRANSACTIONS_DROPPED.increment(
         n_txs.try_into().expect("The number of expired_txs should fit u64"),
         &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())],
+    );
+}
+
+pub(crate) fn metric_count_expired_behind_gap_txs(n_txs: usize) {
+    MEMPOOL_TRANSACTIONS_DROPPED.increment(
+        n_txs.try_into().expect("The number of expired_behind_gap_txs should fit u64"),
+        &[(LABEL_NAME_DROP_REASON, DropReason::ExpiredBehindGap.into())],
     );
 }
 

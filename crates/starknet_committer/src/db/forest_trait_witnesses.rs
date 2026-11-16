@@ -6,7 +6,7 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::errors::SerializationResult;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, PatriciaStorageResult};
 
 use super::{
     EmptyInitialReadContext,
@@ -72,6 +72,13 @@ pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send 
         deleted_nodes: DeletedNodes,
         commitment_infos_updates: Vec<CommitmentInfosUpdate<'_>>,
     ) -> SerializationResult<usize>;
+
+    /// Deletes the commitment infos of every height below `lower_bound`, freeing their space right
+    /// away where the storage supports it.
+    async fn delete_commitment_infos_below(
+        &mut self,
+        lower_bound: BlockNumber,
+    ) -> PatriciaStorageResult<()>;
 }
 
 /// Forest storage with empty [`ForestReader::InitialReadContext`] plus OS-input witness read/write.
