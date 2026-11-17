@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794517314886,
+  "lastUpdate": 1794913401325,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8193,6 +8193,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1331.65312422,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e8dab024ca7dc9e367fd8655c2ab5e187b4c55d",
+          "message": "ci,workspace: enforce the cargo-deny advisories check and add dependency review (#15110)\n\n* ci,workspace: enforce the cargo-deny advisories check and add dependency review\n\nThe advisories check now fails CI instead of only warning, and it no longer carries the\noptimize_ci skip condition, which was letting stacked pull requests past it. Each advisory that\ncannot be resolved today is listed in the deny.toml ignore list with a reason naming the\ndependency that holds the vulnerable version back. The licenses check still rejects the GPL-3.0\nrhexdump and the bans check still reports starknet_proof_verifier's versionless git dependency,\nwhile sources passes; the three keep running non-blocking in a separate step until the first two\nare decided. A dependency review workflow comments the dependency changes of a pull request on\nthe pull request itself in warn-only mode, so it never fails the check.\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\n\n* workspace: bump zstd within 0.13 and drop its advisory ignores\n\nzstd 0.13.5 and zstd-safe 7.4.1 are patched for RUSTSEC-2026-0391, 0398 and\n0403 (patched ranges ^0.13.4 and ^7.4.0), so a lockfile bump fixes them and the\nthree ignore entries go. Name lru 0.13, pulled by alloy-provider 1.1, in the\nreasons of the two lru ignores, since both advisories cover it.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-11-17T10:29:40Z",
+          "tree_id": "efeabcd47a35cbfd4391eb18e30ebdd3e81acabc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0e8dab024ca7dc9e367fd8655c2ab5e187b4c55d"
+        },
+        "date": 1794913400744,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 982.0951846,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1540.65342137,
             "unit": "ms"
           }
         ]
