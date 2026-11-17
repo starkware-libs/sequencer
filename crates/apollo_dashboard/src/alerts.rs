@@ -274,8 +274,15 @@ impl Alert {
             ObserverApplicability::Applicable => expr,
             ObserverApplicability::NotApplicable => {
                 // Observers evaluate to the threshold, which never fires, instead of to no data.
-                let threshold =
-                    &conditions.first().expect("Alert has no conditions.").comparison_value;
+                // With more than one condition, the first threshold could satisfy another one.
+                assert_eq!(
+                    conditions.len(),
+                    1,
+                    "Alert {} is not applicable to observers, so it must have exactly one \
+                     condition.",
+                    name.to_string()
+                );
+                let threshold = &conditions[0].comparison_value;
                 ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
                     // `and on()` ignores label sets so the unlabeled scalar produced by
                     // aggregations like sum() still matches the pod-labeled is_observer series.

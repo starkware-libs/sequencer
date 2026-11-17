@@ -89,6 +89,24 @@ fn serialize_alert_not_applicable_to_observer_with_placeholder_threshold() {
 }
 
 #[test]
+#[should_panic(expected = "must have exactly one condition")]
+fn alert_not_applicable_to_observer_must_have_one_condition() {
+    Alert::new(
+        "Name",
+        "Message",
+        EvaluationRate::Default,
+        "foo".to_string(),
+        vec![
+            AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And),
+            AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And),
+        ],
+        "5m",
+        AlertSeverity::Sos,
+        ObserverApplicability::NotApplicable,
+    );
+}
+
+#[test]
 fn test_ratio_time_series() {
     let duration = "5m";
     let metric_1 = MetricCounter::new(MetricScope::Batcher, "r", "desc", 0);
