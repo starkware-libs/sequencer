@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794913401325,
+  "lastUpdate": 1794922707428,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8227,6 +8227,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1540.65342137,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b144d04dc58a23f8cd858968d5a1545ac3d47623",
+          "message": "workspace: bump libp2p-quic, libp2p-gossipsub, quinn-udp, libz-sys; ignore unfixable advisories (#15298)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-17T13:06:41Z",
+          "tree_id": "f8fe9e60ef0d0fee64a8dd15af845d8d3c46ea7f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b144d04dc58a23f8cd858968d5a1545ac3d47623"
+        },
+        "date": 1794922706706,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 981.05629556,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1510.72388376,
             "unit": "ms"
           }
         ]
