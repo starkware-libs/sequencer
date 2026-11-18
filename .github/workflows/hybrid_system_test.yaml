@@ -114,6 +114,19 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      # Namespace runners with a custom base image don't export NSC_CONTAINER_REGISTRY;
+      # look it up from the workspace when it is missing (no-op on the stock image).
+      - name: Ensure NSC_CONTAINER_REGISTRY is set
+        run: |
+          if [ -z "${NSC_CONTAINER_REGISTRY:-}" ]; then
+            registry="$(nsc workspace describe -o json -k registry_url)"
+            test -n "${registry}"
+            echo "NSC_CONTAINER_REGISTRY=${registry}" >> "$GITHUB_ENV"
+            echo "NSC_CONTAINER_REGISTRY was unset; using ${registry}"
+          else
+            echo "NSC_CONTAINER_REGISTRY=${NSC_CONTAINER_REGISTRY}"
+          fi
+
       - name: Build ${{ matrix.svc }} image remotely
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
@@ -132,6 +145,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      # Namespace runners with a custom base image don't export NSC_CONTAINER_REGISTRY;
+      # look it up from the workspace when it is missing (no-op on the stock image).
+      - name: Ensure NSC_CONTAINER_REGISTRY is set
+        run: |
+          if [ -z "${NSC_CONTAINER_REGISTRY:-}" ]; then
+            registry="$(nsc workspace describe -o json -k registry_url)"
+            test -n "${registry}"
+            echo "NSC_CONTAINER_REGISTRY=${registry}" >> "$GITHUB_ENV"
+            echo "NSC_CONTAINER_REGISTRY was unset; using ${registry}"
+          else
+            echo "NSC_CONTAINER_REGISTRY=${NSC_CONTAINER_REGISTRY}"
+          fi
 
       - name: Create registries.yaml for nscr.io
         run: |
