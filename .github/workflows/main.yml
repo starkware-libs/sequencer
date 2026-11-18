@@ -39,7 +39,7 @@ jobs:
         run: echo "skip=false" >> $GITHUB_OUTPUT
 
   code_style:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64-pinned-deps
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
@@ -91,7 +91,7 @@ jobs:
         run: cargo machete
 
   run-workspace-tests:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64-pinned-deps
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
@@ -103,7 +103,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64-pinned-deps
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 45
@@ -149,7 +149,7 @@ jobs:
       - run: sccache --show-stats
 
   run-integration-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64-pinned-deps
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 45
@@ -185,7 +185,7 @@ jobs:
   # Scans Cargo.lock against the RustSec advisory database and the deny.toml policy. This needs no
   # build, so it runs on every pull request instead of going through optimize_ci.
   cargo-deny:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64-pinned-deps
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

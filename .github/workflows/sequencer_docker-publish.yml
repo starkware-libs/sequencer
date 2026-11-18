@@ -28,7 +28,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64-pinned-deps
 
     steps:
       - name: Checkout repository

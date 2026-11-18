@@ -48,7 +48,7 @@ jobs:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
   check-system-test-trigger:
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64-pinned-deps
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 60
@@ -94,7 +94,7 @@ jobs:
           echo "should_run=$should_run" >> $GITHUB_OUTPUT
 
   build_docker_images:
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64-pinned-deps
     needs: check-system-test-trigger
     if: success() && needs.check-system-test-trigger.outputs.should_run == 'true'
     timeout-minutes: 60
@@ -126,7 +126,7 @@ jobs:
     needs:
       - check-system-test-trigger
       - build_docker_images
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64-pinned-deps
     if: success() && needs.check-system-test-trigger.outputs.should_run == 'true'
     timeout-minutes: 45
     steps:

@@ -11,7 +11,7 @@ env:
 
 jobs:
   code_style:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64-pinned-deps
     steps:
       # Environment setup.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
