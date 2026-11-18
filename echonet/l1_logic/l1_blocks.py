@@ -41,6 +41,9 @@ class L1Blocks:
         reference_block: "L1Blocks.BlockInfo",
     ) -> Optional[int]:
         current_reference = reference_block
+        # The closest checked blocks on each side of the target; once both are set they bracket it.
+        older_block: Optional[L1Blocks.BlockInfo] = None
+        newer_block: Optional[L1Blocks.BlockInfo] = None
 
         for iteration in range(L1Blocks._MAX_BLOCK_SEARCH_ITERATIONS):
             time_diff = current_reference.timestamp - target_timestamp
@@ -51,10 +54,33 @@ class L1Blocks:
                 )
                 return current_reference.number
 
+            if time_diff > 0:
+                newer_block = current_reference
+            else:
+                older_block = current_reference
+
             # Positive diff means the reference block is too new (need to go back), negative means too old (go forward).
             estimated_block_number = (
                 current_reference.number - time_diff // ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
             )
+            if older_block is not None and newer_block is not None:
+                if newer_block.number - older_block.number <= 1:
+                    # Missed slots left no block within tolerance; the closer neighbor bounds the
+                    # target just as well.
+                    closest_block = min(
+                        older_block,
+                        newer_block,
+                        key=lambda block: abs(block.timestamp - target_timestamp),
+                    )
+                    logger.debug(
+                        f"No block within tolerance of timestamp {target_timestamp}; using adjacent "
+                        f"block {closest_block.number} after {iteration + 1} iterations"
+                    )
+                    return closest_block.number
+                # Missed slots stretch the real block time past 12s, so the estimate can jump over
+                # the target; bisect instead of leaving the bracket.
+                if not older_block.number < estimated_block_number < newer_block.number:
+                    estimated_block_number = (older_block.number + newer_block.number) // 2
             if estimated_block_number < 0:
                 logger.warning("Estimated block number went below 0")
                 return None

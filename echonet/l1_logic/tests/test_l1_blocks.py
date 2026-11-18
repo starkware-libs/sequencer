@@ -152,6 +152,51 @@ class TestL1Blocks(unittest.TestCase):
             mock_client.get_timestamp_of_block.call_count, L1Blocks._MAX_BLOCK_SEARCH_ITERATIONS
         )
 
+    def test_find_block_near_timestamp_bisects_when_missed_slots_make_estimate_bounce(self):
+        mock_client = Mock(spec=L1Client)
+        target_timestamp = 1000000
+        # Missed slots before block 1000: 999 is 24s too old, 1001 is 24s too new, so each 12s-based
+        # estimate jumps 2 blocks over block 1000, the only one within tolerance.
+        block_timestamps = {
+            999: target_timestamp - 24,
+            1000: target_timestamp + 12,
+            1001: target_timestamp + 24,
+        }
+        mock_client.get_timestamp_of_block.side_effect = block_timestamps.__getitem__
+        reference_block = L1Blocks.BlockInfo(number=1011, timestamp=target_timestamp + 144)
+
+        result = L1Blocks._find_block_near_timestamp(mock_client, target_timestamp, reference_block)
+
+        self.assertEqual(result, 1000)
+        checked_block_numbers = [
+            call.args[0] for call in mock_client.get_timestamp_of_block.call_args_list
+        ]
+        self.assertEqual(checked_block_numbers, [999, 1001, 1000])
+
+    def test_find_block_near_timestamp_returns_closer_neighbor_when_no_block_is_within_tolerance(
+        self,
+    ):
+        mock_client = Mock(spec=L1Client)
+        target_timestamp = 1000000
+        # Blocks every 12s with a 60s gap of missed slots between blocks 999 (24s too old) and
+        # 1000 (36s too new).
+        block_timestamps = {
+            **{
+                block_number: target_timestamp - 24 - 12 * (999 - block_number)
+                for block_number in range(990, 1000)
+            },
+            **{
+                block_number: target_timestamp + 36 + 12 * (block_number - 1000)
+                for block_number in range(1000, 1012)
+            },
+        }
+        mock_client.get_timestamp_of_block.side_effect = block_timestamps.__getitem__
+        reference_block = L1Blocks.BlockInfo(number=1011, timestamp=block_timestamps[1011])
+
+        result = L1Blocks._find_block_near_timestamp(mock_client, target_timestamp, reference_block)
+
+        self.assertEqual(result, 999)
+
     def test_matches_l1_handler_tx_success(self):
         l1_event = L1TestUtils.L1_EVENT
 
