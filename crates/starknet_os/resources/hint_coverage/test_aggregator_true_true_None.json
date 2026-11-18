@@ -45,6 +45,12 @@
     "CommonHint": "GetPublicKeys"
   },
   {
+    "CommonHint": "LoadProofFactsTree"
+  },
+  {
+    "CommonHint": "LoadCircuitVerifierTask"
+  },
+  {
     "AggregatorHint": "DisableDaPageCreation"
   },
   {
@@ -61,11 +67,5 @@
   },
   {
     "AggregatorHint": "GetChainIdAndFeeTokenAddressFromInput"
-  },
-  {
-    "AggregatorHint": "LoadProofFactsTree"
-  },
-  {
-    "AggregatorHint": "LoadCircuitVerifierTask"
   }
 ]

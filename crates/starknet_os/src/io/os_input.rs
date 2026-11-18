@@ -7,6 +7,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_program_runner_lib::hints::types::HashFunc;
 use cairo_program_runner_lib::tasks::{create_cairo1_program_task, BootloaderTaskError};
 use cairo_program_runner_lib::{SimpleBootloaderInput, TaskSpec};
+use leaf_proof_format::PackedNode;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
@@ -47,6 +48,10 @@ pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    #[cfg_attr(feature = "deserialize", serde(default))]
+    pub proof_facts_tree: Option<PackedNode>,
+    #[cfg_attr(feature = "deserialize", serde(default))]
+    pub proof_facts_verifier_task: Option<CircuitVerifierTaskInput>,
 }
 
 /// All input needed to initialize the execution helper.

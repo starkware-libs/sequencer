@@ -193,7 +193,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     let (mut test_builder, [contract_address]) =
         TestBuilder::<DictStateReader>::new_with_default_initial_state(
             [(test_contract, calldata![Felt::ONE, Felt::TWO])],
-            TestBuilderConfig::default(),
+            TestBuilderConfig { full_output: true, ..Default::default() },
             virtual_os,
         )
         .await;
