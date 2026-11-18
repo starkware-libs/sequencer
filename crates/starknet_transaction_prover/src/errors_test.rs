@@ -16,6 +16,10 @@ fn metric_outcome_maps_each_variant_to_its_label() {
         (VirtualSnosProverError::ValidationError(String::new()), outcomes::FAILURE_VALIDATION),
         (VirtualSnosProverError::TransactionBlocked, outcomes::FAILURE_BLOCKED),
         (
+            VirtualSnosProverError::BlockingCheckUnavailable,
+            outcomes::FAILURE_BLOCKING_CHECK_UNAVAILABLE,
+        ),
+        (
             VirtualSnosProverError::RunnerError(Box::new(RunnerError::InputGenerationError(
                 String::new(),
             ))),
