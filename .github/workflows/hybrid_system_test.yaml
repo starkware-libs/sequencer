@@ -114,15 +114,18 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      # Namespace runners with a custom base image don't export NSC_CONTAINER_REGISTRY;
-      # look it up from the workspace when it is missing (no-op on the stock image).
-      - name: Ensure NSC_CONTAINER_REGISTRY is set
+      # Namespace runners with a custom base image don't get the workspace registry wiring
+      # (NSC_CONTAINER_REGISTRY and docker credentials for nscr.io). Set them up when missing;
+      # no-op on the stock image.
+      - name: Ensure Namespace container registry access
         run: |
+          echo "NSC_* variables present: $(env | grep -o '^NSC_[A-Z_]*' | sort | tr '\n' ' ')"
           if [ -z "${NSC_CONTAINER_REGISTRY:-}" ]; then
             registry="$(nsc workspace describe -o json -k registry_url)"
             test -n "${registry}"
             echo "NSC_CONTAINER_REGISTRY=${registry}" >> "$GITHUB_ENV"
             echo "NSC_CONTAINER_REGISTRY was unset; using ${registry}"
+            nsc docker login
           else
             echo "NSC_CONTAINER_REGISTRY=${NSC_CONTAINER_REGISTRY}"
           fi
@@ -146,15 +149,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      # Namespace runners with a custom base image don't export NSC_CONTAINER_REGISTRY;
-      # look it up from the workspace when it is missing (no-op on the stock image).
-      - name: Ensure NSC_CONTAINER_REGISTRY is set
+      # Namespace runners with a custom base image don't get the workspace registry wiring
+      # (NSC_CONTAINER_REGISTRY and docker credentials for nscr.io). Set them up when missing;
+      # no-op on the stock image.
+      - name: Ensure Namespace container registry access
         run: |
+          echo "NSC_* variables present: $(env | grep -o '^NSC_[A-Z_]*' | sort | tr '\n' ' ')"
           if [ -z "${NSC_CONTAINER_REGISTRY:-}" ]; then
             registry="$(nsc workspace describe -o json -k registry_url)"
             test -n "${registry}"
             echo "NSC_CONTAINER_REGISTRY=${registry}" >> "$GITHUB_ENV"
             echo "NSC_CONTAINER_REGISTRY was unset; using ${registry}"
+            nsc docker login
           else
             echo "NSC_CONTAINER_REGISTRY=${NSC_CONTAINER_REGISTRY}"
           fi
