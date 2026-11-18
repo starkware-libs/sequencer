@@ -15,6 +15,9 @@ autoflake
 bitarray<=3.9.0
 black==23.1a1
 cairo-lang==0.14.3a3
+# cytoolz 1.1.0, built from source on PyPy 3.9, segfaults on import on some CI runners. eth-utils
+# imports it when installed, so cairo-lang tools that pull in eth-utils can crash on start.
+cytoolz<=1.0.1
 # Keep pydantic on a release line that still has PyPy 3.9 wheels for pydantic_core.
 pydantic==2.11.7
 pydantic_core==2.33.2

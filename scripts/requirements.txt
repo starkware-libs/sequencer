@@ -13,7 +13,7 @@ certifi==2026.10.23
 charset-normalizer==3.5.1
 ckzg==2.1.8
 click==8.1.8
-cytoolz==1.1.0
+cytoolz==1.0.1
 ecdsa==0.19.2
 eth-account==0.13.7
 eth-hash==0.7.1
