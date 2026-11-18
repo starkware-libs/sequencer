@@ -91,12 +91,22 @@ jobs:
         run: cargo machete
 
   run-workspace-tests:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    # TEST ONLY: medium profile + custom base image with pinned protobuf-compiler/ripgrep.
+    runs-on: namespace-profile-sequencer-pinned-deps-test-medium-ubuntu-24-04-amd64
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Verify pinned packages are pre-installed in the base image
+        run: |
+          set -x
+          dpkg-query -W protobuf-compiler libprotoc32t64 libprotobuf32t64 ripgrep
+          test "$(dpkg-query -W -f='${Version}' protobuf-compiler)" = "3.21.12-8.2ubuntu0.4"
+          test "$(dpkg-query -W -f='${Version}' ripgrep)" = "14.1.0-1"
+          apt-mark showhold
+          protoc --version
+          rg --version
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
