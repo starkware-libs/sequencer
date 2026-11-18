@@ -1,0 +1,32 @@
+include:
+  - configs/overlays/hybrid/common/services/core.yaml
+  - configs/overlays/hybrid/echonet/common.yaml
+
+# Holds the batcher, class manager and state sync storage of the former consolidated node.
+persistentVolume:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  mountPath: "/data"
+  size: "2000Gi"
+  storageClass: "hyperdisk-balanced"
+  existingClaim: "sequencer-node-data"
+
+# The existing disk lives in us-central1-f.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values:
+                - us-central1-f
+
+resources:
+  requests:
+    cpu: "4"
+    memory: "16Gi"
+  limits:
+    cpu: "7"
+    memory: "31Gi"
