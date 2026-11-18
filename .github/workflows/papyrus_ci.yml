@@ -32,7 +32,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -46,9 +46,9 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # run this job only if the path 'crates/apollo_storage/src/db/**' is changed, because it takes around 2 minutes.
-      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3
         id: changes
         with:
           # The 'base' and 'ref' parameters are set to be able to run the job in a 'merge_group' event. in a 'pull_request' event
