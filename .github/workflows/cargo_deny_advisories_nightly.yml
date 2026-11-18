@@ -1,0 +1,21 @@
+name: Cargo-Deny-Advisories-Nightly
+
+# A new RustSec advisory can land against an unchanged Cargo.lock. Running the advisories check on
+# main every day surfaces it here first, so it can be fixed with a lockfile bump or a deny.toml
+# ignore entry before it turns the pull request check red.
+on:
+  schedule:
+    - cron: "0 6 * * *" # Runs at 06:00 UTC every day
+  workflow_dispatch:
+
+jobs:
+  cargo-deny-advisories:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run cargo-deny advisories
+        run: cargo deny check advisories
