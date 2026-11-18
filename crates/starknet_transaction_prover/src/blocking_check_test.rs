@@ -5,6 +5,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
+use tracing_test::traced_test;
 use url::Url;
 
 use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
@@ -133,14 +134,19 @@ async fn test_other_error_code_returns_inconclusive() {
 }
 
 #[tokio::test]
-async fn test_network_error_returns_inconclusive() {
-    // Point at a URL that will refuse connections.
-    let url = Url::parse("http://127.0.0.1:1").unwrap();
+#[traced_test]
+async fn test_network_error_returns_inconclusive_without_logging_url() {
+    // Point at a URL that will refuse connections. Its path stands in for an API key.
+    let url = Url::parse("http://127.0.0.1:1/v2/secret-api-key").unwrap();
     let client = BlockingCheckClient::new(url, 0, true);
 
     let result = client.check_transaction(BlockId::Latest, test_transaction()).await;
 
     assert_eq!(result, BlockingCheckResult::Inconclusive);
+    // Behind an HTTP proxy, an error status warning can replace the request failure warning.
+    // Both start with this text.
+    assert!(logs_contain("Blocking check"));
+    assert!(!logs_contain("secret-api-key"));
 }
 
 #[tokio::test]

@@ -16,6 +16,7 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::errors::{RPCStateReaderError, ReexecutionError};
 use blockifier_reexecution::state_reader::prefetched_state_reader::{
     simulate_and_get_initial_reads,
     SimulatedStateReader,
@@ -472,11 +473,14 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
                 self.validate_txs,
                 skip_fee_charge,
             )
-            .unwrap_or_else(|e| {
+            .unwrap_or_else(|error| {
+                let (reason, code) = prefetch_failure_reason(&error);
                 tracing::warn!(
+                    reason,
+                    code,
                     "State prefetch via starknet_simulateTransactions failed, falling back to \
                      individual RPC reads (slower). Ensure the node supports Starknet spec >= \
-                     v0.10.1. Error: {e}"
+                     v0.10.1."
                 );
                 StateMaps::default()
             });
@@ -488,5 +492,43 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
 
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError> {
         Ok(self.validate_txs)
+    }
+}
+
+/// Returns a bounded reason for a state prefetch failure, plus the HTTP status of a non-success
+/// response or the code of a JSON-RPC error that has no reason of its own. The prefetch warning
+/// logs these instead of the error text. That text can embed the node URL, whose path or query can
+/// hold an API key, or the simulation request body, which holds the transaction.
+fn prefetch_failure_reason(error: &ReexecutionError) -> (&'static str, Option<i64>) {
+    match error {
+        ReexecutionError::Rpc(rpc_error) => match rpc_error {
+            RPCStateReaderError::ReqwestError(reqwest_error) if reqwest_error.is_decode() => {
+                ("invalid_response_body", None)
+            }
+            RPCStateReaderError::ReqwestError(_) => ("http_request_failed", None),
+            RPCStateReaderError::RPCError(status) => {
+                ("http_error_status", Some(i64::from(status.as_u16())))
+            }
+            RPCStateReaderError::UnexpectedErrorCode { code, .. } => {
+                ("unexpected_rpc_error_code", Some(i64::from(*code)))
+            }
+            RPCStateReaderError::InvalidParams(_) => ("invalid_params", None),
+            RPCStateReaderError::TransactionExecutionError(_) => ("simulation_failed", None),
+            RPCStateReaderError::BlockNotFound(_) => ("block_not_found", None),
+            RPCStateReaderError::ClassHashNotFound(_)
+            | RPCStateReaderError::ContractAddressNotFound(_)
+            | RPCStateReaderError::GasPriceParsingFailure(_)
+            | RPCStateReaderError::StarknetApi(_)
+            | RPCStateReaderError::InternalError(_) => ("other_rpc_error", None),
+        },
+        ReexecutionError::PrefetchState(_) => ("invalid_initial_reads", None),
+        ReexecutionError::AmbiguousChainIdFromUrl(_)
+        | ReexecutionError::IncompleteBlockExecution { .. }
+        | ReexecutionError::Serde(_)
+        | ReexecutionError::StarknetApi(_)
+        | ReexecutionError::State(_)
+        | ReexecutionError::TransactionExecutorError(_)
+        | ReexecutionError::TransactionExecutionError(_)
+        | ReexecutionError::VersionedConstants(_) => ("other", None),
     }
 }
