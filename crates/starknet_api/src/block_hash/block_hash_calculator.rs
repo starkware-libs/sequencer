@@ -51,7 +51,6 @@ pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
 
-#[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum BlockHashVersion {
     V0_13_2,

@@ -8,7 +8,6 @@ use starknet_patricia_storage::map_storage::MapStorage;
 pub struct SerializedForest(pub FilledForest);
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 pub struct Output {
     // New fact storage.
     storage: MapStorage,

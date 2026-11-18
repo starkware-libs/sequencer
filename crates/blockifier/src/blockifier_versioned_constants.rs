@@ -320,7 +320,7 @@ pub struct VersionedConstants {
     pub os_resources: Arc<OsResources>,
 
     // Just to make sure the value exists, but don't use the actual values.
-    #[allow(dead_code)]
+    #[cfg_attr(not(any(test, feature = "testing")), expect(dead_code))]
     gateway: VersionedConstantsGatewayLimits,
 }
 

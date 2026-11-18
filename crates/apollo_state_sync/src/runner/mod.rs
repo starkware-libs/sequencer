@@ -100,7 +100,7 @@ pub struct StateSyncRunner {
     rpc_server_future: BoxFuture<'static, ()>,
     register_metrics_future: BoxFuture<'static, ()>,
     /// Keep alive to maintain the storage reader server running.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     storage_reader_server_handle: AbortHandle,
 }
 

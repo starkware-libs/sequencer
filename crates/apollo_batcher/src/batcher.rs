@@ -1,3 +1,6 @@
+// See `BatcherStorageWriter::commit_proposal`.
+#![allow(clippy::needless_lifetimes)]
+
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
@@ -268,12 +271,12 @@ pub struct Batcher {
     commitment_manager: ApolloCommitmentManager,
 
     /// Keep alive to maintain the storage reader server running.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     storage_reader_server_handle: AbortHandle,
 }
 
 impl Batcher {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReader>,
@@ -1169,7 +1172,7 @@ impl Batcher {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
@@ -1842,7 +1845,7 @@ impl DynamicConfigProvider for BatcherDynamicConfigProvider {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
@@ -2080,8 +2083,8 @@ impl BatcherStorageReader for StorageReader {
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageWriter: Send + Sync {
     // Automock requires a named lifetime for references nested in generics, while clippy flags
-    // it as needless.
-    #[allow(clippy::needless_lifetimes)]
+    // it as needless. An `expect` on a method automock re-emits is never fulfilled, hence the
+    // module-level `allow`.
     fn commit_proposal<'a>(
         &mut self,
         height: BlockNumber,
@@ -2108,7 +2111,7 @@ pub trait BatcherStorageWriter: Send + Sync {
 
 impl BatcherStorageWriter for StorageWriter {
     // See the lifetime explanation on the trait method.
-    #[allow(clippy::needless_lifetimes)]
+    #[expect(clippy::needless_lifetimes)]
     fn commit_proposal<'a>(
         &mut self,
         height: BlockNumber,

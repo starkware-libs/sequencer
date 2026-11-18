@@ -51,12 +51,12 @@ pub struct LastVotedMarker {
     // type Round is defined in apollo_consensus crate which would make a circular dependency.
 }
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub trait ConsensusStorageReader {
     fn get_last_voted_marker(&self) -> StorageResult<Option<LastVotedMarker>>;
 }
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub trait ConsensusStorageWriter
 where
     Self: Sized,

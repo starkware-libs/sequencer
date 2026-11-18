@@ -2,7 +2,6 @@
 //! This module provides cryptographic utilities.
 #[cfg(test)]
 #[path = "crypto_test.rs"]
-#[allow(clippy::explicit_auto_deref)]
 mod crypto_test;
 
 use serde::{Deserialize, Serialize};

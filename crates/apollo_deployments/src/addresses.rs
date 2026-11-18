@@ -8,7 +8,7 @@
 // {printf("\t(%d, \"%s\"),\n", NR-1, $NF)}'
 // ```
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 const PEER_IDS: [(usize, &str); 40] = [
     (0, "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5"),
     (1, "12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe"),

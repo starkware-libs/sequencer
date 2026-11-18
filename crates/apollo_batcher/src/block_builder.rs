@@ -1,3 +1,6 @@
+// See `BlockBuilderFactoryTrait::create_block_builder`.
+#![allow(clippy::too_many_arguments)]
+
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -279,7 +282,6 @@ pub struct BlockBuilder {
 }
 
 impl BlockBuilder {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         executor: impl TransactionExecutorTrait + 'static,
         tx_provider: Box<dyn TransactionProvider>,
@@ -751,8 +753,8 @@ pub type BatcherWorkerPool = Arc<WorkerPool<CachedState<ApolloStateReaderAndCont
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
-    // TODO(noamsp): Investigate and remove this clippy warning.
-    #[allow(clippy::too_many_arguments)]
+    // TODO(noamsp): Investigate and remove this clippy warning. An `expect` on a method automock
+    // re-emits is never fulfilled, hence the module-level `allow`.
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,

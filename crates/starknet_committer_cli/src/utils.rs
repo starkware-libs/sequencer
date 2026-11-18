@@ -132,7 +132,7 @@ impl BenchmarkMeasurements {
 
     /// Returns the average time per block (milliseconds).
     fn block_average_time(&self) -> f64 {
-        #[allow(clippy::as_conversions)]
+        #[expect(clippy::as_conversions)]
         {
             self.total_time * 1000.0 / self.n_results() as f64
         }
@@ -156,7 +156,7 @@ impl BenchmarkMeasurements {
                 .iter()
                 .map(|measurement| measurement.n_writes)
                 .sum();
-            #[allow(clippy::as_conversions)]
+            #[expect(clippy::as_conversions)]
             // Convert seconds to microseconds.
             averages.push(1_000_000.0 * total_duration / sum_of_entries as f64);
         }
@@ -186,7 +186,7 @@ impl BenchmarkMeasurements {
         // Print a graph visualization of block times.
         for (i, entry_duration) in means.iter().enumerate() {
             let norm = entry_duration / max;
-            #[allow(clippy::as_conversions)]
+            #[expect(clippy::as_conversions)]
             let width = (norm * 40.0).round() as usize; // up tp 40 characters wide
             let bar = "█".repeat(width.max(1));
             println!("win {i:>4}: {entry_duration:>8.4} microsecond / db entry | {bar}");

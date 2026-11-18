@@ -360,7 +360,7 @@ const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub enum OpcodeName {
     // Allows deserialization from the suffixed form used in [`CairoPrimitiveName`].
     #[serde(alias = "blake_opcode")]

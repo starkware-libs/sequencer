@@ -596,7 +596,7 @@ impl<T: StorageTransaction<Mode = RW> + BodyStorageReader> BodyStorageWriter for
 
 // TODO(dvir): consider enforcing that the block_body transactions, transaction_outputs and
 // transaction_hashes to be the same size.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn write_transactions<'env>(
     block_body: &BlockBody,
     txn: &DbTransaction<'env, RW>,
