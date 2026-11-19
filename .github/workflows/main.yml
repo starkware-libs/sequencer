@@ -75,6 +75,15 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      # TEMP DEBUG (remove): which pip the job container resolves.
+      - name: Debug pip resolution
+        continue-on-error: true
+        run: |
+          set -x
+          echo "PATH=$PATH"; echo "SHELL=$0"; echo "RUNNER_TOOL_CACHE=${RUNNER_TOOL_CACHE:-}"
+          ls -la "${Python3_ROOT_DIR}" "${Python3_ROOT_DIR}/bin" | head -60
+          which -a pip pip3 python python3 pypy3 || true
+          "${Python3_ROOT_DIR}/bin/python" -m pip --version || true
       - run: pip install -r scripts/requirements.txt
 
 
@@ -158,6 +167,15 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      # TEMP DEBUG (remove): which pip the job container resolves.
+      - name: Debug pip resolution
+        continue-on-error: true
+        run: |
+          set -x
+          echo "PATH=$PATH"; echo "SHELL=$0"; echo "RUNNER_TOOL_CACHE=${RUNNER_TOOL_CACHE:-}"
+          ls -la "${Python3_ROOT_DIR}" "${Python3_ROOT_DIR}/bin" | head -60
+          which -a pip pip3 python python3 pypy3 || true
+          "${Python3_ROOT_DIR}/bin/python" -m pip --version || true
       - run: pip install -r scripts/requirements.txt
 
       # Auth with GCS for tests to download artifacts.
@@ -214,6 +232,15 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      # TEMP DEBUG (remove): which pip the job container resolves.
+      - name: Debug pip resolution
+        continue-on-error: true
+        run: |
+          set -x
+          echo "PATH=$PATH"; echo "SHELL=$0"; echo "RUNNER_TOOL_CACHE=${RUNNER_TOOL_CACHE:-}"
+          ls -la "${Python3_ROOT_DIR}" "${Python3_ROOT_DIR}/bin" | head -60
+          which -a pip pip3 python python3 pypy3 || true
+          "${Python3_ROOT_DIR}/bin/python" -m pip --version || true
       - run: pip install -r scripts/requirements.txt
 
       - name: "Run integration tests"
