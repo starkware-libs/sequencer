@@ -40,6 +40,16 @@ jobs:
 
   code_style:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    # Run inside the pinned CI image on the existing runner (runner profile unchanged).
+    container:
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      env:
+        NSC_CACHE_PATH: /cache
+        CARGO_HOME: /home/runner/.cargo
+      volumes:
+        - /cache:/cache
+        - /var/run/nsc/:/var/run/nsc/
+      options: --cap-add=SYS_ADMIN
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
@@ -92,6 +102,16 @@ jobs:
 
   run-workspace-tests:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    # Run inside the pinned CI image on the existing runner (runner profile unchanged).
+    container:
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      env:
+        NSC_CACHE_PATH: /cache
+        CARGO_HOME: /home/runner/.cargo
+      volumes:
+        - /cache:/cache
+        - /var/run/nsc/:/var/run/nsc/
+      options: --cap-add=SYS_ADMIN
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
@@ -104,6 +124,16 @@ jobs:
 
   run-tests:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    # Run inside the pinned CI image on the existing runner (runner profile unchanged).
+    container:
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      env:
+        NSC_CACHE_PATH: /cache
+        CARGO_HOME: /home/runner/.cargo
+      volumes:
+        - /cache:/cache
+        - /var/run/nsc/:/var/run/nsc/
+      options: --cap-add=SYS_ADMIN
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 45
@@ -150,6 +180,16 @@ jobs:
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    # Run inside the pinned CI image on the existing runner (runner profile unchanged).
+    container:
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      env:
+        NSC_CACHE_PATH: /cache
+        CARGO_HOME: /home/runner/.cargo
+      volumes:
+        - /cache:/cache
+        - /var/run/nsc/:/var/run/nsc/
+      options: --cap-add=SYS_ADMIN
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 45
@@ -186,6 +226,16 @@ jobs:
   # build, so it runs on every pull request instead of going through optimize_ci.
   cargo-deny:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    # Run inside the pinned CI image on the existing runner (runner profile unchanged).
+    container:
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      env:
+        NSC_CACHE_PATH: /cache
+        CARGO_HOME: /home/runner/.cargo
+      volumes:
+        - /cache:/cache
+        - /var/run/nsc/:/var/run/nsc/
+      options: --cap-add=SYS_ADMIN
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
