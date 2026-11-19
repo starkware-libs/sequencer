@@ -239,6 +239,17 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      # TEMP DEBUG (remove): why `pip cache dir` fails inside the job container.
+      - name: Debug pip cache dir
+        continue-on-error: true
+        run: |
+          set -x
+          id; echo "HOME=$HOME"; ls -ld "$HOME" "$HOME/.cache" /github /github/home 2>&1 || true
+          env | grep -iE '^(PIP|PYTHON|XDG|VIRTUAL)' || true
+          which -a pip pip3 python3; pip --version
+          pip cache dir; echo "exit=$?"
+          pip -v cache dir; echo "exit_v=$?"
+          pip config list -v 2>&1 || true
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
