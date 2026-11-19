@@ -42,7 +42,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.2-protoc-3.21.12-rg-14.1.0@sha256:8015a34327f556daea423af978ab10d1878947c8991c09e80218f9f352c264de
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.3-protoc-3.21.12-rg-14.1.0@sha256:c2ce6a9022482daec3c95998e5d7c5197d6bdbbb40347c21a1041babcef9e1db
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -74,6 +74,9 @@ jobs:
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-pypy
+        # Job container: use the host's tool-cache path so tools installed here work outside it.
+        env:
+          RUNNER_TOOL_CACHE: /opt/hostedtoolcache
         with:
           python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
@@ -129,7 +132,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.2-protoc-3.21.12-rg-14.1.0@sha256:8015a34327f556daea423af978ab10d1878947c8991c09e80218f9f352c264de
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.3-protoc-3.21.12-rg-14.1.0@sha256:c2ce6a9022482daec3c95998e5d7c5197d6bdbbb40347c21a1041babcef9e1db
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -166,7 +169,7 @@ jobs:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.2-protoc-3.21.12-rg-14.1.0@sha256:8015a34327f556daea423af978ab10d1878947c8991c09e80218f9f352c264de
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.3-protoc-3.21.12-rg-14.1.0@sha256:c2ce6a9022482daec3c95998e5d7c5197d6bdbbb40347c21a1041babcef9e1db
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -197,6 +200,9 @@ jobs:
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-pypy
+        # Job container: use the host's tool-cache path so tools installed here work outside it.
+        env:
+          RUNNER_TOOL_CACHE: /opt/hostedtoolcache
         with:
           python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
@@ -247,7 +253,7 @@ jobs:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.2-protoc-3.21.12-rg-14.1.0@sha256:8015a34327f556daea423af978ab10d1878947c8991c09e80218f9f352c264de
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.3-protoc-3.21.12-rg-14.1.0@sha256:c2ce6a9022482daec3c95998e5d7c5197d6bdbbb40347c21a1041babcef9e1db
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -278,6 +284,9 @@ jobs:
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         id: setup-pypy
+        # Job container: use the host's tool-cache path so tools installed here work outside it.
+        env:
+          RUNNER_TOOL_CACHE: /opt/hostedtoolcache
         with:
           python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
@@ -319,7 +328,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.2-protoc-3.21.12-rg-14.1.0@sha256:8015a34327f556daea423af978ab10d1878947c8991c09e80218f9f352c264de
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.3-protoc-3.21.12-rg-14.1.0@sha256:c2ce6a9022482daec3c95998e5d7c5197d6bdbbb40347c21a1041babcef9e1db
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
