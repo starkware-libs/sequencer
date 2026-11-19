@@ -42,7 +42,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.1-protoc-3.21.12-rg-14.1.0@sha256:b992ac85c446fa20b59f75179280f5934e54af162a5ae5fc68d2aa906bbecb6f
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -104,7 +104,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.1-protoc-3.21.12-rg-14.1.0@sha256:b992ac85c446fa20b59f75179280f5934e54af162a5ae5fc68d2aa906bbecb6f
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -126,7 +126,7 @@ jobs:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.1-protoc-3.21.12-rg-14.1.0@sha256:b992ac85c446fa20b59f75179280f5934e54af162a5ae5fc68d2aa906bbecb6f
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -182,7 +182,7 @@ jobs:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.1-protoc-3.21.12-rg-14.1.0@sha256:b992ac85c446fa20b59f75179280f5934e54af162a5ae5fc68d2aa906bbecb6f
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -228,7 +228,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     # Run inside the pinned CI image on the existing runner (runner profile unchanged).
     container:
-      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.0-protoc-3.21.12-rg-14.1.0@sha256:5d96c72b4449cb0f597b09018d7f859dddcf9a97b6049dace47a208a4c70a147
+      image: nscr.io/4eg35q7dmkl76/sequencer-ci-base:v0.1.1-protoc-3.21.12-rg-14.1.0@sha256:b992ac85c446fa20b59f75179280f5934e54af162a5ae5fc68d2aa906bbecb6f
       env:
         NSC_CACHE_PATH: /cache
         CARGO_HOME: /home/runner/.cargo
@@ -239,17 +239,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      # TEMP DEBUG (remove): why `pip cache dir` fails inside the job container.
-      - name: Debug pip cache dir
-        continue-on-error: true
-        run: |
-          set -x
-          id; echo "HOME=$HOME"; ls -ld "$HOME" "$HOME/.cache" /github /github/home 2>&1 || true
-          env | grep -iE '^(PIP|PYTHON|XDG|VIRTUAL)' || true
-          which -a pip pip3 python3; pip --version
-          pip cache dir; echo "exit=$?"
-          pip -v cache dir; echo "exit_v=$?"
-          pip config list -v 2>&1 || true
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
