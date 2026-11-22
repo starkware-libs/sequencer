@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794922707428,
+  "lastUpdate": 1795336129009,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8261,6 +8261,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1510.72388376,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d79a40c7089a32f43f02e292c92667f0aa12351b",
+          "message": "workspace: enforce clippy::allow_attributes and replace allow with expect (#15282)\n\nCo-authored-by: Claude Fable 5.1 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T08:14:17Z",
+          "tree_id": "5d3a176c8aec5d33ebf0cf24497289138659e3d8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d79a40c7089a32f43f02e292c92667f0aa12351b"
+        },
+        "date": 1795336128568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 787.77535236,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1213.73289021,
             "unit": "ms"
           }
         ]
