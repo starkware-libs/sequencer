@@ -110,6 +110,8 @@ local echonetOverrides = {
       stateless_tx_validator_config: {
         max_contract_class_object_size: 8089446,
         max_sierra_version: { patch: 1 },
+        // Main's 1.5 floor would reject older declares that mainnet accepted.
+        min_sierra_version: { minor: 1 },
       },
     },
   },
@@ -120,6 +122,8 @@ local echonetOverrides = {
     // The fake L1 jumps straight to the next handler's block; a capped fetch needs one more poll
     // per 1000 blocks, which can push the handler past its block's proposal.
     max_blocks_per_fetch: 1000000,
+    // The fake L1 serves only handlers mainnet included, so dropping long payloads only diverges.
+    max_l1_handler_payload_length: 1000000,
     polling_interval_seconds: 1,
     startup_rewind_time_seconds: 3600,
   },
