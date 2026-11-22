@@ -94,7 +94,7 @@ jobs:
           echo "should_run=$should_run" >> $GITHUB_OUTPUT
 
   build_docker_images:
-    runs-on: namespace-profile-sequencer-preinstalled-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     needs: check-system-test-trigger
     if: success() && needs.check-system-test-trigger.outputs.should_run == 'true'
     timeout-minutes: 60

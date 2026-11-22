@@ -131,7 +131,7 @@ jobs:
 
   # Test that the starknet_transaction_prover Docker image builds successfully.
   docker-build:
-    runs-on: namespace-profile-sequencer-preinstalled-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30

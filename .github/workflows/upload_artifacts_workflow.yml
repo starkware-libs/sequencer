@@ -61,7 +61,7 @@ jobs:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
   native-blockifier-artifacts-push:
-    runs-on: namespace-profile-sequencer-preinstalled-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     needs: optimize_ci
     if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 60
