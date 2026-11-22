@@ -611,7 +611,7 @@ fn get_return_values(
 /// Hint locals are added to the outermost exec scope.
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn initialize_and_run_cairo_0_entry_point(
     runner_config: &EntryPointRunnerConfig,
     program_bytes: &[u8],
@@ -706,7 +706,7 @@ fn validate_builtins_offset(
 
 /// Runs a Cairo0 entry point.
 /// Returns the implicit and explicit return values, and the final state of the hint processor.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn run_cairo_0_entrypoint<'a>(
     entrypoint: String,
     explicit_args: &[EndpointArg],
@@ -746,7 +746,7 @@ pub fn run_cairo_0_entrypoint<'a>(
 
 /// Runs a Cairo0 entry point with the given hint processor.
 /// Returns the implicit and explicit return values.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn run_cairo_0_entrypoint_with_hint_processor(
     entrypoint: String,
     explicit_args: &[EndpointArg],

@@ -62,7 +62,7 @@ impl NodeIndex {
     // TODO(Tzahi, 15/6/2024): Support height < 128 bits.
     pub const FIRST_LEAF: Self = Self(U256::from_words(1_u128 << (Self::BITS - 1 - 128), 0));
 
-    #[allow(clippy::as_conversions)]
+    #[expect(clippy::as_conversions)]
     /// [NodeIndex] constant that represents the largest index in a tree.
     // TODO(Tzahi, 15/6/2024): Support height < 128 bits.
     pub const MAX: Self =

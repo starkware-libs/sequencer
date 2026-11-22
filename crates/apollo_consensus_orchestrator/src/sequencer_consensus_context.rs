@@ -407,7 +407,7 @@ impl SequencerConsensusContext {
         StreamSender { proposal_sender }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn update_state_sync_with_new_block(
         &self,
         height: BlockNumber,
@@ -614,7 +614,7 @@ impl SequencerConsensusContext {
         CONSENSUS_L2_GAS_PRICE_AT_MINIMUM.set_lossy(u64::from(self.l2_gas_price <= config_min));
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn finalize_decision(
         &mut self,
         height: BlockNumber,

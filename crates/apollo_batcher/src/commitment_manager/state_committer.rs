@@ -29,13 +29,12 @@ pub(crate) trait StateCommitterTrait {
         committer_client: SharedCommitterClient,
     ) -> Self;
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     /// Returns a handle to the thread performing commitment tasks.
     fn get_handle(&self) -> &JoinHandle<()>;
 }
 
 pub(crate) struct StateCommitter {
-    #[allow(dead_code)]
     task_performer_handle: JoinHandle<()>,
 }
 
