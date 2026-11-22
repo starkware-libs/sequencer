@@ -48,7 +48,7 @@ jobs:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
   check-system-test-trigger:
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-sequencer-preinstalled-small-ubuntu-24-04-amd64
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 60
@@ -126,7 +126,7 @@ jobs:
     needs:
       - check-system-test-trigger
       - build_docker_images
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-sequencer-preinstalled-large-ubuntu-24-04-amd64
     if: success() && needs.check-system-test-trigger.outputs.should_run == 'true'
     timeout-minutes: 45
     steps:

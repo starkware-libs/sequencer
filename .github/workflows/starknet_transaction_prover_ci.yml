@@ -55,7 +55,7 @@ jobs:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
   starknet_transaction_prover_ci:
-    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    runs-on: namespace-profile-sequencer-preinstalled-xlarge-ubuntu-24-04-amd64
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
