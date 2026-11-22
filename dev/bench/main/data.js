@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795336129009,
+  "lastUpdate": 1795359750965,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -8295,6 +8295,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1213.73289021,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sobhe@starkware.co",
+            "name": "sobhe-Starkware",
+            "username": "sobhe-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc86b93bd4cba5998eb39ca162c28b6364be5553",
+          "message": "ci: run on preinstalled runner images; bump url to 2.5.9 (#15302)\n\n* ci: run on preinstalled runner images; bump url to 2.5.9\n\nMove CI to Namespace runners whose base image already contains the\ntoolchains and tools CI used to install on every job, so jobs start\nfaster.\n\nBump url 2.5.8 -> 2.5.9 to fix RUSTSEC-2026-0592, which fails cargo-deny.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* ci: keep Docker-only jobs on the default runners\n\nThese jobs only build or push Docker images and install nothing on the\nrunner, so the preinstalled image doesn't help them.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T14:40:22Z",
+          "tree_id": "c51b068cbcda744ee1d9987a3d2749adedd06ae4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/bc86b93bd4cba5998eb39ca162c28b6364be5553"
+        },
+        "date": 1795359750418,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 873.2499583099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1384.08053147,
             "unit": "ms"
           }
         ]
