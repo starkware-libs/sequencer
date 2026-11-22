@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   integration-test:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-sequencer-preinstalled-medium-ubuntu-24-04-amd64
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -43,7 +43,7 @@ jobs:
           -- --include-ignored --skip test_gw_integration_testnet
 
   random-table-test:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-sequencer-preinstalled-medium-ubuntu-24-04-amd64
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

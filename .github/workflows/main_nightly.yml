@@ -9,7 +9,7 @@ env:
 
 jobs:
   define_branches:
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    runs-on: namespace-profile-sequencer-preinstalled-small-ubuntu-24-04-amd64
     outputs:
       branches: ${{ steps.branches.outputs.branches }}
     steps:
@@ -18,7 +18,7 @@ jobs:
         run: echo 'branches=["main", "main-v0.14.4", "main-v0.14.3"]' >> "$GITHUB_OUTPUT"
 
   feature_combos:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=2
+    runs-on: namespace-profile-sequencer-preinstalled-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=2
     needs: define_branches
     strategy:
       matrix:
@@ -50,7 +50,7 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
+    runs-on: namespace-profile-sequencer-preinstalled-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
     needs: define_branches
     strategy:
       matrix:
