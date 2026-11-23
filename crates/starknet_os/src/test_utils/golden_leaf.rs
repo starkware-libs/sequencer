@@ -94,6 +94,8 @@ const CIRCUIT_VERIFIER_EXECUTABLE_GZ: &[u8] = include_bytes!(
 );
 const GOLDEN_PROCESSED_PROOF_GZ: &[u8] =
     include_bytes!("../../resources/circuit_verifier/one_leaf_root_proof.json.gz");
+const GOLDEN_THREE_LEAF_ROOT_PROOF_GZ: &[u8] =
+    include_bytes!("../../resources/circuit_verifier/three_leaf_root_proof.json.gz");
 
 /// The circuit verifier task on the golden leaf's processed proof. Its files stay decompressed for
 /// as long as it lives.
@@ -104,9 +106,18 @@ pub struct GoldenCircuitVerifierTask {
 
 impl GoldenCircuitVerifierTask {
     pub fn decompress() -> Self {
+        Self::decompress_with_processed_proof(GOLDEN_PROCESSED_PROOF_GZ)
+    }
+
+    /// The circuit verifier task on the root proof of the three golden leaves' tree.
+    pub fn decompress_three_leaf_tree() -> Self {
+        Self::decompress_with_processed_proof(GOLDEN_THREE_LEAF_ROOT_PROOF_GZ)
+    }
+
+    fn decompress_with_processed_proof(processed_proof_gz: &[u8]) -> Self {
         Self {
             executable_file: gunzip_to_temp_file(CIRCUIT_VERIFIER_EXECUTABLE_GZ),
-            processed_proof_file: gunzip_to_temp_file(GOLDEN_PROCESSED_PROOF_GZ),
+            processed_proof_file: gunzip_to_temp_file(processed_proof_gz),
         }
     }
 
