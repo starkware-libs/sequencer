@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-ETHEREUM_AVERAGE_SECONDS_PER_BLOCK = 12
+ETHEREUM_SECONDS_PER_SLOT = 12
 
 # Starknet L1 Core Contract address on Ethereum mainnet
 # Source: crates/papyrus_base_layer/src/ethereum_base_layer_contract.rs

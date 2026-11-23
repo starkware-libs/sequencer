@@ -1,7 +1,8 @@
+import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
-from echonet.constants import ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
+from echonet.constants import ETHEREUM_SECONDS_PER_SLOT
 from echonet.helpers import timestamp_to_iso
 from echonet.l1_logic.l1_client import L1Client
 from echonet.logger import get_logger
@@ -10,9 +11,6 @@ logger = get_logger("l1_blocks")
 
 
 class L1Blocks:
-    _MAX_BLOCK_SEARCH_ITERATIONS = 10
-    _MAX_ALLOWED_TIMESTAMP_DIFF_SECONDS = 20
-
     @dataclass(frozen=True)
     class BlockInfo:
         number: int
@@ -35,46 +33,32 @@ class L1Blocks:
         return L1Blocks.BlockInfo(number=block_number, timestamp=timestamp)
 
     @staticmethod
-    def _find_block_near_timestamp(
+    def _find_block_range(
         client: L1Client,
-        target_timestamp: int,
-        reference_block: "L1Blocks.BlockInfo",
-    ) -> Optional[int]:
-        current_reference = reference_block
+        search_start_timestamp: int,
+        search_end_timestamp: int,
+        latest_block: "L1Blocks.BlockInfo",
+    ) -> Optional[Tuple[int, int]]:
+        """
+        Returns (start_block, end_block): start_block is at or before search_start_timestamp and
+        end_block is at or after search_end_timestamp, or is latest_block.
+        Post-merge every block takes its own 12s slot, so N blocks span at least 12 * N seconds: a
+        ceil(diff / 12) step back from a newer block can't pass the target, nor can the same step
+        forward from an older one. Each slot missed between the window and latest_block moves
+        start_block one block earlier.
+        """
+        start_block = latest_block.number - math.ceil(
+            (latest_block.timestamp - search_start_timestamp) / ETHEREUM_SECONDS_PER_SLOT
+        )
+        start_timestamp = client.get_timestamp_of_block(start_block)
+        if start_timestamp is None:
+            logger.error(f"Failed to get timestamp for block {start_block}")
+            return None
 
-        for iteration in range(L1Blocks._MAX_BLOCK_SEARCH_ITERATIONS):
-            time_diff = current_reference.timestamp - target_timestamp
-
-            if abs(time_diff) <= L1Blocks._MAX_ALLOWED_TIMESTAMP_DIFF_SECONDS:
-                logger.debug(
-                    f"Found block {current_reference.number} (diff: {time_diff}s) after {iteration + 1} iterations"
-                )
-                return current_reference.number
-
-            # Positive diff means the reference block is too new (need to go back), negative means too old (go forward).
-            estimated_block_number = (
-                current_reference.number - time_diff // ETHEREUM_AVERAGE_SECONDS_PER_BLOCK
-            )
-            if estimated_block_number < 0:
-                logger.warning("Estimated block number went below 0")
-                return None
-
-            block_timestamp = client.get_timestamp_of_block(estimated_block_number)
-            if block_timestamp is None:
-                logger.error(f"Failed to get timestamp for block {estimated_block_number}")
-                return None
-
-            # Update reference block to the last checked block.
-            current_reference = L1Blocks.BlockInfo(
-                number=estimated_block_number, timestamp=block_timestamp
-            )
-
-            logger.debug(
-                f"Iteration {iteration + 1}: diff={time_diff}s, moved to block {estimated_block_number}"
-            )
-
-        logger.error(f"Block search reached max iterations for timestamp {target_timestamp}")
-        return None
+        end_block = start_block + math.ceil(
+            (search_end_timestamp - start_timestamp) / ETHEREUM_SECONDS_PER_SLOT
+        )
+        return start_block, min(end_block, latest_block.number)
 
     @staticmethod
     def l1_event_matches_feeder_tx(l1_event: L1Client.L1Event, feeder_tx: dict) -> bool:
@@ -118,23 +102,20 @@ class L1Blocks:
             logger.error("Feeder tx does not contain transaction_hash.")
             return None
 
-        reference_block = L1Blocks._get_latest_block_info(client)
-        if reference_block is None:
+        latest_block = L1Blocks._get_latest_block_info(client)
+        if latest_block is None:
             return None
 
         search_start_timestamp = int(l2_block_timestamp - (search_minutes_before * 60))
         search_end_timestamp = l2_block_timestamp
 
-        start_block = L1Blocks._find_block_near_timestamp(
-            client, search_start_timestamp, reference_block
+        block_range = L1Blocks._find_block_range(
+            client, search_start_timestamp, search_end_timestamp, latest_block
         )
-        end_block = L1Blocks._find_block_near_timestamp(
-            client, search_end_timestamp, reference_block
-        )
-
-        if not start_block or not end_block:
+        if block_range is None:
             return None
 
+        start_block, end_block = block_range
         logs_response = client.get_logs(start_block, end_block)
         if logs_response is None:
             return None

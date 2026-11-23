@@ -13,16 +13,14 @@ from echonet.l1_logic.l1_client import L1Client
 
 
 class TestL1Blocks(unittest.TestCase):
-    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_find_block_range")
     @patch.object(L1Blocks, "_get_latest_block_info")
-    def test_find_l1_block_for_tx_success(
-        self, mock_get_latest_block_info, mock_find_block_near_timestamp
-    ):
+    def test_find_l1_block_for_tx_success(self, mock_get_latest_block_info, mock_find_block_range):
         mock_client = Mock(spec=L1Client)
         mock_get_latest_block_info.return_value = L1Blocks.BlockInfo(
             L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_TIMESTAMP
         )
-        mock_find_block_near_timestamp.return_value = L1TestUtils.BLOCK_NUMBER
+        mock_find_block_range.return_value = (L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         mock_client.get_logs.return_value = L1TestUtils.LOGS_RPC_RESPONSE
 
         result = L1Blocks.find_l1_block_for_tx(
@@ -31,16 +29,16 @@ class TestL1Blocks(unittest.TestCase):
 
         self.assertEqual(result, L1TestUtils.BLOCK_NUMBER)
 
-    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_find_block_range")
     @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_multiple_logs_finds_second(
-        self, mock_get_latest_block_info, mock_find_block_near_timestamp
+        self, mock_get_latest_block_info, mock_find_block_range
     ):
         mock_client = Mock(spec=L1Client)
         mock_get_latest_block_info.return_value = L1Blocks.BlockInfo(
             L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_TIMESTAMP
         )
-        mock_find_block_near_timestamp.return_value = L1TestUtils.BLOCK_NUMBER
+        mock_find_block_range.return_value = (L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         mock_client.get_logs.return_value = L1TestUtils.logs_rpc_response_with_logs(
             [
                 L1TestUtils.log_with_nonce(L1TestUtils.NONCE - 1),
@@ -56,16 +54,16 @@ class TestL1Blocks(unittest.TestCase):
             result, L1TestUtils.BLOCK_NUMBER
         )  # Should return second log's block number
 
-    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_find_block_range")
     @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_logs_dont_match(
-        self, mock_get_latest_block_info, mock_find_block_near_timestamp
+        self, mock_get_latest_block_info, mock_find_block_range
     ):
         mock_client = Mock(spec=L1Client)
         mock_get_latest_block_info.return_value = L1Blocks.BlockInfo(
             L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_TIMESTAMP
         )
-        mock_find_block_near_timestamp.return_value = L1TestUtils.BLOCK_NUMBER
+        mock_find_block_range.return_value = (L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         mock_client.get_logs.return_value = L1TestUtils.logs_rpc_response_with_logs(
             [L1TestUtils.log_with_nonce(L1TestUtils.NONCE - 1)]
         )
@@ -76,16 +74,16 @@ class TestL1Blocks(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    @patch.object(L1Blocks, "_find_block_near_timestamp")
+    @patch.object(L1Blocks, "_find_block_range")
     @patch.object(L1Blocks, "_get_latest_block_info")
     def test_find_l1_block_for_tx_no_logs_found(
-        self, mock_get_latest_block_info, mock_find_block_near_timestamp
+        self, mock_get_latest_block_info, mock_find_block_range
     ):
         mock_client = Mock(spec=L1Client)
         mock_get_latest_block_info.return_value = L1Blocks.BlockInfo(
             L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_TIMESTAMP
         )
-        mock_find_block_near_timestamp.return_value = L1TestUtils.BLOCK_NUMBER
+        mock_find_block_range.return_value = (L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         mock_client.get_logs.return_value = L1TestUtils.logs_rpc_response_with_logs([])
 
         result = L1Blocks.find_l1_block_for_tx(
@@ -94,63 +92,62 @@ class TestL1Blocks(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_find_block_near_timestamp_finds_on_first_iteration_when_estimation_is_accurate(self):
+    def test_find_block_range_covers_the_target_across_missed_slots(self):
         mock_client = Mock(spec=L1Client)
         target_timestamp = 1000000
-        expected_block_number = 1000
+        # Mainnet L1 blocks 26300475-26300477 on 2026-11-03: two missed slots put block 1000 24s
+        # before the target and block 1001 12s after it.
+        block_timestamps = {
+            1000: target_timestamp - 24,
+            **{
+                block_number: target_timestamp + 12 * (block_number - 1000)
+                for block_number in range(1001, 1013)
+            },
+        }
+        mock_client.get_timestamp_of_block.side_effect = block_timestamps.__getitem__
+        latest_block = L1Blocks.BlockInfo(number=1012, timestamp=block_timestamps[1012])
 
-        # Set reference block with number and timestamp, one minute ahead, 5 blocks higher.
-        reference_block = L1Blocks.BlockInfo(
-            number=expected_block_number + 5, timestamp=target_timestamp + 60
+        result = L1Blocks._find_block_range(
+            mock_client, target_timestamp, target_timestamp + 60, latest_block
         )
 
-        # First estimate: block 1005 - (60 // 12) = block 1000
-        # Mock returns timestamp within tolerance (diff = 2s < 20s)
-        mock_client.get_timestamp_of_block.return_value = target_timestamp - 2
+        self.assertEqual(result, (1000, 1007))
+        mock_client.get_timestamp_of_block.assert_called_once_with(1000)
 
-        result = L1Blocks._find_block_near_timestamp(mock_client, target_timestamp, reference_block)
-
-        self.assertEqual(result, expected_block_number)
-        mock_client.get_timestamp_of_block.assert_called_once_with(expected_block_number)
-
-    def test_find_block_near_timestamp_finds_on_fourth_iteration(self):
+    def test_find_block_range_bounds_every_window_despite_missed_slots(self):
         mock_client = Mock(spec=L1Client)
-        target_timestamp = 1000000
-        expected_block_number = 986
+        # Every tenth slot is missed, plus a 2-minute outage.
+        block_timestamps = dict(
+            enumerate(
+                1000000 + 12 * slot
+                for slot in range(1000)
+                if slot % 10 != 7 and not 700 <= slot < 710
+            )
+        )
+        mock_client.get_timestamp_of_block.side_effect = block_timestamps.__getitem__
+        latest_block_number = len(block_timestamps) - 1
+        latest_block = L1Blocks.BlockInfo(
+            number=latest_block_number, timestamp=block_timestamps[latest_block_number]
+        )
 
-        # Set reference block with number and timestamp, 2 minutes ahead.
-        reference_block = L1Blocks.BlockInfo(number=1000, timestamp=target_timestamp + 120)
+        for search_start_timestamp in range(1000000 + 12 * 300, latest_block.timestamp, 5):
+            search_end_timestamp = search_start_timestamp + 330
+            start_block, end_block = L1Blocks._find_block_range(
+                mock_client, search_start_timestamp, search_end_timestamp, latest_block
+            )
 
-        mock_client.get_timestamp_of_block.side_effect = [
-            target_timestamp
-            + 60,  # Iteration 1: Check block 990. 60s too new -> adjust 5 blocks backward -> 985.
-            target_timestamp
-            - 36,  # Iteration 2: Check block 985. 36s too old -> adjust 3 blocks forward -> 988.
-            target_timestamp
-            + 24,  # Iteration 3: Check block 988. 24s too new -> adjust 2 blocks backward -> 986.
-            target_timestamp
-            + 5,  # Iteration 4: Check block 986. 5s too new -> within 20s tolerance -> Return 986.
-        ]
+            self.assertLessEqual(block_timestamps[start_block], search_start_timestamp)
+            if end_block != latest_block_number:
+                self.assertGreaterEqual(block_timestamps[end_block], search_end_timestamp)
 
-        result = L1Blocks._find_block_near_timestamp(mock_client, target_timestamp, reference_block)
-
-        self.assertEqual(result, expected_block_number)
-        self.assertEqual(mock_client.get_timestamp_of_block.call_count, 4)
-
-    def test_find_block_near_timestamp_max_iterations_returns_none(self):
+    def test_find_block_range_returns_none_when_block_lookup_fails(self):
         mock_client = Mock(spec=L1Client)
-        target_timestamp = 1000000
-        reference_block = L1Blocks.BlockInfo(number=1000, timestamp=target_timestamp + 120)
+        mock_client.get_timestamp_of_block.return_value = None
+        latest_block = L1Blocks.BlockInfo(number=1000, timestamp=1000000)
 
-        # Always return timestamp outside tolerance (25s > 20s) for all 10 iterations.
-        mock_client.get_timestamp_of_block.return_value = target_timestamp + 25
-
-        result = L1Blocks._find_block_near_timestamp(mock_client, target_timestamp, reference_block)
+        result = L1Blocks._find_block_range(mock_client, 999000, 999330, latest_block)
 
         self.assertIsNone(result)
-        self.assertEqual(
-            mock_client.get_timestamp_of_block.call_count, L1Blocks._MAX_BLOCK_SEARCH_ITERATIONS
-        )
 
     def test_matches_l1_handler_tx_success(self):
         l1_event = L1TestUtils.L1_EVENT
