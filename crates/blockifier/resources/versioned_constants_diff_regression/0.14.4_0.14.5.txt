@@ -1,1 +1,2 @@
-
+~ /os_constants/allowed_virtual_os_program_hashes/0: "0x35bfdc9cf61d5160eacd7f09eba4ced018f137e3ad550f360c24ee43f6c53a7"
+- /os_constants/allowed_virtual_os_program_hashes/1
