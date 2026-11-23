@@ -17,6 +17,7 @@ pub(crate) mod os;
 pub(crate) mod os_logger;
 pub(crate) mod output;
 pub(crate) mod patricia;
+pub(crate) mod proof_facts;
 pub(crate) mod resources;
 pub(crate) mod secp;
 pub(crate) mod state;
