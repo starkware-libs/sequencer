@@ -273,8 +273,10 @@ impl Alert {
         let expr = match observer_applicable {
             ObserverApplicability::Applicable => expr,
             ObserverApplicability::NotApplicable => {
-                // Observers evaluate to the threshold, which never fires, instead of to no data.
-                // With more than one condition, the first threshold could satisfy another one.
+                // Observers evaluate to a value 1 past the threshold on the non-firing side,
+                // instead of to no data. Not the threshold itself: Grafana may compare a
+                // fractional threshold with less precision, so an equal value can fire.
+                // With more than one condition, the value could satisfy another one.
                 assert_eq!(
                     conditions.len(),
                     1,
@@ -282,14 +284,20 @@ impl Alert {
                      condition.",
                     name.to_string()
                 );
-                let threshold = &conditions[0].comparison_value;
+                let condition = &conditions[0];
+                // Computed in PromQL, since the threshold may be a placeholder.
+                let safe_side = match condition.comparison_op {
+                    AlertComparisonOp::GreaterThan => "-",
+                    AlertComparisonOp::LessThan => "+",
+                };
                 ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
                     // `and on()` ignores label sets so the unlabeled scalar produced by
                     // aggregations like sum() still matches the pod-labeled is_observer series.
-                    "(({}) and on() ({} == 0)) or on() (vector({}) and on() ({} == 1))",
+                    "(({}) and on() ({} == 0)) or on() (vector({} {} 1) and on() ({} == 1))",
                     expr.to_alert_promql(),
                     IS_OBSERVER.get_name_with_filter(),
-                    threshold.to_promql(),
+                    condition.comparison_value.to_promql(),
+                    safe_side,
                     IS_OBSERVER.get_name_with_filter(),
                 ))
             }
