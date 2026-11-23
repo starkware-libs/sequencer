@@ -60,9 +60,50 @@ fn serialize_alert_not_applicable_to_observer_appends_is_observer_filter() {
 
     let serialized = serde_json::to_value(&alert).unwrap();
     // Expr should be wrapped in parentheses for PromQL precedence (`and` binds tighter than `or`).
-    let expected_expr = "(foo or vector(0)) and on() (is_observer{cluster=~\"$cluster\", \
-                         namespace=~\"$namespace\"} == 0)";
+    let expected_expr = "((foo or vector(0)) and on() (is_observer{cluster=~\"$cluster\", \
+                         namespace=~\"$namespace\"} == 0)) or on() (vector(10) and on() \
+                         (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 1))";
     assert_eq!(serialized["expr"], expected_expr);
+}
+
+#[test]
+fn serialize_alert_not_applicable_to_observer_with_placeholder_threshold() {
+    let alert = Alert::new(
+        "Name",
+        "Message",
+        EvaluationRate::Default,
+        "foo".to_string(),
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
+            "threshold".to_string(),
+            AlertLogicalOp::And,
+        )],
+        "5m",
+        AlertSeverity::Sos,
+        ObserverApplicability::NotApplicable,
+    );
+
+    let serialized = serde_json::to_value(&alert).unwrap();
+    let expr = serialized["expr"].as_str().unwrap();
+    assert!(expr.contains("vector($$$threshold-comparison_value$$$)"));
+}
+
+#[test]
+#[should_panic(expected = "must have exactly one condition")]
+fn alert_not_applicable_to_observer_must_have_one_condition() {
+    Alert::new(
+        "Name",
+        "Message",
+        EvaluationRate::Default,
+        "foo".to_string(),
+        vec![
+            AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And),
+            AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And),
+        ],
+        "5m",
+        AlertSeverity::Sos,
+        ObserverApplicability::NotApplicable,
+    );
 }
 
 #[test]
