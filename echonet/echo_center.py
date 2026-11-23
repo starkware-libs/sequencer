@@ -952,7 +952,9 @@ class EchoCenterService:
             source_block = self.shared.get_sent_block_number(tx_hash)
             fgw_l2_by_hash = fgw_l2_cache.get(source_block)
             if fgw_l2_by_hash is None:
-                fgw_block = self.shared.get_fgw_block(source_block)
+                fgw_block = _get_fgw_block_or_upstream(
+                    self.feeder_client, self.shared, source_block
+                )
                 fgw_l2_by_hash = {
                     t["transaction_hash"]: _total_l2_gas_consumed(r)
                     for t, r in zip(fgw_block["transactions"], fgw_block["transaction_receipts"])
