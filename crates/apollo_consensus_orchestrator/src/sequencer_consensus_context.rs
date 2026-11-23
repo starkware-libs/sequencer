@@ -888,11 +888,25 @@ impl SequencerConsensusContext {
         }
     }
 
+<<<<<<< HEAD
     /// Returns the block hash and state commitment infos of `block_number` to send to the cende
     /// recorder, or `None` if the batcher has no state commitment infos for it.
     async fn block_hash_and_state_commitment_infos_to_send(
+||||||| 01e4b43fa6
+    /// Returns the state commitment infos of `block_number` to send to the cende recorder, or
+    /// `None` if the batcher has none. With `send_empty_state_commitment_infos_only` on, an empty
+    /// object stands in for the stored one, which is not read.
+    async fn state_commitment_infos_to_send(
+=======
+    /// Returns the block hash and state commitment infos of `block_number` to send to the cende
+    /// recorder, or `None` if the batcher has no state commitment infos for it. With
+    /// `send_empty_state_commitment_infos_only` on, an empty object stands in for the stored
+    /// infos, which are not read.
+    async fn block_hash_and_state_commitment_infos_to_send(
+>>>>>>> origin/main-v0.14.5
         &self,
         block_number: BlockNumber,
+<<<<<<< HEAD
     ) -> BatcherClientResult<Option<(BlockHash, CompressedStateCommitmentInfos)>> {
         let Some(state_commitment_infos) =
             self.deps.batcher.get_state_commitment_infos(block_number).await?
@@ -901,6 +915,36 @@ impl SequencerConsensusContext {
         };
         let block_hash = self.deps.batcher.get_block_hash(block_number).await?;
         Ok(Some((block_hash, state_commitment_infos)))
+||||||| 01e4b43fa6
+    ) -> BatcherClientResult<Option<CompressedStateCommitmentInfos>> {
+        if !self.config.static_config.send_empty_state_commitment_infos_only {
+            return self.deps.batcher.get_state_commitment_infos(block_number).await;
+        }
+        let has_state_commitment_infos =
+            self.deps.batcher.has_state_commitment_infos(block_number).await?;
+        Ok(has_state_commitment_infos.then(|| CompressedStateCommitmentInfos {
+            version: STATE_COMMITMENT_INFOS_VERSION,
+            payload: CompressedPayload(Vec::new()),
+        }))
+=======
+    ) -> BatcherClientResult<Option<(BlockHash, CompressedStateCommitmentInfos)>> {
+        let state_commitment_infos =
+            if self.config.static_config.send_empty_state_commitment_infos_only {
+                self.deps.batcher.has_state_commitment_infos(block_number).await?.then(|| {
+                    CompressedStateCommitmentInfos {
+                        version: STATE_COMMITMENT_INFOS_VERSION,
+                        payload: CompressedPayload(Vec::new()),
+                    }
+                })
+            } else {
+                self.deps.batcher.get_state_commitment_infos(block_number).await?
+            };
+        let Some(state_commitment_infos) = state_commitment_infos else {
+            return Ok(None);
+        };
+        let block_hash = self.deps.batcher.get_block_hash(block_number).await?;
+        Ok(Some((block_hash, state_commitment_infos)))
+>>>>>>> origin/main-v0.14.5
     }
 
     /// Checks at the stop height, once its block hash is available, that the batcher has stored

@@ -345,6 +345,7 @@ fn env_var_sets_tls_key_file() {
 
     assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
 }
+<<<<<<< HEAD
 
 /// The startup summary is the only place that writes the resolved service and
 /// prover settings to the log stream, so its redaction is what keeps credentials
@@ -403,3 +404,125 @@ fn startup_summary_logs_class_cache_and_executor_settings() {
         assert!(logs_contain(expected_field), "the summary must log `{expected_field}`");
     }
 }
+||||||| 01e4b43fa6
+=======
+
+/// The startup summary is the only place that writes the resolved service and
+/// prover settings to the log stream, so its redaction is what keeps credentials
+/// out of the operator's log aggregator.
+#[test]
+#[traced_test]
+fn startup_summary_logs_hosts_and_redacts_url_credentials() {
+    let mut args = base_args();
+    args.rpc_url = Some("https://user:sekret@rpc.example.com:8545/v2/api-key".to_string());
+    args.blocking_check_url = Some("https://ops:hunter2@screen.example.com/check".to_string());
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    config.log_startup_summary();
+
+    // `from_args` already logs both hosts in its CLI-override lines, so a bare
+    // `logs_contain` would pass without the summary. Check the summary line itself.
+    logs_assert(|lines: &[&str]| {
+        let summary_lines: Vec<&&str> =
+            lines.iter().filter(|line| line.contains("event=\"config_resolved\"")).collect();
+        let [line] = summary_lines[..] else {
+            return Err(format!("expected one config_resolved event, got {summary_lines:?}"));
+        };
+        for field in [
+            "rpc_node_host=https://rpc.example.com:8545",
+            "blocking_check_host=https://screen.example.com",
+        ] {
+            if !line.contains(field) {
+                return Err(format!("the summary must log `{field}`, got {line}"));
+            }
+        }
+        Ok(())
+    });
+    for secret in ["sekret", "hunter2", "api-key"] {
+        assert!(!logs_contain(secret), "`{secret}` from a URL must never reach the log stream");
+    }
+}
+
+/// The summary feeds log queries, so its values must be plain: no `Debug` wrappers such as
+/// `Some(..)` around optional settings or `ContractAddress(PatriciaKey(..))` around addresses.
+#[test]
+#[traced_test]
+fn startup_summary_logs_plain_values() {
+    let mut args = base_args();
+    args.strk_fee_token_address = Some("0x4718".to_string());
+    args.blocking_check_url = Some("https://screen.example.com/check".to_string());
+    args.cors_allow_origin =
+        vec!["https://a.example.com".to_string(), "https://b.example.com".to_string()];
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    config.log_startup_summary();
+
+    logs_assert(|lines: &[&str]| {
+        let summary_lines: Vec<&&str> =
+            lines.iter().filter(|line| line.contains("event=\"config_resolved\"")).collect();
+        let [line] = summary_lines[..] else {
+            return Err(format!("expected one config_resolved event, got {summary_lines:?}"));
+        };
+        for field in [
+            "strk_fee_token_address=0x0000000000000000000000000000000000000000000000000000000000004718",
+            "blocking_check_host=https://screen.example.com",
+            "cors_allow_origin=https://a.example.com,https://b.example.com",
+        ] {
+            if !line.contains(field) {
+                return Err(format!("the summary must log `{field}`, got {line}"));
+            }
+        }
+        for wrapper in ["Some(", "None", "ContractAddress(", "PatriciaKey("] {
+            if line.contains(wrapper) {
+                return Err(format!("the summary must not contain `{wrapper}`, got {line}"));
+            }
+        }
+        Ok(())
+    });
+}
+
+/// An unset optional setting is left out of the summary instead of being logged as `None`.
+#[test]
+#[traced_test]
+fn startup_summary_omits_unset_optional_settings() {
+    let config = ServiceConfig::from_args(base_args()).unwrap();
+
+    config.log_startup_summary();
+
+    logs_assert(|lines: &[&str]| {
+        let summary_lines: Vec<&&str> =
+            lines.iter().filter(|line| line.contains("event=\"config_resolved\"")).collect();
+        let [line] = summary_lines[..] else {
+            return Err(format!("expected one config_resolved event, got {summary_lines:?}"));
+        };
+        for field in ["blocking_check_host=", "None"] {
+            if line.contains(field) {
+                return Err(format!("the summary must not contain `{field}`, got {line}"));
+            }
+        }
+        Ok(())
+    });
+}
+
+/// These settings live in the nested class-manager and executor sub-configs, not on
+/// `ServiceConfig` itself. Non-default values show that the summary logs the resolved settings.
+#[test]
+#[traced_test]
+fn startup_summary_logs_class_cache_and_executor_settings() {
+    let mut args = base_args();
+    args.prefetch_state = Some(false);
+    args.use_latest_versioned_constants = Some(false);
+    args.compiled_class_cache_size = Some(123);
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    config.log_startup_summary();
+
+    for expected_field in [
+        "prefetch_state=false",
+        "use_latest_versioned_constants=false",
+        "compiled_class_cache_size=123",
+    ] {
+        assert!(logs_contain(expected_field), "the summary must log `{expected_field}`");
+    }
+}
+>>>>>>> origin/main-v0.14.5
