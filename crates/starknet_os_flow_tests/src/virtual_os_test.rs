@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use apollo_integration_tests::state_reader::EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT;
+use apollo_starknet_os_program::VIRTUAL_OS_PROGRAM;
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::get_valid_virtual_os_program_hash;
@@ -9,10 +10,10 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_multicall_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use blockifier_test_utils::fee_token_addresses::EXPECTED_STRK_FEE_TOKEN_ADDRESS;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
-use starknet_api::core::EthAddress;
+use starknet_api::core::{ClassHash, EthAddress};
 use starknet_api::hash::StateRoots;
 use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
@@ -34,6 +35,23 @@ use crate::test_manager::{
     FUNDED_ACCOUNT_ADDRESS,
 };
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
+use crate::utils::get_class_hash_of_feature_contract;
+
+/// The class hashes the virtual OS refuses to execute, read from the compiled virtual OS program
+/// (so the Cairo code is the single source of truth).
+#[fixture]
+fn virtual_os_blocked_class_hashes() -> Vec<ClassHash> {
+    let constant = |name: &str| {
+        *VIRTUAL_OS_PROGRAM
+            .constants
+            .get(&format!("starkware.starknet.core.os.virtual_os_constants.{name}"))
+            .unwrap_or_else(|| panic!("Constant {name} is missing from the virtual OS program."))
+    };
+    let n_blocked_class_hashes = usize::try_from(constant("BLOCKED_CLASS_HASHES_LEN")).unwrap();
+    (0..n_blocked_class_hashes)
+        .map(|index| ClassHash(constant(&format!("BLOCKED_CLASS_HASHES_{index}"))))
+        .collect()
+}
 
 #[rstest]
 #[tokio::test]
@@ -305,6 +323,46 @@ async fn prove_and_verify_multicall_tx() {
     let output = test_builder.build().await.run_virtual().prove().await;
     starknet_proof_verifier::verify_proof(output.proof_facts, output.proof)
         .expect("proof verification should succeed");
+}
+
+/// Verifies that the virtual OS refuses to execute a blocked class, by library-calling it.
+/// `None` library-calls the test contract's own (unblocked) class instead, as a control.
+#[rstest]
+#[case::first_blocked_class_hash(Some(0))]
+#[case::last_blocked_class_hash(Some(27))]
+#[case::unblocked_class_hash(None)]
+#[tokio::test]
+async fn test_virtual_os_class_blocklist(
+    virtual_os_blocked_class_hashes: Vec<ClassHash>,
+    #[case] blocked_class_hash_index: Option<usize>,
+) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual_with_blocked_classes(
+            [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+            &virtual_os_blocked_class_hashes,
+        )
+        .await;
+
+    let class_hash = blocked_class_hash_index.map_or_else(
+        || get_class_hash_of_feature_contract(test_contract),
+        |index| virtual_os_blocked_class_hashes[index],
+    );
+    // Library-call the class hash (a blocked one, or the unblocked control).
+    let library_call_args = [
+        class_hash.0,
+        selector_from_name("return_result").0,
+        Felt::ONE,     // Calldata length.
+        Felt::from(7), // Calldata: num.
+    ];
+    let calldata = create_calldata(contract_address, "test_library_call", &library_call_args);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_runner = test_builder.build().await;
+    match blocked_class_hash_index {
+        Some(_) => test_runner.run_virtual_expect_error("Class hash is blocked in virtual OS mode"),
+        None => test_runner.run_virtual_and_validate(),
+    }
 }
 
 /// Generates proof fixtures for the proof-flow integration test.

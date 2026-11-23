@@ -17,6 +17,7 @@ use blockifier::transaction::objects::{
     TransactionInfoCreator,
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -85,6 +86,7 @@ use starknet_types_core::felt::Felt;
 use crate::initial_state::{
     calculate_strk_fee_token_address,
     create_default_initial_state_data,
+    create_initial_state_data_with_aliased_classes,
     get_initial_deploy_account_tx,
     FlowTestState,
     InitialState,
@@ -1040,6 +1042,31 @@ impl TestBuilder<DictStateReader> {
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
+    }
+
+    /// Same as `create_standard_virtual`, but the initial state also declares each of the given
+    /// blocked class hashes with the test contract's class, so tests can execute them without
+    /// their actual classes (the blocklist only depends on the class hash).
+    pub(crate) async fn create_standard_virtual_with_blocked_classes<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+        blocked_class_hashes: &[ClassHash],
+    ) -> (Self, [ContractAddress; N]) {
+        let test_contract =
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+        let aliased_classes: Vec<_> = blocked_class_hashes
+            .iter()
+            .map(|blocked_class_hash| (*blocked_class_hash, test_contract))
+            .collect();
+        let (initial_state_data, extra_addresses) =
+            create_initial_state_data_with_aliased_classes(extra_contracts, &aliased_classes).await;
+        (
+            Self::new_with_initial_state_data(
+                initial_state_data,
+                TestBuilderConfig::default(),
+                true,
+            ),
+            extra_addresses,
+        )
     }
 
     /// Virtual OS builder that overrides the block context.
