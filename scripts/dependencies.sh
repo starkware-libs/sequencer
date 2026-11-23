@@ -16,22 +16,40 @@ else
     exit 1
 fi
 
+ESSENTIAL_PACKAGES=(
+    ca-certificates
+    curl
+    git
+    gnupg
+    jq
+    lsb-release
+    protobuf-compiler
+    ripgrep
+    software-properties-common
+    zstd
+    wget
+)
+
+# Succeeds only if every package is fully installed. Packages in the `config-files` state
+# (removed, config left behind) do not count, which is why `dpkg -s` is not used.
+function packages_installed() {
+    command -v dpkg-query &>/dev/null || return 1
+    local package
+    for package in "$@"; do
+        [[ "$(dpkg-query -W -f='${db:Status-Status}' "${package}" 2>/dev/null)" == "installed" ]] \
+            || return 1
+    done
+}
+
 function install_essential_deps_linux() {
+    if packages_installed "${ESSENTIAL_PACKAGES[@]}"; then
+        log_step "dependencies" "Essential Linux dependencies already installed, skipping"
+        return 0
+    fi
     log_step "dependencies" "Installing essential Linux dependencies..."
     $SUDO bash -c "$(declare -f apt_update_with_retry); $(declare -f apt_install_with_retry)"'
-        apt_update_with_retry && apt_install_with_retry -y \
-            ca-certificates \
-            curl \
-            git \
-            gnupg \
-            jq \
-            lsb-release \
-            protobuf-compiler \
-            ripgrep \
-            software-properties-common \
-            zstd \
-            wget
-  '
+        apt_update_with_retry && apt_install_with_retry -y "$@"
+  ' _ "${ESSENTIAL_PACKAGES[@]}"
     log_step "dependencies" "Essential Linux dependencies installed successfully"
 }
 
