@@ -2,6 +2,7 @@ from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.math import assert_not_zero
 from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext
 from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.output import MessageToL1Header, OsOutput, OsOutputHeader
@@ -10,6 +11,39 @@ from starkware.starknet.core.os.virtual_os_output import (
     VIRTUAL_OS_OUTPUT_VERSION,
     VirtualOsOutputHeader,
 )
+
+// The (Sierra) class hashes that may not be executed in virtual OS mode.
+// They are hardcoded into the program, so changing them changes the virtual OS program hash,
+// which the Starknet OS must then accept (see `allowed_virtual_os_program_hashes`).
+const BLOCKED_CLASS_HASH_0 = 0x26cd528392663c56cf80ce01006ae765595a267f838466573372a9f7b879d39;
+const BLOCKED_CLASS_HASH_1 = 0x2bc06e58ffaa27a9c6ca32236265ac9886682df7edc84b01ac9f49da32f78a1;
+const BLOCKED_CLASS_HASH_2 = 0x33f5e51a778015ec06e8263ab73e856b212e664cb41a88c28e5e3d6afbcd59a;
+const BLOCKED_CLASS_HASH_3 = 0x34cdd05042a06e8c3f3c85d38676521dd7fac7a217d75b6f86cd80139408658;
+const BLOCKED_CLASS_HASH_4 = 0x3bd627afcf1432a0c1d3c857d06c922e3aef00708fa008294131bfd99fa5898;
+const BLOCKED_CLASS_HASH_5 = 0x4272b90fe4cb710711eaa3164fadc4ceefe5c0b7f735e7b2c86667168acdea2;
+const BLOCKED_CLASS_HASH_6 = 0x57efda429008cd32e813fdbffb29489af59fad67f29cdf463475ee98ede6f1a;
+const BLOCKED_CLASS_HASH_7 = 0x5ab171de8312f15966dc69e61515272012cc509aa029eb0637fca354b19b342;
+const BLOCKED_CLASS_HASH_8 = 0x610671fae37007db26406df1a131cff3429929ccb61aac7a2a59887c200d80a;
+const BLOCKED_CLASS_HASH_9 = 0x686937c657443b5b8fad37e5410424c76f9e7525000fd8a1b1d6f0337bb2e8;
+const BLOCKED_CLASS_HASH_10 = 0x6def6cb177263c2a60d4fa956f1556fefce6278fb78db5ab26f7d15a73b9ec4;
+const BLOCKED_CLASS_HASH_11 = 0x73c57a36974614728313132add861a4a92d491428a80625c59772e0db8e0869;
+const BLOCKED_CLASS_HASH_12 = 0x8db496c7fc536d52d2606dde1b6b6dd803a6ae2ffe042158e56454c5671b78;
+const BLOCKED_CLASS_HASH_13 = 0xed262147d9c3eb2e5e74976ba6a22a4b604e508d2eb9897683b0a556319909;
+const BLOCKED_CLASS_HASH_14 = 0x3d909a8ecc20b65e76403c205815efa4e67ee943c530c56b45044c624fbb140;
+const BLOCKED_CLASS_HASH_15 = 0x8b35c6c1a1757f431fd6aa46098cf79bf27f8eb0cec053fadac18ae7f923f0;
+const BLOCKED_CLASS_HASH_16 = 0x1fbe90a5f781ca6da035891fff7de7bd7a1e7458aceb17f64799c849e68dd6;
+const BLOCKED_CLASS_HASH_17 = 0x2502d3c88615ce06a6111a4eb1e3da35db654cbd86ae7196eee0f79c727aa70;
+const BLOCKED_CLASS_HASH_18 = 0x47ab352acfc33b9898c8a8ee77849baf49a8f1bb34f6e0166fe17568bcf34bd;
+const BLOCKED_CLASS_HASH_19 = 0x5a8c4d0e842562524a6708f4770f66275bcb9b4da2c3f248916bf2767f5be71;
+const BLOCKED_CLASS_HASH_20 = 0x69e51760d41cc318562071a26094ef326916845e6684587a214fd11bfca5796;
+const BLOCKED_CLASS_HASH_21 = 0x6a8b31afe4340cb5e9a03dc18b8cd192974717898a5274024a3ca8d5eb7dd4;
+const BLOCKED_CLASS_HASH_22 = 0x73e566d30bf046ad0a409db5bca221f823d6f7bd1e85c3c649c8895e68e1230;
+const BLOCKED_CLASS_HASH_23 = 0x370af5dee06f4239b0d55ac455c30bc6705665b06dc1f89dedefcff89ff134;
+const BLOCKED_CLASS_HASH_24 = 0x4479fe755a479e26c13b90368d953a62b71fe55873d4ff21bf4417014837971;
+const BLOCKED_CLASS_HASH_25 = 0x301d15309ca78d5ff6dcd8c7feb64defc8e7abdfb97c01972a12c64488364f0;
+const BLOCKED_CLASS_HASH_26 = 0x3c6afc23aec0b0a7831ec68691a008914c8f458635d64ede6bffca4a08d84d6;
+const BLOCKED_CLASS_HASH_27 = 0x74b0d7bcc0b6beefdd056b421ef6f52257581ce6760d6c8476c911cf8e0531;
+const BLOCKED_CLASS_HASHES_LEN = 28;
 
 // Hashes each L2-to-L1 message separately and writes the hash to the output.
 func output_message_to_l1_hashes{output_ptr: felt*, poseidon_ptr: PoseidonBuiltin*}(
@@ -84,6 +118,12 @@ func process_os_output{
     assert n_blocks = 1;
     let os_output = os_outputs[0];
 
+    let squashed_os_state_update = os_output.squashed_os_state_update;
+    assert_class_changes_not_blocked(
+        n_class_changes=squashed_os_state_update.n_class_updates,
+        class_changes=squashed_os_state_update.contract_class_changes,
+    );
+
     let header = os_output.header;
 
     // Hash each message to L1 separately and write hashes to output.
@@ -109,6 +149,51 @@ func process_os_output{
         n_l2_to_l1_messages=n_l2_to_l1_messages,
     );
 
+    return ();
+}
+
+// Fails if any class in the squashed class changes is blocked.
+// Every class the virtual OS executes is read from the class changes dict (see
+// `execute_entry_point`), and the squashed dict has an entry for every accessed key, read-only
+// accesses included, so this covers every executed class.
+func assert_class_changes_not_blocked(n_class_changes: felt, class_changes: DictAccess*) {
+    if (n_class_changes == 0) {
+        return ();
+    }
+    assert_class_hash_not_blocked(class_hash=class_changes.key);
+    return assert_class_changes_not_blocked(
+        n_class_changes=n_class_changes - 1, class_changes=&class_changes[1]
+    );
+}
+
+// Fails if `class_hash` is one of the blocked class hashes.
+// The product of `class_hash - blocked_class_hash` over the blocked hashes is zero iff
+// `class_hash` is one of them, as the field has no zero divisors.
+func assert_class_hash_not_blocked(class_hash: felt) {
+    static_assert BLOCKED_CLASS_HASHES_LEN == 28;
+    with_attr error_message("Class hash is blocked in virtual OS mode") {
+        assert_not_zero(
+            (class_hash - BLOCKED_CLASS_HASH_0) * (class_hash - BLOCKED_CLASS_HASH_1) * (
+                class_hash - BLOCKED_CLASS_HASH_2
+            ) * (class_hash - BLOCKED_CLASS_HASH_3) * (class_hash - BLOCKED_CLASS_HASH_4) * (
+                class_hash - BLOCKED_CLASS_HASH_5
+            ) * (class_hash - BLOCKED_CLASS_HASH_6) * (class_hash - BLOCKED_CLASS_HASH_7) * (
+                class_hash - BLOCKED_CLASS_HASH_8
+            ) * (class_hash - BLOCKED_CLASS_HASH_9) * (class_hash - BLOCKED_CLASS_HASH_10) * (
+                class_hash - BLOCKED_CLASS_HASH_11
+            ) * (class_hash - BLOCKED_CLASS_HASH_12) * (class_hash - BLOCKED_CLASS_HASH_13) * (
+                class_hash - BLOCKED_CLASS_HASH_14
+            ) * (class_hash - BLOCKED_CLASS_HASH_15) * (class_hash - BLOCKED_CLASS_HASH_16) * (
+                class_hash - BLOCKED_CLASS_HASH_17
+            ) * (class_hash - BLOCKED_CLASS_HASH_18) * (class_hash - BLOCKED_CLASS_HASH_19) * (
+                class_hash - BLOCKED_CLASS_HASH_20
+            ) * (class_hash - BLOCKED_CLASS_HASH_21) * (class_hash - BLOCKED_CLASS_HASH_22) * (
+                class_hash - BLOCKED_CLASS_HASH_23
+            ) * (class_hash - BLOCKED_CLASS_HASH_24) * (class_hash - BLOCKED_CLASS_HASH_25) * (
+                class_hash - BLOCKED_CLASS_HASH_26
+            ) * (class_hash - BLOCKED_CLASS_HASH_27),
+        );
+    }
     return ();
 }
 
