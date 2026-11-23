@@ -126,6 +126,7 @@ def build_os_cli_input(
     block_number: int,
     prev_block_hash: str,
     new_block_hash: str,
+    old_block_number_and_hash: Optional[List[Any]],
     block_hash_commitments_payload: JsonObject,
     chain_id: str,
     strk_fee_token_address: str,
@@ -146,6 +147,7 @@ def build_os_cli_input(
         block_number=block_number,
         prev_block_hash=prev_block_hash,
         new_block_hash=new_block_hash,
+        old_block_number_and_hash=old_block_number_and_hash,
         block_hash_commitments_payload=block_hash_commitments_payload,
     )
     os_input = {
@@ -180,6 +182,7 @@ def _build_os_block_input(
     block_number: int,
     prev_block_hash: str,
     new_block_hash: str,
+    old_block_number_and_hash: Optional[List[Any]],
     block_hash_commitments_payload: JsonObject,
 ) -> JsonObject:
     return {
@@ -197,7 +200,7 @@ def _build_os_block_input(
         ),
         "prev_block_hash": prev_block_hash,
         "new_block_hash": new_block_hash,
-        "old_block_number_and_hash": _old_block_number_and_hash(blob, block_number),
+        "old_block_number_and_hash": old_block_number_and_hash,
         "class_hashes_to_migrate": _class_hashes_to_migrate(blob),
         "initial_reads": blob["initial_reads"],
     }
@@ -399,19 +402,6 @@ def _block_hash_commitments_from_payload(payload: JsonObject) -> JsonObject:
         "state_diff_commitment": payload["state_diff_commitment"],
         "concatenated_counts": payload["concatenated_counts"],
     }
-
-
-def _old_block_number_and_hash(blob: JsonObject, current_block_number: int) -> Optional[List[Any]]:
-    """
-    The OS wants the `(current - STORED_BLOCK_HASH_BUFFER)` block's number+hash;
-    that's the oldest entry of the blob's `recent_block_hashes` (or None when the
-    chain is younger than the buffer and the vector is empty).
-    """
-    recent = blob["recent_block_hashes"]
-    if not recent:
-        return None
-    oldest = min(recent, key=lambda entry: entry["block_number"])
-    return [oldest["block_number"], oldest["block_hash"]]
 
 
 def _class_hashes_to_migrate(blob: JsonObject) -> List[List[str]]:

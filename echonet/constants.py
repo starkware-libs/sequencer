@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 ETHEREUM_AVERAGE_SECONDS_PER_BLOCK = 12
+# Mirrors the blockifier's: the OS records block N - 10's hash while executing block N.
+STORED_BLOCK_HASH_BUFFER = 10
 
 # Starknet L1 Core Contract address on Ethereum mainnet
 # Source: crates/papyrus_base_layer/src/ethereum_base_layer_contract.rs

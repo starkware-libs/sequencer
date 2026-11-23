@@ -15,7 +15,10 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
-from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
+from echonet.constants import (
+    IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA,
+    STORED_BLOCK_HASH_BUFFER,
+)
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
@@ -438,6 +441,7 @@ class BlobTransformer:
                     {
                         "parent_block_hash": block_document["parent_block_hash"],
                         "block_hash": block_document["block_hash"],
+                        "old_block_number_and_hash": self._old_block_number_and_hash(block_number),
                     }
                 ).encode("utf-8")
             )
@@ -446,6 +450,22 @@ class BlobTransformer:
             input_file.write(json.dumps(block_commitments).encode("utf-8"))
             input_file.write(b"}")
             return Path(input_file.name)
+
+    def _old_block_number_and_hash(self, block_number: int) -> Optional[List[Any]]:
+        """
+        Block `block_number - STORED_BLOCK_HASH_BUFFER`'s number and hash (None on a younger chain).
+        Blobs only carry the hashes the recorder lacks, so take echonet's own block, or mainnet's
+        for blocks before the run's start.
+        """
+        old_block_number = block_number - STORED_BLOCK_HASH_BUFFER
+        if old_block_number < 0:
+            return None
+        old_block = self._shared.get_block_field(old_block_number, "block")
+        if old_block is None:
+            old_block = _get_fgw_block_or_upstream(
+                self._feeder_client, self._shared, old_block_number
+            )
+        return [old_block_number, old_block["block_hash"]]
 
     def run_os_subprocess(self, input_path: Path, block_number: int) -> None:
         """

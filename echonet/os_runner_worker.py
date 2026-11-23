@@ -79,6 +79,7 @@ def main() -> int:
             block_number=block_number,
             prev_block_hash=block_document["parent_block_hash"],
             new_block_hash=block_document["block_hash"],
+            old_block_number_and_hash=block_document["old_block_number_and_hash"],
             block_hash_commitments_payload=block_hash_commitments_payload,
             chain_id=CONFIG.os_runner.chain_id,
             strk_fee_token_address=CONFIG.os_runner.strk_fee_token_address,
