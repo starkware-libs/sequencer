@@ -17,7 +17,7 @@ local constants = import 'lib/base_layer_constants.libsonnet';
         { address: '0x66', weight: 1, public_key: '0x1', can_propose: true },
       ],
     },
-    proof_archive_bucket_name: 'starkware-starknet-integration',
+    proof_archive_bucket_name: 'starkware-starknet-integration-us-east1',
     nodes_at_same_cluster: true,
     topology: import 'lib/layouts/hybrid.libsonnet',
   },
