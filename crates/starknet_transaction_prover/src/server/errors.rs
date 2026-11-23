@@ -6,6 +6,7 @@
 //! - The OpenRPC spec in starknet-specs: `proving-api/starknet_proving_api_openrpc.json`
 //! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
 
+use blockifier_reexecution::errors::{RPCStateReaderError, ReexecutionError};
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
@@ -13,13 +14,14 @@ use jsonrpsee::types::ErrorObjectOwned;
 #[cfg(feature = "stwo_proving")]
 use crate::errors::ProvingError;
 use crate::errors::{
+    ClassesProviderError,
     ProofProviderError,
     RunnerError,
     VirtualBlockExecutorError,
     VirtualSnosProverError,
 };
 
-#[cfg(all(test, feature = "stwo_proving"))]
+#[cfg(test)]
 #[path = "errors_test.rs"]
 mod errors_test;
 
@@ -88,6 +90,14 @@ fn out_of_gas_error(reason: &str) -> ErrorObjectOwned {
 
 /// Maps a [`RunnerError`] to a JSON-RPC error, surfacing known upstream error
 /// codes instead of hiding them behind -32603.
+///
+/// The client sees the upstream message of [`ProofProviderError::UpstreamRpcError`], the revert
+/// reason of [`VirtualBlockExecutorError::TransactionReverted`], and the text of
+/// [`ProofProviderError::InvalidStateDiff`], [`ClassesProviderError::DeprecatedContractError`],
+/// [`VirtualBlockExecutorError::TransactionExecutionError`] and
+/// [`RPCStateReaderError::BlockNotFound`] from the virtual block executor. Every other error gets a
+/// fixed message that names the failing step. Transport errors among them embed the node URL,
+/// whose path or query can hold an API key.
 fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
     match err {
         RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::TransactionReverted(
@@ -111,7 +121,55 @@ fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
                 ))
             }
         }
-        other => internal_server_error(other),
+        // The text tells the client which state change the virtual OS does not allow.
+        RunnerError::ProofProvider(state_diff_error @ ProofProviderError::InvalidStateDiff(_)) => {
+            internal_server_error(state_diff_error)
+        }
+        RunnerError::ProofProvider(
+            ProofProviderError::Rpc(_)
+            | ProofProviderError::SerializationError(_)
+            | ProofProviderError::InvalidProofResponse(_)
+            | ProofProviderError::BlockCommitmentError(_),
+        ) => internal_server_error("Failed to get storage proofs"),
+        // Its text names only a class hash and tells the client why the transaction cannot be
+        // proven.
+        RunnerError::ClassesProvider(
+            deprecated_class_error @ ClassesProviderError::DeprecatedContractError(_),
+        ) => internal_server_error(deprecated_class_error),
+        RunnerError::ClassesProvider(
+            ClassesProviderError::GetClassesError(_)
+            | ClassesProviderError::InvalidBytecodeElement
+            | ClassesProviderError::StateError(_)
+            | ClassesProviderError::HintsConversionError(_),
+        ) => internal_server_error("Failed to load contract classes"),
+        // The client chose the block ID. The text holds the node request body, which has no URL.
+        RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::ReexecutionError(
+            ref reexecution_error,
+        )) if matches!(
+            **reexecution_error,
+            ReexecutionError::Rpc(RPCStateReaderError::BlockNotFound(_))
+        ) =>
+        {
+            internal_server_error(reexecution_error)
+        }
+        RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::ReexecutionError(_)) => {
+            internal_server_error("Failed to read block state")
+        }
+        RunnerError::VirtualBlockExecutor(
+            VirtualBlockExecutorError::StateUnavailable
+            | VirtualBlockExecutorError::BouncerLockError(_),
+        ) => internal_server_error("Virtual block execution failed"),
+        // Clients need blockifier's execution and revert text to debug their transaction.
+        RunnerError::VirtualBlockExecutor(
+            execution_error @ (VirtualBlockExecutorError::TransactionExecutionError(_)
+            | VirtualBlockExecutorError::TransactionReverted(..)),
+        ) => internal_server_error(execution_error),
+        RunnerError::OsExecution(_) => internal_server_error("Starknet OS execution failed"),
+        RunnerError::InputGenerationError(_) => internal_server_error("OS input generation failed"),
+        RunnerError::TransactionHashError(_) => {
+            internal_server_error("Failed to calculate the transaction hash")
+        }
+        RunnerError::TaskJoin(_) => internal_server_error("Virtual block execution task failed"),
     }
 }
 
