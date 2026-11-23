@@ -77,7 +77,6 @@ const FUZZ_TEST2_BASE: u32 = 20 * CLASS_HASH_BASE;
 const FUZZ_TEST_ORCHESTRATOR_BASE: u32 = 21 * CLASS_HASH_BASE;
 const ACCOUNT_WITH_REAL_VALIDATE_BASE: u32 = 22 * CLASS_HASH_BASE;
 const OS_RESOURCES_TEST_CONTRACT_BASE: u32 = 23 * CLASS_HASH_BASE;
-const CENDE_TEST_CONTRACT_BASE: u32 = 24 * CLASS_HASH_BASE;
 const EMPTY_SPAN_EMITTING_ACCOUNT_BASE: u32 = 25 * CLASS_HASH_BASE;
 
 // Contract names.
@@ -103,7 +102,6 @@ const FUZZ_TEST2_NAME: &str = "fuzz_revert_2";
 const FUZZ_TEST_ORCHESTRATOR_NAME: &str = "fuzz_revert_orchestrator";
 const ACCOUNT_WITH_REAL_VALIDATE_NAME: &str = "account_with_real_validate";
 const OS_RESOURCES_TEST_CONTRACT_NAME: &str = "os_resources_test_contract";
-const CENDE_TEST_CONTRACT_NAME: &str = "cende_test_contract";
 const EMPTY_SPAN_EMITTING_ACCOUNT_NAME: &str = "empty_span_emitting_account";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
@@ -148,7 +146,6 @@ pub enum FeatureContract {
     FuzzTestOrchestrator(RunnableCairo1),
     AccountWithRealValidate(RunnableCairo1),
     OsResourcesTest(RunnableCairo1),
-    CendeTest(RunnableCairo1),
     EmptySpanEmittingAccount(RunnableCairo1),
 }
 
@@ -178,7 +175,6 @@ impl FeatureContract {
             | Self::FuzzTestOrchestrator(runnable_version)
             | Self::AccountWithRealValidate(runnable_version)
             | Self::OsResourcesTest(runnable_version)
-            | Self::CendeTest(runnable_version)
             | Self::EmptySpanEmittingAccount(runnable_version) => {
                 CairoVersion::Cairo1(*runnable_version)
             }
@@ -203,7 +199,6 @@ impl FeatureContract {
             | Self::FuzzTestOrchestrator(rv)
             | Self::AccountWithRealValidate(rv)
             | Self::OsResourcesTest(rv)
-            | Self::CendeTest(rv)
             | Self::EmptySpanEmittingAccount(rv) => match version {
                 CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
                 CairoVersion::Cairo1(runnable) => *rv = runnable,
@@ -347,7 +342,6 @@ impl FeatureContract {
                 Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_BASE,
                 Self::AccountWithRealValidate(_) => ACCOUNT_WITH_REAL_VALIDATE_BASE,
                 Self::OsResourcesTest(_) => OS_RESOURCES_TEST_CONTRACT_BASE,
-                Self::CendeTest(_) => CENDE_TEST_CONTRACT_BASE,
                 Self::EmptySpanEmittingAccount(_) => EMPTY_SPAN_EMITTING_ACCOUNT_BASE,
             }
     }
@@ -384,7 +378,6 @@ impl FeatureContract {
             Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_NAME,
             Self::AccountWithRealValidate(_) => ACCOUNT_WITH_REAL_VALIDATE_NAME,
             Self::OsResourcesTest(_) => OS_RESOURCES_TEST_CONTRACT_NAME,
-            Self::CendeTest(_) => CENDE_TEST_CONTRACT_NAME,
             Self::EmptySpanEmittingAccount(_) => EMPTY_SPAN_EMITTING_ACCOUNT_NAME,
             Self::ERC20(_) => unreachable!(),
         }
@@ -498,7 +491,6 @@ impl FeatureContract {
                     | FeatureContract::FuzzTestOrchestrator(_)
                     | FeatureContract::AccountWithRealValidate(_)
                     | FeatureContract::OsResourcesTest(_)
-                    | FeatureContract::CendeTest(_)
                     | FeatureContract::EmptySpanEmittingAccount(_) => None,
                     FeatureContract::ERC20(_) | FeatureContract::Experimental => unreachable!(),
                 };
@@ -550,7 +542,6 @@ impl FeatureContract {
             | Self::FuzzTestOrchestrator(_)
             | Self::AccountWithRealValidate(_)
             | Self::OsResourcesTest(_)
-            | Self::CendeTest(_)
             | Self::EmptySpanEmittingAccount(_) => {
                 #[cfg(not(feature = "cairo_native"))]
                 {
