@@ -26,18 +26,7 @@ const VERIFIER_TASK_OUTPUT_SIZE = 2 + BLAKE2S_DIGEST_N_WORDS;
 
 // Runs the circuit verifier, as a simple bootloader task, on the processed proof: the proof of the
 // root of a proof tree, whose entry (circuit hash and output digest) is `root_entry`.
-func verify_processed_proof{
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr,
-    ecdsa_ptr,
-    bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr: EcOpBuiltin*,
-    keccak_ptr: KeccakBuiltin*,
-    poseidon_ptr: PoseidonBuiltin*,
-    range_check96_ptr: felt*,
-    add_mod_ptr: ModBuiltin*,
-    mul_mod_ptr: ModBuiltin*,
-}(root_entry: felt*) {
+func verify_processed_proof{range_check_ptr}(root_entry: felt*) {
     alloc_locals;
     // Write the output the simple bootloader must produce: the number of tasks, followed by the
     // verifier task's size, program hash and output, which is the blake2s hash of the root entry.
@@ -47,21 +36,35 @@ func verify_processed_proof{
     assert verifier_bootloader_output[2] = CIRCUIT_VERIFIER_PROGRAM_HASH;
     blake_with_opcode(len=PROOF_ENTRY_N_WORDS, data=root_entry, out=&verifier_bootloader_output[3]);
 
+    // The circuit verifier uses only the output and range check builtins, and the bootloader
+    // hashes it with blake2s, so the other builtins' pointers are never used: the bootloader passes
+    // a task the pointers of the builtins it uses only.
     let output_ptr = verifier_bootloader_output;
-
-    // The bootloader types the signature and range_check96 builtin pointers differently than the
-    // OS.
-    let signature_ptr = cast(ecdsa_ptr, SignatureBuiltin*);
-    let range_check96 = cast(range_check96_ptr, felt);
+    let pedersen_ptr = cast(0, HashBuiltin*);
+    let ecdsa_ptr = cast(0, SignatureBuiltin*);
+    let bitwise_ptr = cast(0, BitwiseBuiltin*);
+    let ec_op_ptr = cast(0, EcOpBuiltin*);
+    let keccak_ptr = cast(0, KeccakBuiltin*);
+    let poseidon_ptr = cast(0, PoseidonBuiltin*);
+    let range_check96_ptr = 0;
+    let add_mod_ptr = cast(0, ModBuiltin*);
+    let mul_mod_ptr = cast(0, ModBuiltin*);
     with_attr error_message("The processed proof does not verify against its proof facts.") {
         run_simple_bootloader{
-            output_ptr=output_ptr, ecdsa_ptr=signature_ptr, range_check96_ptr=range_check96
+            output_ptr=output_ptr,
+            pedersen_ptr=pedersen_ptr,
+            ecdsa_ptr=ecdsa_ptr,
+            bitwise_ptr=bitwise_ptr,
+            ec_op_ptr=ec_op_ptr,
+            keccak_ptr=keccak_ptr,
+            poseidon_ptr=poseidon_ptr,
+            range_check96_ptr=range_check96_ptr,
+            add_mod_ptr=add_mod_ptr,
+            mul_mod_ptr=mul_mod_ptr,
         }();
     }
     // Sanity check that output_ptr has advanced by exactly the expected bootloader output: the
     // number of tasks and the verifier task's output.
     assert output_ptr = verifier_bootloader_output + 1 + VERIFIER_TASK_OUTPUT_SIZE;
-    let ecdsa_ptr = cast(signature_ptr, felt);
-    let range_check96_ptr = cast(range_check96, felt*);
     return ();
 }

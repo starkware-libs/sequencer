@@ -26,7 +26,6 @@ use super::{
 };
 use crate::io::os_input::CircuitVerifierTaskInput;
 use crate::test_utils::cairo_runner::{
-    get_all_builtins_ordered,
     initialize_and_run_cairo_0_entry_point,
     initialize_cairo_runner,
     run_cairo_0_entrypoint_with_hint_processor,
@@ -125,8 +124,8 @@ fn run_cairo_verify_processed_proof(
 ) -> Cairo0EntryPointRunnerResult<()> {
     let simple_bootloader_input: Box<dyn Any> =
         Box::new(verifier_task_input.simple_bootloader_input().unwrap());
-    let implicit_args: Vec<ImplicitArg> =
-        get_all_builtins_ordered()?.into_iter().map(ImplicitArg::Builtin).collect();
+    let implicit_args =
+        [ImplicitArg::Builtin(BuiltinName::output), ImplicitArg::Builtin(BuiltinName::range_check)];
     let runner_config = entrypoint_runner_config();
     let (mut cairo_runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
