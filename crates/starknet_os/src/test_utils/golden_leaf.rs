@@ -6,11 +6,16 @@
 use std::io;
 
 use flate2::read::GzDecoder;
+use leaf_proof_format::PackedNode;
 use starknet_types_core::felt::Felt;
 use tempfile::NamedTempFile;
 
 use crate::io::os_input::CircuitVerifierTaskInput;
-use crate::proof_fact_fold::Blake2sDigestWords;
+use crate::proof_fact_fold::{
+    Blake2sDigestWords,
+    LEAF_VERIFIER_CIRCUIT_HASH,
+    MULTIVERIFIER_CIRCUIT_HASH,
+};
 
 /// The number of felts in the golden leaves' proof facts.
 pub const GOLDEN_PROOF_FACTS_SIZE: usize = 6;
@@ -73,6 +78,16 @@ pub const GOLDEN_THREE_LEAF_PROOF_FACTS: [[Felt; GOLDEN_PROOF_FACTS_SIZE]; 3] = 
 pub const GOLDEN_THREE_LEAF_ROOT_OUTPUT_DIGEST: Blake2sDigestWords = [
     2130757912, 2706508986, 3760192371, 4219191282, 1022873970, 4153180131, 1578765253, 2172532855,
 ];
+
+/// A leaf (a transaction's proof) of a packed proof tree.
+pub fn packed_leaf() -> PackedNode {
+    PackedNode::leaf(LEAF_VERIFIER_CIRCUIT_HASH, vec![])
+}
+
+/// A fold (multiverifier proof) of the given subtrees in a packed proof tree.
+pub fn packed_fold(subtasks: Vec<PackedNode>) -> PackedNode {
+    PackedNode::Composite { circuit_hash: MULTIVERIFIER_CIRCUIT_HASH, subtasks }
+}
 
 const CIRCUIT_VERIFIER_EXECUTABLE_GZ: &[u8] = include_bytes!(
     "../../resources/circuit_verifier/stwo_circuit_verifier_canonical_small.executable.json.gz"

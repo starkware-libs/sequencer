@@ -307,6 +307,7 @@ jsonrpsee-types = "0.26.0"
 jsonschema = "0.17.0"
 keccak = "0.1.3"
 lazy_static = "1.5.0"
+leaf-proof-format = { git = "https://github.com/starkware-libs/proving", rev = "2b495a36d57a4bd754cdfa1c2b5bda8d92b37ec3" }
 libmdbx = "0.6.6"
 libp2p = "0.56.0"
 libp2p-swarm-test = "0.6.0"
