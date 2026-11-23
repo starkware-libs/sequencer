@@ -34,6 +34,7 @@ use crate::test_manager::{
     FUNDED_ACCOUNT_ADDRESS,
 };
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
+use crate::utils::{get_class_hash_of_feature_contract, virtual_os_blocked_class_hashes};
 
 #[rstest]
 #[tokio::test]
@@ -305,6 +306,43 @@ async fn prove_and_verify_multicall_tx() {
     let output = test_builder.build().await.run_virtual().prove().await;
     starknet_proof_verifier::verify_proof(output.proof_facts, output.proof)
         .expect("proof verification should succeed");
+}
+
+/// Verifies that the virtual OS refuses to execute a blocked class, by library-calling it.
+/// `None` library-calls the test contract's own (unblocked) class instead, as a control.
+#[rstest]
+#[case::first_blocked_class_hash(Some(0))]
+#[case::last_blocked_class_hash(Some(27))]
+#[case::unblocked_class_hash(None)]
+#[tokio::test]
+async fn test_virtual_os_class_blocklist(#[case] blocked_class_hash_index: Option<usize>) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual_with_blocked_classes([(
+            test_contract,
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    let class_hash = blocked_class_hash_index.map_or_else(
+        || get_class_hash_of_feature_contract(test_contract),
+        |index| virtual_os_blocked_class_hashes()[index],
+    );
+    // Library-call the class hash (a blocked one, or the unblocked control).
+    let library_call_args = [
+        class_hash.0,
+        selector_from_name("return_result").0,
+        Felt::ONE,     // Calldata length.
+        Felt::from(7), // Calldata: num.
+    ];
+    let calldata = create_calldata(contract_address, "test_library_call", &library_call_args);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_runner = test_builder.build().await;
+    match blocked_class_hash_index {
+        Some(_) => test_runner.run_virtual_expect_error("Class hash is blocked in virtual OS mode"),
+        None => test_runner.run_virtual_and_validate(),
+    }
 }
 
 /// Generates proof fixtures for the proof-flow integration test.

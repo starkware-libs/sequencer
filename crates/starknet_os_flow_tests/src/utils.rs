@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use apollo_starknet_os_program::VIRTUAL_OS_PROGRAM;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -234,4 +235,19 @@ pub(crate) fn update_expected_storage_updates_for_block_hash_contract(
             old_block_hash.0,
         );
     }
+}
+
+/// Returns the class hashes the virtual OS refuses to execute, read from the compiled virtual OS
+/// program (so the Cairo code is the single source of truth).
+pub(crate) fn virtual_os_blocked_class_hashes() -> Vec<ClassHash> {
+    let constant = |name: &str| {
+        *VIRTUAL_OS_PROGRAM
+            .constants
+            .get(&format!("starkware.starknet.core.os.virtual_os_constants.{name}"))
+            .unwrap_or_else(|| panic!("Constant {name} is missing from the virtual OS program."))
+    };
+    let n_blocked_class_hashes = usize::try_from(constant("BLOCKED_CLASS_HASHES_LEN")).unwrap();
+    (0..n_blocked_class_hashes)
+        .map(|index| ClassHash(constant(&format!("BLOCKED_CLASS_HASHES_{index}"))))
+        .collect()
 }

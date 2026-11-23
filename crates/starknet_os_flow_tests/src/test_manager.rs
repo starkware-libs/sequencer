@@ -17,6 +17,7 @@ use blockifier::transaction::objects::{
     TransactionInfoCreator,
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -85,6 +86,7 @@ use starknet_types_core::felt::Felt;
 use crate::initial_state::{
     calculate_strk_fee_token_address,
     create_default_initial_state_data,
+    create_initial_state_data_with_custom_class_hashes,
     get_initial_deploy_account_tx,
     FlowTestState,
     InitialState,
@@ -96,6 +98,7 @@ use crate::utils::{
     divide_vec_into_n_parts,
     execute_transactions,
     maybe_dummy_block_hash_and_number,
+    virtual_os_blocked_class_hashes,
     ExecutionOutput,
 };
 
@@ -1040,6 +1043,34 @@ impl TestBuilder<DictStateReader> {
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
+    }
+
+    /// The initial state also declares each class hash the
+    /// virtual OS blocks with the test contract's class, so tests can execute them without their
+    /// actual classes (the blocklist only depends on the class hash).
+    pub(crate) async fn create_standard_virtual_with_blocked_classes<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+    ) -> (Self, [ContractAddress; N]) {
+        let test_contract =
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+        let custom_class_hashes: Vec<_> = virtual_os_blocked_class_hashes()
+            .into_iter()
+            .map(|blocked_class_hash| (blocked_class_hash, test_contract))
+            .collect();
+        let (initial_state_data, extra_addresses) =
+            create_initial_state_data_with_custom_class_hashes(
+                extra_contracts,
+                &custom_class_hashes,
+            )
+            .await;
+        (
+            Self::new_with_initial_state_data(
+                initial_state_data,
+                TestBuilderConfig::default(),
+                true,
+            ),
+            extra_addresses,
+        )
     }
 
     /// Virtual OS builder that overrides the block context.

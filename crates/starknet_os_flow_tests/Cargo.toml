@@ -13,6 +13,7 @@ long_fuzz_test = []
 
 [dev-dependencies]
 apollo_integration_tests.workspace = true
+apollo_starknet_os_program.workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["reexecution", "testing"] }
 blockifier_test_utils.workspace = true
