@@ -1,2 +1,10 @@
-~ /os_constants/allowed_virtual_os_program_hashes/0: "0x35bfdc9cf61d5160eacd7f09eba4ced018f137e3ad550f360c24ee43f6c53a7"
+~ /os_constants/allowed_virtual_os_program_hashes/0: "0x2135d45d915ff19029624644b35b8a463b525099c9a7f7a00d1bbac3fbaa87"
 - /os_constants/allowed_virtual_os_program_hashes/1
+~ /os_resources/execute_syscalls/CallContract/n_steps: 904
+~ /os_resources/execute_syscalls/Deploy/constant/n_steps: 1176
+~ /os_resources/execute_syscalls/LibraryCall/n_steps: 877
+~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1310
+~ /os_resources/execute_txs_inner/Declare/n_steps: 3944
+~ /os_resources/execute_txs_inner/DeployAccount/constant/n_steps: 4998
+~ /os_resources/execute_txs_inner/InvokeFunction/constant/n_steps: 4788
+~ /os_resources/execute_txs_inner/L1Handler/constant/n_steps: 1332
