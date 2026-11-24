@@ -37,7 +37,7 @@ use async_trait::async_trait;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_test_utils::calldata::create_calldata;
 use rstest::rstest;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
@@ -55,6 +55,7 @@ use starknet_api::transaction::InvokeTransaction;
 use starknet_api::{contract_address, felt};
 use starknet_proof_verifier::verify_proof;
 use starknet_types_core::felt::Felt;
+use tracing_test::traced_test;
 
 use super::{record_prove_transaction_metrics, VirtualSnosProver};
 use crate::errors::{RunnerError, VirtualSnosProverError};
@@ -268,6 +269,49 @@ async fn test_valid_invoke_reaches_runner() {
             RunnerError::InputGenerationError(ref msg) if msg == "mock error"
         )
     );
+}
+
+/// Each proving request logs its stage lines with a stable `event`, names the block with a plain
+/// value inside the `prove_transaction` span, and never logs the transaction hash.
+#[tokio::test]
+#[traced_test]
+async fn prove_transaction_logs_stage_events_with_plain_block_fields() {
+    let cases = [
+        (BlockId::Number(BlockNumber(17852063)), "block_number=17852063"),
+        (BlockId::Hash(BlockHash(felt!("0xabc"))), "block_hash=\"0xabc\""),
+        (BlockId::Latest, "block_tag=\"latest\""),
+    ];
+    let prover = VirtualSnosProver::from_runner(FailingRunner);
+    for (block_id, _) in &cases {
+        let _ = prover.prove_transaction(*block_id, valid_invoke_tx()).await;
+    }
+
+    logs_assert(|lines: &[&str]| {
+        for event in ["prove_started", "prove_transaction_completed"] {
+            let event_field = format!("event=\"{event}\"");
+            let event_lines: Vec<&&str> =
+                lines.iter().filter(|line| line.contains(&event_field)).collect();
+            if event_lines.len() != cases.len() {
+                return Err(format!(
+                    "expected {} `{event}` lines, got {event_lines:?}",
+                    cases.len()
+                ));
+            }
+            for (line, (_, expected_block_field)) in event_lines.iter().zip(&cases) {
+                if !line.contains("prove_transaction{") || !line.contains(expected_block_field) {
+                    return Err(format!(
+                        "`{event}` must carry `{expected_block_field}`, got {line}"
+                    ));
+                }
+            }
+        }
+        for forbidden in ["tx_hash", "Number(", "BlockHash(", "Some("] {
+            if let Some(line) = lines.iter().find(|line| line.contains(forbidden)) {
+                return Err(format!("no log line may contain `{forbidden}`, got {line}"));
+            }
+        }
+        Ok(())
+    });
 }
 
 #[rstest]

@@ -401,6 +401,32 @@ jsonrpsee handles a call or batch over HTTP inside the `http_request` span, so i
 span's `request_id` (the inner id for OHTTP traffic). Calls over a WebSocket connection, which
 jsonrpsee enables by default, carry no `request_id`.
 
+### Proving request log lines
+
+Each `starknet_proveTransaction` call runs inside a `prove_transaction` span that names the block
+with exactly one plain field: `block_number` (for example `17852063`), `block_hash` (hex), or
+`block_tag` (`latest`). Every line the request logs carries that span. The stage lines are `info`
+records with a stable `event` field:
+
+| `event` | Logged when | Extra fields |
+|---|---|---|
+| `prove_started` | The request reaches the prover, before input validation. | |
+| `blocking_check_allowed` | The external blocking check allows the transaction. | |
+| `blocking_check_blocked` | The external blocking check blocks the transaction. | |
+| `blocking_check_inconclusive` | The external blocking check returns an inconclusive answer. | `fail_open` |
+| `blocking_check_timed_out` | The external blocking check does not answer in time. | `fail_open` |
+| `os_execution_resources` | The virtual OS run finishes. | `n_steps`, `n_memory_holes`, `builtins` |
+| `os_run_completed` | The virtual OS stage finishes. | `os_duration_ms` |
+| `proving_completed` | The proof is generated. | `prove_duration_ms` |
+| `prove_transaction_completed` | The request finishes, whether it succeeded or failed. | `outcome`, `total_duration_ms` |
+
+The `blocking_check_*` lines appear only when a blocking check is configured. Durations are whole
+milliseconds, logged as numbers.
+
+No line carries the transaction hash. The block field and the timestamp are enough to correlate a
+request with an operator's own traffic, while a hash would let anyone with log access find the
+on-chain transaction that a private request produced.
+
 ### Failed proving requests
 
 A failed `starknet_proveTransaction` request logs a `warn` record where the failure starts, such as
@@ -423,6 +449,9 @@ settings `compiled_class_cache_size`, `prefetch_state`, and `use_latest_versione
 the listener is bound, a second log records what the server came up on: local address, scheme
 (`http` or `https`), `max_concurrent_requests`, `max_connections`, `ohttp_enabled`, and the CORS
 mode and allowed origins.
+
+Every `config_resolved` field is a plain value: addresses are hex, an unset optional setting is
+left out of the line, and `cors_allow_origin` is a comma-separated list.
 
 Both lines are redacted. The `config_resolved` line logs the RPC and blocking-check URLs host-only
 (see [Logging](#logging)), and neither line carries transaction-scoped data. For TLS they record

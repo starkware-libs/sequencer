@@ -1,6 +1,7 @@
 ~ /os_constants/allowed_proof_versions/0: "0x50524f4f4632"
 - /os_constants/allowed_proof_versions/1
-+ /os_constants/allowed_virtual_os_program_hashes/2: "0x38ff10d85f6d74b92cc9b3a5c8c22fd180915094206853f26addd05004fa7f3"
+~ /os_constants/allowed_virtual_os_program_hashes/0: "0x307470bf98cd851455b207744027cfac04bf0b23f6d55eb028fbf118a8fd029"
+- /os_constants/allowed_virtual_os_program_hashes/1
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1310
 ~ /os_resources/execute_syscalls/SendMessageToL1/constant/n_steps: 128
 ~ /os_resources/execute_txs_inner/Declare/n_steps: 3941
