@@ -364,6 +364,11 @@ rstest = "0.26.1"
 rstest_reuse = "0.7.0"
 rust-rocksdb = "0.44.1"
 rustc-hex = "2.1.0"
+# TEMPORARY: cairo-lang 2.22.0-rc.0 requires `salsa = "^0.28.2"`, but cairo-lang-semantic doesn't
+# compile against salsa 0.28.6. Our Cargo.lock pins 0.28.2, but users of the published crates
+# resolve their own versions, so the pin must be in the manifests. Remove once cairo-lang fixes
+# its salsa requirement.
+salsa = "=0.28.2"
 schemars = "1.0.4"
 semver = "1.0.23"
 serde = "1.0.197"
