@@ -24,6 +24,10 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use url::Url;
 use validator::Validate;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
     pub recorder_url: Url,
@@ -159,6 +163,7 @@ pub struct ContextStaticConfig {
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
     pub block_timestamp_window_seconds: u64,
     /// The data availability mode, true: Blob, false: Calldata.
+    #[validate(custom(function = "validate_l1_da_mode_is_blob"))]
     pub l1_da_mode: bool,
     /// The address of the contract that builds the block.
     pub builder_address: ContractAddress,
@@ -282,6 +287,14 @@ impl Default for ContextStaticConfig {
             send_empty_state_commitment_infos_only: false,
         }
     }
+}
+
+fn validate_l1_da_mode_is_blob(l1_da_mode: &bool) -> Result<(), validator::ValidationError> {
+    if !*l1_da_mode {
+        return Err(validator::ValidationError::new("l1_da_mode must be true (Blob)")
+            .with_message("Calldata data availability is not supported.".into()));
+    }
+    Ok(())
 }
 
 /// Dynamic configuration for the Context struct.

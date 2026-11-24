@@ -307,11 +307,11 @@ enum ReproposeError {
 impl SequencerConsensusContext {
     pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
         register_metrics();
-        let l1_da_mode = if config.static_config.l1_da_mode {
-            L1DataAvailabilityMode::Blob
-        } else {
-            L1DataAvailabilityMode::Calldata
-        };
+        assert!(
+            config.static_config.l1_da_mode,
+            "l1_da_mode must be true (Blob): Calldata data availability is not supported."
+        );
+        let l1_da_mode = L1DataAvailabilityMode::Blob;
         Self {
             config,
             deps,
