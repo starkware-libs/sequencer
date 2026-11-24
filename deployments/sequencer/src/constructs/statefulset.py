@@ -69,7 +69,9 @@ class StatefulSetConstruct(BaseConstruct):
             self.monitoring_endpoint_port,
         )
 
-        selector_labels = {"service": statefulset_labels["service"]}
+        selector_labels = {
+            k: statefulset_labels[k] for k in ("app", "service") if k in statefulset_labels
+        }
 
         return k8s.KubeStatefulSet(
             self,

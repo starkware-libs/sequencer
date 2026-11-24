@@ -51,8 +51,10 @@ gcpPodMonitoring:
 
 env:
 - name: RUST_LOG
-  value: debug
+  value: debug,cairo_vm=warn
 - name: RUST_BACKTRACE
   value: full
 - name: NO_COLOR
   value: '1'
+- name: MALLOC_ARENA_MAX
+  value: '2'
