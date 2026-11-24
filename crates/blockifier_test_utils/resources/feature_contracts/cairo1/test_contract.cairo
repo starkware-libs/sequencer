@@ -32,6 +32,7 @@ mod TestContract {
     use starknet::storage_access::{
         storage_address_from_base_and_offset, storage_base_address_from_felt252,
     };
+    use starknet::syscalls::meta_tx_v0_syscall;
     use starknet::{
         ClassHash, ContractAddress, EthAddress, StorageAddress, class_hash_try_from_felt252,
         contract_address_try_from_felt252, get_execution_info, storage_read_syscall,
@@ -1298,13 +1299,6 @@ mod TestContract {
         let in1 = CircuitElement::<CircuitInput<0>> {};
         (in1,).new_inputs().next([3, 0, 0, 0]);
     }
-
-    extern fn meta_tx_v0_syscall(
-        address: ContractAddress,
-        entry_point_selector: felt252,
-        calldata: Span<felt252>,
-        signature: Span<felt252>,
-    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
 
     #[external(v0)]
     fn test_call_contract_revert(

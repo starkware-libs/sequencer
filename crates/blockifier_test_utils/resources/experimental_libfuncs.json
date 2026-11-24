@@ -64,6 +64,7 @@
         "enum_init",
         "enum_from_bounded_int",
         "enum_match",
+        "enum_match_v2",
         "enum_snapshot_match",
         "eval_circuit",
         "felt252_add",

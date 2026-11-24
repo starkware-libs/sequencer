@@ -18,6 +18,7 @@ mod MetaTxTestContract {
     use starknet::ContractAddress;
     use starknet::SyscallResultTrait;
     use starknet::storage::MutableVecTrait;
+    use starknet::syscalls::meta_tx_v0_syscall;
     use super::CallData;
 
     #[storage]
@@ -57,13 +58,6 @@ mod MetaTxTestContract {
     fn __execute__(ref self: ContractState, argument: felt252) {
         self.add_call_info(:argument);
     }
-
-    extern fn meta_tx_v0_syscall(
-        address: ContractAddress,
-        entry_point_selector: felt252,
-        calldata: Span<felt252>,
-        signature: Span<felt252>,
-    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
 
     #[external(v0)]
     fn execute_meta_tx_v0(
