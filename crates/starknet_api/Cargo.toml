@@ -40,6 +40,9 @@ paste.workspace = true
 pretty_assertions.workspace = true
 primitive-types = { workspace = true, features = ["serde"] }
 rand.workspace = true
+# TEMPORARY: pins cairo-lang's salsa for users of the published crate; see the workspace
+# Cargo.toml.
+salsa.workspace = true
 semver.workspace = true
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json.workspace = true
@@ -60,3 +63,7 @@ rstest.workspace = true
 
 [lints]
 workspace = true
+
+# `salsa` is only a version pin (see above); the crate doesn't use it directly.
+[package.metadata.cargo-machete]
+ignored = ["salsa"]
