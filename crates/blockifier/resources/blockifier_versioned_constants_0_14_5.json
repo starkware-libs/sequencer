@@ -127,7 +127,7 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
-            "0x35bfdc9cf61d5160eacd7f09eba4ced018f137e3ad550f360c24ee43f6c53a7"
+            "0x2135d45d915ff19029624644b35b8a463b525099c9a7f7a00d1bbac3fbaa87"
         ],
         "allowed_proof_versions": [
             "0x50524f4f4631",
@@ -228,7 +228,7 @@
     "os_resources": {
         "execute_syscalls": {
             "CallContract": {
-                "n_steps": 901,
+                "n_steps": 904,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 18
@@ -250,7 +250,7 @@
             },
             "Deploy": {
                 "constant": {
-                    "n_steps": 1173,
+                    "n_steps": 1176,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 21,
@@ -349,7 +349,7 @@
                 }
             },
             "LibraryCall": {
-                "n_steps": 874,
+                "n_steps": 877,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 18
@@ -364,7 +364,7 @@
             },
             "MetaTxV0": {
                 "constant": {
-                    "n_steps": 1307,
+                    "n_steps": 1310,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 20,
@@ -503,7 +503,7 @@
         },
         "execute_txs_inner": {
             "Declare": {
-                "n_steps": 3938,
+                "n_steps": 3944,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 92,
@@ -513,7 +513,7 @@
             },
             "DeployAccount": {
                 "constant": {
-                    "n_steps": 4989,
+                    "n_steps": 4998,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 113,
@@ -535,7 +535,7 @@
             },
             "InvokeFunction": {
                 "constant": {
-                    "n_steps": 4779,
+                    "n_steps": 4788,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 110,
@@ -556,7 +556,7 @@
             },
             "L1Handler": {
                 "constant": {
-                    "n_steps": 1329,
+                    "n_steps": 1332,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 19,

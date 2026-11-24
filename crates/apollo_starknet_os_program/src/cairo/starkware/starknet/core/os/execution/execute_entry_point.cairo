@@ -41,6 +41,10 @@ from starkware.starknet.core.os.execution.revert import (
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
 
+// A value that differs from every syscall selector. It is written right after the end of each
+// entry point's syscall segment (see execute_entry_point).
+const SYSCALL_PTR_END_SENTINEL = 'SyscallPtrEndSentinel';
+
 // Represents the execution context during the execution of contract code.
 struct ExecutionContext {
     entry_point_type: felt,
@@ -298,6 +302,20 @@ func execute_entry_point{
         tempvar revert_log = orig_revert_log;
     }
     let builtin_ptrs = return_builtin_ptrs;
+
+    // Syscall responses are guessed during the contract execution and validated below, but only
+    // up to the returned syscall_ptr. An invalid guess might redirect the contract's control
+    // flow in a way that doesn't advance syscall_ptr, so that the validated part of the segment
+    // is truncated and the requests after it are never validated. Since each request is written
+    // right after the previous one in the same segment, the first skipped request (which starts
+    // with its selector) would lie exactly at the returned syscall_ptr. We therefore write a
+    // sentinel (an invalid selector) at that address: as memory is read only, an execution
+    // that also wrote a request there is unprovable. This guarantees that if the contract wrote
+    // a valid syscall request to the syscall segment, it also advanced syscall_ptr past it, so
+    // the request is validated.
+    let syscall_ptr_end = entry_point_return_values.syscall_ptr;
+    assert [syscall_ptr_end] = SYSCALL_PTR_END_SENTINEL;
+
     with syscall_ptr {
         call_execute_syscalls(
             block_context=block_context,

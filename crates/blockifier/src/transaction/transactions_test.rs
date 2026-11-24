@@ -591,7 +591,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 112320,
+        execute_gas_consumed: 112620,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
@@ -599,7 +599,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 112320,
+        execute_gas_consumed: 112620,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -2850,7 +2850,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    653175,
+                    653475,
                 ),
             }
         "#]]
@@ -2864,7 +2864,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    602275,
+                    602575,
                 ),
             }
         "#]]
