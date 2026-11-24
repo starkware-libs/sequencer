@@ -274,8 +274,8 @@ impl Alert {
             ObserverApplicability::Applicable => expr,
             ObserverApplicability::NotApplicable => {
                 // Observers evaluate to a value 1 past the threshold on the non-firing side,
-                // instead of to no data. Not the threshold itself: Grafana may compare a
-                // fractional threshold with less precision, so an equal value can fire.
+                // instead of to no data. Not the threshold itself: Grafana before 11.1 formats
+                // the threshold with 6 decimals, so an equal value with more decimals fires.
                 // With more than one condition, the value could satisfy another one.
                 assert_eq!(
                     conditions.len(),
