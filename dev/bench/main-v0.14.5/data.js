@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795433535155,
+  "lastUpdate": 1795505305224,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -67,6 +67,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1345.3369331,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "12162f2edf12cb6a0b89444a6b0ef217c9347a9b",
+          "message": "workspace: bump workspace version to 0.21.0-rc.1 (#15316)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T07:05:12Z",
+          "tree_id": "ca2bb96c49e79fd049baa9a2fe0ac228cde8654a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/12162f2edf12cb6a0b89444a6b0ef217c9347a9b"
+        },
+        "date": 1795505304689,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1041.33038441,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1491.3329264000001,
             "unit": "ms"
           }
         ]
