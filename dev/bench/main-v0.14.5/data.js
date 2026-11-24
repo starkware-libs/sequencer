@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795505305224,
+  "lastUpdate": 1795507626813,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1491.3329264000001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1cd5da0a10f0b571b9a6f8c9d18c8295c39698f3",
+          "message": "starknet_os_flow_tests: test the virtual OS class blocklist (#15309)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T07:41:28Z",
+          "tree_id": "069b74c9604e14175e59e8f40d7b1c33fb9b048f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1cd5da0a10f0b571b9a6f8c9d18c8295c39698f3"
+        },
+        "date": 1795507626332,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 855.74070089,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1265.74967569,
             "unit": "ms"
           }
         ]
