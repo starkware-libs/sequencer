@@ -2608,3 +2608,13 @@ async fn try_sync_skips_accessed_keys_when_disabled() {
 
     assert!(context.try_sync(SYNC_HEIGHT).await);
 }
+
+#[tokio::test]
+#[should_panic(expected = "l1_da_mode must be true (Blob)")]
+async fn context_construction_rejects_calldata_l1_da_mode() {
+    let (deps, _network) = create_test_and_network_deps();
+    deps.build_context_with_config(ContextConfig {
+        static_config: ContextStaticConfig { l1_da_mode: false, ..Default::default() },
+        ..Default::default()
+    });
+}
