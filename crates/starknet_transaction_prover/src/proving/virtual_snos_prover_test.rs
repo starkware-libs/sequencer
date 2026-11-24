@@ -271,38 +271,6 @@ async fn test_valid_invoke_reaches_runner() {
     );
 }
 
-<<<<<<< HEAD
-#[rstest]
-#[case::success(Ok(()), outcomes::SUCCESS)]
-#[case::failure(Err(VirtualSnosProverError::TransactionBlocked), outcomes::FAILURE_BLOCKED)]
-fn record_prove_transaction_metrics_records_outcome(
-    #[case] result: Result<(), VirtualSnosProverError>,
-    #[case] expected_outcome: &str,
-) {
-    let recorder = configured_builder().unwrap().build_recorder();
-    let handle = recorder.handle();
-
-    metrics::with_local_recorder(&recorder, || {
-        record_prove_transaction_metrics(&result, Duration::from_secs(1));
-    });
-
-    let scrape = handle.render();
-    assert_eq!(metric_value(&scrape, &outcome_total_line(expected_outcome)), 1.0);
-    assert_eq!(metric_value(&scrape, &duration_count_line(expected_outcome)), 1.0);
-    assert_eq!(
-        metric_value(
-            &scrape,
-            &format!(
-                "{}_sum{{outcome=\"{expected_outcome}\"}}",
-                names::PROVE_TRANSACTION_DURATION_SECONDS
-            )
-        ),
-        1.0
-    );
-}
-
-||||||| 01e4b43fa6
-=======
 /// Each proving request logs its stage lines with a stable `event`, names the block with a plain
 /// value inside the `prove_transaction` span, and never logs the transaction hash.
 #[tokio::test]
@@ -375,7 +343,6 @@ fn record_prove_transaction_metrics_records_outcome(
     );
 }
 
->>>>>>> origin/main-v0.14.5
 /// `l1_gas.max_amount` and `l1_data_gas.max_amount` do not affect OS execution and may be
 /// non-zero even with fee-field validation enabled; only `max_price_per_unit` fields and `tip`
 /// are required to be zero. Asserting on `RunnerError::InputGenerationError("mock error")` proves

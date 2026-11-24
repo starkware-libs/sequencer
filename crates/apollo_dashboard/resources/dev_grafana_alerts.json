@@ -1500,13 +1500,7 @@
       "name": "l1_handler_transaction_waiting_in_L1",
       "title": "L1 handler transaction waiting in L1 too long",
       "ruleGroup": "evaluation_rate_default",
-<<<<<<< HEAD
       "expr": "(((time() - l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"}) * (l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"} > bool 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or on() (vector(600) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 1))",
-||||||| 01e4b43fa6
-      "expr": "((time() - l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"}) and (l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"} > 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-=======
-      "expr": "((time() - l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"}) * (l1_message_provider_oldest_pending_tx_l1_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\"} > bool 0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
->>>>>>> origin/main-v0.14.5
       "conditions": [
         {
           "evaluator": {
@@ -1792,13 +1786,7 @@
       "name": "mempool_transaction_drop_ratio",
       "title": "Mempool transactions dropped",
       "ruleGroup": "evaluation_rate_default",
-<<<<<<< HEAD
       "expr": "((sum(increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason!=\"expired_behind_gap\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or on() (vector(500) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 1))",
-||||||| 01e4b43fa6
-      "expr": "(increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / clamp_min(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]), 1)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-=======
-      "expr": "(sum(increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason!=\"expired_behind_gap\"}[1h]))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
->>>>>>> origin/main-v0.14.5
       "conditions": [
         {
           "evaluator": {
@@ -2032,13 +2020,7 @@
       "name": "primary_l1_endpoint_down_too_long_l1_events",
       "title": "Primary L1 endpoint down too long (l1_events)",
       "ruleGroup": "evaluation_rate_default",
-<<<<<<< HEAD
       "expr": "((max((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"}) * (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"} > bool 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or on() (vector(600) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 1))",
-||||||| 01e4b43fa6
-      "expr": "(max((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"}) and (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"} > 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-=======
-      "expr": "(max((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"}) * (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_events\"} > bool 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
->>>>>>> origin/main-v0.14.5
       "conditions": [
         {
           "evaluator": {
@@ -2064,13 +2046,7 @@
       "name": "primary_l1_endpoint_down_too_long_l1_gas_price",
       "title": "Primary L1 endpoint down too long (l1_gas_price)",
       "ruleGroup": "evaluation_rate_default",
-<<<<<<< HEAD
       "expr": "((max((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"}) * (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"} > bool 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)) or on() (vector(600) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 1))",
-||||||| 01e4b43fa6
-      "expr": "(max((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"}) and (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"} > 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
-=======
-      "expr": "(max((time() - l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"}) * (l1_primary_endpoint_down_since_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", scraper=\"l1_gas_price\"} > bool 0))) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
->>>>>>> origin/main-v0.14.5
       "conditions": [
         {
           "evaluator": {

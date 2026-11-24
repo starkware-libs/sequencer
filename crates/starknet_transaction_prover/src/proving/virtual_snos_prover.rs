@@ -178,19 +178,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         record_block_id_fields(&Span::current(), &block_id);
         info!(event = "prove_started", "Starting transaction proving");
         let start_time = Instant::now();
-<<<<<<< HEAD
-        let result = self.prove_transaction_inner(block_id, transaction).await;
-        let total_duration = start_time.elapsed();
-        let outcome = record_prove_transaction_metrics(&result, total_duration);
-        info!(
-            total_duration_ms = %total_duration.as_millis(),
-            outcome,
-            "prove_transaction completed"
-        );
-        result
-    }
-||||||| 01e4b43fa6
-=======
         let result = self.prove_transaction_inner(block_id, transaction).await;
         let total_duration = start_time.elapsed();
         let outcome = record_prove_transaction_metrics(&result, total_duration);
@@ -202,7 +189,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         );
         result
     }
->>>>>>> origin/main-v0.14.5
 
     async fn prove_transaction_inner(
         &self,
@@ -252,16 +238,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             .await
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
-<<<<<<< HEAD
-        let os_duration = os_start.elapsed();
-        metrics::histogram!(names::OS_RUN_DURATION_SECONDS).record(os_duration.as_secs_f64());
-        info!(os_duration_ms = %os_duration.as_millis(), "OS execution completed");
-||||||| 01e4b43fa6
-        info!(
-            os_duration_ms = %os_start.elapsed().as_millis(),
-            "OS execution completed"
-        );
-=======
         let os_duration = os_start.elapsed();
         metrics::histogram!(names::OS_RUN_DURATION_SECONDS).record(os_duration.as_secs_f64());
         info!(
@@ -269,22 +245,10 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             os_duration_ms = duration_millis(os_duration),
             "OS execution completed"
         );
->>>>>>> origin/main-v0.14.5
 
         let prove_start = Instant::now();
         let result = self.prove_virtual_snos_run(runner_output).await?;
 
-<<<<<<< HEAD
-        let prove_duration = prove_start.elapsed();
-        metrics::histogram!(names::STWO_PROVE_DURATION_SECONDS)
-            .record(prove_duration.as_secs_f64());
-        info!(prove_duration_ms = %prove_duration.as_millis(), "Proving completed");
-||||||| 01e4b43fa6
-        info!(
-            prove_duration_ms = %prove_start.elapsed().as_millis(),
-            "Proving completed"
-        );
-=======
         let prove_duration = prove_start.elapsed();
         metrics::histogram!(names::STWO_PROVE_DURATION_SECONDS)
             .record(prove_duration.as_secs_f64());
@@ -293,7 +257,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             prove_duration_ms = duration_millis(prove_duration),
             "Proving completed"
         );
->>>>>>> origin/main-v0.14.5
 
         Ok(result)
     }
@@ -320,15 +283,8 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         invoke_tx: InvokeTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         // Kick off proving in parallel with the check. Clone is cheap: inner fields are
-<<<<<<< HEAD
-        // Arcs or small configs. `instrument` carries the ambient tracing span (request id and
-        // tx fields) into the spawned task, which starts without a span otherwise.
-||||||| 01e4b43fa6
-        // Arcs or small configs.
-=======
         // Arcs or small configs. `instrument` carries the ambient tracing span (request id and
         // block fields) into the spawned task, which starts without a span otherwise.
->>>>>>> origin/main-v0.14.5
         let prover = self.clone();
         let prove_handle = tokio::spawn(
             async move { prover.run_and_prove(block_id, vec![invoke_tx]).await }
@@ -411,35 +367,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
     }
 }
 
-<<<<<<< HEAD
-fn record_prove_transaction_metrics<T>(
-    result: &Result<T, VirtualSnosProverError>,
-    total_duration: Duration,
-) -> &'static str {
-    let outcome = match result {
-        Ok(_) => outcomes::SUCCESS,
-        Err(error) => error.metric_outcome(),
-    };
-    metrics::histogram!(names::PROVE_TRANSACTION_DURATION_SECONDS, "outcome" => outcome)
-        .record(total_duration.as_secs_f64());
-    metrics::counter!(names::PROVE_TRANSACTION_OUTCOME_TOTAL, "outcome" => outcome).increment(1);
-    outcome
-}
-
-/// Logs the stage where a `run_and_prove` failure started. Callers log where they consume the
-/// result, not inside `run_and_prove`, so a background proof that a blocking check discards leaves
-/// no failure record in the request's span.
-fn log_pipeline_error(err: &VirtualSnosProverError) {
-    match err {
-        VirtualSnosProverError::RunnerError(runner_error) => {
-            warn!(event = "os_run_error", reason = runner_error.log_reason());
-        }
-        _ => warn!(event = "proving_error", outcome = err.metric_outcome()),
-    }
-}
-
-||||||| 01e4b43fa6
-=======
 fn record_prove_transaction_metrics<T>(
     result: &Result<T, VirtualSnosProverError>,
     total_duration: Duration,
@@ -483,7 +410,6 @@ fn log_pipeline_error(err: &VirtualSnosProverError) {
     }
 }
 
->>>>>>> origin/main-v0.14.5
 /// Proves a Virtual Starknet OS run fdirectly from a `RunnerOutput`.
 #[cfg(feature = "stwo_proving")]
 pub async fn prove_virtual_snos_run(

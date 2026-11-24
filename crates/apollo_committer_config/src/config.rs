@@ -1,11 +1,4 @@
-<<<<<<< HEAD
 use std::num::NonZeroUsize;
-||||||| 01e4b43fa6
-use std::collections::BTreeMap;
-=======
-use std::collections::BTreeMap;
-use std::num::NonZeroUsize;
->>>>>>> origin/main-v0.14.5
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -42,63 +35,11 @@ pub struct CommitmentInfosPruningConfig {
     /// storage; those of lower heights are deleted by a periodic key range deletion.
     #[validate(range(min = 10))]
     pub retention_blocks: u64,
-<<<<<<< HEAD
     /// The commitment infos below the retention window are deleted as one key range, each time
     /// the window advances this many heights. A range deletion lets the storage free their
     /// space in bulk.
     #[validate(range(min = 1))]
     pub range_deletion_interval_blocks: u64,
-||||||| 01e4b43fa6
-    /// At most this many heights are pruned per commit.
-    pub max_deletions_per_commit: u64,
-}
-
-impl SerializeConfig for CommitmentInfosPruningConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "retention_blocks",
-                &self.retention_blocks,
-                "The commitment infos of this many highest committed heights are kept in storage; \
-                 those of lower heights are pruned when committing a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_deletions_per_commit",
-                &self.max_deletions_per_commit,
-                "At most this many heights' commitment infos are pruned per commit.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-=======
-    /// The commitment infos below the retention window are deleted as one key range, each time
-    /// the window advances this many heights. A range deletion lets the storage free their
-    /// space in bulk.
-    #[validate(range(min = 1))]
-    pub range_deletion_interval_blocks: u64,
-}
-
-impl SerializeConfig for CommitmentInfosPruningConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "retention_blocks",
-                &self.retention_blocks,
-                "The commitment infos of this many highest committed heights are kept in storage; \
-                 those of lower heights are deleted by a periodic key range deletion.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "range_deletion_interval_blocks",
-                &self.range_deletion_interval_blocks,
-                "The commitment infos below the retention window are deleted as one key range, \
-                 each time the window advances this many heights.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
->>>>>>> origin/main-v0.14.5
 }
 
 impl Default for CommitmentInfosPruningConfig {
@@ -127,96 +68,8 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub commitment_infos_pruning_config: Option<CommitmentInfosPruningConfig>,
 }
 
-<<<<<<< HEAD
 impl<C: StorageConfigTrait> CommitterConfig<C> {
     fn default_with_storage_config(storage_config: C) -> Self {
-||||||| 01e4b43fa6
-impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "verify_state_diff_hash",
-                &self.verify_state_diff_hash,
-                "If true, the committer will verify the state diff hash.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "serve_read_paths_as_commit_block",
-                &self.serve_read_paths_as_commit_block,
-                "If true, read_paths_and_commit_block requests are served as commit_block \
-                 requests, treating the accessed keys as an empty set.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "db_path",
-                &self.db_path,
-                "Path to the committer storage directory.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "commit_duration_warn_threshold_millis",
-                &self.commit_duration_warn_threshold_millis.as_millis(),
-                "Blocks whose commit duration exceeds this threshold (in milliseconds) are logged \
-                 at WARN level.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend(ser_optional_sub_config(
-            &self.commitment_infos_pruning_config,
-            "commitment_infos_pruning_config",
-        ));
-        dump.extend(prepend_sub_config_name(self.reader_config.dump(), "reader_config"));
-        dump.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
-        dump
-    }
-}
-
-impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
-    fn default() -> Self {
-=======
-impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
-            ser_param(
-                "verify_state_diff_hash",
-                &self.verify_state_diff_hash,
-                "If true, the committer will verify the state diff hash.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "serve_read_paths_as_commit_block",
-                &self.serve_read_paths_as_commit_block,
-                "If true, read_paths_and_commit_block requests are served as commit_block \
-                 requests, treating the accessed keys as an empty set.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "db_path",
-                &self.db_path,
-                "Path to the committer storage directory.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "commit_duration_warn_threshold_millis",
-                &self.commit_duration_warn_threshold_millis.as_millis(),
-                "Blocks whose commit duration exceeds this threshold (in milliseconds) are logged \
-                 at WARN level.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        dump.extend(ser_optional_sub_config(
-            &self.commitment_infos_pruning_config,
-            "commitment_infos_pruning_config",
-        ));
-        dump.extend(prepend_sub_config_name(self.reader_config.dump(), "reader_config"));
-        dump.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
-        dump
-    }
-}
-
-impl<C: StorageConfigTrait> CommitterConfig<C> {
-    fn default_with_storage_config(storage_config: C) -> Self {
->>>>>>> origin/main-v0.14.5
         // TODO(Nimrod): Consider adding dynamic config and move `build_storage_tries_concurrently`
         // to it.
         Self {

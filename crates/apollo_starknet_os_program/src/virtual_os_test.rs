@@ -19,23 +19,11 @@ fn test_virtual_os_swapped_files() {
 #[test]
 fn test_program_bytecode_lengths() {
     expect![[r#"
-<<<<<<< HEAD
-        16428
-||||||| 01e4b43fa6
-        16376
-=======
-        16373
->>>>>>> origin/main-v0.14.5
+        16422
     "#]]
     .assert_debug_eq(&OS_PROGRAM.data_len());
     expect![[r#"
-<<<<<<< HEAD
-        11419
-||||||| 01e4b43fa6
-        11426
-=======
-        11531
->>>>>>> origin/main-v0.14.5
+        11524
     "#]]
     .assert_debug_eq(&VIRTUAL_OS_PROGRAM.data_len());
 }

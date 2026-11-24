@@ -3,19 +3,6 @@ use std::num::NonZeroUsize;
 use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-<<<<<<< HEAD
-||||||| 01e4b43fa6
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-=======
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
->>>>>>> origin/main-v0.14.5
 use async_trait::async_trait;
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
@@ -170,73 +157,6 @@ impl<InnerStorageConfig: StorageConfigTrait> Validate for CachedStorageConfig<In
     }
 }
 
-<<<<<<< HEAD
-||||||| 01e4b43fa6
-impl<InnerStorageConfig: StorageConfigTrait> SerializeConfig
-    for CachedStorageConfig<InnerStorageConfig>
-{
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut cached_storage_config = BTreeMap::from([
-            ser_param(
-                "cache_size",
-                &self.cache_size,
-                "Max number of entries in the cache",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "include_inner_stats",
-                &self.include_inner_stats,
-                "If true, the inner stats are included when collecting statistics",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-
-        cached_storage_config.extend(prepend_sub_config_name(
-            self.inner_storage_config.dump(),
-            "inner_storage_config",
-        ));
-
-        cached_storage_config
-    }
-}
-
-=======
-impl<InnerStorageConfig: StorageConfigTrait> SerializeConfig
-    for CachedStorageConfig<InnerStorageConfig>
-{
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut cached_storage_config = BTreeMap::from([
-            ser_param(
-                "cache_size",
-                &self.cache_size,
-                "Max number of entries in the cache",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "include_inner_stats",
-                &self.include_inner_stats,
-                "If true, the inner stats are included when collecting statistics",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-
-        cached_storage_config.extend(ser_optional_param(
-            &self.short_lived_cache_size,
-            NonZeroUsize::MIN,
-            "short_lived_cache_size",
-            "Max number of entries in the cache of the short-lived keys",
-            ParamPrivacyInput::Public,
-        ));
-        cached_storage_config.extend(prepend_sub_config_name(
-            self.inner_storage_config.dump(),
-            "inner_storage_config",
-        ));
-
-        cached_storage_config
-    }
-}
-
->>>>>>> origin/main-v0.14.5
 impl<InnerStorageConfig: StorageConfigTrait> StorageConfigTrait
     for CachedStorageConfig<InnerStorageConfig>
 {

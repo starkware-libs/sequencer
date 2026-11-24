@@ -374,28 +374,11 @@ fn get_panel_cende_last_state_commitment_infos_block_number() -> Panel {
 }
 
 fn get_panel_consensus_cende_state_commitment_infos_gap() -> Panel {
-<<<<<<< HEAD
     // Proposing height H needs the commitment infos of H + 1 - STORED_BLOCK_HASH_BUFFER, and the
     // gap is measured at the decision of H - 1.
     const GAP_FAILURE_THRESHOLD: u64 = STORED_BLOCK_HASH_BUFFER - 1;
     #[expect(clippy::as_conversions)]
     let gap_failure_threshold = GAP_FAILURE_THRESHOLD as f64;
-||||||| 01e4b43fa6
-    // The two metrics are emitted by different pods, so drop the pod filter or the diff empties.
-    let consensus = exclude_observers(&CONSENSUS_BLOCK_NUMBER.get_name_with_filter())
-        .replace(POD_LABEL_FILTER, "");
-    let cende =
-        exclude_observers(&CENDE_LAST_STATE_COMMITMENT_INFOS_BLOCK_NUMBER.get_name_with_filter())
-            .replace(POD_LABEL_FILTER, "");
-    #[allow(clippy::as_conversions)]
-    let gap_failure_threshold = STORED_BLOCK_HASH_BUFFER as f64;
-=======
-    // Proposing height H needs the commitment infos of H + 1 - STORED_BLOCK_HASH_BUFFER, and the
-    // gap is measured at the decision of H - 1.
-    const GAP_FAILURE_THRESHOLD: u64 = STORED_BLOCK_HASH_BUFFER - 1;
-    #[allow(clippy::as_conversions)]
-    let gap_failure_threshold = GAP_FAILURE_THRESHOLD as f64;
->>>>>>> origin/main-v0.14.5
     Panel::new(
         "Consensus vs Cende State Commitment Infos Gap (blocks)",
         format!(
