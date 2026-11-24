@@ -303,7 +303,16 @@ func execute_entry_point{
     }
     let builtin_ptrs = return_builtin_ptrs;
 
-    // Ensures no syscall request was written past the returned syscall_ptr.
+    // Syscall responses are guessed during the contract execution and validated below, but only
+    // up to the returned syscall_ptr. An invalid guess might redirect the contract's control
+    // flow in a way that doesn't advance syscall_ptr, so that the validated part of the segment
+    // is truncated and the requests after it are never validated. Since each request is written
+    // right after the previous one in the same segment, the first skipped request (which starts
+    // with its selector) would lie exactly at the returned syscall_ptr. We therefore write a
+    // sentinel (an invalid selector) at that address: as memory is read only, an execution
+    // that also wrote a request there is unprovable. This guarantees that if the contract wrote
+    // a valid syscall request to the syscall segment, it also advanced syscall_ptr past it, so
+    // the request is validated.
     let syscall_ptr_end = entry_point_return_values.syscall_ptr;
     assert [syscall_ptr_end] = SYSCALL_PTR_END_SENTINEL;
 
