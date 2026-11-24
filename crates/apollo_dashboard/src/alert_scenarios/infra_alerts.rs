@@ -227,8 +227,8 @@ pub(crate) fn get_periodic_ping() -> Alert {
         "periodic_ping",
         "Periodic Ping",
         EvaluationRate::Default,
-        // Checks if the UTC time is 8:55 AM on Sunday.
-        "(day_of_week() == bool 0) * (hour() == bool 8) * (minute() == bool 55)",
+        // Checks if the UTC time is 9:55 AM on Sunday.
+        "(day_of_week() == bool 0) * (hour() == bool 9) * (minute() == bool 55)",
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         "0s",
         AlertSeverity::Regular,
