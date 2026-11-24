@@ -14,3 +14,11 @@ service:
     port: 55007
     targetPort: 55007
     protocol: TCP
+
+env:
+- name: RUST_LOG
+  value: debug
+- name: RUST_BACKTRACE
+  value: full
+- name: NO_COLOR
+  value: '1'

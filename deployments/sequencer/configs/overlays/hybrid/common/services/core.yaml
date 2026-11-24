@@ -93,3 +93,11 @@ service:
     port: 55014
     targetPort: 55014
     protocol: TCP
+
+env:
+- name: RUST_LOG
+  value: debug,cairo_vm=warn
+- name: RUST_BACKTRACE
+  value: full
+- name: NO_COLOR
+  value: '1'

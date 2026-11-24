@@ -22,3 +22,11 @@ service:
     port: 53200
     targetPort: 53200
     protocol: TCP
+
+env:
+- name: RUST_LOG
+  value: debug
+- name: RUST_BACKTRACE
+  value: full
+- name: NO_COLOR
+  value: '1'

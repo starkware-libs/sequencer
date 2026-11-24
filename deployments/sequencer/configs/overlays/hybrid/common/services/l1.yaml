@@ -27,3 +27,11 @@ service:
     port: 55004
     targetPort: 55004
     protocol: TCP
+
+env:
+- name: RUST_LOG
+  value: debug
+- name: RUST_BACKTRACE
+  value: full
+- name: NO_COLOR
+  value: '1'
