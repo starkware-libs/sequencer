@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::context::BlockContext;
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -10,6 +11,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -141,10 +143,23 @@ pub(crate) struct InitialState<S: FlowTestState> {
 pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N: usize>(
     extra_contracts: [(FeatureContract, Calldata); N],
 ) -> (InitialStateData<S>, [ContractAddress; N]) {
+    create_initial_state_data_with_custom_class_hashes(extra_contracts, &[]).await
+}
+
+/// Same as `create_default_initial_state_data`, but also declares each given Cairo 1 feature
+/// contract's class under the given class hash (instead of the hash computed from its Sierra),
+/// without a declare transaction.
+pub(crate) async fn create_initial_state_data_with_custom_class_hashes<
+    S: FlowTestState,
+    const N: usize,
+>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+    custom_class_hashes: &[(ClassHash, FeatureContract)],
+) -> (InitialStateData<S>, [ContractAddress; N]) {
     let (
         InitialTransactionsData {
             transactions: default_initial_state_txs,
-            execution_contracts,
+            mut execution_contracts,
             nonce_manager,
         },
         extra_contracts_addresses,
@@ -181,6 +196,24 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     // Add historical block hashes to state_diff for commitment.
     let block_hash_state_maps = generate_block_hash_storage_updates();
     state_diff.extend(&block_hash_state_maps);
+    // Declare the classes under their custom class hashes.
+    for (class_hash, contract) in custom_class_hashes {
+        let ContractClass::V1((casm, _sierra_version)) = contract.get_class() else {
+            panic!(
+                "Only Cairo 1 contracts can be declared under a custom class hash; got \
+                 {contract:?}."
+            );
+        };
+        state_diff
+            .compiled_class_hashes
+            .insert(*class_hash, contract.get_compiled_class_hash(&HashVersion::V2));
+        state_diff.declared_contracts.insert(*class_hash, true);
+        final_state
+            .class_hash_to_class
+            .borrow_mut()
+            .insert(*class_hash, contract.get_runnable_class());
+        execution_contracts.executed.add_cairo1_contract(casm);
+    }
 
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
