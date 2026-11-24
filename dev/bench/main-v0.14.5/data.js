@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795507626813,
+  "lastUpdate": 1795518597859,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1265.74967569,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "97eb8aa4f7b3e4e4d21f6a04772c21e6f202bbd8",
+          "message": "workspace: upgrade cairo compiler to v2.22.0-rc.0 (#15317)\n\n* workspace: upgrade cairo compiler to v2.22.0-rc.0\n\nAlso bumps cairo-native to 0.9.0-rc.10 and moves proving to 7b3c99b\n(starkware-libs/proving#11 on sharp-8.0: only relaxes its cairo-lang requirement\nto 2.22.0-rc.0, so the prover and verifier are unchanged).\n\n- salsa is pinned to 0.28.2 in Cargo.lock, matching cairo's own lockfile:\n  cairo-lang-semantic 2.22.0-rc.0 does not compile against salsa 0.28.6.\n- The new Sierra version is 1.10.0. allowed_libfuncs.json mirrors cairo's\n  audited list: enum_match_v2 is allowed from 1.10, and enum_match,\n  enum_snapshot_match, enum_boxed_match, the *_const libfuncs and the old u96\n  guarantee checks are deprecated from 1.10.\n- The feature contracts import meta_tx_v0_syscall from corelib instead of\n  redeclaring it, since 2.22 rejects extern functions outside the corelib.\n- Regenerates the fixtures affected by the recompiled contracts.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* apollo_gateway_config: raise the default max_sierra_version to 1.10\n\nClasses compiled with cairo v2.22 are Sierra 1.10, which the default range\n(up to 1.9) rejected on declare.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* apollo_deployments: accept only Sierra 1.10 classes in the deployed gateways\n\nSierra 1.10 is produced by cairo v2.22, whose enum matches validate the variant\nindex before jumping on it. With min and max set to 1.10.0, new declares can't\ncontain the exploitable pattern.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* workspace: pin proving to the merged cairo-lang bump\n\nstarkware-libs/proving-dev#692 merged into sharp-8.0 as 24d405e3 (mirrored to\nstarkware-libs/proving). Its Cargo files are identical to 7b3c99b; the merge\nonly adds CI workflow fixes.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T10:30:34Z",
+          "tree_id": "4e79b3913ea0697597b688da9ec4d6c8e3c3ee42",
+          "url": "https://github.com/starkware-libs/sequencer/commit/97eb8aa4f7b3e4e4d21f6a04772c21e6f202bbd8"
+        },
+        "date": 1795518597335,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 882.09704622,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1339.21920129,
             "unit": "ms"
           }
         ]
