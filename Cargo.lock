@@ -4161,7 +4161,7 @@ dependencies = [
 [[package]]
 name = "cairo-air"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "bincode",
  "bzip2",
@@ -4839,7 +4839,7 @@ dependencies = [
 [[package]]
 name = "cairo-program-runner-lib"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "anyhow",
  "cairo-lang-casm",
@@ -5080,7 +5080,7 @@ dependencies = [
 [[package]]
 name = "circuit-cairo-verifier"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "cairo-air 2.4.0",
  "circuit-common 2.4.0",
@@ -5113,7 +5113,7 @@ dependencies = [
 [[package]]
 name = "circuit-common"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "circuits 2.4.0",
  "circuits-stark-verifier 2.4.0",
@@ -5126,7 +5126,7 @@ dependencies = [
 [[package]]
 name = "circuit-prover"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "circuit-common 2.4.0",
  "circuit-verifier 2.4.0",
@@ -5148,7 +5148,7 @@ dependencies = [
 [[package]]
 name = "circuit-registry"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "circuit-common 2.4.0",
  "leaf-proof-format",
@@ -5172,7 +5172,7 @@ dependencies = [
 [[package]]
 name = "circuit-serialize"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "circuits 2.4.0",
  "circuits-stark-verifier 2.4.0",
@@ -5197,7 +5197,7 @@ dependencies = [
 [[package]]
 name = "circuit-verifier"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "circuit-common 2.4.0",
  "circuits 2.4.0",
@@ -5226,7 +5226,7 @@ dependencies = [
 [[package]]
 name = "circuits"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "blake2",
  "hashbrown 0.15.5",
@@ -5255,7 +5255,7 @@ dependencies = [
 [[package]]
 name = "circuits-stark-verifier"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "circuits 2.4.0",
  "hashbrown 0.15.5",
@@ -8309,7 +8309,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "leaf-proof-format"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "serde",
  "serde_with",
@@ -8318,7 +8318,7 @@ dependencies = [
 [[package]]
 name = "leaf-prover"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "cairo-air 2.4.0",
  "cairo-program-runner-lib",
@@ -10535,7 +10535,7 @@ dependencies = [
 [[package]]
 name = "privacy-circuit-verify"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "anyhow",
  "cairo-air 2.4.0",
@@ -10558,7 +10558,7 @@ dependencies = [
 [[package]]
 name = "privacy-prove"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "anyhow",
  "cairo-program-runner-lib",
@@ -10589,7 +10589,7 @@ dependencies = [
 [[package]]
 name = "privacy_common"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "cairo-vm",
  "circuit-registry",
@@ -13368,7 +13368,7 @@ dependencies = [
 [[package]]
 name = "stwo"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "blake2",
  "blake3",
@@ -13397,7 +13397,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -13409,7 +13409,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils-derive"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "itertools 0.12.1",
  "proc-macro2",
@@ -13420,7 +13420,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-adapter"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -13458,7 +13458,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-common"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -13477,7 +13477,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-prover"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -13519,7 +13519,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-serialize"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "starknet-ff",
  "stwo 2.4.0",
@@ -13538,7 +13538,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-serialize-derive"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "quote",
  "syn 2.0.110",
@@ -13547,7 +13547,7 @@ dependencies = [
 [[package]]
 name = "stwo-cairo-utils"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "env_logger",
  "log",
@@ -13573,7 +13573,7 @@ dependencies = [
 [[package]]
 name = "stwo-constraint-framework"
 version = "2.4.0"
-source = "git+https://github.com/starkware-libs/proving?rev=7b3c99b71af905185e63ba59ed2cf63c4f5b0d85#7b3c99b71af905185e63ba59ed2cf63c4f5b0d85"
+source = "git+https://github.com/starkware-libs/proving?rev=24d405e319e686f429d751592965fc349157c647#24d405e319e686f429d751592965fc349157c647"
 dependencies = [
  "hashbrown 0.15.5",
  "itertools 0.12.1",
