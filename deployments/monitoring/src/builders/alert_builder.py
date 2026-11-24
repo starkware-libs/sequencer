@@ -2,6 +2,7 @@
 
 import argparse
 import collections
+import copy
 import json
 import os
 import re
@@ -92,6 +93,20 @@ def create_alert_rule(
     ]
     logger.debug(f"Alert rule created: {alert_rule}")
     return alert_rule
+
+
+def create_datasource_error_canary(source_rule: dict[str, any]) -> dict[str, any]:
+    canary = copy.deepcopy(source_rule)
+    canary["name"] = "datasource_error_canary"
+    canary["title"] = "Datasource error canary"
+    canary["execErrState"] = "Error"
+    canary["annotations"] = {
+        "summary": "Datasource canary - only rule with execErrState Error on this node; fires "
+        "DatasourceError when GMP queries fail. Its data condition (>1) never fires."
+    }
+    for condition in canary["data"][1]["model"]["conditions"]:
+        condition["evaluator"]["params"] = [1]
+    return canary
 
 
 def create_rule_group(name: str, interval_sec: int, rules: list[dict[str, any]]) -> dict[str, any]:
@@ -328,6 +343,9 @@ def alert_builder(args: argparse.Namespace):
                 },
             )
         )
+
+        if dev_alert["name"] == "namespace_metrics_absent":
+            groups[group_name].append(create_datasource_error_canary(groups[group_name][-1]))
 
     rule_groups = [
         create_rule_group(
