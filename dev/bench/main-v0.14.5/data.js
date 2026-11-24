@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795518597859,
+  "lastUpdate": 1795522124727,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1339.21920129,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "38ff83bf3baa20e5e9a3e4060efd0015d11c91c4",
+          "message": "blockifier,starknet_api: temporarily pin salsa to 0.28.2 (#15319)\n\ncairo-lang 2.22.0-rc.0 requires salsa ^0.28.2, but cairo-lang-semantic doesn't\ncompile against salsa 0.28.6. Our Cargo.lock already pins 0.28.2, but users of\nthe published crates resolve their own versions, so the pin has to be in the\ncrates' manifests. Remove once cairo-lang fixes its salsa requirement.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-24T11:37:10Z",
+          "tree_id": "5d9c1043fe82ad1f9a1800a858727c7720009bc0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/38ff83bf3baa20e5e9a3e4060efd0015d11c91c4"
+        },
+        "date": 1795522124231,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 858.26045125,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1324.7540588099998,
             "unit": "ms"
           }
         ]
