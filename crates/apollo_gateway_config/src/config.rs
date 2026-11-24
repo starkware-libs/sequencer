@@ -223,7 +223,7 @@ impl Default for StatelessTransactionValidatorConfig {
             max_contract_bytecode_size: 81920,
             max_contract_class_object_size: 4089446,
             min_sierra_version: VersionId::new(1, 1, 0),
-            max_sierra_version: VersionId::new(1, 9, usize::MAX),
+            max_sierra_version: VersionId::new(1, 10, usize::MAX),
             allow_client_side_proving: true,
             allow_proof_version_v1: false,
             allow_proof_version_v2: true,
