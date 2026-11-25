@@ -377,6 +377,7 @@ pub struct BatcherDynamicConfig {
     )]
     pub view_call_timeout_millis: Duration,
     pub storage_access_filter_config: StorageAccessFilterConfig,
+    pub reject_invalid_signature_return_data: bool,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -391,6 +392,7 @@ impl Default for BatcherDynamicConfig {
             proposer_idle_detection_delay_millis: Duration::from_millis(1500),
             view_call_timeout_millis: Duration::from_secs(5),
             storage_access_filter_config: StorageAccessFilterConfig::default(),
+            reject_invalid_signature_return_data: false,
         }
     }
 }
@@ -444,6 +446,14 @@ impl SerializeConfig for BatcherDynamicConfig {
                 &self.view_call_timeout_millis.as_millis(),
                 "Maximal wall time (in milliseconds) a view entry point call may hold the \
                  batcher's request slot, which block production shares.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "reject_invalid_signature_return_data",
+                &self.reject_invalid_signature_return_data,
+                "Reject transactions containing a non-reverting Cairo-steps call to \
+                 is_valid_signature or isValidSignature whose return data is not empty, [1], \
+                 ['VALID'], or [0x1626ba7e].",
                 ParamPrivacyInput::Public,
             ),
         ]);
