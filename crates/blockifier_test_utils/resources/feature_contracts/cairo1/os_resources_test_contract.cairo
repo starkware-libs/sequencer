@@ -16,8 +16,8 @@ mod OsResourcesTestContract {
     };
     use starknet::syscalls::{
         call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v3_syscall,
-        keccak_syscall, library_call_syscall, replace_class_syscall, send_message_to_l1_syscall,
-        sha256_process_block_syscall,
+        keccak_syscall, library_call_syscall, meta_tx_v0_syscall, replace_class_syscall,
+        send_message_to_l1_syscall, sha256_process_block_syscall,
     };
     use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
 
@@ -55,13 +55,6 @@ mod OsResourcesTestContract {
     ) -> felt252 {
         starknet::VALIDATED
     }
-
-    extern fn meta_tx_v0_syscall(
-        address: ContractAddress,
-        entry_point_selector: felt252,
-        calldata: Span<felt252>,
-        signature: Span<felt252>,
-    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
 
     // Calls every measured syscall in order.
     #[external(v0)]
