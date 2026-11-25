@@ -78,9 +78,6 @@ phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
 rstest_reuse = { workspace = true, optional = true }
-# TEMPORARY: pins cairo-lang's salsa for users of the published crate; see the workspace
-# Cargo.toml.
-salsa.workspace = true
 semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -117,7 +114,3 @@ harness = false
 name = "blockifier"
 path = "benches/main.rs"
 required-features = ["testing"]
-
-# `salsa` is only a version pin (see above); the crate doesn't use it directly.
-[package.metadata.cargo-machete]
-ignored = ["salsa"]
